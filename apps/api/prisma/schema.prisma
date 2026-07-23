@@ -1,0 +1,466 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PARENT
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum PetType {
+  DOUYA
+  PAOPAO
+  TUANTUAN
+  MILU
+  SHANSHAN
+}
+
+enum TaskCategory {
+  READING
+  MATH
+  EXERCISE
+  CHORES
+  ORGANIZING
+  MUSIC
+  CHINESE
+  ENGLISH
+  PE
+  OTHER
+}
+
+enum TaskMode {
+  UNTIMED
+  TIMED
+}
+
+enum ScheduleKind {
+  DAILY
+  WORKDAYS
+  SELECTED_WEEKDAYS
+  ONE_TIME
+}
+
+enum DailyTaskStatus {
+  PENDING
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  EXPIRED
+}
+
+enum AttemptStatus {
+  RUNNING
+  PAUSED
+  COMPLETED
+  TIMED_OUT
+  ABANDONED
+  DAY_ENDED
+}
+
+enum WishCategory {
+  SPORTS
+  GAMES
+  TELEVISION
+  TOYS
+}
+
+enum RedemptionStatus {
+  PENDING
+  ARRANGED
+  COMPLETED
+  CANCELLED
+}
+
+enum StarLedgerType {
+  TASK_REWARD
+  WISH_SPEND
+  WISH_REFUND
+  MANUAL_ADJUSTMENT
+}
+
+enum AuditActorType {
+  CHILD
+  USER
+  SYSTEM
+}
+
+enum LearningPracticeKind {
+  GENERAL
+  NEW_CONTENT
+  REVIEW
+  MIXED
+}
+
+enum AiRecommendationKind {
+  TASK_ADVICE
+  REWARD_AUDIT
+  SCHEDULE
+}
+
+enum AiRecommendationStatus {
+  DRAFT
+  APPLIED
+  DISMISSED
+}
+
+model Family {
+  id        String        @id @default(cuid())
+  name      String
+  status    AccountStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  users             User[]
+  children          ChildProfile[]
+  aiConfig          FamilyAiConfig?
+  aiRecommendations AiRecommendation[]
+
+  @@index([status])
+}
+
+model User {
+  id           String        @id @default(cuid())
+  familyId     String?
+  username     String        @unique
+  displayName  String
+  passwordHash String
+  role         UserRole
+  status       AccountStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  family   Family?       @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  sessions UserSession[]
+
+  @@index([familyId, role])
+  @@index([status])
+}
+
+model UserSession {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model ChildProfile {
+  id                    String        @id @default(cuid())
+  familyId              String
+  loginCodeLookup       String        @unique
+  loginCodeHash         String
+  loginCodeLastFour     String
+  status                AccountStatus @default(ACTIVE)
+  nickname              String?
+  petType               PetType?
+  onboardingCompletedAt DateTime?
+  dailyStarGoal         Int           @default(12)
+  starBalance           Int           @default(0)
+  lifetimeStarsEarned   Int           @default(0)
+  lastLoginAt           DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  family             Family                   @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  sessions           ChildSession[]
+  taskTemplates      TaskTemplate[]
+  dailyTasks         DailyTask[]
+  taskAttempts       TaskAttempt[]
+  activeTaskSlot     ActiveTaskSlot?
+  starLedger         StarLedger[]
+  wishRewards        WishReward[]
+  redemptions        WishRedemption[]
+  schedulePreference ChildSchedulePreference?
+  availabilitySlots  ChildAvailabilitySlot[]
+  aiRecommendations  AiRecommendation[]
+
+  @@index([familyId, status])
+}
+
+model ChildSession {
+  id         String   @id @default(cuid())
+  childId    String
+  tokenHash  String   @unique
+  deviceName String?
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, expiresAt])
+}
+
+model TaskTemplate {
+  id                    String               @id @default(cuid())
+  childId               String
+  title                 String
+  category              TaskCategory
+  iconKey               String
+  mode                  TaskMode
+  suggestedSeconds      Int?
+  timeLimitSeconds      Int?
+  baseStars             Int
+  earlyBonusEnabled     Boolean              @default(false)
+  earlyThresholdSeconds Int?
+  earlyBonusStars       Int?
+  scheduleKind          ScheduleKind
+  weekdays              Int[]                @default([])
+  oneTimeDate           DateTime?            @db.Date
+  sortOrder             Int                  @default(0)
+  isEnabled             Boolean              @default(true)
+  archivedAt            DateTime?
+  aiSchedulingEnabled   Boolean              @default(false)
+  learningPracticeKind  LearningPracticeKind @default(GENERAL)
+  targetSessionsPerWeek Int?
+  minimumGapDays        Int?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  child      ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dailyTasks DailyTask[]
+
+  @@index([childId, isEnabled, archivedAt])
+  @@index([childId, scheduleKind, oneTimeDate])
+}
+
+model FamilyAiConfig {
+  id              String   @id @default(cuid())
+  familyId        String   @unique
+  provider        String   @default("DEEPSEEK")
+  model           String   @default("deepseek-v4-flash")
+  encryptedApiKey String
+  encryptionIv    String
+  encryptionTag   String
+  apiKeyLastFour  String
+  enabled         Boolean  @default(true)
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model ChildSchedulePreference {
+  id                    String   @id @default(cuid())
+  childId               String   @unique
+  maxDailyMinutes       Int      @default(40)
+  maxConsecutiveMinutes Int      @default(15)
+  minimumBreakMinutes   Int      @default(5)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+model ChildAvailabilitySlot {
+  id          String   @id @default(cuid())
+  childId     String
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, weekday, startMinute])
+}
+
+model AiRecommendation {
+  id              String                 @id @default(cuid())
+  familyId        String
+  childId         String
+  kind            AiRecommendationKind
+  status          AiRecommendationStatus @default(DRAFT)
+  promptVersion   String
+  model           String
+  requestPayload  Json
+  responsePayload Json
+  createdById     String
+  appliedAt       DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child  ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, childId, kind, createdAt])
+  @@index([status, createdAt])
+}
+
+model DailyTask {
+  id                         String          @id @default(cuid())
+  childId                    String
+  templateId                 String
+  taskDate                   DateTime        @db.Date
+  status                     DailyTaskStatus @default(PENDING)
+  sortOrder                  Int
+  titleSnapshot              String
+  categorySnapshot           TaskCategory
+  iconKeySnapshot            String
+  modeSnapshot               TaskMode
+  suggestedSecondsSnapshot   Int?
+  timeLimitSecondsSnapshot   Int?
+  baseStarsSnapshot          Int
+  earlyBonusEnabledSnapshot  Boolean
+  earlyThresholdSecsSnapshot Int?
+  earlyBonusStarsSnapshot    Int?
+  completedAt                DateTime?
+  expiredAt                  DateTime?
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  child    ChildProfile  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  template TaskTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  attempts TaskAttempt[]
+
+  @@unique([childId, templateId, taskDate])
+  @@index([childId, taskDate, status, sortOrder])
+}
+
+model TaskAttempt {
+  id                 String        @id @default(cuid())
+  childId            String
+  dailyTaskId        String
+  attemptNumber      Int
+  status             AttemptStatus @default(RUNNING)
+  startedAt          DateTime      @default(now())
+  pausedAt           DateTime?
+  totalPausedSeconds Int           @default(0)
+  endedAt            DateTime?
+  elapsedSeconds     Int?
+  remainingSeconds   Int?
+  baseStarsAwarded   Int           @default(0)
+  bonusStarsAwarded  Int           @default(0)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  child      ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dailyTask  DailyTask       @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
+  reward     StarLedger?
+  activeSlot ActiveTaskSlot?
+
+  @@unique([dailyTaskId, attemptNumber])
+  @@index([childId, status])
+  @@index([dailyTaskId, status])
+}
+
+model ActiveTaskSlot {
+  childId   String   @id
+  attemptId String   @unique
+  createdAt DateTime @default(now())
+
+  child   ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  attempt TaskAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+}
+
+model StarLedger {
+  id             String         @id @default(cuid())
+  childId        String
+  taskAttemptId  String?        @unique
+  type           StarLedgerType
+  amount         Int
+  balanceAfter   Int
+  reason         String?
+  referenceId    String?
+  idempotencyKey String         @unique
+  createdAt      DateTime       @default(now())
+
+  child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt TaskAttempt? @relation(fields: [taskAttemptId], references: [id], onDelete: Restrict)
+
+  @@index([childId, createdAt])
+  @@index([referenceId])
+}
+
+model WishReward {
+  id           String       @id @default(cuid())
+  childId      String
+  category     WishCategory
+  title        String
+  imageKey     String
+  costStars    Int
+  isRepeatable Boolean      @default(true)
+  sortOrder    Int          @default(0)
+  isEnabled    Boolean      @default(true)
+  archivedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  child                ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  redemptions          WishRedemption[]
+  activeRedemptionSlot ActiveWishRedemptionSlot?
+
+  @@index([childId, category, isEnabled, sortOrder])
+}
+
+model WishRedemption {
+  id                String           @id @default(cuid())
+  childId           String
+  wishRewardId      String
+  status            RedemptionStatus @default(PENDING)
+  titleSnapshot     String
+  categorySnapshot  WishCategory
+  costStarsSnapshot Int
+  requestedAt       DateTime         @default(now())
+  arrangedAt        DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  child      ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  wishReward WishReward                @relation(fields: [wishRewardId], references: [id], onDelete: Restrict)
+  activeSlot ActiveWishRedemptionSlot?
+
+  @@index([childId, status, requestedAt])
+  @@index([wishRewardId, status])
+}
+
+model ActiveWishRedemptionSlot {
+  wishRewardId String   @id
+  redemptionId String   @unique
+  createdAt    DateTime @default(now())
+
+  wishReward WishReward     @relation(fields: [wishRewardId], references: [id], onDelete: Cascade)
+  redemption WishRedemption @relation(fields: [redemptionId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id           String         @id @default(cuid())
+  actorType    AuditActorType
+  actorId      String?
+  familyId     String?
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime       @default(now())
+
+  @@index([familyId, createdAt])
+  @@index([actorType, actorId, createdAt])
+  @@index([resourceType, resourceId])
+}

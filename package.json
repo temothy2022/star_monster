@@ -1,0 +1,23 @@
+{
+  "name": "star-monsters-expedition",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "pnpm --filter @star-monsters/design-lab dev",
+    "dev:all": "pnpm --parallel --filter @star-monsters/api --filter @star-monsters/design-lab --filter @star-monsters/parent-admin --filter @star-monsters/super-admin dev",
+    "dev:child": "pnpm --filter @star-monsters/design-lab dev",
+    "dev:parent": "pnpm --filter @star-monsters/parent-admin dev",
+    "dev:super": "pnpm --filter @star-monsters/super-admin dev",
+    "dev:api": "pnpm --filter @star-monsters/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @star-monsters/api db:generate",
+    "db:migrate": "pnpm --filter @star-monsters/api db:migrate",
+    "db:deploy": "pnpm --filter @star-monsters/api db:deploy",
+    "db:push": "pnpm --filter @star-monsters/api db:push",
+    "db:seed": "pnpm --filter @star-monsters/api db:seed",
+    "deploy:production": "bash scripts/deploy-production.sh"
+  }
+}

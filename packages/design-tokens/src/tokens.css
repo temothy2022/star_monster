@@ -1,0 +1,38 @@
+:root {
+  color-scheme: light;
+
+  --sm-color-background: #fff8e8;
+  --sm-color-surface: #fffdf7;
+  --sm-color-ink: #253b59;
+  --sm-color-text-dark: #251914;
+  --sm-color-text-body: #584239;
+  --sm-color-text-muted: #65758b;
+  --sm-color-primary: #ff7a3d;
+  --sm-color-primary-ink: #652200;
+  --sm-color-primary-deep: #a53c00;
+  --sm-color-secondary: #fec73c;
+  --sm-color-secondary-ink: #785a00;
+  --sm-color-leaf: #72c78e;
+  --sm-color-sky: #4da8e8;
+  --sm-color-coral: #f36f6a;
+  --sm-color-lavender: #a78ae7;
+  --sm-color-teal: #57dace;
+  --sm-color-selection: #28b8ad;
+  --sm-color-soft-peach: #fbe3db;
+  --sm-color-soft-pink: #ffe9e2;
+  --sm-color-pet-shell: #fff1ec;
+  --sm-color-soft-border: #dfc0b4;
+
+  --sm-font-sans: "Noto Sans SC", system-ui, sans-serif;
+  --sm-font-numeric: "Baloo 2", "Noto Sans SC", system-ui, sans-serif;
+
+  --sm-radius-small: 8px;
+  --sm-radius-control: 12px;
+  --sm-radius-card: 24px;
+  --sm-radius-pill: 9999px;
+
+  --sm-border-strong: 2px solid var(--sm-color-ink);
+  --sm-shadow-button: 0 4px 0 var(--sm-color-ink);
+  --sm-shadow-card: 0 8px 24px rgb(37 59 89 / 10%);
+  --sm-shadow-section: 0 8px 12px rgb(37 59 89 / 10%);
+}

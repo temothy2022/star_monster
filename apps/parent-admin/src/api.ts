@@ -1,0 +1,422 @@
+export type StaffUser = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "PARENT" | "SUPER_ADMIN";
+  familyId: string | null;
+};
+
+export type Child = {
+  id: string;
+  nickname: string | null;
+  petType: string | null;
+  status: "ACTIVE" | "DISABLED";
+  onboardingCompletedAt: string | null;
+  dailyStarGoal: number;
+  starBalance: number;
+  lifetimeStarsEarned: number;
+  loginCodeLastFour: string;
+  lastLoginAt: string | null;
+};
+
+export type TaskTemplate = {
+  id: string;
+  title: string;
+  category: string;
+  iconKey: string;
+  mode: "UNTIMED" | "TIMED";
+  suggestedSeconds: number | null;
+  timeLimitSeconds: number | null;
+  baseStars: number;
+  earlyBonusEnabled: boolean;
+  earlyThresholdSeconds: number | null;
+  earlyBonusStars: number | null;
+  scheduleKind: "DAILY" | "WORKDAYS" | "SELECTED_WEEKDAYS" | "ONE_TIME";
+  weekdays: number[];
+  oneTimeDate: string | null;
+  sortOrder: number;
+  isEnabled: boolean;
+  aiSchedulingEnabled: boolean;
+  learningPracticeKind: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
+  targetSessionsPerWeek: number | null;
+  minimumGapDays: number | null;
+};
+
+export type AiConfig = {
+  provider: "DEEPSEEK";
+  model: string;
+  apiKeyLastFour: string | null;
+  enabled: boolean;
+  updatedAt: string | null;
+  configured: boolean;
+};
+
+export type TaskAdvice = {
+  summary: string;
+  confidence: "LOW" | "MEDIUM" | "HIGH";
+  needsParentDecision: string[];
+  proposal: {
+    title: string;
+    category: string;
+    iconKey: string;
+    mode: "UNTIMED" | "TIMED";
+    estimatedMinutes: number;
+    timeLimitMinutes: number | null;
+    baseStars: number;
+    earlyBonusEnabled: boolean;
+    earlyThresholdMinutes: number | null;
+    earlyBonusStars: number | null;
+    scheduleKind: "DAILY" | "WORKDAYS" | "SELECTED_WEEKDAYS" | "ONE_TIME";
+    weekdays: number[];
+    oneTimeDate: string | null;
+    learningPracticeKind: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
+    aiSchedulingEnabled: boolean;
+    targetSessionsPerWeek: number | null;
+    minimumGapDays: number | null;
+    childFriendlyGoal: string;
+    successCriteria: string[];
+    parentInstructions: string[];
+  };
+  rationale: string[];
+  alternatives: Array<{ label: string; whenToUse: string; change: string }>;
+  cautions: string[];
+  evidencePrinciples: string[];
+};
+
+export type RewardAudit = {
+  verdict: "BALANCED" | "NEEDS_SMALL_CHANGES" | "NEEDS_REBALANCE";
+  score: number;
+  summary: string;
+  estimatedWeeklyStars: { minimum: number; likely: number; maximum: number };
+  affordability: Array<{
+    wishId: string;
+    estimatedWeeks: number;
+    assessment: "TOO_EASY" | "REASONABLE" | "TOO_HARD";
+  }>;
+  findings: Array<{
+    severity: "INFO" | "WATCH" | "ADJUST";
+    targetType: "SYSTEM" | "TASK" | "WISH";
+    targetId: string | null;
+    title: string;
+    observation: string;
+    recommendation: string;
+    suggestedStars: number | null;
+  }>;
+  principles: string[];
+  evidencePrinciples: string[];
+  disclaimer: string;
+};
+
+export type SchedulePreference = {
+  maxDailyMinutes: number;
+  maxConsecutiveMinutes: number;
+  minimumBreakMinutes: number;
+  slots: Array<{ weekday: number; startMinute: number; endMinute: number }>;
+};
+
+export type AiSchedule = {
+  summary: string;
+  weekPlan: Array<{
+    templateId: string;
+    weekday: number;
+    startMinute: number;
+    durationMinutes: number;
+    sessionType: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
+    note: string;
+  }>;
+  taskCadence: Array<{
+    templateId: string;
+    weekdays: number[];
+    reasoning: string;
+  }>;
+  parentTips: string[];
+  warnings: string[];
+  evidencePrinciples: string[];
+};
+
+export type Wish = {
+  id: string;
+  category: "SPORTS" | "GAMES" | "TELEVISION" | "TOYS";
+  title: string;
+  costStars: number;
+  isRepeatable: boolean;
+  sortOrder: number;
+  isEnabled: boolean;
+};
+
+export type Redemption = {
+  id: string;
+  titleSnapshot: string;
+  categorySnapshot: string;
+  costStarsSnapshot: number;
+  status: "PENDING" | "ARRANGED" | "COMPLETED" | "CANCELLED";
+  requestedAt: string;
+  arrangedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+};
+
+export type LedgerEntry = {
+  id: string;
+  type: "TASK_REWARD" | "WISH_SPEND" | "WISH_REFUND" | "MANUAL_ADJUSTMENT";
+  amount: number;
+  balanceAfter: number;
+  reason: string | null;
+  createdAt: string;
+};
+
+export type Device = {
+  id: string;
+  deviceName: string | null;
+  userAgent: string | null;
+  ipAddress: string | null;
+  lastSeenAt: string;
+  createdAt: string;
+};
+
+export type TaskHistoryItem = {
+  id: string;
+  taskDate: string;
+  titleSnapshot: string;
+  categorySnapshot: string;
+  modeSnapshot: "UNTIMED" | "TIMED";
+  status: "PENDING" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "EXPIRED";
+  baseStarsSnapshot: number;
+  completedAt: string | null;
+  attempts: Array<{
+    id: string;
+    attemptNumber: number;
+    status: "RUNNING" | "PAUSED" | "COMPLETED" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
+    startedAt: string;
+    endedAt: string | null;
+    elapsedSeconds: number | null;
+    baseStarsAwarded: number;
+    bonusStarsAwarded: number;
+  }>;
+};
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+  ) {
+    super(message);
+  }
+}
+
+export const PARENT_SESSION_EXPIRED_EVENT = "parent-session-expired";
+
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (init?.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(path, {
+    ...init,
+    credentials: "include",
+    headers,
+  });
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  if (!response.ok) {
+    const body = isJson ? await response.json().catch(() => ({})) : {};
+    if (response.status === 401 && path !== "/api/staff/auth/login") {
+      window.dispatchEvent(new Event(PARENT_SESSION_EXPIRED_EVENT));
+    }
+    throw new ApiError(
+      body.error?.message ?? "请求失败，请稍后重试",
+      response.status,
+      body.error?.code,
+    );
+  }
+  if (!isJson) {
+    throw new ApiError("后台服务尚未启动，请稍后重试", 503, "API_UNAVAILABLE");
+  }
+  return response.json();
+}
+
+export const staffApi = {
+  me: () => api<{ user: StaffUser }>("/api/staff/me"),
+  login: (username: string, password: string) =>
+    api<{ user: StaffUser }>("/api/staff/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+  logout: () => api<{ ok: true }>("/api/staff/auth/logout", { method: "POST" }),
+};
+
+export const parentApi = {
+  children: () => api<{ children: Child[] }>("/api/parent/children"),
+  updateChild: (id: string, data: Record<string, unknown>) =>
+    api<{ child: Child }>(`/api/parent/children/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  devices: (id: string) =>
+    api<{ devices: Device[] }>(`/api/parent/children/${id}/devices`),
+  logoutAll: (id: string) =>
+    api<{ ok: true; sessionsRemoved: number }>(
+      `/api/parent/children/${id}/logout-all`,
+      { method: "POST" },
+    ),
+  templates: (childId: string) =>
+    api<{ templates: TaskTemplate[] }>(
+      `/api/parent/children/${childId}/task-templates`,
+    ),
+  createTemplate: (childId: string, data: Record<string, unknown>) =>
+    api<{ template: TaskTemplate }>(
+      `/api/parent/children/${childId}/task-templates`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+  updateTemplate: (
+    childId: string,
+    id: string,
+    data: Record<string, unknown>,
+  ) =>
+    api<{ template?: TaskTemplate }>(
+      `/api/parent/children/${childId}/task-templates/${id}`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
+  archiveTemplate: (childId: string, id: string) =>
+    api<{ ok: true }>(
+      `/api/parent/children/${childId}/task-templates/${id}`,
+      { method: "DELETE" },
+    ),
+  reorderTemplates: (
+    childId: string,
+    items: Array<{ id: string; sortOrder: number }>,
+  ) =>
+    api<{ ok: true }>(`/api/parent/children/${childId}/task-templates/order`, {
+      method: "PUT",
+      body: JSON.stringify({ items }),
+    }),
+  wishes: (childId: string) =>
+    api<{ wishes: Wish[] }>(`/api/parent/children/${childId}/wishes`),
+  createWish: (childId: string, data: Record<string, unknown>) =>
+    api<{ wish: Wish }>(`/api/parent/children/${childId}/wishes`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateWish: (childId: string, id: string, data: Record<string, unknown>) =>
+    api<{ ok: true }>(`/api/parent/children/${childId}/wishes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  archiveWish: (childId: string, id: string) =>
+    api<{ ok: true }>(`/api/parent/children/${childId}/wishes/${id}`, {
+      method: "DELETE",
+    }),
+  redemptions: (childId: string) =>
+    api<{ redemptions: Redemption[] }>(
+      `/api/parent/children/${childId}/redemptions`,
+    ),
+  updateRedemption: (
+    childId: string,
+    id: string,
+    status: "ARRANGED" | "COMPLETED" | "CANCELLED",
+    cancelReason?: string,
+  ) =>
+    api<{ redemption: Redemption }>(
+      `/api/parent/children/${childId}/redemptions/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status, cancelReason }),
+      },
+    ),
+  ledger: (childId: string) =>
+    api<{ entries: LedgerEntry[] }>(
+      `/api/parent/children/${childId}/star-ledger`,
+    ),
+  adjustStars: (
+    childId: string,
+    amount: number,
+    reason: string,
+  ) =>
+    api<{ ledger: LedgerEntry }>(
+      `/api/parent/children/${childId}/stars/adjust`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          amount,
+          reason,
+          idempotencyKey: crypto.randomUUID(),
+        }),
+      },
+    ),
+  stats: (childId: string) =>
+    api<{
+      tasks: Record<string, number>;
+      attempts: Array<{
+        status: string;
+        count: number;
+        elapsedSeconds: number;
+        baseStars: number;
+        bonusStars: number;
+      }>;
+      stars: Record<string, number>;
+    }>(`/api/parent/children/${childId}/stats`),
+  taskHistory: (childId: string, days: number) =>
+    api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
+      `/api/parent/children/${childId}/task-history?days=${days}`,
+    ),
+  aiConfig: () => api<{ config: AiConfig }>("/api/parent/ai/config"),
+  aiModels: () =>
+    api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/parent/ai/models"),
+  saveAiConfig: (data: {
+    apiKey?: string;
+    model: AiConfig["model"];
+    enabled: boolean;
+  }) =>
+    api<{ config: AiConfig }>("/api/parent/ai/config", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  testAiConfig: () =>
+    api<{ ok: true; message: string; model: string }>(
+      "/api/parent/ai/config/test",
+      { method: "POST" },
+    ),
+  taskAdvice: (
+    childId: string,
+    data: { description: string; desiredOutcome?: string; constraints?: string },
+  ) =>
+    api<{ recommendationId: string; advice: TaskAdvice; promptVersion: string }>(
+      `/api/parent/children/${childId}/ai/task-advice`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+  applyTaskAdvice: (childId: string, recommendationId: string) =>
+    api<{ template: TaskTemplate }>(
+      `/api/parent/children/${childId}/ai/task-advice/${recommendationId}/apply`,
+      { method: "POST" },
+    ),
+  rewardAudit: (childId: string) =>
+    api<{ recommendationId: string; audit: RewardAudit; promptVersion: string }>(
+      `/api/parent/children/${childId}/ai/reward-audit`,
+      { method: "POST" },
+    ),
+  schedulePreference: (childId: string) =>
+    api<{ preference: SchedulePreference }>(
+      `/api/parent/children/${childId}/schedule-preferences`,
+    ),
+  saveSchedulePreference: (
+    childId: string,
+    preference: SchedulePreference,
+  ) =>
+    api<{ ok: true }>(
+      `/api/parent/children/${childId}/schedule-preferences`,
+      { method: "PUT", body: JSON.stringify(preference) },
+    ),
+  generateSchedule: (childId: string) =>
+    api<{
+      recommendationId: string;
+      schedule: AiSchedule;
+      promptVersion: string;
+    }>(`/api/parent/children/${childId}/ai/schedule`, { method: "POST" }),
+  applySchedule: (childId: string, recommendationId: string) =>
+    api<{ ok: true }>(
+      `/api/parent/children/${childId}/ai/schedule/${recommendationId}/apply`,
+      { method: "POST" },
+    ),
+};

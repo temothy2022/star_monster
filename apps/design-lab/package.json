@@ -1,0 +1,29 @@
+{
+  "name": "@star-monsters/design-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "assets:optimize": "node scripts/optimize-images.mjs",
+    "assets:audit": "node scripts/optimize-images.mjs --check"
+  },
+  "dependencies": {
+    "@fontsource/baloo-2": "^5.2.8",
+    "@fontsource/noto-sans-sc": "^5.2.8",
+    "@star-monsters/design-tokens": "workspace:*",
+    "@star-monsters/ui": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.1.1",
+    "sharp": "^0.34.5",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
+  }
+}

@@ -1,0 +1,34 @@
+@import "../../parent-admin/src/styles.css";
+
+:root { background: #f3f5f8; }
+.super-app .admin-sidebar { background: #202d47; color: #eef3ff; border-right: 0; }
+.super-app .admin-brand small,
+.super-app .admin-sidebar__account small { color: #9eabc2; }
+.super-app .child-switcher { border-color: #35425c; color: #aab5c9; }
+.super-app .admin-sidebar nav button { color: #bec8da; }
+.super-app .admin-sidebar nav button:hover { background: #2b3955; }
+.super-app .admin-sidebar nav button.active { color: white; background: #f47a3f; }
+.super-app .admin-sidebar nav button.active span { color: white; }
+.super-app .admin-sidebar__account { border-color: #35425c; }
+.super-app .admin-sidebar__account button { color: #ffb28e; }
+.super-family-grid { display: grid; gap: 16px; }
+.super-family-card { overflow: hidden; border: 1px solid #dce1e8; border-radius: 17px; background: white; }
+.super-family-card > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; background: #fafbfc; }
+.super-family-card > header h3 { margin: 0 0 4px; }
+.super-family-card > header p { margin: 0; color: #7b8699; font-size: 12px; }
+.super-family-card__body { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; padding: 20px; }
+.super-account-list { display: grid; gap: 9px; }
+.super-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #e3e7ec; border-radius: 12px; }
+.super-account p { margin: 3px 0 0; color: #818b9c; font-size: 12px; }
+.super-account__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.super-account__actions button { min-height: 30px; padding: 0 9px; border: 1px solid #d3d9e2; border-radius: 8px; background: white; font-size: 11px; cursor: pointer; }
+.super-create-result { display: grid; gap: 8px; margin-top: 18px; padding: 14px; border: 1px solid #f2c86c; border-radius: 12px; background: #fff5d7; }
+.super-create-result code { padding: 5px 8px; border-radius: 7px; color: #233653; background: white; font-size: 18px; font-weight: 700; letter-spacing: .12em; }
+.super-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+.super-toolbar input { max-width: 360px; }
+.super-metric-wide { grid-column: span 2; }
+.audit-json { display: block; max-width: 300px; overflow: hidden; color: #7b8699; font-family: ui-monospace, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 980px) {
+  .super-family-card__body { grid-template-columns: 1fr; }
+}

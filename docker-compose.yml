@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: star_monsters
+      POSTGRES_USER: star_monsters
+      POSTGRES_PASSWORD: star_monsters_dev
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - star_monsters_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U star_monsters -d star_monsters"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  star_monsters_postgres:
