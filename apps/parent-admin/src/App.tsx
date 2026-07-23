@@ -149,7 +149,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
     <main className="admin-login">
       <section className="admin-login__card">
         <div className="admin-login__brand"><span>★</span> 星宠成长基地</div>
-        <h1>家长管理端</h1>
+        <h1>家长管理平台</h1>
         <p>管理孩子的任务、星愿和成长数据</p>
         <form onSubmit={submit}>
           <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
@@ -633,13 +633,13 @@ export function App() {
   return (
     <div className="admin-app">
       <aside className="admin-sidebar">
-        <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理端</small></div></div>
+        <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>
         <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
         <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div>
       </aside>
       <main className="admin-main">
-        <header className="admin-topbar"><div><p>家长管理端 / {SECTION_LABELS[section]}</p><h1>{selectedChild?.nickname ?? "孩子档案"}</h1></div>{selectedChild && <div className="topbar-balance"><span>当前星星</span><strong>★ {selectedChild.starBalance}</strong></div>}</header>
+        <header className="admin-topbar"><div><p>家长管理平台 / {SECTION_LABELS[section]}</p><h1>{selectedChild?.nickname ?? "孩子档案"}</h1></div>{selectedChild && <div className="topbar-balance"><span>当前星星</span><strong>★ {selectedChild.starBalance}</strong></div>}</header>
         <div className="admin-content">
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
