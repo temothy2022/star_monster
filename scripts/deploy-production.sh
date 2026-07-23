@@ -51,6 +51,7 @@ rsync -az --delete \
   --exclude '**/node_modules/' \
   --exclude '.env' \
   --exclude '.env.*' \
+  --exclude '.deploy-pnpm-lock.sha256' \
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \
   --exclude 'work/' \
