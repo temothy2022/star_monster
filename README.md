@@ -107,3 +107,13 @@ sudo nano /etc/star-monsters/deploy.env
 ```
 
 发布脚本会：本机构建三个网页端、通过加密 SSH 同步源码与构建产物、仅在锁文件变更时安装依赖、在服务器应用 Prisma 迁移并构建 API、替换静态站点、最后重启 API。`apps/api/.env`、根目录 `.env`、数据库数据和已保存的 AI 密钥不会被上传或覆盖。
+
+每次发布前先提交代码，确保本机和服务器能以同一个版本号核对：
+
+```bash
+git add -A
+git commit -m "描述本次修改"
+pnpm deploy:production
+```
+
+服务器上的 `/opt/star-monsters/.release-version` 会保存当前线上版本的 Git 提交号。

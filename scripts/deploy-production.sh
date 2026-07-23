@@ -25,6 +25,12 @@ RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes"
 
 cd "$PROJECT_ROOT"
 
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Refusing to publish uncommitted changes. Commit the current version first."
+  exit 1
+fi
+RELEASE_VERSION="$(git rev-parse HEAD)"
+
 echo "1/3 Building the three web apps locally..."
 pnpm --filter @star-monsters/design-lab build
 pnpm --filter @star-monsters/parent-admin build
@@ -48,6 +54,6 @@ rsync -az --delete \
   -e "$RSYNC_SSH" \
   "$PROJECT_ROOT/" "$REMOTE:$DEPLOY_PATH/"
 
-"${SSH[@]}" "$REMOTE" "cd '$DEPLOY_PATH' && bash scripts/server/apply-release.sh"
+"${SSH[@]}" "$REMOTE" "printf '%s\\n' '$RELEASE_VERSION' > '$DEPLOY_PATH/.release-version' && cd '$DEPLOY_PATH' && bash scripts/server/apply-release.sh"
 
-echo "Published successfully."
+echo "Published successfully: $RELEASE_VERSION"
