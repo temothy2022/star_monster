@@ -32,11 +32,25 @@ fi
 corepack pnpm --filter @star-monsters/api db:deploy
 corepack pnpm --filter @star-monsters/api build
 
-# Static files are deployed atomically enough for a single-host site; the API
-# service is restarted only after migrations and its Linux build have succeeded.
-sudo install -d -m 755 "$CHILD_WEB_ROOT" "$PARENT_WEB_ROOT" "$SUPER_WEB_ROOT"
-sudo rsync -a --delete apps/design-lab/dist/ "$CHILD_WEB_ROOT/"
-sudo rsync -a --delete apps/parent-admin/dist/ "$PARENT_WEB_ROOT/"
-sudo rsync -a --delete apps/super-admin/dist/ "$SUPER_WEB_ROOT/"
+# If Nginx already serves the workspace dist directory, rsync has uploaded the
+# files into place. A separate web root is also supported for future migrations.
+sync_static() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local source_real
+  local target_real
+  source_real="$(realpath -m "$source_dir")"
+  target_real="$(realpath -m "$target_dir")"
+  if [[ "$source_real" == "$target_real" ]]; then
+    echo "Nginx serves $source_real directly; no extra copy needed."
+    return
+  fi
+  sudo install -d -m 755 "$target_real"
+  sudo rsync -a --delete "$source_real/" "$target_real/"
+}
+
+sync_static "apps/design-lab/dist" "$CHILD_WEB_ROOT"
+sync_static "apps/parent-admin/dist" "$PARENT_WEB_ROOT"
+sync_static "apps/super-admin/dist" "$SUPER_WEB_ROOT"
 sudo systemctl restart "$API_SERVICE"
 sudo systemctl is-active --quiet "$API_SERVICE"
