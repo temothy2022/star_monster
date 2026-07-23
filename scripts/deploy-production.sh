@@ -20,8 +20,8 @@ source "$CONFIG_FILE"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 
 REMOTE="$DEPLOY_USER@$DEPLOY_HOST"
-SSH=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes)
-RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes"
+SSH=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes)
+RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes"
 if [[ -n "${DEPLOY_IDENTITY_FILE:-}" ]]; then
   SSH+=(-i "$DEPLOY_IDENTITY_FILE")
   RSYNC_SSH+=" -i $(printf '%q' "$DEPLOY_IDENTITY_FILE")"
