@@ -82,18 +82,10 @@ export function validateSchedulePlan(input: {
     if (!templateIds.has(cadence.templateId)) {
       errors.push(`任务频率包含无效任务 ${cadence.templateId}`);
     }
-    const actualDays = [
-      ...new Set(
-        input.plan.weekPlan
-          .filter((item) => item.templateId === cadence.templateId)
-          .map((item) => item.weekday),
-      ),
-    ].sort();
-    if (cadence.weekdays.slice().sort().join(",") !== actualDays.join(",")) {
-      errors.push(`任务 ${cadence.templateId} 的频率与周计划不一致`);
-    }
+    // taskCadence 表示家长最终要应用到循环任务的目标频率；
+    // weekPlan 是 AI 在当前可用时间内排出的示例周计划。家庭时间不足时，
+    // 两者允许不完全一致，不能因此阻断方案生成或一键应用。
   }
 
   return [...new Set(errors)];
 }
-

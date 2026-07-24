@@ -94,5 +94,27 @@ describe("AI schedule validation", () => {
     expect(errors.some((item) => item.includes("超出了"))).toBe(true);
     expect(errors.some((item) => item.includes("不属于"))).toBe(true);
   });
-});
 
+  it("allows target cadence to differ when the available week cannot fit every session", () => {
+    const constrainedPlan = plan([
+      {
+        templateId: "reading",
+        weekday: 1,
+        startMinute: 1080,
+        durationMinutes: 10,
+        sessionType: "REVIEW",
+        note: "本周可安排的一次阅读",
+      },
+    ]);
+    constrainedPlan.taskCadence[0]!.weekdays = [1, 3, 5];
+
+    expect(
+      validateSchedulePlan({
+        plan: constrainedPlan,
+        slots,
+        templates,
+        preferences,
+      }),
+    ).toEqual([]);
+  });
+});
