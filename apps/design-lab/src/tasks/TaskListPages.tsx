@@ -182,10 +182,11 @@ function PendingTaskCard({
         className="task-start-button"
         type="button"
         aria-label={`开始 ${task.title}`}
+        aria-busy={starting}
         disabled={starting}
         onClick={() => onStart?.(task)}
       >
-        <span>{starting ? "..." : "Start"}</span><img src={startArrow} alt="" />
+        <span>Start</span><img src={startArrow} alt="" />
       </button>
     </article>
   );

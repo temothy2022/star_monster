@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import ongoingBackground from "../assets/untimed-task/ongoing-bg.png";
-import ongoingStar from "../assets/untimed-task/ongoing-star.svg";
+import ongoingStar from "../assets/wishes/star.svg";
 import backIcon from "../assets/untimed-task/back.svg";
 import moreIcon from "../assets/untimed-task/more.svg";
 import pauseIcon from "../assets/untimed-task/pause.svg";
