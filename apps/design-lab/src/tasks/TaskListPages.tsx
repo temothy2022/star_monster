@@ -48,6 +48,35 @@ const TASK_ICONS: Record<TaskIconName, string> = {
   return: returnIcon,
 };
 
+function MascotSpeech({ lines }: { lines: [string, string] }) {
+  return (
+    <div
+      className="task-speech-bubble"
+      aria-label={lines.join("，")}
+      aria-live="polite"
+    >
+      {lines.map((line, lineIndex) => {
+        const delayOffset = lineIndex === 0 ? 0 : Array.from(lines[0]).length + 2;
+        return (
+          <span className="task-speech-bubble__line" aria-hidden="true" key={line}>
+            {Array.from(line).map((character, characterIndex) => (
+              <span
+                className="task-speech-bubble__character"
+                key={`${character}-${characterIndex}`}
+                style={{
+                  animationDelay: `${(delayOffset + characterIndex) * 55}ms`,
+                }}
+              >
+                {character === " " ? "\u00a0" : character}
+              </span>
+            ))}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function DailyProgress({ earned, total }: { earned: number; total: number }) {
   const radius = 55;
   const circumference = 2 * Math.PI * radius;
@@ -118,10 +147,10 @@ function ProgressColumn({
       <section className="task-mascot-area" aria-label={`${mascot.name}的鼓励`}>
         <div className="task-mascot-area__glow" />
         <div className="task-mascot-figure">
-          <div className="task-speech-bubble" aria-live="polite">
-            <span>{encouragement[0]}</span>
-            <span>{encouragement[1]}</span>
-          </div>
+          <MascotSpeech
+            key={encouragement.join("|")}
+            lines={encouragement}
+          />
           <img className="task-mascot-area__image" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
         </div>
       </section>

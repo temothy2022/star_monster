@@ -265,7 +265,7 @@ select {
   position: absolute;
   z-index: 2;
   top: -44px;
-  right: 8px;
+  right: -36px;
   display: flex;
   width: 172.5px;
   height: 76px;
@@ -280,14 +280,31 @@ select {
   line-height: 20px;
 }
 
-.task-speech-bubble span { white-space: nowrap; }
+.task-speech-bubble__line {
+  display: block;
+  white-space: nowrap;
+}
+
+.task-speech-bubble__character {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(2px);
+  animation: task-speech-type-in 180ms ease-out forwards;
+}
+
+@keyframes task-speech-type-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 .task-mascot-figure {
   position: absolute;
   bottom: 0;
   left: 50%;
   width: min(294px, 86%);
-  transform: translateX(-50%);
+  transform: translateX(-58%);
 }
 
 .task-mascot-area__image {
@@ -908,12 +925,17 @@ select {
   .task-mascot-figure {
     width: min(86%, clamp(140px, calc(100dvh - 504px), 260px));
   }
-  .task-speech-bubble { top: -44px; right: 8px; }
+  .task-speech-bubble { top: -44px; right: -36px; }
   .task-complete-card { transform: scale(0.82); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .daily-progress__value { transition: none; }
+  .task-speech-bubble__character {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
 }
 
 /* Child login */
