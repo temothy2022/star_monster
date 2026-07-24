@@ -33,8 +33,8 @@ type ActiveTaskProps = {
   onResume?: () => void;
   onAbandon?: () => void;
   paused?: boolean;
-  taskTitle?: string;
-  rewardStars?: number;
+  taskTitle: string;
+  rewardStars: number;
   initialOverlay?: UntimedOverlay;
 };
 
@@ -130,8 +130,8 @@ export function UntimedTaskActive({
   onResume,
   onAbandon,
   paused = false,
-  taskTitle = "指读 3 本 RAZ",
-  rewardStars = 1,
+  taskTitle,
+  rewardStars,
   initialOverlay = null,
 }: ActiveTaskProps) {
   const [overlay, setOverlay] = useState<UntimedOverlay>(

@@ -35,8 +35,8 @@ type TimedTaskActiveProps = TimedTaskProps & {
   onPause?: () => void;
   onResume?: () => void;
   onAbandon?: () => void;
-  title?: string;
-  initialRemainingSeconds?: number;
+  title: string;
+  initialRemainingSeconds: number;
   earlyThresholdSeconds?: number | null;
   paused?: boolean;
 };
@@ -73,8 +73,8 @@ export function TimedTaskActive({
   onPause,
   onResume,
   onAbandon,
-  title = "这里是任务的标题",
-  initialRemainingSeconds = 275,
+  title,
+  initialRemainingSeconds,
   earlyThresholdSeconds = 120,
   paused = false,
 }: TimedTaskActiveProps) {

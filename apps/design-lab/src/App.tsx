@@ -15,10 +15,13 @@ import { PageIndex } from "./PageIndex";
 import type { PageIndexRoute } from "./PageIndex";
 import { useMascot } from "./mascots";
 import { ChildLoginPage } from "./auth/ChildLoginPage";
+import { ChildDataState } from "./components/ChildDataState";
 import {
+  ApiError,
   abandonAttempt,
   completeAttempt,
   getChildProfile,
+  getTodayTasks,
   pauseAttempt,
   resumeAttempt,
   saveOnboarding,
@@ -75,10 +78,20 @@ function reportActionError(reason: unknown) {
   window.alert(reason instanceof Error ? reason.message : "操作没有完成，请稍后再试");
 }
 
+function isActiveTaskRoute(route: AppRoute) {
+  return (
+    route === "untimed-active" ||
+    route === "untimed-menu" ||
+    route === "untimed-abandon" ||
+    route === "timed-active"
+  );
+}
+
 export function App() {
   const [route, setRoute] = useState<AppRoute>(readRouteFromHash);
   const [nickname, setNickname] = useState("");
   const [activeAttempt, setActiveAttempt] = useState<TaskAttempt | null>(null);
+  const [attemptRestoreError, setAttemptRestoreError] = useState("");
   const [lastCompletion, setLastCompletion] = useState<{
     taskTitle: string;
     baseStars: number;
@@ -115,6 +128,74 @@ export function App() {
     if (nextRoute === route) return;
     window.history.pushState({ route: nextRoute }, "", `#${nextRoute}`);
     setRoute(nextRoute);
+  }
+
+  useEffect(() => {
+    if (!isActiveTaskRoute(route) || activeAttempt) {
+      setAttemptRestoreError("");
+      return;
+    }
+
+    let cancelled = false;
+    setAttemptRestoreError("");
+
+    void getTodayTasks()
+      .then(({ active }) => {
+        if (cancelled) return;
+
+        if (!active) {
+          window.history.replaceState(
+            { route: "tasks-partial" },
+            "",
+            "#tasks-partial",
+          );
+          setRoute("tasks-partial");
+          return;
+        }
+
+        setActiveAttempt(active);
+        const expectedRoute =
+          active.dailyTask.modeSnapshot === "TIMED"
+            ? "timed-active"
+            : route === "untimed-menu" || route === "untimed-abandon"
+              ? route
+              : "untimed-active";
+
+        if (expectedRoute !== route) {
+          window.history.replaceState(
+            { route: expectedRoute },
+            "",
+            `#${expectedRoute}`,
+          );
+          setRoute(expectedRoute);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.history.replaceState({ route: "login" }, "", "#login");
+          setRoute("login");
+          return;
+        }
+        setAttemptRestoreError(
+          reason instanceof Error ? reason.message : "任务暂时无法读取",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAttempt, route]);
+
+  if (isActiveTaskRoute(route) && !activeAttempt) {
+    return (
+      <div className="task-page task-page--loading">
+        <ChildDataState
+          error={Boolean(attemptRestoreError)}
+          message={attemptRestoreError || "正在恢复进行中的任务…"}
+        />
+      </div>
+    );
   }
 
   if (route.startsWith("tasks-")) {
@@ -163,8 +244,8 @@ export function App() {
               : null
         }
         onBack={() => navigate("tasks-partial")}
-        taskTitle={activeAttempt?.dailyTask.titleSnapshot}
-        rewardStars={activeAttempt?.dailyTask.baseStarsSnapshot}
+        taskTitle={activeAttempt!.dailyTask.titleSnapshot}
+        rewardStars={activeAttempt!.dailyTask.baseStarsSnapshot}
         paused={activeAttempt?.status === "PAUSED"}
         onPause={() => {
           if (!activeAttempt) return;
@@ -224,14 +305,14 @@ export function App() {
     return (
       <TimedTaskActive
         onBack={() => navigate("tasks-partial")}
-        title={activeAttempt?.dailyTask.titleSnapshot}
+        title={activeAttempt!.dailyTask.titleSnapshot}
         initialRemainingSeconds={
-          activeAttempt?.remainingSeconds ??
-          activeAttempt?.dailyTask.timeLimitSecondsSnapshot ??
-          undefined
+          activeAttempt!.remainingSeconds ??
+          activeAttempt!.dailyTask.timeLimitSecondsSnapshot ??
+          0
         }
         earlyThresholdSeconds={
-          activeAttempt?.dailyTask.earlyThresholdSecsSnapshot
+          activeAttempt!.dailyTask.earlyThresholdSecsSnapshot
         }
         paused={activeAttempt?.status === "PAUSED"}
         onPause={() => {
