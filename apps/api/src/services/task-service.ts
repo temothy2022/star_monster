@@ -7,6 +7,7 @@ import type { AppConfig } from "../config.js";
 import {
   activeElapsedSeconds,
   consecutiveScoredDays,
+  dailyGoalBonusAmount,
   isScheduledForDate,
   remainingSeconds,
   taskReward,
@@ -165,12 +166,13 @@ export async function getTodayTaskExperience(
   now = new Date(),
 ) {
   const today = businessDateAt(now, config.APP_TIME_ZONE);
+  const todayKey = today.toISOString().slice(0, 10);
   const { timedOutAttemptId } = await prepareDailyTasks(childId, config, now);
 
   const streakLookback = new Date(today);
   streakLookback.setUTCDate(streakLookback.getUTCDate() - 400);
 
-  const [child, tasks, activeSlot, scoredDays] = await Promise.all([
+  const [child, tasks, activeSlot, scoredDays, dailyGoalBonus] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({ where: { id: childId } }),
     prisma.dailyTask.findMany({
       where: { childId, taskDate: today },
@@ -205,9 +207,13 @@ export async function getTodayTaskExperience(
       select: { taskDate: true },
       distinct: ["taskDate"],
     }),
+    prisma.starLedger.findUnique({
+      where: { idempotencyKey: `daily-goal:${childId}:${todayKey}` },
+      select: { amount: true },
+    }),
   ]);
 
-  const earnedToday = tasks.reduce((sum, task) => {
+  const taskStarsEarnedToday = tasks.reduce((sum, task) => {
     const completedAttempt = task.attempts[0];
     return (
       sum +
@@ -216,6 +222,8 @@ export async function getTodayTaskExperience(
         : 0)
     );
   }, 0);
+  const dailyGoalBonusStars = dailyGoalBonus?.amount ?? 0;
+  const earnedToday = taskStarsEarnedToday + dailyGoalBonusStars;
 
   const activeAttempt = activeSlot?.attempt;
   const activeRemaining =
@@ -228,8 +236,9 @@ export async function getTodayTaskExperience(
       : null;
 
   return {
-    date: today.toISOString().slice(0, 10),
+    date: todayKey,
     earnedToday,
+    dailyGoalBonusStars,
     streakDays: consecutiveScoredDays(
       scoredDays.map((item) => item.taskDate.toISOString().slice(0, 10)),
       today,
@@ -461,13 +470,25 @@ export async function completeTask(
     throw new HttpError(404, "ATTEMPT_NOT_FOUND", "没有找到这次任务");
   }
   if (existing.status === "COMPLETED") {
+    const dailyGoalBonus = await prisma.starLedger.findFirst({
+      where: {
+        childId,
+        type: "DAILY_GOAL_BONUS",
+        referenceId: existing.id,
+      },
+      select: { amount: true },
+    });
+    const dailyGoalBonusStars = dailyGoalBonus?.amount ?? 0;
     return {
       attempt: existing,
       reward: {
         baseStars: existing.baseStarsAwarded,
         bonusStars: existing.bonusStarsAwarded,
+        dailyGoalBonusStars,
         totalStars:
-          existing.baseStarsAwarded + existing.bonusStarsAwarded,
+          existing.baseStarsAwarded +
+          existing.bonusStarsAwarded +
+          dailyGoalBonusStars,
       },
       alreadyCompleted: true,
     };
@@ -498,7 +519,7 @@ export async function completeTask(
     remainingSeconds: remaining,
   });
 
-  const completed = await prisma.$transaction(
+  const completion = await prisma.$transaction(
     async (tx) => {
       const currentSlot = await tx.activeTaskSlot.findUnique({
         where: { childId },
@@ -522,7 +543,15 @@ export async function completeTask(
         where: { id: attempt.dailyTaskId },
         data: { status: "COMPLETED", completedAt: now },
       });
-      const child = await tx.childProfile.update({
+      const childSettings = await tx.childProfile.findUniqueOrThrow({
+        where: { id: childId },
+        select: {
+          dailyStarGoal: true,
+          dailyGoalBonusEnabled: true,
+          dailyGoalBonusStars: true,
+        },
+      });
+      const childAfterTaskReward = await tx.childProfile.update({
         where: { id: childId },
         data: {
           starBalance: { increment: reward.totalStars },
@@ -535,21 +564,83 @@ export async function completeTask(
           taskAttemptId: attempt.id,
           type: "TASK_REWARD",
           amount: reward.totalStars,
-          balanceAfter: child.starBalance,
+          balanceAfter: childAfterTaskReward.starBalance,
           reason: `${attempt.dailyTask.titleSnapshot} 任务奖励`,
           referenceId: attempt.dailyTaskId,
           idempotencyKey: `task:${attempt.id}:reward`,
         },
       });
+
+      const completedTaskReward = await tx.taskAttempt.aggregate({
+        where: {
+          childId,
+          status: "COMPLETED",
+          dailyTask: { taskDate: attempt.dailyTask.taskDate },
+        },
+        _sum: {
+          baseStarsAwarded: true,
+          bonusStarsAwarded: true,
+        },
+      });
+      const taskStarsEarnedToday =
+        (completedTaskReward._sum.baseStarsAwarded ?? 0) +
+        (completedTaskReward._sum.bonusStarsAwarded ?? 0);
+      const dailyGoalKey =
+        attempt.dailyTask.taskDate.toISOString().slice(0, 10);
+      let dailyGoalBonusStars = 0;
+
+      if (childSettings.dailyGoalBonusEnabled) {
+        const existingGoalBonus = await tx.starLedger.findUnique({
+          where: {
+            idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}`,
+          },
+        });
+        const bonusToAward = dailyGoalBonusAmount({
+          enabled: childSettings.dailyGoalBonusEnabled,
+          goalStars: childSettings.dailyStarGoal,
+          bonusStars: childSettings.dailyGoalBonusStars,
+          taskStarsEarned: taskStarsEarnedToday,
+          alreadyAwarded: Boolean(existingGoalBonus),
+        });
+
+        if (bonusToAward > 0) {
+          const childAfterGoalBonus = await tx.childProfile.update({
+            where: { id: childId },
+            data: {
+              starBalance: { increment: bonusToAward },
+              lifetimeStarsEarned: {
+                increment: bonusToAward,
+              },
+            },
+          });
+          await tx.starLedger.create({
+            data: {
+              childId,
+              type: "DAILY_GOAL_BONUS",
+              amount: bonusToAward,
+              balanceAfter: childAfterGoalBonus.starBalance,
+              reason: `达成每日 ${childSettings.dailyStarGoal} 颗星目标`,
+              referenceId: attempt.id,
+              idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}`,
+            },
+          });
+          dailyGoalBonusStars = bonusToAward;
+        }
+      }
+
       await tx.activeTaskSlot.delete({ where: { childId } });
-      return updatedAttempt;
+      return { updatedAttempt, dailyGoalBonusStars };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 
   return {
-    attempt: { ...completed, dailyTask: attempt.dailyTask },
-    reward,
+    attempt: { ...completion.updatedAttempt, dailyTask: attempt.dailyTask },
+    reward: {
+      ...reward,
+      dailyGoalBonusStars: completion.dailyGoalBonusStars,
+      totalStars: reward.totalStars + completion.dailyGoalBonusStars,
+    },
     alreadyCompleted: false,
   };
 }

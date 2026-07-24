@@ -6,6 +6,8 @@ export type ChildProfile = {
   petType: PetType | null;
   onboardingCompletedAt: string | null;
   dailyStarGoal: number;
+  dailyGoalBonusEnabled: boolean;
+  dailyGoalBonusStars: number;
   starBalance: number;
   lifetimeStarsEarned: number;
 };
@@ -133,6 +135,7 @@ export type TodayTaskExperience = {
   earnedToday: number;
   streakDays: number;
   dailyStarGoal: number;
+  dailyGoalBonusStars: number;
   starBalance: number;
   tasks: DailyTask[];
   active: TaskAttempt | null;
@@ -174,7 +177,12 @@ export async function abandonAttempt(attemptId: string) {
 export async function completeAttempt(attemptId: string) {
   return request<{
     attempt: TaskAttempt;
-    reward: { baseStars: number; bonusStars: number; totalStars: number };
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
     alreadyCompleted: boolean;
   }>(`/api/child/attempts/${attemptId}/complete`, { method: "POST" });
 }

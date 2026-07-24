@@ -4,6 +4,7 @@ import arrowLeft from "../assets/icon-arrow-left.svg";
 import check from "../assets/icon-check.svg";
 import rocket from "../assets/icon-rocket.svg";
 import { MASCOTS, MASCOT_ORDER, type PetType } from "../mascots";
+import { OnboardingViewport } from "./OnboardingViewport";
 
 type WebkitAudioWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
@@ -85,8 +86,11 @@ export function OnboardingStep1({
   }
 
   return (
-    <main className="onboarding-page">
-      <div className="onboarding-canvas" data-reference-node="1:724">
+    <OnboardingViewport
+      className="onboarding-canvas"
+      designWidth={1282}
+      referenceNode="1:724"
+    >
         <header className="onboarding-heading" data-figma-node="1:726">
           <h1>选择你的星际伙伴</h1>
           <p>谁将陪你一起探索星辰大海？</p>
@@ -127,7 +131,6 @@ export function OnboardingStep1({
             <img src={rocket} alt="" />
           </AdventureButton>
         </nav>
-      </div>
-    </main>
+    </OnboardingViewport>
   );
 }

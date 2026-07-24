@@ -1,0 +1,5 @@
+ALTER TYPE "StarLedgerType" ADD VALUE 'DAILY_GOAL_BONUS';
+
+ALTER TABLE "ChildProfile"
+ADD COLUMN "dailyGoalBonusEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "dailyGoalBonusStars" INTEGER NOT NULL DEFAULT 0;

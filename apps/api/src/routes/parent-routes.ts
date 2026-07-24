@@ -139,6 +139,8 @@ const taskTemplatePatchSchema = z.object(taskTemplateShape).partial();
 const childProfileSchema = z.object({
   nickname: z.string().trim().min(2).max(9).optional(),
   dailyStarGoal: z.number().int().min(1).max(999).optional(),
+  dailyGoalBonusEnabled: z.boolean().optional(),
+  dailyGoalBonusStars: z.number().int().min(0).max(999).optional(),
   petType: petType.optional(),
   resetOnboarding: z.boolean().optional(),
 });
@@ -259,6 +261,8 @@ export async function registerParentRoutes(
           status: true,
           onboardingCompletedAt: true,
           dailyStarGoal: true,
+          dailyGoalBonusEnabled: true,
+          dailyGoalBonusStars: true,
           starBalance: true,
           lifetimeStarsEarned: true,
           loginCodeLastFour: true,
@@ -279,6 +283,12 @@ export async function registerParentRoutes(
           ...(input.nickname ? { nickname: input.nickname } : {}),
           ...(input.dailyStarGoal
             ? { dailyStarGoal: input.dailyStarGoal }
+            : {}),
+          ...(input.dailyGoalBonusEnabled !== undefined
+            ? { dailyGoalBonusEnabled: input.dailyGoalBonusEnabled }
+            : {}),
+          ...(input.dailyGoalBonusStars !== undefined
+            ? { dailyGoalBonusStars: input.dailyGoalBonusStars }
             : {}),
           ...(input.petType ? { petType: input.petType } : {}),
           ...(input.resetOnboarding

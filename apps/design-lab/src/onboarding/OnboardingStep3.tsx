@@ -7,6 +7,7 @@ import flowArrow from "../assets/onboarding/step3-flow-arrow.png";
 import heading from "../assets/onboarding/step3-heading.png";
 import taskCard from "../assets/onboarding/step3-task-card.png";
 import { useMascot } from "../mascots";
+import { OnboardingViewport } from "./OnboardingViewport";
 
 interface OnboardingStep3Props {
   onNext: () => void;
@@ -16,7 +17,7 @@ export function OnboardingStep3({ onNext }: OnboardingStep3Props) {
   const { mascot } = useMascot();
 
   return (
-    <main className="step3-page" data-reference-node="1:4">
+    <OnboardingViewport className="step3-page" designWidth={1262} referenceNode="1:4">
       <h1 className="visually-hidden">完成小任务，得到能量星</h1>
       <img className="step3-figma-heading" src={heading} alt="" data-figma-node="1:7" />
 
@@ -37,6 +38,6 @@ export function OnboardingStep3({ onNext }: OnboardingStep3Props) {
         <span>继续</span>
         <img src={continueIcon} alt="" />
       </button>
-    </main>
+    </OnboardingViewport>
   );
 }

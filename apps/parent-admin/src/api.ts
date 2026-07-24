@@ -13,6 +13,8 @@ export type Child = {
   status: "ACTIVE" | "DISABLED";
   onboardingCompletedAt: string | null;
   dailyStarGoal: number;
+  dailyGoalBonusEnabled: boolean;
+  dailyGoalBonusStars: number;
   starBalance: number;
   lifetimeStarsEarned: number;
   loginCodeLastFour: string;
@@ -159,7 +161,7 @@ export type Redemption = {
 
 export type LedgerEntry = {
   id: string;
-  type: "TASK_REWARD" | "WISH_SPEND" | "WISH_REFUND" | "MANUAL_ADJUSTMENT";
+  type: "TASK_REWARD" | "DAILY_GOAL_BONUS" | "WISH_SPEND" | "WISH_REFUND" | "MANUAL_ADJUSTMENT";
   amount: number;
   balanceAfter: number;
   reason: string | null;

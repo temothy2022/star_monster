@@ -2,10 +2,40 @@ import { describe, expect, it } from "vitest";
 import {
   activeElapsedSeconds,
   consecutiveScoredDays,
+  dailyGoalBonusAmount,
   isScheduledForDate,
   remainingSeconds,
   taskReward,
 } from "../src/domain/task-rules.js";
+
+describe("每日目标达成奖", () => {
+  it("达到目标时返回家长设置的额外星星", () => {
+    expect(dailyGoalBonusAmount({
+      enabled: true,
+      goalStars: 12,
+      bonusStars: 3,
+      taskStarsEarned: 12,
+      alreadyAwarded: false,
+    })).toBe(3);
+  });
+
+  it("未达标或当天已经发放过时不再奖励", () => {
+    expect(dailyGoalBonusAmount({
+      enabled: true,
+      goalStars: 12,
+      bonusStars: 3,
+      taskStarsEarned: 11,
+      alreadyAwarded: false,
+    })).toBe(0);
+    expect(dailyGoalBonusAmount({
+      enabled: true,
+      goalStars: 12,
+      bonusStars: 3,
+      taskStarsEarned: 18,
+      alreadyAwarded: true,
+    })).toBe(0);
+  });
+});
 
 describe("任务计划规则", () => {
   const monday = new Date("2026-07-20T00:00:00.000Z");

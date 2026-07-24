@@ -63,6 +63,8 @@ export async function registerAuthRoutes(
         petType: child.petType,
         onboardingCompletedAt: child.onboardingCompletedAt,
         dailyStarGoal: child.dailyStarGoal,
+        dailyGoalBonusEnabled: child.dailyGoalBonusEnabled,
+        dailyGoalBonusStars: child.dailyGoalBonusStars,
         starBalance: child.starBalance,
         lifetimeStarsEarned: child.lifetimeStarsEarned,
       },

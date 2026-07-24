@@ -82,6 +82,25 @@ export function taskReward(input: {
   };
 }
 
+export function dailyGoalBonusAmount(input: {
+  enabled: boolean;
+  goalStars: number;
+  bonusStars: number;
+  taskStarsEarned: number;
+  alreadyAwarded: boolean;
+}): number {
+  if (
+    !input.enabled ||
+    input.alreadyAwarded ||
+    input.goalStars <= 0 ||
+    input.bonusStars <= 0 ||
+    input.taskStarsEarned < input.goalStars
+  ) {
+    return 0;
+  }
+  return input.bonusStars;
+}
+
 export function consecutiveScoredDays(
   scoredDateKeys: Iterable<string>,
   today: Date,

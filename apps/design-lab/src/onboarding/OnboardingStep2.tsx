@@ -6,6 +6,7 @@ import launchIcon from "../assets/onboarding/step2-launch.svg";
 import spaceship from "../assets/onboarding/step2-spaceship.png";
 import sparkIcon from "../assets/onboarding/step2-spark.svg";
 import userIcon from "../assets/onboarding/step2-user.svg";
+import { OnboardingViewport } from "./OnboardingViewport";
 
 interface OnboardingStep2Props {
   selectedPetName: string;
@@ -26,7 +27,7 @@ export function OnboardingStep2({
   const canContinue = nicknameLength >= 2 && nicknameLength <= 9;
 
   return (
-    <main className="step2-page" data-reference-node="1:382">
+    <OnboardingViewport className="step2-page" designWidth={1194} referenceNode="1:382">
       <div className="step2-safe-area" data-figma-node="1:384">
         <section className="step2-visual" aria-label="星际飞船" data-figma-node="1:385">
           <img className="step2-visual__grade" src={gradeIcon} alt="" />
@@ -86,6 +87,6 @@ export function OnboardingStep2({
       <button className="step2-back" type="button" onClick={onBack} aria-label="返回选择星宠">
         <img src={backButton} alt="" />
       </button>
-    </main>
+    </OnboardingViewport>
   );
 }

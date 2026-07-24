@@ -83,6 +83,7 @@ enum RedemptionStatus {
 
 enum StarLedgerType {
   TASK_REWARD
+  DAILY_GOAL_BONUS
   WISH_SPEND
   WISH_REFUND
   MANUAL_ADJUSTMENT
@@ -173,6 +174,8 @@ model ChildProfile {
   petType               PetType?
   onboardingCompletedAt DateTime?
   dailyStarGoal         Int           @default(12)
+  dailyGoalBonusEnabled Boolean       @default(false)
+  dailyGoalBonusStars   Int           @default(0)
   starBalance           Int           @default(0)
   lifetimeStarsEarned   Int           @default(0)
   lastLoginAt           DateTime?

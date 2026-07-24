@@ -40,6 +40,14 @@ const SECTION_LABELS: Record<Section, string> = {
   settings: "孩子设置",
 };
 
+const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
+  TASK_REWARD: "任务奖励",
+  DAILY_GOAL_BONUS: "每日达标奖",
+  WISH_SPEND: "兑换支出",
+  WISH_REFUND: "兑换退款",
+  MANUAL_ADJUSTMENT: "手动调整"
+};
+
 const WISH_IMAGES: Record<Wish["category"], string> = {
   SPORTS: sportsReward,
   GAMES: gamesReward,
@@ -192,7 +200,7 @@ function Overview({ child }: { child: Child }) {
     <div className="admin-stack">
       <div className="metric-grid">
         <article><span>当前星星</span><strong>{child.starBalance}</strong><small>可用于兑换</small></article>
-        <article><span>累计任务星星</span><strong>{child.lifetimeStarsEarned}</strong><small>只增不减</small></article>
+        <article><span>累计获得星星</span><strong>{child.lifetimeStarsEarned}</strong><small>只增不减</small></article>
         <article><span>近 30 天完成率</span><strong>{completionRate}%</strong><small>{completed}/{total} 个任务</small></article>
         <article><span>每日目标</span><strong>{child.dailyStarGoal}</strong><small>星星/天</small></article>
       </div>
@@ -556,18 +564,96 @@ function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "调整失败"); }
     finally { setBusy(false); }
   }
-  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<input type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">手动调整只影响当前余额，不会修改累计任务所得星星。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td>{formatDate(entry.createdAt)}</td><td>{entry.type}</td><td className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td>{entry.balanceAfter}</td><td>{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
+  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<input type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">手动调整只影响当前余额，不会修改累计获得星星。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td>{formatDate(entry.createdAt)}</td><td>{LEDGER_LABELS[entry.type]}</td><td className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td>{entry.balanceAfter}</td><td>{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
 }
 
 function Settings({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [nickname, setNickname] = useState(child.nickname ?? "");
   const [dailyStarGoal, setDailyStarGoal] = useState(child.dailyStarGoal);
+  const [dailyGoalBonusEnabled, setDailyGoalBonusEnabled] = useState(child.dailyGoalBonusEnabled);
+  const [dailyGoalBonusStars, setDailyGoalBonusStars] = useState(child.dailyGoalBonusStars || 1);
   const [pet, setPet] = useState(child.petType ?? "TUANTUAN");
   const [devices, setDevices] = useState<Device[]>([]);
   const [message, setMessage] = useState("");
-  useEffect(() => { setNickname(child.nickname ?? ""); setDailyStarGoal(child.dailyStarGoal); setPet(child.petType ?? "TUANTUAN"); void parentApi.devices(child.id).then((result) => setDevices(result.devices)); }, [child.id]);
-  async function save(event: FormEvent) { event.preventDefault(); await parentApi.updateChild(child.id, { nickname, dailyStarGoal, petType: pet }); setMessage("孩子档案已保存"); onChanged(); }
-  return <div className="admin-two-column"><Panel title="孩子档案"><form className="admin-form" onSubmit={save}><label>昵称<input minLength={2} maxLength={9} required value={nickname} onChange={(event) => setNickname(event.target.value)} /></label><label>每日星星目标<input type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} /></label><label>星宠<select value={pet} onChange={(event) => setPet(event.target.value)}>{Object.entries(PET_LABELS).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="form-actions"><button className="primary-button">保存档案</button></div></form>{message && <Notice kind="success">{message}</Notice>}<div className="danger-zone"><h3>重置首次引导</h3><p>孩子下次进入时会重新经历选择伙伴和产品介绍。</p><button className="ghost-button" onClick={() => window.confirm("确定重置首次引导？") && void parentApi.updateChild(child.id, { resetOnboarding: true }).then(() => { setMessage("首次引导已重置"); onChanged(); })}>重置引导</button></div></Panel><Panel title={`登录设备（${devices.length}）`} actions={<button className="danger-button" onClick={() => window.confirm("确定让这个孩子的所有设备退出登录？") && void parentApi.logoutAll(child.id).then(() => setDevices([]))}>全部退出</button>}><div className="admin-list">{devices.map((device) => <article className="device-card" key={device.id}><strong>{device.deviceName ?? "未知设备"}</strong><p>{device.userAgent ?? "无浏览器信息"}</p><small>{device.ipAddress ?? "未知 IP"} · 最近活动 {formatDate(device.lastSeenAt)}</small></article>)}{!devices.length && <div className="empty-state">没有已登录设备</div>}</div></Panel></div>;
+  useEffect(() => {
+    setNickname(child.nickname ?? "");
+    setDailyStarGoal(child.dailyStarGoal);
+    setDailyGoalBonusEnabled(child.dailyGoalBonusEnabled);
+    setDailyGoalBonusStars(child.dailyGoalBonusStars || 1);
+    setPet(child.petType ?? "TUANTUAN");
+    void parentApi.devices(child.id).then((result) => setDevices(result.devices));
+  }, [child.id]);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    await parentApi.updateChild(child.id, {
+      nickname,
+      dailyStarGoal,
+      dailyGoalBonusEnabled,
+      dailyGoalBonusStars: dailyGoalBonusEnabled ? dailyGoalBonusStars : 0,
+      petType: pet
+    });
+    setMessage("孩子档案与每日达标奖已保存");
+    onChanged();
+  }
+
+  return (
+    <div className="admin-two-column">
+      <Panel title="孩子档案">
+        <form className="admin-form" onSubmit={save}>
+          <label>
+            昵称
+            <input minLength={2} maxLength={9} required value={nickname} onChange={(event) => setNickname(event.target.value)} />
+          </label>
+          <label>
+            每日星星目标
+            <input type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} />
+          </label>
+          <label>
+            星宠
+            <select value={pet} onChange={(event) => setPet(event.target.value)}>
+              {Object.entries(PET_LABELS).map(([value,label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label>
+            达标后额外奖励
+            <input
+              type="number"
+              min={1}
+              max={999}
+              disabled={!dailyGoalBonusEnabled}
+              value={dailyGoalBonusStars}
+              onChange={(event) => setDailyGoalBonusStars(Number(event.target.value))}
+            />
+          </label>
+          <label className="checkbox field-span">
+            <input
+              type="checkbox"
+              checked={dailyGoalBonusEnabled}
+              onChange={(event) => setDailyGoalBonusEnabled(event.target.checked)}
+            />
+            启用每日目标达成奖（每天最多发放一次）
+          </label>
+          <p className="field-span form-help">
+            当孩子当天通过任务获得的星星达到 {dailyStarGoal || 0} 颗时，自动额外奖励 {dailyGoalBonusStars || 0} 颗星。
+          </p>
+          <div className="form-actions"><button className="primary-button">保存档案</button></div>
+        </form>
+        {message && <Notice kind="success">{message}</Notice>}
+        <div className="danger-zone">
+          <h3>重置首次引导</h3>
+          <p>孩子下次进入时会重新经历选择伙伴和产品介绍。</p>
+          <button className="ghost-button" onClick={() => window.confirm("确定重置首次引导？") && void parentApi.updateChild(child.id, { resetOnboarding: true }).then(() => { setMessage("首次引导已重置"); onChanged(); })}>重置引导</button>
+        </div>
+      </Panel>
+      <Panel title={`登录设备（${devices.length}）`} actions={<button className="danger-button" onClick={() => window.confirm("确定让这个孩子的所有设备退出登录？") && void parentApi.logoutAll(child.id).then(() => setDevices([]))}>全部退出</button>}>
+        <div className="admin-list">
+          {devices.map((device) => <article className="device-card" key={device.id}><strong>{device.deviceName ?? "未知设备"}</strong><p>{device.userAgent ?? "无浏览器信息"}</p><small>{device.ipAddress ?? "未知 IP"} · 最近活动 {formatDate(device.lastSeenAt)}</small></article>)}
+          {!devices.length && <div className="empty-state">没有已登录设备</div>}
+        </div>
+      </Panel>
+    </div>
+  );
 }
 
 export function App() {

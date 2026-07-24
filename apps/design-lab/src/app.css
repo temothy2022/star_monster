@@ -23,6 +23,12 @@ body:has(.task-page),
   min-width: 0;
 }
 
+html:has(.onboarding-viewport),
+body:has(.onboarding-viewport),
+#root:has(.onboarding-viewport) {
+  min-width: 0;
+}
+
 button,
 input,
 textarea,
@@ -1315,17 +1321,30 @@ select {
   border: 0 !important;
 }
 
-.onboarding-page {
-  min-height: 100vh;
+.onboarding-viewport {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: var(--sm-color-background);
+  place-items: center;
+}
+
+.onboarding-viewport > div {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  flex: 0 0 auto;
+  transform-origin: center;
 }
 
 .onboarding-canvas {
   position: relative;
-  width: min(100%, 1282px);
   height: 834px;
   min-height: 834px;
-  margin: 0 auto;
   overflow: hidden;
   background: var(--sm-color-background);
 }
@@ -1436,9 +1455,7 @@ select {
 /* 首次使用 · Step 2 */
 .step2-page {
   position: relative;
-  width: min(100%, 1194px);
   height: 834px;
-  margin: 0 auto;
   overflow: hidden;
   background: var(--sm-color-background);
 }
@@ -1718,9 +1735,7 @@ select {
 /* 首次使用 · Step 3 */
 .step3-page {
   position: relative;
-  width: min(100%, 1262px);
   height: 834px;
-  margin: 0 auto;
   overflow: hidden;
   background: var(--sm-color-background);
 }
@@ -2207,9 +2222,7 @@ select {
 /* 首次使用 · Step 4 */
 .step4-page {
   position: relative;
-  width: min(100%, 1283px);
   height: 834px;
-  margin: 0 auto;
   overflow: hidden;
   background: var(--sm-color-background);
 }
@@ -2428,12 +2441,6 @@ select {
 .step4-action button img {
   width: 16px;
   height: 16px;
-}
-
-@media (max-width: 1281px) {
-  .onboarding-canvas {
-    margin: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

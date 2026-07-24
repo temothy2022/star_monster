@@ -2,6 +2,7 @@ import energyIcon from "../assets/onboarding/step4-energy.svg";
 import mercury from "../assets/onboarding/step4-mercury.png";
 import starIcon from "../assets/onboarding/step4-star.svg";
 import startIcon from "../assets/onboarding/step4-start.svg";
+import { OnboardingViewport } from "./OnboardingViewport";
 
 interface OnboardingStep4Props {
   onStart: () => void;
@@ -9,7 +10,7 @@ interface OnboardingStep4Props {
 
 export function OnboardingStep4({ onStart }: OnboardingStep4Props) {
   return (
-    <main className="step4-page" data-reference-node="1:342">
+    <OnboardingViewport className="step4-page" designWidth={1283} referenceNode="1:342">
       <span className="step4-glow step4-glow--sun" aria-hidden="true" />
       <span className="step4-glow step4-glow--aqua" aria-hidden="true" />
 
@@ -58,6 +59,6 @@ export function OnboardingStep4({ onStart }: OnboardingStep4Props) {
           </div>
         </section>
       </div>
-    </main>
+    </OnboardingViewport>
   );
 }
