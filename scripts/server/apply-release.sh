@@ -29,6 +29,10 @@ if [[ ! -f "$STAMP_FILE" ]] || [[ "$(cat "$STAMP_FILE")" != "$LOCKFILE_HASH" ]];
   printf '%s\n' "$LOCKFILE_HASH" > "$STAMP_FILE"
 fi
 
+# The lockfile can stay unchanged while the Prisma schema evolves. Regenerate
+# the client on every release so TypeScript and the Linux query engine match the
+# schema that is about to be deployed.
+corepack pnpm --filter @star-monsters/api db:generate
 corepack pnpm --filter @star-monsters/api db:deploy
 corepack pnpm --filter @star-monsters/api build
 
