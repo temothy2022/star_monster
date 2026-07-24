@@ -43,6 +43,132 @@ const CATEGORY_IMAGES: Record<ChildWish["category"], string> = {
   TOYS: toysReward,
 };
 
+type FootprintSpeech = {
+  lines: [string, string];
+  celebrating: boolean;
+};
+
+function selectSpeech(
+  options: Array<[string, string]>,
+  date: string,
+  stars: number,
+  taskCount: number,
+) {
+  const dateSeed = Array.from(date).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+  return options[(dateSeed + stars + taskCount) % options.length];
+}
+
+function getFootprintSpeech({
+  date,
+  stars,
+  taskCount,
+  isToday,
+}: {
+  date: string;
+  stars: number;
+  taskCount: number;
+  isToday: boolean;
+}): FootprintSpeech {
+  if (taskCount === 0 && isToday) {
+    return {
+      lines: selectSpeech(
+        [
+          ["今天还没有足迹～", "完成任务就能点亮！"],
+          ["今天的探险等你哦！", "迈出第一步吧～"],
+          ["星星还在等你呢！", "选个任务出发吧～"],
+        ],
+        date,
+        stars,
+        taskCount,
+      ),
+      celebrating: false,
+    };
+  }
+
+  if (taskCount === 0) {
+    return {
+      lines: selectSpeech(
+        [
+          ["这天暂时没有星星～", "新的探险继续加油！"],
+          ["休息也是一种能量～", "准备好再出发吧！"],
+          ["这页还没有足迹～", "下一次一定更闪亮！"],
+        ],
+        date,
+        stars,
+        taskCount,
+      ),
+      celebrating: false,
+    };
+  }
+
+  if (stars >= 10) {
+    return {
+      lines: selectSpeech(
+        [
+          [`收获 ${stars} 颗星！`, "闪闪发光，太棒啦！"],
+          [`足足有 ${stars} 颗星！`, "超级探险家就是你！"],
+          ["这天能量大爆发！", `${stars} 颗星全部装进口袋！`],
+        ],
+        date,
+        stars,
+        taskCount,
+      ),
+      celebrating: true,
+    };
+  }
+
+  if (taskCount >= 4) {
+    return {
+      lines: selectSpeech(
+        [
+          [`完成 ${taskCount} 个任务！`, "行动力满满的一天！"],
+          ["一个接一个完成啦！", "坚持到底真了不起！"],
+          [`留下 ${taskCount} 个足迹！`, "今天走了好远呢！"],
+        ],
+        date,
+        stars,
+        taskCount,
+      ),
+      celebrating: true,
+    };
+  }
+
+  if (taskCount >= 2 || stars >= 5) {
+    return {
+      lines: selectSpeech(
+        [
+          [`完成 ${taskCount} 个任务！`, "认真坚持最了不起！"],
+          [`收获 ${stars} 颗星！`, "每一步都很有力量！"],
+          ["今天进步了好多！", "为你的坚持鼓掌～"],
+          ["足迹越来越闪亮！", "这个节奏真不错～"],
+        ],
+        date,
+        stars,
+        taskCount,
+      ),
+      celebrating: true,
+    };
+  }
+
+  return {
+    lines: selectSpeech(
+      [
+        ["完成了一个任务！", "小小一步也很棒！"],
+        [`得到 ${stars} 颗星！`, "认真完成值得表扬！"],
+        ["留下今天的足迹啦！", "每次行动都有收获！"],
+        ["看见你的努力啦！", "继续保持这个节奏～"],
+      ],
+      date,
+      stars,
+      taskCount,
+    ),
+    celebrating: false,
+  };
+}
+
 function RequestedWishCard({
   wish,
   onRequest,
@@ -297,6 +423,20 @@ export function Footprints({
         timeZone: "UTC",
       }).format(new Date(`${activeDay.date}T00:00:00.000Z`))
     : "Today";
+  const activeStars =
+    footprints?.days.find((day) => day.date === activeDate)?.stars ?? 0;
+  const today = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Shanghai",
+  }).format(new Date());
+  const speech = getFootprintSpeech({
+    date: activeDate ?? today,
+    stars: activeStars,
+    taskCount: displayedTasks.length,
+    isToday: activeDate === today,
+  });
 
   if (!footprints) {
     return (
@@ -315,10 +455,26 @@ export function Footprints({
       <section className="footprints-main">
         <div className="footprints-layout">
           <aside className="footprints-mascot">
-            <img src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
-            <div className="footprints-speech">
+            <img
+              src={
+                speech.celebrating
+                  ? mascot.images.celebrate
+                  : mascot.images.neutral
+              }
+              alt={`星宠${mascot.name}`}
+            />
+            <div
+              className="footprints-speech"
+              key={speech.lines.join("|")}
+              aria-label={speech.lines.join("，")}
+              aria-live="polite"
+            >
               <span />
-              <p>Wow! {activeWeekday}<br />was a stellar day!</p>
+              <p aria-hidden="true">
+                {speech.lines[0]}
+                <br />
+                {speech.lines[1]}
+              </p>
             </div>
           </aside>
           <div className="footprints-interactive">
