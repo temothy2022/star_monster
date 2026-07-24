@@ -428,9 +428,16 @@ select {
   border-right: 2px solid var(--task-ink);
 }
 
-.task-card--blue .task-card__accent { background: #4ca8e8; }
-.task-card--coral .task-card__accent { background: #f36f6a; }
-.task-card--gray .task-card__accent { background: #9ca3af; }
+.task-card--reading .task-card__accent { background: #4ca8e8; }
+.task-card--math .task-card__accent { background: #7f83d4; }
+.task-card--exercise .task-card__accent { background: #f36f6a; }
+.task-card--chores .task-card__accent { background: #e9a23b; }
+.task-card--organizing .task-card__accent { background: #59b98c; }
+.task-card--music .task-card__accent { background: #b178d3; }
+.task-card--chinese .task-card__accent { background: #d65a72; }
+.task-card--english .task-card__accent { background: #45b7c6; }
+.task-card--pe .task-card__accent { background: #ff7a3d; }
+.task-card--other .task-card__accent { background: #9ca3af; }
 
 .task-card__icon-box {
   display: grid;

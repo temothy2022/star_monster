@@ -33,6 +33,17 @@ import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
+type TaskAccent =
+  | "reading"
+  | "math"
+  | "exercise"
+  | "chores"
+  | "organizing"
+  | "music"
+  | "chinese"
+  | "english"
+  | "pe"
+  | "other";
 
 type TaskItem = {
   id: string;
@@ -40,7 +51,7 @@ type TaskItem = {
   duration: number;
   reward: number;
   icon: TaskIconName;
-  accent: "blue" | "coral" | "gray";
+  accent: TaskAccent;
   status: "pending" | "completed";
   mode: "UNTIMED" | "TIMED";
   repeatableDaily: boolean;
@@ -317,6 +328,10 @@ function iconForTask(task: DailyTask): TaskIconName {
   return "book";
 }
 
+function accentForTask(task: DailyTask): TaskAccent {
+  return task.categorySnapshot.toLowerCase() as TaskAccent;
+}
+
 function taskItemFromApi(task: DailyTask): TaskItem {
   const seconds =
     task.modeSnapshot === "TIMED"
@@ -332,12 +347,7 @@ function taskItemFromApi(task: DailyTask): TaskItem {
       ? completedAttempt.baseStarsAwarded + completedAttempt.bonusStarsAwarded
       : task.baseStarsSnapshot,
     icon: iconForTask(task),
-    accent:
-      task.categorySnapshot === "EXERCISE" || task.categorySnapshot === "PE"
-        ? "coral"
-        : task.categorySnapshot === "MATH"
-          ? "gray"
-          : "blue",
+    accent: accentForTask(task),
     status: isCompleted ? "completed" : "pending",
     mode: task.modeSnapshot,
     repeatableDaily: task.repeatableDailySnapshot,
