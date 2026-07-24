@@ -737,6 +737,11 @@ select {
 
   .task-progress-card h2 { font-size: 24px; }
   .task-progress-card > p { right: 20px; font-size: 14px; line-height: 21px; }
+  .task-speech-bubble {
+    width: 184px;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
   .task-card--pending { padding-right: 14px; padding-left: 30px; }
   .task-card__content { margin-left: 12px; }
   .task-card__content h4 { font-size: 18px; line-height: 30px; }
@@ -900,8 +905,8 @@ select {
   .task-balance { top: auto; right: 22px; bottom: 16px; left: 22px; height: 54px; }
   .task-mascot-area { top: 324px; }
   .task-mascot-area__glow { top: auto; bottom: 0; }
+  .task-mascot-figure { width: min(260px, 86%); }
   .task-speech-bubble { top: -44px; right: 8px; }
-  .task-mascot-area__image { max-height: calc(100% - 48px); }
   .task-complete-card { transform: scale(0.82); }
 }
 

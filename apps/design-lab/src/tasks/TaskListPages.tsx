@@ -94,7 +94,7 @@ function ProgressColumn({
       : pendingCount === 0
         ? ["今天的任务都完成啦！", "你真的太棒了！"]
         : goal > 0 && earned >= goal
-          ? ["今日星星目标达成！", "剩下的也轻松完成吧～"]
+          ? ["今日星星目标达成！", "剩下的也轻松完成～"]
           : completedCount > 0 && pendingCount === 1
             ? ["只剩最后一个任务啦！", "再加把劲就完成了～"]
             : completedCount > 0
