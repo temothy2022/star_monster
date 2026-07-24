@@ -76,12 +76,32 @@ function ProgressColumn({
   earned,
   goal,
   balance,
+  tasks,
+  streakDays,
 }: {
   earned: number;
   goal: number;
   balance: number;
+  tasks: TaskItem[];
+  streakDays: number;
 }) {
   const { mascot } = useMascot();
+  const completedCount = tasks.filter((task) => task.status === "completed").length;
+  const pendingCount = tasks.length - completedCount;
+  const encouragement: [string, string] =
+    tasks.length === 0
+      ? ["今天没有任务哦～", "去星愿看看惊喜吧！"]
+      : pendingCount === 0
+        ? ["今天的任务都完成啦！", "你真的太棒了！"]
+        : goal > 0 && earned >= goal
+          ? ["今日星星目标达成！", "剩下的也轻松完成吧～"]
+          : completedCount > 0 && pendingCount === 1
+            ? ["只剩最后一个任务啦！", "再加把劲就完成了～"]
+            : completedCount > 0
+              ? [`已经完成 ${completedCount} 个任务！`, "继续保持这个节奏吧～"]
+              : streakDays > 2
+                ? [`已经连续 ${streakDays} 天啦！`, "今天也一起加油吧～"]
+                : ["今天的探险开始啦～", "选一个任务出发吧！"];
 
   return (
     <aside className="task-progress-column">
@@ -97,8 +117,13 @@ function ProgressColumn({
       </section>
       <section className="task-mascot-area" aria-label={`${mascot.name}的鼓励`}>
         <div className="task-mascot-area__glow" />
-        <div className="task-speech-bubble"><span>今天装状态不错呢～</span><span>快加油完成任务吧！</span></div>
-        <img className="task-mascot-area__image" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
+        <div className="task-mascot-figure">
+          <div className="task-speech-bubble" aria-live="polite">
+            <span>{encouragement[0]}</span>
+            <span>{encouragement[1]}</span>
+          </div>
+          <img className="task-mascot-area__image" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
+        </div>
       </section>
     </aside>
   );
@@ -368,6 +393,8 @@ export function TaskExperience({
             earned={experience.earnedToday}
             goal={experience.dailyStarGoal}
             balance={experience.starBalance}
+            tasks={tasks}
+            streakDays={experience.streakDays}
           />
           {effectiveView === "empty" ? (
             <EmptyTaskPanel />

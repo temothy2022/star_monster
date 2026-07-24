@@ -264,8 +264,8 @@ select {
 .task-speech-bubble {
   position: absolute;
   z-index: 2;
-  top: 48.22px;
-  right: 20px;
+  top: -44px;
+  right: 8px;
   display: flex;
   width: 172.5px;
   height: 76px;
@@ -282,17 +282,22 @@ select {
 
 .task-speech-bubble span { white-space: nowrap; }
 
-.task-mascot-area__image {
+.task-mascot-figure {
   position: absolute;
-  z-index: 1;
   bottom: 0;
   left: 50%;
-  display: block;
   width: min(294px, 86%);
+  transform: translateX(-50%);
+}
+
+.task-mascot-area__image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
   height: auto;
   max-height: calc(100% - 76px);
   object-fit: contain;
-  transform: translateX(-50%);
 }
 
 .task-list-panel,
@@ -895,7 +900,7 @@ select {
   .task-balance { top: auto; right: 22px; bottom: 16px; left: 22px; height: 54px; }
   .task-mascot-area { top: 324px; }
   .task-mascot-area__glow { top: auto; bottom: 0; }
-  .task-speech-bubble { top: 4px; right: 8px; }
+  .task-speech-bubble { top: -44px; right: 8px; }
   .task-mascot-area__image { max-height: calc(100% - 48px); }
   .task-complete-card { transform: scale(0.82); }
 }
