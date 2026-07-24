@@ -43,6 +43,8 @@ type TaskItem = {
   accent: "blue" | "coral" | "gray";
   status: "pending" | "completed";
   mode: "UNTIMED" | "TIMED";
+  repeatableDaily: boolean;
+  repeatCompletionCount: number;
 };
 
 const TASK_ICONS: Record<TaskIconName, string> = {
@@ -120,6 +122,10 @@ function ProgressColumn({
 }) {
   const { mascot } = useMascot();
   const completedCount = tasks.filter((task) => task.status === "completed").length;
+  const repeatedCompletionCount = tasks.reduce(
+    (sum, task) => sum + task.repeatCompletionCount,
+    0,
+  );
   const pendingCount = tasks.length - completedCount;
   const encouragement: [string, string] =
     tasks.length === 0
@@ -128,10 +134,10 @@ function ProgressColumn({
         ? ["今天的任务都完成啦！", "你真的太棒了！"]
         : goal > 0 && earned >= goal
           ? ["今日星星目标达成！", "剩下的也轻松完成～"]
-          : completedCount > 0 && pendingCount === 1
+            : completedCount + repeatedCompletionCount > 0 && pendingCount === 1
             ? ["只剩最后一个任务啦！", "再加把劲就完成了～"]
-            : completedCount > 0
-              ? [`已经完成 ${completedCount} 个任务！`, "继续保持这个节奏吧～"]
+            : completedCount + repeatedCompletionCount > 0
+              ? [`今天已经完成 ${completedCount + repeatedCompletionCount} 次！`, "继续保持这个节奏吧～"]
               : streakDays > 2
                 ? [`已经连续 ${streakDays} 天啦！`, "今天也一起加油吧～"]
                 : ["今天的探险开始啦～", "选一个任务出发吧！"];
@@ -180,6 +186,13 @@ function PendingTaskCard({
         <div className="task-card__meta">
           <span><img src={clockIcon} alt="" />{task.duration} mins</span>
           <span><img src={rewardStar} alt="" />+{task.reward}</span>
+          {task.repeatableDaily && (
+            <span className="task-repeatable-badge">
+              {task.repeatCompletionCount > 0
+                ? `今日 ${task.repeatCompletionCount} 次`
+                : "可重复"}
+            </span>
+          )}
         </div>
       </div>
       <button
@@ -310,11 +323,12 @@ function taskItemFromApi(task: DailyTask): TaskItem {
       ? task.timeLimitSecondsSnapshot
       : task.suggestedSecondsSnapshot;
   const completedAttempt = task.attempts?.[0];
+  const isCompleted = task.status === "COMPLETED";
   return {
     id: task.id,
     title: task.titleSnapshot,
     duration: Math.max(1, Math.round((seconds ?? 60) / 60)),
-    reward: completedAttempt
+    reward: isCompleted && completedAttempt
       ? completedAttempt.baseStarsAwarded + completedAttempt.bonusStarsAwarded
       : task.baseStarsSnapshot,
     icon: iconForTask(task),
@@ -324,8 +338,12 @@ function taskItemFromApi(task: DailyTask): TaskItem {
         : task.categorySnapshot === "MATH"
           ? "gray"
           : "blue",
-    status: task.status === "COMPLETED" ? "completed" : "pending",
+    status: isCompleted ? "completed" : "pending",
     mode: task.modeSnapshot,
+    repeatableDaily: task.repeatableDailySnapshot,
+    repeatCompletionCount: task.repeatableDailySnapshot
+      ? (task.attempts?.length ?? 0)
+      : 0,
   };
 }
 

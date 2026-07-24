@@ -1,5 +1,6 @@
 import type {
   AttemptStatus,
+  DailyTaskStatus,
   ScheduleKind,
   TaskAttempt,
   TaskMode,
@@ -99,6 +100,12 @@ export function dailyGoalBonusAmount(input: {
     return 0;
   }
   return input.bonusStars;
+}
+
+export function dailyTaskStatusAfterCompletion(
+  repeatableDaily: boolean,
+): DailyTaskStatus {
+  return repeatableDaily ? "PENDING" : "COMPLETED";
 }
 
 export function consecutiveScoredDays(

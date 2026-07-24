@@ -240,6 +240,7 @@ model TaskTemplate {
   earlyBonusEnabled     Boolean              @default(false)
   earlyThresholdSeconds Int?
   earlyBonusStars       Int?
+  repeatableDaily       Boolean              @default(false)
   scheduleKind          ScheduleKind
   weekdays              Int[]                @default([])
   oneTimeDate           DateTime?            @db.Date
@@ -342,6 +343,7 @@ model DailyTask {
   earlyBonusEnabledSnapshot  Boolean
   earlyThresholdSecsSnapshot Int?
   earlyBonusStarsSnapshot    Int?
+  repeatableDailySnapshot    Boolean         @default(false)
   completedAt                DateTime?
   completionDurationSeconds  Int?
   expiredAt                  DateTime?

@@ -471,6 +471,17 @@ select {
 
 .task-card__meta img { width: 14px; height: auto; object-fit: contain; }
 
+.task-card__meta .task-repeatable-badge {
+  padding: 1px 7px;
+  border: 1px solid #f0a56f;
+  border-radius: 999px;
+  color: #a94b19;
+  background: #fff2e6;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .task-start-button {
   display: flex;
   width: 111.17px;

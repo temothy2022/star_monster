@@ -117,6 +117,7 @@ export type DailyTask = {
   baseStarsSnapshot: number;
   earlyThresholdSecsSnapshot: number | null;
   earlyBonusStarsSnapshot: number | null;
+  repeatableDailySnapshot: boolean;
   completionDurationSeconds: number | null;
   attempts?: Array<{
     baseStarsAwarded: number;
@@ -232,6 +233,7 @@ export type FootprintResponse = {
   selectedDate: string;
   days: Array<{ date: string; isFuture: boolean; stars: number | null }>;
   tasks: Array<{
+    completionId: string;
     dailyTaskId: string;
     title: string;
     category: DailyTask["categorySnapshot"];

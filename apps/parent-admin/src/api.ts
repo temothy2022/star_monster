@@ -33,6 +33,7 @@ export type TaskTemplate = {
   earlyBonusEnabled: boolean;
   earlyThresholdSeconds: number | null;
   earlyBonusStars: number | null;
+  repeatableDaily: boolean;
   scheduleKind: "DAILY" | "WORKDAYS" | "SELECTED_WEEKDAYS" | "ONE_TIME";
   weekdays: number[];
   oneTimeDate: string | null;
@@ -68,6 +69,7 @@ export type TaskAdvice = {
     earlyBonusEnabled: boolean;
     earlyThresholdMinutes: number | null;
     earlyBonusStars: number | null;
+    repeatableDaily: boolean;
     scheduleKind: "DAILY" | "WORKDAYS" | "SELECTED_WEEKDAYS" | "ONE_TIME";
     weekdays: number[];
     oneTimeDate: string | null;
@@ -219,6 +221,7 @@ export type TaskHistoryItem = {
   titleSnapshot: string;
   categorySnapshot: string;
   modeSnapshot: "UNTIMED" | "TIMED";
+  repeatableDailySnapshot: boolean;
   status: "PENDING" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "EXPIRED";
   baseStarsSnapshot: number;
   completedAt: string | null;
@@ -387,6 +390,7 @@ export const parentApi = {
   stats: (childId: string) =>
     api<{
       tasks: Record<string, number>;
+      taskInstances: { total: number; completed: number };
       attempts: Array<{
         status: string;
         count: number;

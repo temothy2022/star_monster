@@ -64,6 +64,7 @@ export const taskAdviceResponseSchema = z.object({
     earlyBonusEnabled: z.boolean(),
     earlyThresholdMinutes: z.number().int().min(1).max(120).nullable(),
     earlyBonusStars: z.number().int().min(1).max(10).nullable(),
+    repeatableDaily: z.boolean().default(false),
     scheduleKind: z.enum([
       "DAILY",
       "WORKDAYS",

@@ -31,13 +31,12 @@ export async function getFootprints(
     where: {
       childId,
       taskDate: { gte: weekStart, lte: weekEnd },
-      status: "COMPLETED",
+      attempts: { some: { status: "COMPLETED" } },
     },
     include: {
       attempts: {
         where: { status: "COMPLETED" },
         orderBy: { endedAt: "desc" },
-        take: 1,
       },
     },
     orderBy: [{ taskDate: "asc" }, { sortOrder: "asc" }],
@@ -45,15 +44,13 @@ export async function getFootprints(
 
   const totals = new Map<string, number>();
   for (const task of tasks) {
-    const attempt = task.attempts[0];
-    if (!attempt) continue;
     const key = businessDateKey(task.taskDate);
-    totals.set(
-      key,
-      (totals.get(key) ?? 0) +
-        attempt.baseStarsAwarded +
-        attempt.bonusStarsAwarded,
+    const taskStars = task.attempts.reduce(
+      (sum, attempt) =>
+        sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
+      0,
     );
+    totals.set(key, (totals.get(key) ?? 0) + taskStars);
   }
 
   const days = Array.from({ length: 7 }, (_, index) => {
@@ -69,9 +66,9 @@ export async function getFootprints(
   const selectedKey = businessDateKey(selectedDate);
   const details = tasks
     .filter((task) => businessDateKey(task.taskDate) === selectedKey)
-    .map((task) => {
-      const attempt = task.attempts[0]!;
-      return {
+    .flatMap((task) =>
+      task.attempts.map((attempt) => ({
+        completionId: attempt.id,
         dailyTaskId: task.id,
         title: task.titleSnapshot,
         category: task.categorySnapshot,
@@ -81,8 +78,8 @@ export async function getFootprints(
         totalStars:
           attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
         completedAt: attempt.endedAt,
-      };
-    });
+      })),
+    );
 
   return {
     weekStart: businessDateKey(weekStart),

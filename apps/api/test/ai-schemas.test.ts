@@ -16,6 +16,7 @@ const validAdvice = {
     earlyBonusEnabled: false,
     earlyThresholdMinutes: null,
     earlyBonusStars: null,
+    repeatableDaily: false,
     scheduleKind: "SELECTED_WEEKDAYS",
     weekdays: [1, 3, 5],
     oneTimeDate: null,

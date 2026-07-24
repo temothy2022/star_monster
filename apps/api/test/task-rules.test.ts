@@ -3,6 +3,7 @@ import {
   activeElapsedSeconds,
   consecutiveScoredDays,
   dailyGoalBonusAmount,
+  dailyTaskStatusAfterCompletion,
   isScheduledForDate,
   remainingSeconds,
   taskReward,
@@ -69,6 +70,13 @@ describe("任务计划规则", () => {
     };
     expect(isScheduledForDate(template, monday)).toBe(true);
     expect(isScheduledForDate(template, sunday)).toBe(false);
+  });
+});
+
+describe("当天可重复任务", () => {
+  it("普通任务完成后关闭，可重复任务完成后重新开放", () => {
+    expect(dailyTaskStatusAfterCompletion(false)).toBe("COMPLETED");
+    expect(dailyTaskStatusAfterCompletion(true)).toBe("PENDING");
   });
 });
 

@@ -8,6 +8,7 @@ import {
   activeElapsedSeconds,
   consecutiveScoredDays,
   dailyGoalBonusAmount,
+  dailyTaskStatusAfterCompletion,
   isScheduledForDate,
   remainingSeconds,
   taskReward,
@@ -103,6 +104,7 @@ export async function generateDailyTasks(
       earlyBonusEnabledSnapshot: template.earlyBonusEnabled,
       earlyThresholdSecsSnapshot: template.earlyThresholdSeconds,
       earlyBonusStarsSnapshot: template.earlyBonusStars,
+      repeatableDailySnapshot: template.repeatableDaily,
     })),
   });
 }
@@ -181,7 +183,6 @@ export async function getTodayTaskExperience(
         attempts: {
           where: { status: "COMPLETED" },
           orderBy: { endedAt: "desc" },
-          take: 1,
         },
       },
     }),
@@ -192,7 +193,6 @@ export async function getTodayTaskExperience(
     prisma.dailyTask.findMany({
       where: {
         childId,
-        status: "COMPLETED",
         taskDate: { gte: streakLookback, lte: today },
         attempts: {
           some: {
@@ -214,12 +214,12 @@ export async function getTodayTaskExperience(
   ]);
 
   const taskStarsEarnedToday = tasks.reduce((sum, task) => {
-    const completedAttempt = task.attempts[0];
-    return (
-      sum +
-      (completedAttempt
-        ? completedAttempt.baseStarsAwarded + completedAttempt.bonusStarsAwarded
-        : 0)
+    return sum + task.attempts.reduce(
+      (attemptSum, completedAttempt) =>
+        attemptSum +
+        completedAttempt.baseStarsAwarded +
+        completedAttempt.bonusStarsAwarded,
+      0,
     );
   }, 0);
   const dailyGoalBonusStars = dailyGoalBonus?.amount ?? 0;
@@ -542,7 +542,9 @@ export async function completeTask(
       await tx.dailyTask.update({
         where: { id: attempt.dailyTaskId },
         data: {
-          status: "COMPLETED",
+          status: dailyTaskStatusAfterCompletion(
+            attempt.dailyTask.repeatableDailySnapshot,
+          ),
           completedAt: now,
           completionDurationSeconds: elapsedSeconds,
         },

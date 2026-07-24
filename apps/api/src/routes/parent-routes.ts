@@ -111,6 +111,7 @@ const taskTemplateShape = {
     .nullable()
     .optional(),
   earlyBonusStars: z.number().int().min(1).max(999).nullable().optional(),
+  repeatableDaily: z.boolean().default(false),
   scheduleKind,
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).default([]),
   oneTimeDate: z
@@ -263,6 +264,7 @@ function templateData(input: z.infer<typeof taskTemplateSchema>) {
       input.mode === "TIMED" && input.earlyBonusEnabled
         ? (input.earlyBonusStars ?? null)
         : null,
+    repeatableDaily: input.repeatableDaily,
     scheduleKind: input.scheduleKind,
     weekdays:
       input.scheduleKind === "SELECTED_WEEKDAYS"
@@ -661,7 +663,7 @@ export async function registerParentRoutes(
       ? new Date(`${query.to}T00:00:00.000Z`)
       : businessDateAt(new Date(), config.APP_TIME_ZONE);
 
-    const [tasks, attempts, ledgers] = await Promise.all([
+    const [tasks, attempts, ledgers, totalTaskInstances, completedTaskInstances] = await Promise.all([
       prisma.dailyTask.groupBy({
         by: ["status"],
         where: { childId: id, taskDate: { gte: from, lte: to } },
@@ -682,6 +684,16 @@ export async function registerParentRoutes(
         where: { childId: id, createdAt: { gte: from } },
         _sum: { amount: true },
       }),
+      prisma.dailyTask.count({
+        where: { childId: id, taskDate: { gte: from, lte: to } },
+      }),
+      prisma.dailyTask.count({
+        where: {
+          childId: id,
+          taskDate: { gte: from, lte: to },
+          attempts: { some: { status: "COMPLETED" } },
+        },
+      }),
     ]);
     return {
       from,
@@ -689,6 +701,10 @@ export async function registerParentRoutes(
       tasks: Object.fromEntries(
         tasks.map((row) => [row.status, row._count._all]),
       ),
+      taskInstances: {
+        total: totalTaskInstances,
+        completed: completedTaskInstances,
+      },
       attempts: attempts.map((row) => ({
         status: row.status,
         count: row._count._all,
@@ -718,6 +734,7 @@ export async function registerParentRoutes(
         titleSnapshot: true,
         categorySnapshot: true,
         modeSnapshot: true,
+        repeatableDailySnapshot: true,
         status: true,
         baseStarsSnapshot: true,
         completedAt: true,

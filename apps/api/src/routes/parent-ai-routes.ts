@@ -333,6 +333,7 @@ export async function registerParentAiRoutes(
             suggestedSeconds: true,
             timeLimitSeconds: true,
             baseStars: true,
+            repeatableDaily: true,
             scheduleKind: true,
             weekdays: true,
           },
@@ -431,6 +432,7 @@ export async function registerParentAiRoutes(
               ? proposal.earlyThresholdMinutes * 60
               : null,
             earlyBonusStars: proposal.earlyBonusStars,
+            repeatableDaily: proposal.repeatableDaily,
             scheduleKind: proposal.scheduleKind,
             weekdays:
               proposal.scheduleKind === "SELECTED_WEEKDAYS"
@@ -496,10 +498,10 @@ export async function registerParentAiRoutes(
         prisma.wishReward.findMany({
           where: { childId, archivedAt: null, isEnabled: true },
         }),
-        prisma.dailyTask.count({
-          where: { childId, status: "COMPLETED", completedAt: { gte: since } },
+        prisma.taskAttempt.count({
+          where: { childId, status: "COMPLETED", endedAt: { gte: since } },
         }),
-        prisma.dailyTask.count({
+        prisma.taskAttempt.count({
           where: { childId, createdAt: { gte: since } },
         }),
       ]);
@@ -515,6 +517,7 @@ export async function registerParentAiRoutes(
           estimatedMinutes: estimatedMinutes(item),
           baseStars: item.baseStars,
           earlyBonusStars: item.earlyBonusStars,
+          repeatableDaily: item.repeatableDaily,
           scheduleKind: item.scheduleKind,
           weekdays: item.weekdays,
         })),

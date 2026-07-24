@@ -395,7 +395,7 @@ function TaskAdvisor({ child }: { child: Child }) {
           <div className="ai-proposal-grid">
             <div><span>孩子听到的目标</span><strong>{proposal.childFriendlyGoal}</strong></div>
             <div><span>分类与时长</span><strong>{CATEGORY_LABELS[proposal.category] ?? proposal.category} · {proposal.estimatedMinutes} 分钟</strong></div>
-            <div><span>出现方式</span><strong>{proposal.scheduleKind === "DAILY" ? "每天" : proposal.scheduleKind === "WORKDAYS" ? "工作日" : proposal.scheduleKind === "ONE_TIME" ? `一次性 ${proposal.oneTimeDate ?? ""}` : proposal.weekdays.map((day) => DAY_LABELS[day]).join("、")}</strong></div>
+            <div><span>出现方式</span><strong>{proposal.scheduleKind === "DAILY" ? "每天" : proposal.scheduleKind === "WORKDAYS" ? "工作日" : proposal.scheduleKind === "ONE_TIME" ? `一次性 ${proposal.oneTimeDate ?? ""}` : proposal.weekdays.map((day) => DAY_LABELS[day]).join("、")}{proposal.repeatableDaily ? " · 当天可重复领取" : ""}</strong></div>
             <div><span>学习方式</span><strong>{PRACTICE_LABELS[proposal.learningPracticeKind]}</strong></div>
           </div>
           <div className="ai-result__columns">

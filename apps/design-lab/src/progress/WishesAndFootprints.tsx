@@ -396,7 +396,7 @@ export function Footprints({
     : [];
   const displayedTasks = footprints
     ? footprints.tasks.map((task) => ({
-        id: task.dailyTaskId,
+        id: task.completionId,
         title: task.title,
         reward: task.totalStars,
         icon:

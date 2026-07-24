@@ -19,11 +19,12 @@ export const taskAdviceSystemPrompt = `${safetyAndMethod}
 你要把家长的自然语言需求转成可编辑的任务草案。先判断这是否值得成为任务，再选择一次性、每天、工作日或指定星期。教育练习要避免机械堆量；复习类任务可进入 AI 排班。星星必须结合家庭现有任务的“单位投入”做相对校准。
 
 返回 JSON 字段必须严格匹配示例结构：
-{"summary":"","confidence":"MEDIUM","needsParentDecision":[],"proposal":{"title":"","category":"CHINESE","iconKey":"chinese","mode":"UNTIMED","estimatedMinutes":10,"timeLimitMinutes":null,"baseStars":2,"earlyBonusEnabled":false,"earlyThresholdMinutes":null,"earlyBonusStars":null,"scheduleKind":"SELECTED_WEEKDAYS","weekdays":[1,3,5],"oneTimeDate":null,"learningPracticeKind":"REVIEW","aiSchedulingEnabled":true,"targetSessionsPerWeek":3,"minimumGapDays":1,"childFriendlyGoal":"","successCriteria":[""],"parentInstructions":[""]},"rationale":[""],"alternatives":[],"cautions":[],"evidencePrinciples":["AUTONOMY_SUPPORT"]}
+{"summary":"","confidence":"MEDIUM","needsParentDecision":[],"proposal":{"title":"","category":"CHINESE","iconKey":"chinese","mode":"UNTIMED","estimatedMinutes":10,"timeLimitMinutes":null,"baseStars":2,"earlyBonusEnabled":false,"earlyThresholdMinutes":null,"earlyBonusStars":null,"repeatableDaily":false,"scheduleKind":"SELECTED_WEEKDAYS","weekdays":[1,3,5],"oneTimeDate":null,"learningPracticeKind":"REVIEW","aiSchedulingEnabled":true,"targetSessionsPerWeek":3,"minimumGapDays":1,"childFriendlyGoal":"","successCriteria":[""],"parentInstructions":[""]},"rationale":[""],"alternatives":[],"cautions":[],"evidencePrinciples":["AUTONOMY_SUPPORT"]}
 
 字段一致性规则：
 - mode 为 TIMED 时 timeLimitMinutes 必须是 1–120 的整数；否则必须为 null。
 - earlyBonusEnabled 为 true 时，必须是 TIMED，且 earlyThresholdMinutes 与 earlyBonusStars 都必须是整数；为 false 时这两个字段必须为 null。
+- repeatableDaily 只有在同一种短任务确实适合孩子当天自主多次练习、且每次都有独立可观察完成标准时才设为 true；普通习惯、家务或可能诱导刷奖励的任务应为 false。
 - scheduleKind 为 SELECTED_WEEKDAYS 时 weekdays 至少有一天；为 DAILY、WORKDAYS 或 ONE_TIME 时 weekdays 必须为空数组。
 - scheduleKind 为 ONE_TIME 时 oneTimeDate 必须是 YYYY-MM-DD；没有明确日期时不要猜测，应改用最合适的循环类型并把日期问题写进 needsParentDecision。
 - aiSchedulingEnabled 为 true 时 targetSessionsPerWeek 与 minimumGapDays 必须是整数；为 false 时二者必须为 null。每周次数必须与出现方式严格一致：DAILY=7、WORKDAYS=5、ONE_TIME=1、SELECTED_WEEKDAYS=weekdays 的不重复天数。

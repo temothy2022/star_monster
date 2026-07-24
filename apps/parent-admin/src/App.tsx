@@ -224,9 +224,9 @@ function Overview({ child }: { child: Child }) {
     void parentApi.stats(child.id).then(setStats).catch(() => setStats(null));
   }, [child.id]);
 
-  const completed = stats?.tasks.COMPLETED ?? 0;
+  const completed = stats?.taskInstances.completed ?? 0;
   const expired = stats?.tasks.EXPIRED ?? 0;
-  const total = Object.values(stats?.tasks ?? {}).reduce((sum, value) => sum + value, 0);
+  const total = stats?.taskInstances.total ?? 0;
   const completionRate = total ? Math.round((completed / total) * 100) : 0;
   const timeout = stats?.attempts.find((item) => item.status === "TIMED_OUT")?.count ?? 0;
   const abandoned = stats?.attempts.find((item) => item.status === "ABANDONED")?.count ?? 0;
@@ -285,7 +285,7 @@ function History({ child }: { child: Child }) {
   }, [child.id, days]);
 
   const attempts = tasks.flatMap((task) => task.attempts);
-  const completed = tasks.filter((task) => task.status === "COMPLETED").length;
+  const completed = attempts.filter((attempt) => attempt.status === "COMPLETED").length;
   const timedOut = attempts.filter((attempt) => attempt.status === "TIMED_OUT").length;
   const abandoned = attempts.filter((attempt) => attempt.status === "ABANDONED").length;
   const stars = attempts.reduce(
@@ -294,6 +294,12 @@ function History({ child }: { child: Child }) {
   );
   const elapsed = attempts.reduce((sum, attempt) => sum + (attempt.elapsedSeconds ?? 0), 0);
   const outcomeLabel = (task: TaskHistoryItem) => {
+    const completedAttempts = task.attempts.filter(
+      (attempt) => attempt.status === "COMPLETED",
+    ).length;
+    if (task.repeatableDailySnapshot && completedAttempts > 0) {
+      return `已完成 ${completedAttempts} 次（可重复）`;
+    }
     if (task.status === "COMPLETED") return "已完成";
     if (task.status === "EXPIRED") return "未完成";
     if (task.status === "PAUSED") return "已暂停";
@@ -330,7 +336,8 @@ function History({ child }: { child: Child }) {
                   : task.attempts.some((attempt) => attempt.status === "ABANDONED")
                     ? " · 有放弃"
                     : "";
-                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}</td><td><span className={`status status--${task.status === "COMPLETED" ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td></tr>;
+                const hasCompletion = task.attempts.some((attempt) => attempt.status === "COMPLETED");
+                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td><td><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td></tr>;
               })}</tbody>
             </table>
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
@@ -350,6 +357,7 @@ type TaskForm = {
   earlyBonusEnabled: boolean;
   earlyThresholdMinutes: number;
   earlyBonusStars: number;
+  repeatableDaily: boolean;
   scheduleKind: "DAILY" | "WORKDAYS" | "SELECTED_WEEKDAYS" | "ONE_TIME";
   weekdays: number[];
   oneTimeDate: string;
@@ -369,6 +377,7 @@ const EMPTY_TASK: TaskForm = {
   earlyBonusEnabled: false,
   earlyThresholdMinutes: 3,
   earlyBonusStars: 1,
+  repeatableDaily: false,
   scheduleKind: "DAILY",
   weekdays: [],
   oneTimeDate: "",
@@ -389,6 +398,7 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
     earlyBonusEnabled: template.earlyBonusEnabled,
     earlyThresholdMinutes: Math.round((template.earlyThresholdSeconds ?? 60) / 60),
     earlyBonusStars: template.earlyBonusStars ?? 1,
+    repeatableDaily: template.repeatableDaily,
     scheduleKind: template.scheduleKind,
     weekdays: template.weekdays,
     oneTimeDate: template.oneTimeDate?.slice(0, 10) ?? "",
@@ -412,6 +422,7 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
     earlyBonusEnabled: form.mode === "TIMED" && form.earlyBonusEnabled,
     earlyThresholdSeconds: form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyThresholdMinutes * 60 : null,
     earlyBonusStars: form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyBonusStars : null,
+    repeatableDaily: form.repeatableDaily,
     scheduleKind: form.scheduleKind,
     weekdays: form.scheduleKind === "SELECTED_WEEKDAYS" ? form.weekdays : [],
     oneTimeDate: form.scheduleKind === "ONE_TIME" ? form.oneTimeDate : null,
@@ -480,6 +491,7 @@ function Tasks({ child }: { child: Child }) {
             <label>剩余至少（分钟）<input type="number" min={1} value={form.earlyThresholdMinutes} onChange={(event) => setForm({ ...form, earlyThresholdMinutes: Number(event.target.value) })} /></label>
             <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
+          <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>
           <label>出现方式<select value={form.scheduleKind} onChange={(event) => setForm({ ...form, scheduleKind: event.target.value as TaskForm["scheduleKind"] })}><option value="DAILY">每天</option><option value="WORKDAYS">工作日</option><option value="SELECTED_WEEKDAYS">指定星期</option><option value="ONE_TIME">一次性任务</option></select></label>
           {form.scheduleKind === "ONE_TIME" && <label>任务日期<input required type="date" value={form.oneTimeDate} onChange={(event) => setForm({ ...form, oneTimeDate: event.target.value })} /></label>}
           {form.scheduleKind === "SELECTED_WEEKDAYS" && <fieldset className="weekday-field field-span"><legend>选择星期</legend>{["日","一","二","三","四","五","六"].map((label, weekday) => <label key={weekday}><input type="checkbox" checked={form.weekdays.includes(weekday)} onChange={(event) => setForm({ ...form, weekdays: event.target.checked ? [...form.weekdays, weekday] : form.weekdays.filter((item) => item !== weekday) })} />周{label}</label>)}</fieldset>}
@@ -498,7 +510,7 @@ function Tasks({ child }: { child: Child }) {
         <div className="admin-list">
           {templates.map((template, index) => (
             <article className="list-card" key={template.id}>
-              <div className="list-card__main"><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+              <div className="list-card__main"><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === templates.length - 1} onClick={() => void move(index, 1)}>↓</button>
