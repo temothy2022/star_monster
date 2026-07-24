@@ -134,14 +134,17 @@ export function UntimedTaskActive({
   rewardStars = 1,
   initialOverlay = null,
 }: ActiveTaskProps) {
-  const [overlay, setOverlay] = useState<UntimedOverlay>(initialOverlay);
+  const [overlay, setOverlay] = useState<UntimedOverlay>(
+    initialOverlay === "abandon" ? null : initialOverlay,
+  );
+  const leaveTask = onAbandon ?? onBack;
 
   return (
     <main className="untimed-page untimed-page--active">
       <section className="untimed-scene" aria-labelledby="untimed-task-title">
         <img className="untimed-scene__texture" src={ongoingBackground} alt="" />
         <div className="untimed-topbar">
-          <button type="button" aria-label="放弃任务并返回" onClick={() => setOverlay("abandon")}>
+          <button type="button" aria-label="放弃任务并返回" onClick={leaveTask}>
             <img src={backIcon} alt="" />
           </button>
           <button type="button" aria-label="更多" onClick={() => setOverlay("menu")}>
@@ -185,13 +188,7 @@ export function UntimedTaskActive({
             if (paused) onResume?.();
             else onPause?.();
           }}
-          onAbandon={() => setOverlay("abandon")}
-        />
-      )}
-      {overlay === "abandon" && (
-        <AbandonDialog
-          onContinue={() => setOverlay(null)}
-          onAbandon={onAbandon ?? onBack}
+          onAbandon={leaveTask}
         />
       )}
     </main>
