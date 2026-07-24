@@ -214,7 +214,7 @@ select {
   inset: 0;
   display: grid;
   place-items: center;
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: -1px;
@@ -775,7 +775,7 @@ select {
     transform: none;
   }
   .daily-progress svg { width: 120px; height: 120px; }
-  .daily-progress__label { font-size: 26px; }
+  .daily-progress__label { font-size: 23px; }
   .task-balance { top: 94px; right: auto; left: 18px; width: 176px; height: 48px; padding: 0 12px; }
   .task-balance__value { gap: 5px; }
   .task-balance__value strong { font-size: 18px; }
@@ -891,7 +891,7 @@ select {
   .task-progress-card > p { top: 58px; left: 22px; }
   .daily-progress { top: 88px; width: 128px; height: 128px; }
   .daily-progress svg { width: 128px; height: 128px; }
-  .daily-progress__label { font-size: 29px; }
+  .daily-progress__label { font-size: 26px; }
   .task-balance { top: auto; right: 22px; bottom: 16px; left: 22px; height: 54px; }
   .task-mascot-area { top: 324px; }
   .task-mascot-area__glow { top: auto; bottom: 0; }
