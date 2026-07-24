@@ -5,7 +5,6 @@ import redeemedCheck from "../assets/wishes/redeemed-check.svg";
 import requestSparkle from "../assets/wishes/request-sparkle.svg";
 import starIcon from "../assets/wishes/star.svg";
 import confirmStar from "../assets/wishes/confirm-star.svg";
-import calendarIcon from "../assets/footprints/calendar.svg";
 import footprintStar from "../assets/footprints/star.svg";
 import selectedPattern from "../assets/footprints/selected-pattern.svg";
 import detailPattern from "../assets/footprints/detail-pattern.svg";
@@ -314,10 +313,6 @@ export function Footprints({
   return (
     <main className="footprints-page">
       <section className="footprints-main">
-        <header className="footprints-header">
-          <h1>7 天足迹</h1>
-          <button type="button" aria-label="打开日历"><img src={calendarIcon} alt="" /></button>
-        </header>
         <div className="footprints-layout">
           <aside className="footprints-mascot">
             <img src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
