@@ -4065,8 +4065,8 @@ body:has(.footprints-page),
 .requested-wishes-frame {
   position: relative;
   width: min(100%, 1279px);
-  height: min(764px, 100dvh);
-  min-height: 680px;
+  height: 100dvh;
+  min-height: 0;
   margin: auto;
   overflow: hidden;
   border-radius: 12px;
@@ -4141,11 +4141,11 @@ body:has(.footprints-page),
   z-index: 2;
   top: 142px;
   right: 75px;
-  bottom: 140px;
+  bottom: 112px;
   left: 75px;
   display: grid;
   grid-auto-flow: row;
-  grid-auto-rows: 100%;
+  grid-auto-rows: min(482px, 100%);
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   padding-right: 8px;
@@ -4683,8 +4683,8 @@ body:has(.footprints-page),
 .footprints-main {
   position: relative;
   width: 100%;
-  height: min(822px, calc(100dvh - 84px));
-  padding: 32px 32px clamp(24px, calc((100dvh - 768px) * 0.55), 120px);
+  height: calc(100dvh - 84px);
+  padding: 24px 32px 28px;
 }
 
 .footprints-layout {
