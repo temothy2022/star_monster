@@ -11,6 +11,8 @@ import {
   TimedTaskTimeout,
 } from "./tasks/TimedTaskPages";
 import { Footprints, WishesRequested } from "./progress/WishesAndFootprints";
+import { PlanetJourneyPage, PlanetMap } from "./planets/PlanetMap";
+import type { PlanetKey } from "./planets/planet-data";
 import { PageIndex } from "./PageIndex";
 import type { PageIndexRoute } from "./PageIndex";
 import { useMascot } from "./mascots";
@@ -45,8 +47,32 @@ type AppRoute =
   | "timed-active"
   | "timed-complete"
   | "timed-timeout"
+  | "map"
+  | "planet-mercury"
+  | "planet-venus"
+  | "planet-earth"
+  | "planet-mars"
+  | "planet-jupiter"
+  | "planet-saturn"
+  | "planet-uranus"
+  | "planet-neptune"
   | "wishes-requested"
   | "footprints";
+
+const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
+  MERCURY: "planet-mercury",
+  VENUS: "planet-venus",
+  EARTH: "planet-earth",
+  MARS: "planet-mars",
+  JUPITER: "planet-jupiter",
+  SATURN: "planet-saturn",
+  URANUS: "planet-uranus",
+  NEPTUNE: "planet-neptune",
+};
+
+const PLANET_KEY_BY_ROUTE = Object.fromEntries(
+  Object.entries(PLANET_ROUTE_BY_KEY).map(([planet, route]) => [route, planet]),
+) as Partial<Record<AppRoute, PlanetKey>>;
 
 function readRouteFromHash(): AppRoute {
   const route = window.location.hash.slice(1) as AppRoute;
@@ -67,6 +93,15 @@ function readRouteFromHash(): AppRoute {
     "timed-active",
     "timed-complete",
     "timed-timeout",
+    "map",
+    "planet-mercury",
+    "planet-venus",
+    "planet-earth",
+    "planet-mars",
+    "planet-jupiter",
+    "planet-saturn",
+    "planet-uranus",
+    "planet-neptune",
     "wishes-requested",
     "footprints",
   ];
@@ -381,6 +416,25 @@ export function App() {
 
   if (route === "timed-timeout") {
     return <TimedTaskTimeout onBack={() => navigate("tasks-partial")} />;
+  }
+
+  if (route === "map") {
+    return (
+      <PlanetMap
+        onNavigate={navigate}
+        onOpenPlanet={(planet) => navigate(PLANET_ROUTE_BY_KEY[planet])}
+      />
+    );
+  }
+
+  const routePlanet = PLANET_KEY_BY_ROUTE[route];
+  if (routePlanet) {
+    return (
+      <PlanetJourneyPage
+        planetKey={routePlanet}
+        onBack={() => navigate("map")}
+      />
+    );
   }
 
   if (route === "wishes-requested") {

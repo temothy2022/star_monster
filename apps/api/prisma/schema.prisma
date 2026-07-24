@@ -84,9 +84,21 @@ enum RedemptionStatus {
 enum StarLedgerType {
   TASK_REWARD
   DAILY_GOAL_BONUS
+  PLANET_BONUS
   WISH_SPEND
   WISH_REFUND
   MANUAL_ADJUSTMENT
+}
+
+enum PlanetKey {
+  MERCURY
+  VENUS
+  EARTH
+  MARS
+  JUPITER
+  SATURN
+  URANUS
+  NEPTUNE
 }
 
 enum AuditActorType {
@@ -194,6 +206,7 @@ model ChildProfile {
   schedulePreference ChildSchedulePreference?
   availabilitySlots  ChildAvailabilitySlot[]
   aiRecommendations  AiRecommendation[]
+  planetProgress     PlanetProgress[]
 
   @@index([familyId, status])
 }
@@ -396,6 +409,24 @@ model StarLedger {
 
   @@index([childId, createdAt])
   @@index([referenceId])
+}
+
+model PlanetProgress {
+  id                    String    @id @default(cuid())
+  childId               String
+  planet                PlanetKey
+  requiredLifetimeStars Int
+  bonusStars            Int
+  awardedBonusStars     Int?
+  unlockedAt            DateTime?
+  celebratedAt          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, planet])
+  @@index([childId, unlockedAt])
 }
 
 model WishReward {

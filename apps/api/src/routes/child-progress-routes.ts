@@ -3,6 +3,11 @@ import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { getFootprints } from "../services/footprint-service.js";
 import { requireChild } from "../services/auth-service.js";
+import {
+  markPlanetCelebrated,
+  PLANET_KEYS,
+  syncPlanetProgress,
+} from "../services/planet-service.js";
 import { listChildWishes, redeemWish } from "../services/wish-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
@@ -15,6 +20,7 @@ const footprintQuery = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
 });
+const planetParams = z.object({ planet: z.enum(PLANET_KEYS) });
 
 export async function registerChildProgressRoutes(
   app: FastifyInstance,
@@ -36,5 +42,16 @@ export async function registerChildProgressRoutes(
     const { child } = await requireChild(request, reply, config);
     const { date } = footprintQuery.parse(request.query);
     return getFootprints(child.id, config, date);
+  });
+
+  app.get("/api/child/planets", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    return syncPlanetProgress(child.id);
+  });
+
+  app.post("/api/child/planets/:planet/celebrated", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { planet } = planetParams.parse(request.params);
+    return markPlanetCelebrated(child.id, planet);
   });
 }

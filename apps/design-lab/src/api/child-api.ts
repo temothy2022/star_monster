@@ -1,4 +1,5 @@
 import type { PetType } from "../mascots";
+import type { PlanetKey } from "../planets/planet-data";
 
 export type ChildProfile = {
   id: string;
@@ -245,4 +246,33 @@ export type FootprintResponse = {
 export async function getChildFootprints(date?: string) {
   const query = date ? `?date=${encodeURIComponent(date)}` : "";
   return request<FootprintResponse>(`/api/child/footprints${query}`);
+}
+
+export type ChildPlanet = {
+  id: string;
+  planet: PlanetKey;
+  requiredLifetimeStars: number;
+  bonusStars: number;
+  awardedBonusStars: number | null;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  celebratedAt: string | null;
+};
+
+export type PlanetMapResponse = {
+  starBalance: number;
+  lifetimeStarsEarned: number;
+  planets: ChildPlanet[];
+  pendingCelebrations: PlanetKey[];
+};
+
+export async function getChildPlanets() {
+  return request<PlanetMapResponse>("/api/child/planets");
+}
+
+export async function markChildPlanetCelebrated(planet: PlanetKey) {
+  return request<{ planet: PlanetKey; celebratedAt: string }>(
+    `/api/child/planets/${planet}/celebrated`,
+    { method: "POST" },
+  );
 }

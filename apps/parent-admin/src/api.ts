@@ -161,11 +161,45 @@ export type Redemption = {
 
 export type LedgerEntry = {
   id: string;
-  type: "TASK_REWARD" | "DAILY_GOAL_BONUS" | "WISH_SPEND" | "WISH_REFUND" | "MANUAL_ADJUSTMENT";
+  type:
+    | "TASK_REWARD"
+    | "DAILY_GOAL_BONUS"
+    | "PLANET_BONUS"
+    | "WISH_SPEND"
+    | "WISH_REFUND"
+    | "MANUAL_ADJUSTMENT";
   amount: number;
   balanceAfter: number;
   reason: string | null;
   createdAt: string;
+};
+
+export type PlanetKey =
+  | "MERCURY"
+  | "VENUS"
+  | "EARTH"
+  | "MARS"
+  | "JUPITER"
+  | "SATURN"
+  | "URANUS"
+  | "NEPTUNE";
+
+export type PlanetSetting = {
+  id: string;
+  planet: PlanetKey;
+  requiredLifetimeStars: number;
+  bonusStars: number;
+  awardedBonusStars: number | null;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  celebratedAt: string | null;
+};
+
+export type PlanetSettingsResponse = {
+  starBalance: number;
+  lifetimeStarsEarned: number;
+  planets: PlanetSetting[];
+  pendingCelebrations: PlanetKey[];
 };
 
 export type Device = {
@@ -364,6 +398,20 @@ export const parentApi = {
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
       `/api/parent/children/${childId}/task-history?days=${days}`,
     ),
+  planets: (childId: string) =>
+    api<PlanetSettingsResponse>(`/api/parent/children/${childId}/planets`),
+  savePlanets: (
+    childId: string,
+    planets: Array<{
+      planet: PlanetKey;
+      requiredLifetimeStars: number;
+      bonusStars: number;
+    }>,
+  ) =>
+    api<PlanetSettingsResponse>(`/api/parent/children/${childId}/planets`, {
+      method: "PUT",
+      body: JSON.stringify({ planets }),
+    }),
   aiConfig: () => api<{ config: AiConfig }>("/api/parent/ai/config"),
   aiModels: () =>
     api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/parent/ai/models"),

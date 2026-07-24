@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { PlanetKey, Prisma } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -7,6 +7,11 @@ import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
 import { requireStaff } from "../services/auth-service.js";
 import { generateDailyTasks } from "../services/task-service.js";
+import {
+  getPlanetSettings,
+  PLANET_KEYS,
+  updatePlanetSettings,
+} from "../services/planet-service.js";
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
 
@@ -49,6 +54,45 @@ const presetIcon = z.enum([
   "pe",
   "other",
 ]);
+const planetSettingsSchema = z
+  .object({
+    planets: z
+      .array(
+        z.object({
+          planet: z.nativeEnum(PlanetKey),
+          requiredLifetimeStars: z.number().int().min(0).max(1_000_000),
+          bonusStars: z.number().int().min(0).max(10_000),
+        }),
+      )
+      .length(PLANET_KEYS.length),
+  })
+  .superRefine((input, context) => {
+    const uniqueKeys = new Set(input.planets.map((item) => item.planet));
+    if (
+      uniqueKeys.size !== PLANET_KEYS.length ||
+      PLANET_KEYS.some((planet) => !uniqueKeys.has(planet))
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["planets"],
+        message: "必须完整设置八颗星球，且不能重复",
+      });
+    }
+
+    let previousThreshold = -1;
+    for (const planet of PLANET_KEYS) {
+      const setting = input.planets.find((item) => item.planet === planet);
+      if (!setting) continue;
+      if (setting.requiredLifetimeStars < previousThreshold) {
+        context.addIssue({
+          code: "custom",
+          path: ["planets", planet, "requiredLifetimeStars"],
+          message: "后续星球的点亮门槛不能低于前一颗星球",
+        });
+      }
+      previousThreshold = setting.requiredLifetimeStars;
+    }
+  });
 
 const taskTemplateShape = {
   title: z.string().trim().min(1).max(80),
@@ -694,5 +738,31 @@ export async function registerParentRoutes(
       },
     });
     return { from, to: today, days, tasks };
+  });
+
+  app.get("/api/parent/children/:id/planets", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    return getPlanetSettings(id);
+  });
+
+  app.put("/api/parent/children/:id/planets", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    const { user, child } = await requireOwnedChild(request, reply, config, id);
+    const input = planetSettingsSchema.parse(request.body);
+    const result = await updatePlanetSettings(id, input.planets);
+    await prisma.$transaction(async (tx) => {
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId: child.familyId,
+        action: "PLANET_SETTINGS_UPDATE",
+        resourceType: "ChildProfile",
+        resourceId: id,
+        metadata: { planets: input.planets },
+        ipAddress: request.ip,
+      });
+    });
+    return result;
   });
 }

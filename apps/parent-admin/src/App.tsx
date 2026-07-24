@@ -7,6 +7,8 @@ import {
   type Child,
   type Device,
   type LedgerEntry,
+  type PlanetKey,
+  type PlanetSetting,
   type Redemption,
   type StaffUser,
   type TaskHistoryItem,
@@ -18,6 +20,14 @@ import sportsReward from "../../design-lab/src/assets/reward-categories/sports.p
 import gamesReward from "../../design-lab/src/assets/reward-categories/games.png";
 import televisionReward from "../../design-lab/src/assets/reward-categories/television.png";
 import toysReward from "../../design-lab/src/assets/reward-categories/toys.png";
+import earthPlanet from "../../design-lab/src/assets/planets/earth.png";
+import jupiterPlanet from "../../design-lab/src/assets/planets/jupiter.png";
+import marsPlanet from "../../design-lab/src/assets/planets/mars.png";
+import mercuryPlanet from "../../design-lab/src/assets/planets/mercury.png";
+import neptunePlanet from "../../design-lab/src/assets/planets/neptune.png";
+import saturnPlanet from "../../design-lab/src/assets/planets/saturn.png";
+import uranusPlanet from "../../design-lab/src/assets/planets/uranus.png";
+import venusPlanet from "../../design-lab/src/assets/planets/venus.png";
 
 type Section =
   | "overview"
@@ -26,6 +36,7 @@ type Section =
   | "wishes"
   | "redemptions"
   | "stars"
+  | "planets"
   | "ai"
   | "settings";
 
@@ -36,6 +47,7 @@ const SECTION_LABELS: Record<Section, string> = {
   wishes: "星愿管理",
   redemptions: "兑换处理",
   stars: "星星流水",
+  planets: "航图设置",
   ai: "AI 育儿助手",
   settings: "孩子设置",
 };
@@ -43,9 +55,24 @@ const SECTION_LABELS: Record<Section, string> = {
 const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
   TASK_REWARD: "任务奖励",
   DAILY_GOAL_BONUS: "每日达标奖",
+  PLANET_BONUS: "星球点亮奖",
   WISH_SPEND: "兑换支出",
   WISH_REFUND: "兑换退款",
   MANUAL_ADJUSTMENT: "手动调整"
+};
+
+const PLANET_META: Record<
+  PlanetKey,
+  { name: string; englishName: string; image: string }
+> = {
+  MERCURY: { name: "水星", englishName: "Mercury", image: mercuryPlanet },
+  VENUS: { name: "金星", englishName: "Venus", image: venusPlanet },
+  EARTH: { name: "地球", englishName: "Earth", image: earthPlanet },
+  MARS: { name: "火星", englishName: "Mars", image: marsPlanet },
+  JUPITER: { name: "木星", englishName: "Jupiter", image: jupiterPlanet },
+  SATURN: { name: "土星", englishName: "Saturn", image: saturnPlanet },
+  URANUS: { name: "天王星", englishName: "Uranus", image: uranusPlanet },
+  NEPTUNE: { name: "海王星", englishName: "Neptune", image: neptunePlanet },
 };
 
 const WISH_IMAGES: Record<Wish["category"], string> = {
@@ -575,6 +602,188 @@ function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
   return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<input type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">手动调整只影响当前余额，不会修改累计获得星星。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td>{formatDate(entry.createdAt)}</td><td>{LEDGER_LABELS[entry.type]}</td><td className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td>{entry.balanceAfter}</td><td>{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
 }
 
+function Planets({
+  child,
+  onChanged,
+}: {
+  child: Child;
+  onChanged: () => void;
+}) {
+  const [planets, setPlanets] = useState<PlanetSetting[]>([]);
+  const [lifetimeStars, setLifetimeStars] = useState(child.lifetimeStarsEarned);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setMessage("");
+    setError("");
+    void parentApi
+      .planets(child.id)
+      .then((result) => {
+        if (cancelled) return;
+        setPlanets(result.planets);
+        setLifetimeStars(result.lifetimeStarsEarned);
+      })
+      .catch((reason: unknown) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "航图设置读取失败");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [child.id]);
+
+  function updatePlanet(
+    key: PlanetKey,
+    field: "requiredLifetimeStars" | "bonusStars",
+    value: number,
+  ) {
+    setPlanets((current) =>
+      current.map((planet) =>
+        planet.planet === key
+          ? { ...planet, [field]: Math.max(0, value || 0) }
+          : planet,
+      ),
+    );
+    setMessage("");
+  }
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (busy) return;
+    const hasDescendingThreshold = planets.some(
+      (planet, index) =>
+        index > 0 &&
+        planet.requiredLifetimeStars <
+          planets[index - 1].requiredLifetimeStars,
+    );
+    if (hasDescendingThreshold) {
+      setError("后续星球的点亮门槛不能低于前一颗星球");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await parentApi.savePlanets(
+        child.id,
+        planets.map(({ planet, requiredLifetimeStars, bonusStars }) => ({
+          planet,
+          requiredLifetimeStars,
+          bonusStars,
+        })),
+      );
+      setPlanets(result.planets);
+      setLifetimeStars(result.lifetimeStarsEarned);
+      setMessage("航图规则已保存。达到新门槛的星球会自动点亮。");
+      onChanged();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "航图设置保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-stack">
+      <Panel title="星球点亮规则">
+        <div className="planet-settings-intro">
+          <div>
+            <span>当前永久航行能量</span>
+            <strong>{lifetimeStars}</strong>
+          </div>
+          <p>
+            点亮门槛依据孩子“历史累计获得星星”计算。星球一旦点亮就会永久保留，
+            并且只发放一次加成星星；修改已点亮星球的奖励不会重复补发。
+          </p>
+        </div>
+        {loading ? (
+          <div className="empty-state">正在读取航图设置…</div>
+        ) : (
+          <form onSubmit={save}>
+            <div className="planet-settings-grid">
+              {planets.map((planet) => {
+                const meta = PLANET_META[planet.planet];
+                return (
+                  <article
+                    className={`planet-setting-card${
+                      planet.unlocked ? " planet-setting-card--unlocked" : ""
+                    }`}
+                    key={planet.planet}
+                  >
+                    <div className="planet-setting-card__visual">
+                      <img src={meta.image} alt={meta.name} />
+                      <span>{planet.unlocked ? "已点亮" : "未点亮"}</span>
+                    </div>
+                    <div className="planet-setting-card__heading">
+                      <h3>{meta.name}</h3>
+                      <small>{meta.englishName}</small>
+                    </div>
+                    <label>
+                      点亮所需历史星星
+                      <input
+                        type="number"
+                        min={0}
+                        max={1_000_000}
+                        value={planet.requiredLifetimeStars}
+                        onChange={(event) =>
+                          updatePlanet(
+                            planet.planet,
+                            "requiredLifetimeStars",
+                            Number(event.target.value),
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      点亮加送星星
+                      <input
+                        type="number"
+                        min={0}
+                        max={10_000}
+                        value={planet.bonusStars}
+                        onChange={(event) =>
+                          updatePlanet(
+                            planet.planet,
+                            "bonusStars",
+                            Number(event.target.value),
+                          )
+                        }
+                      />
+                    </label>
+                    {planet.unlocked && (
+                      <small className="planet-setting-card__awarded">
+                        已实际发放 {planet.awardedBonusStars ?? 0} 颗
+                        · {formatDate(planet.unlockedAt)}
+                      </small>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+            <div className="form-actions planet-settings-actions">
+              <button className="primary-button" disabled={busy}>
+                {busy ? "保存中…" : "保存航图规则"}
+              </button>
+            </div>
+          </form>
+        )}
+        {error && <Notice kind="error">{error}</Notice>}
+        {message && <Notice kind="success">{message}</Notice>}
+      </Panel>
+    </div>
+  );
+}
+
 function Settings({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [nickname, setNickname] = useState(child.nickname ?? "");
   const [dailyStarGoal, setDailyStarGoal] = useState(child.dailyStarGoal);
@@ -729,7 +938,7 @@ export function App() {
       <aside className="admin-sidebar">
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>
-        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
+        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "planets" ? "◎" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
         <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div>
       </aside>
       <main className="admin-main">
@@ -743,6 +952,7 @@ export function App() {
             {section === "wishes" && <Wishes child={selectedChild} />}
             {section === "redemptions" && <Redemptions child={selectedChild} />}
             {section === "stars" && <Stars child={selectedChild} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
+            {section === "planets" && <Planets child={selectedChild} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
             {section === "settings" && <Settings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
           </>}

@@ -14,6 +14,7 @@ export type PageIndexRoute =
   | "timed-active"
   | "timed-complete"
   | "timed-timeout"
+  | "map"
   | "wishes-requested"
   | "footprints";
 
@@ -59,6 +60,12 @@ const groups: PageGroup[] = [
     ],
   },
   {
+    title: "航图",
+    pages: [
+      { route: "map", name: "星际航图", note: "八颗星球、点亮门槛与加成奖励" },
+    ],
+  },
+  {
     title: "星愿兑换",
     pages: [
       { route: "wishes-requested", name: "星愿兑换", note: "点击申请后在当前页打开底部确认弹层" },
@@ -91,7 +98,7 @@ export function PageIndex({ onNavigate }: { onNavigate: (route: PageIndexRoute) 
           <span className="page-index__portal-icon" aria-hidden="true">🚀</span>
           <span>
             <strong>孩子端</strong>
-            <small>iPad 日常任务、星愿与足迹</small>
+            <small>iPad 日常任务、航图、星愿与足迹</small>
           </span>
           <b>进入 →</b>
         </button>

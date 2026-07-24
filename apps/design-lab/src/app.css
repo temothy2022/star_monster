@@ -1277,6 +1277,370 @@ select {
   height: 63px;
 }
 
+/* 航图：复用全局底部导航，页面主体独立滚动。 */
+html:has(.planet-map-page),
+body:has(.planet-map-page),
+#root:has(.planet-map-page) {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.planet-map-page {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  color: #253b59;
+  background:
+    radial-gradient(circle at 8% 3%, rgba(255, 223, 156, 0.35), transparent 21rem),
+    #fff8e8;
+}
+
+.planet-map-scroll {
+  width: 100%;
+  height: 100%;
+  padding: 26px 32px 118px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.planet-map-content {
+  width: min(1130px, 100%);
+  min-height: 100%;
+  margin: 0 auto;
+}
+
+.planet-map-summary {
+  display: flex;
+  min-height: 71px;
+  align-items: center;
+  gap: 20px;
+}
+
+.planet-map-counter {
+  display: flex;
+  min-width: 164px;
+  height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 18px 7px 10px;
+  border: 2px solid #253b59;
+  border-radius: 999px;
+  background: #fffdf7;
+  box-shadow: 0 4px 0 rgba(37, 59, 89, 0.16);
+}
+
+.planet-map-counter__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff1c9;
+}
+
+.planet-map-counter__icon--energy {
+  background: #e3f2f0;
+}
+
+.planet-map-counter__icon img {
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.planet-map-counter__icon--energy img {
+  width: 29px;
+  height: 29px;
+}
+
+.planet-map-counter > span:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.planet-map-counter small {
+  color: #6e7d91;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.planet-map-counter strong {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 26px;
+}
+
+.planet-map-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.planet-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 304px;
+  align-items: center;
+  flex-direction: column;
+  padding: 22px 18px 17px;
+  overflow: hidden;
+  border: 2px solid #253b59;
+  border-radius: 24px;
+  color: #253b59;
+  background: #fffdf7;
+  box-shadow: 0 8px 12px rgba(37, 59, 89, 0.16);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.planet-card:not(:disabled):hover {
+  box-shadow: 0 11px 18px rgba(37, 59, 89, 0.2);
+  transform: translateY(-3px);
+}
+
+.planet-card:not(:disabled):active {
+  box-shadow: 0 5px 9px rgba(37, 59, 89, 0.16);
+  transform: translateY(2px) scale(0.99);
+}
+
+.planet-card--locked {
+  background: #fff1ec;
+  cursor: default;
+}
+
+.planet-card__corner {
+  position: absolute;
+  z-index: 2;
+  top: 15px;
+  right: 15px;
+}
+
+.planet-card__bonus {
+  display: flex;
+  height: 36px;
+  align-items: center;
+  gap: 3px;
+  padding: 0 10px;
+  border: 2px solid #253b59;
+  border-radius: 999px;
+  background: #fffdf7;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.planet-card__bonus span {
+  font-size: 15px;
+}
+
+.planet-card__bonus img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.planet-card__lock {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid #253b59;
+  border-radius: 50%;
+  background: #253b59;
+}
+
+.planet-card__lock img {
+  width: 16px;
+  height: 21px;
+}
+
+.planet-card__art {
+  display: grid;
+  width: 172px;
+  height: 172px;
+  flex: 0 0 172px;
+  place-items: center;
+  margin-top: 0;
+}
+
+.planet-card__art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 50%;
+  animation: planet-card-float 5s ease-in-out infinite;
+}
+
+.planet-card:nth-child(even) .planet-card__art img {
+  animation-delay: -2.5s;
+}
+
+.planet-card--locked .planet-card__art img {
+  filter: grayscale(1) saturate(0) contrast(0.82) opacity(0.62);
+  animation: none;
+}
+
+@keyframes planet-card-float {
+  0%,
+  100% {
+    transform: translateY(1px) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1deg);
+  }
+}
+
+.planet-card__name {
+  margin-top: 1px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 31px;
+}
+
+.planet-card__english {
+  color: #6e7d91;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.planet-card__status {
+  margin-top: 8px;
+  color: #3b8b78;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.planet-card__requirement {
+  display: flex;
+  height: 28px;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: #6e7d91;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.planet-card__requirement img {
+  width: 23px;
+  height: 23px;
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.step4-planet--dim img {
+  filter: grayscale(1) saturate(0) brightness(0.75) opacity(0.72);
+}
+
+.planet-journey-loading {
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  place-items: center;
+  padding: 24px;
+  background: #fff8e8;
+}
+
+.planet-journey-back {
+  min-width: 160px;
+  height: 52px;
+  border: 2px solid #253b59;
+  border-radius: 999px;
+  color: #fff;
+  background: #a53c00;
+  font: 700 18px/1 "Noto Sans SC", sans-serif;
+}
+
+@media (max-height: 900px) and (orientation: landscape) {
+  .planet-map-scroll {
+    padding-top: 18px;
+  }
+
+  .planet-map-summary {
+    min-height: 62px;
+  }
+
+  .planet-map-grid {
+    gap: 18px;
+  }
+
+  .planet-card {
+    min-height: 248px;
+    padding-top: 13px;
+  }
+
+  .planet-card__art {
+    width: 137px;
+    height: 137px;
+    flex-basis: 137px;
+  }
+
+  .planet-card__name {
+    font-size: 21px;
+    line-height: 27px;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .planet-map-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+  }
+}
+
+@media (max-width: 650px) {
+  .planet-map-scroll {
+    padding: 18px 18px 108px;
+  }
+
+  .planet-map-summary {
+    gap: 10px;
+  }
+
+  .planet-map-counter {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-right: 10px;
+  }
+
+  .planet-map-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .planet-card {
+    min-height: 236px;
+    padding: 15px 8px 12px;
+    border-radius: 19px;
+  }
+
+  .planet-card__corner {
+    top: 10px;
+    right: 9px;
+  }
+
+  .planet-card__art {
+    width: 126px;
+    height: 126px;
+    flex-basis: 126px;
+  }
+
+  .planet-card__name {
+    font-size: 20px;
+    line-height: 25px;
+  }
+}
+
 @media (max-width: 700px) {
   .child-bottom-nav {
     height: 76px;
