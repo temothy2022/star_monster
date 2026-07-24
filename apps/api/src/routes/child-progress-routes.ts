@@ -5,6 +5,7 @@ import { getFootprints } from "../services/footprint-service.js";
 import { requireChild } from "../services/auth-service.js";
 import {
   markPlanetCelebrated,
+  markPlanetNotified,
   PLANET_KEYS,
   syncPlanetProgress,
 } from "../services/planet-service.js";
@@ -53,5 +54,11 @@ export async function registerChildProgressRoutes(
     const { child } = await requireChild(request, reply, config);
     const { planet } = planetParams.parse(request.params);
     return markPlanetCelebrated(child.id, planet);
+  });
+
+  app.post("/api/child/planets/:planet/notified", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { planet } = planetParams.parse(request.params);
+    return markPlanetNotified(child.id, planet);
   });
 }

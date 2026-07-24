@@ -256,6 +256,7 @@ export type ChildPlanet = {
   awardedBonusStars: number | null;
   unlocked: boolean;
   unlockedAt: string | null;
+  notifiedAt: string | null;
   celebratedAt: string | null;
 };
 
@@ -263,6 +264,7 @@ export type PlanetMapResponse = {
   starBalance: number;
   lifetimeStarsEarned: number;
   planets: ChildPlanet[];
+  pendingNotifications: PlanetKey[];
   pendingCelebrations: PlanetKey[];
 };
 
@@ -273,6 +275,13 @@ export async function getChildPlanets() {
 export async function markChildPlanetCelebrated(planet: PlanetKey) {
   return request<{ planet: PlanetKey; celebratedAt: string }>(
     `/api/child/planets/${planet}/celebrated`,
+    { method: "POST" },
+  );
+}
+
+export async function markChildPlanetNotified(planet: PlanetKey) {
+  return request<{ planet: PlanetKey; notifiedAt: string }>(
+    `/api/child/planets/${planet}/notified`,
     { method: "POST" },
   );
 }

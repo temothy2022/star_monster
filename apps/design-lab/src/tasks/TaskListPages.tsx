@@ -21,11 +21,15 @@ import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
 import {
   ApiError,
+  getChildPlanets,
   getTodayTasks,
+  markChildPlanetNotified,
+  type ChildPlanet,
   type DailyTask,
   type TaskAttempt,
   type TodayTaskExperience,
 } from "../api/child-api";
+import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -332,25 +336,44 @@ export function TaskExperience({
 }: {
   view: TaskView;
   onStartAttempt?: (attempt: TaskAttempt) => void;
-  onNavigate?: (route: "wishes-requested" | "footprints") => void;
+  onNavigate?: (route: ChildRoute) => void;
 }) {
   const [experience, setExperience] = useState<TodayTaskExperience | null>(null);
+  const [planetUnlock, setPlanetUnlock] = useState<ChildPlanet | null>(null);
   const [loading, setLoading] = useState(true);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
+  const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setApiError("");
-    void getTodayTasks()
-      .then((result) => {
+    setPlanetUnlock(null);
+
+    void (async () => {
+      let planetData: Awaited<ReturnType<typeof getChildPlanets>> | null = null;
+      try {
+        planetData = await getChildPlanets();
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) throw reason;
         if (!cancelled) {
-          setExperience(result);
-          if (result.active) onStartAttempt?.(result.active);
+          setApiError("星球点亮提醒暂时无法读取，今天的任务仍可正常使用");
         }
-      })
-      .catch((reason) => {
+      }
+      const result = await getTodayTasks();
+      if (cancelled) return;
+
+      const nextPlanet = planetData?.pendingNotifications[0];
+      setPlanetUnlock(
+        nextPlanet && planetData
+          ? planetData.planets.find((planet) => planet.planet === nextPlanet) ?? null
+          : null,
+      );
+      setExperience(result);
+      if (result.active) onStartAttempt?.(result.active);
+    })()
+      .catch((reason: unknown) => {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
           return;
@@ -391,6 +414,23 @@ export function TaskExperience({
     }
   }
 
+  async function acknowledgePlanet(destination: "map" | "tasks") {
+    if (!planetUnlock || acknowledgingPlanet) return;
+    setAcknowledgingPlanet(true);
+    setApiError("");
+    try {
+      await markChildPlanetNotified(planetUnlock.planet);
+      setPlanetUnlock(null);
+      if (destination === "map") onNavigate?.("map");
+    } catch (reason) {
+      setApiError(
+        reason instanceof Error ? reason.message : "暂时无法记录星球点亮消息",
+      );
+    } finally {
+      setAcknowledgingPlanet(false);
+    }
+  }
+
   if (loading || !experience) {
     return (
       <div className="task-page task-page--loading">
@@ -398,7 +438,7 @@ export function TaskExperience({
           error={!loading && Boolean(apiError)}
           message={loading ? "正在读取今天的任务…" : apiError || "任务暂时无法读取"}
         />
-        <ChildBottomNav active="tasks" onNavigate={onNavigate as ((route: ChildRoute) => void) | undefined} />
+        <ChildBottomNav active="tasks" onNavigate={onNavigate} />
       </div>
     );
   }
@@ -438,7 +478,15 @@ export function TaskExperience({
           )}
         </main>
       )}
-      <ChildBottomNav active="tasks" onNavigate={onNavigate as ((route: ChildRoute) => void) | undefined} />
+      <ChildBottomNav active="tasks" onNavigate={onNavigate} />
+      {planetUnlock && (
+        <PlanetUnlockModal
+          progress={planetUnlock}
+          busy={acknowledgingPlanet}
+          onOpenMap={() => void acknowledgePlanet("map")}
+          onStay={() => void acknowledgePlanet("tasks")}
+        />
+      )}
     </div>
   );
 }

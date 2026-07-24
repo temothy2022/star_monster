@@ -192,6 +192,7 @@ export type PlanetSetting = {
   awardedBonusStars: number | null;
   unlocked: boolean;
   unlockedAt: string | null;
+  notifiedAt: string | null;
   celebratedAt: string | null;
 };
 
@@ -199,6 +200,7 @@ export type PlanetSettingsResponse = {
   starBalance: number;
   lifetimeStarsEarned: number;
   planets: PlanetSetting[];
+  pendingNotifications: PlanetKey[];
   pendingCelebrations: PlanetKey[];
 };
 

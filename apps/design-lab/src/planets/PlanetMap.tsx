@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ApiError,
   getChildPlanets,
@@ -33,7 +33,6 @@ export function PlanetMap({
 }) {
   const [data, setData] = useState<PlanetMapResponse | null>(null);
   const [error, setError] = useState("");
-  const openedPending = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,13 +52,6 @@ export function PlanetMap({
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    const next = data?.pendingCelebrations[0];
-    if (!next || openedPending.current) return;
-    openedPending.current = true;
-    onOpenPlanet(next);
-  }, [data, onOpenPlanet]);
 
   return (
     <main className="planet-map-page">

@@ -419,6 +419,7 @@ model PlanetProgress {
   bonusStars            Int
   awardedBonusStars     Int?
   unlockedAt            DateTime?
+  notifiedAt            DateTime?
   celebratedAt          DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

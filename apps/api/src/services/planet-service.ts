@@ -43,6 +43,7 @@ function serializeProgress(
     bonusStars: number;
     awardedBonusStars: number | null;
     unlockedAt: Date | null;
+    notifiedAt: Date | null;
     celebratedAt: Date | null;
   }>,
 ) {
@@ -59,6 +60,7 @@ function serializeProgress(
       awardedBonusStars: progress.awardedBonusStars,
       unlocked: progress.unlockedAt !== null,
       unlockedAt: progress.unlockedAt,
+      notifiedAt: progress.notifiedAt,
       celebratedAt: progress.celebratedAt,
     };
   });
@@ -67,6 +69,9 @@ function serializeProgress(
     starBalance: child.starBalance,
     lifetimeStarsEarned: child.lifetimeStarsEarned,
     planets: ordered,
+    pendingNotifications: ordered
+      .filter((planet) => planet.unlocked && !planet.notifiedAt)
+      .map((planet) => planet.planet),
     pendingCelebrations: ordered
       .filter((planet) => planet.unlocked && !planet.celebratedAt)
       .map((planet) => planet.planet),
@@ -155,6 +160,22 @@ export async function markPlanetCelebrated(childId: string, planet: PlanetKey) {
     data: { celebratedAt: progress.celebratedAt ?? new Date() },
   });
   return { planet: updated.planet, celebratedAt: updated.celebratedAt };
+}
+
+export async function markPlanetNotified(childId: string, planet: PlanetKey) {
+  await ensurePlanetProgress(prisma, childId);
+  const progress = await prisma.planetProgress.findUnique({
+    where: { childId_planet: { childId, planet } },
+  });
+  if (!progress?.unlockedAt) {
+    throw new HttpError(409, "PLANET_LOCKED", "这颗星球还没有点亮");
+  }
+
+  const updated = await prisma.planetProgress.update({
+    where: { id: progress.id },
+    data: { notifiedAt: progress.notifiedAt ?? new Date() },
+  });
+  return { planet: updated.planet, notifiedAt: updated.notifiedAt };
 }
 
 export async function getPlanetSettings(childId: string) {
