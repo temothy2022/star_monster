@@ -116,6 +116,7 @@ export type DailyTask = {
   baseStarsSnapshot: number;
   earlyThresholdSecsSnapshot: number | null;
   earlyBonusStarsSnapshot: number | null;
+  completionDurationSeconds: number | null;
   attempts?: Array<{
     baseStarsAwarded: number;
     bonusStarsAwarded: number;

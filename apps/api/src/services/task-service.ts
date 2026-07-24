@@ -541,7 +541,11 @@ export async function completeTask(
       });
       await tx.dailyTask.update({
         where: { id: attempt.dailyTaskId },
-        data: { status: "COMPLETED", completedAt: now },
+        data: {
+          status: "COMPLETED",
+          completedAt: now,
+          completionDurationSeconds: elapsedSeconds,
+        },
       });
       const childSettings = await tx.childProfile.findUniqueOrThrow({
         where: { id: childId },

@@ -15,11 +15,13 @@ import mathIcon from "../assets/footprints/task-math.svg";
 import booksIcon from "../assets/footprints/task-books.svg";
 import { useMascot } from "../mascots";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
+import { ChildDataState } from "../components/ChildDataState";
 import sportsReward from "../assets/reward-categories/sports.png";
 import gamesReward from "../assets/reward-categories/games.png";
 import televisionReward from "../assets/reward-categories/television.png";
 import toysReward from "../assets/reward-categories/toys.png";
 import {
+  ApiError,
   getChildFootprints,
   getChildWishes,
   redeemChildWish,
@@ -41,37 +43,6 @@ const CATEGORY_IMAGES: Record<ChildWish["category"], string> = {
   TELEVISION: televisionReward,
   TOYS: toysReward,
 };
-
-const requestedWishes: RequestedWish[] = [
-  {
-    id: "sports",
-    title: "一起去运动",
-    cost: 12,
-    image: sportsReward,
-    state: "available",
-  },
-  {
-    id: "games",
-    title: "玩一局游戏",
-    cost: 15,
-    image: gamesReward,
-    state: "available",
-  },
-  {
-    id: "television",
-    title: "看一集动画片",
-    cost: 10,
-    image: televisionReward,
-    state: "available",
-  },
-  {
-    id: "toys",
-    title: "选择一个新玩具",
-    cost: 60,
-    image: toysReward,
-    state: "insufficient",
-  },
-];
 
 function RequestedWishCard({
   wish,
@@ -122,7 +93,7 @@ export function WishesRequested({
   } | null>(null);
   const [selectedWish, setSelectedWish] = useState<{
     display: RequestedWish;
-    apiWish?: ChildWish;
+    apiWish: ChildWish;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -133,7 +104,15 @@ export function WishesRequested({
       .then((result) => {
         if (!cancelled) setWishData(result);
       })
-      .catch(() => undefined);
+      .catch((reason) => {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+          return;
+        }
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "星愿暂时无法读取");
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -151,13 +130,10 @@ export function WishesRequested({
           : wish.canRedeem
             ? "available"
             : "insufficient",
-    })) ?? requestedWishes;
+    })) ?? [];
 
   async function confirmWish() {
-    if (!selectedWish?.apiWish) {
-      setSelectedWish(null);
-      return;
-    }
+    if (!selectedWish) return;
     setSubmitting(true);
     setError("");
     try {
@@ -171,25 +147,41 @@ export function WishesRequested({
     }
   }
 
+  if (!wishData) {
+    return (
+      <main className="wishes-page wishes-page--requested">
+        <ChildDataState
+          error={Boolean(error)}
+          message={error || "正在读取星愿…"}
+        />
+        <ChildBottomNav active="wish" onNavigate={onNavigate} />
+      </main>
+    );
+  }
+
   return (
     <main className="wishes-page wishes-page--requested">
       <section className="requested-wishes-frame" aria-label="星愿兑换">
         <header className="requested-wishes-header">
           <div className="requested-wishes-balance">
             <img src={balanceStar} alt="星星" />
-            <strong>当前余额 {wishData?.starBalance ?? 12}</strong>
+            <strong>当前余额 {wishData.starBalance}</strong>
           </div>
           <div className="requested-wishes-message">换星愿，航程不会后退</div>
         </header>
         <div className="requested-wishes-grid">
+          {displayedWishes.length === 0 && (
+            <div className="child-data-empty">还没有可兑换的星愿</div>
+          )}
           {displayedWishes.map((wish) => (
             <RequestedWishCard
               wish={wish}
               key={wish.id}
               onRequest={() => {
-                const apiWish = wishData?.wishes.find((item) => item.id === wish.id);
+                const apiWish = wishData.wishes.find((item) => item.id === wish.id);
+                if (!apiWish) return;
                 setError("");
-                setSelectedWish({ display: wish, ...(apiWish ? { apiWish } : {}) });
+                setSelectedWish({ display: wish, apiWish });
               }}
             />
           ))}
@@ -232,22 +224,6 @@ export function WishesRequested({
   );
 }
 
-const days = [
-  { day: "Mon", stars: "12" },
-  { day: "Tue", stars: "8" },
-  { day: "Wed", stars: "6", selected: true },
-  { day: "Thu", stars: "15" },
-  { day: "Fri", stars: "4" },
-  { day: "Sat", stars: "20" },
-  { day: "Sun", stars: "-", muted: true },
-];
-
-const footprintTasks = [
-  { id: "reading", title: "RAZ 阅读 (RAZ Reading)", reward: 2, icon: readingIcon, accent: "blue" },
-  { id: "math", title: "口算挑战 (Math Challenge)", reward: 3, icon: mathIcon, accent: "coral" },
-  { id: "books", title: "整理书架 (Organize Bookshelf)", reward: 1, icon: booksIcon, accent: "green" },
-];
-
 export function Footprints({
   onNavigate,
 }: {
@@ -256,9 +232,11 @@ export function Footprints({
   const { mascot } = useMascot();
   const [footprints, setFootprints] = useState<FootprintResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+    setError("");
     void getChildFootprints(selectedDate)
       .then((result) => {
         if (!cancelled) {
@@ -266,7 +244,15 @@ export function Footprints({
           setSelectedDate(result.selectedDate);
         }
       })
-      .catch(() => undefined);
+      .catch((reason) => {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+          return;
+        }
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "足迹暂时无法读取");
+        }
+      });
     return () => {
       cancelled = true;
     };
@@ -282,7 +268,7 @@ export function Footprints({
         date: item.date,
         muted: item.isFuture,
       }))
-    : days.map((item) => ({ ...item, date: item.day }));
+    : [];
   const displayedTasks = footprints
     ? footprints.tasks.map((task) => ({
         id: task.dailyTaskId,
@@ -301,27 +287,29 @@ export function Footprints({
               ? "green"
               : "blue",
       }))
-    : footprintTasks;
+    : [];
   const activeDate = selectedDate ?? footprints?.selectedDate;
   const activeDay = displayedDays.find((item) =>
-    item.date === (activeDate ?? "Wed"),
+    item.date === activeDate,
   );
   const activeWeekday = activeDay
-    ? footprints
-      ? new Intl.DateTimeFormat("en", {
-          weekday: "long",
-          timeZone: "UTC",
-        }).format(new Date(`${activeDay.date}T00:00:00.000Z`))
-      : ({
-          Mon: "Monday",
-          Tue: "Tuesday",
-          Wed: "Wednesday",
-          Thu: "Thursday",
-          Fri: "Friday",
-          Sat: "Saturday",
-          Sun: "Sunday",
-        }[activeDay.day] ?? activeDay.day)
+    ? new Intl.DateTimeFormat("en", {
+        weekday: "long",
+        timeZone: "UTC",
+      }).format(new Date(`${activeDay.date}T00:00:00.000Z`))
     : "Today";
+
+  if (!footprints) {
+    return (
+      <main className="footprints-page">
+        <ChildDataState
+          error={Boolean(error)}
+          message={error || "正在读取足迹…"}
+        />
+        <ChildBottomNav active="footprints" onNavigate={onNavigate} />
+      </main>
+    );
+  }
 
   return (
     <main className="footprints-page">
@@ -341,9 +329,7 @@ export function Footprints({
           <div className="footprints-interactive">
             <div className="footprints-days" aria-label="最近七天星星记录">
               {displayedDays.map((item) => {
-                const selected = footprints
-                  ? item.date === activeDate
-                  : item.date === (activeDate ?? "Wed");
+                const selected = item.date === activeDate;
                 return (
                   <button
                     type="button"

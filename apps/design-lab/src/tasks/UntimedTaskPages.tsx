@@ -172,7 +172,7 @@ export function UntimedTaskActive({
           >
             {paused ? "继续任务" : `完成啦 +${rewardStars}★`}
           </button>
-          <p>{paused ? "任务已暂停，准备好再继续" : "慢慢来，不着急"}</p>
+          {paused && <p>任务已暂停，准备好再继续</p>}
         </section>
       </section>
 

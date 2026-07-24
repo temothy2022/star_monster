@@ -1,6 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import notificationButton from "../assets/task-list/semantic/header-notification-icon.png";
-import accountButton from "../assets/task-list/semantic/header-account-icon.png";
 import balanceStar from "../assets/task-list/semantic/balance-star.png";
 import streakFlame from "../assets/task-list/semantic/streak-flame.png";
 import pendingIcon from "../assets/task-list/semantic/section-pending.png";
@@ -20,6 +18,7 @@ import completeStar from "../assets/task-list/semantic/complete-star.png";
 import compassIcon from "../assets/task-list/semantic/compass.png";
 import { useMascot } from "../mascots";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
+import { ChildDataState } from "../components/ChildDataState";
 import {
   ApiError,
   getTodayTasks,
@@ -41,13 +40,6 @@ type TaskItem = {
   status: "pending" | "completed";
   mode: "UNTIMED" | "TIMED";
 };
-
-const TASKS: TaskItem[] = [
-  { id: "raz", title: "RAZ Reading", duration: 20, reward: 50, icon: "book", accent: "blue", status: "pending", mode: "UNTIMED" },
-  { id: "training", title: "Physical Training", duration: 15, reward: 40, icon: "training", accent: "coral", status: "pending", mode: "TIMED" },
-  { id: "math", title: "8 Math Problems", duration: 10, reward: 30, icon: "math", accent: "gray", status: "completed", mode: "UNTIMED" },
-  { id: "books", title: "Return Picture Books", duration: 10, reward: 30, icon: "return", accent: "gray", status: "completed", mode: "UNTIMED" },
-];
 
 const TASK_ICONS: Record<TaskIconName, string> = {
   book: bookIcon,
@@ -77,20 +69,6 @@ function DailyProgress({ earned, total }: { earned: number; total: number }) {
       </svg>
       <span className="daily-progress__label">{earned}/{total}</span>
     </div>
-  );
-}
-
-function TaskHeader() {
-  return (
-    <header className="task-header">
-      <div className="task-header__inner">
-        <h1>星宠成长基地</h1>
-        <div className="task-header__actions">
-          <button type="button" aria-label="查看通知"><img src={notificationButton} alt="" /></button>
-          <button type="button" aria-label="账户"><img src={accountButton} alt="" /></button>
-        </div>
-      </div>
-    </header>
   );
 }
 
@@ -302,12 +280,14 @@ export function TaskExperience({
   onNavigate?: (route: "wishes-requested" | "footprints") => void;
 }) {
   const [experience, setExperience] = useState<TodayTaskExperience | null>(null);
+  const [loading, setLoading] = useState(true);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [apiError, setApiError] = useState("");
 
   useEffect(() => {
-    if (view !== "partial") return;
     let cancelled = false;
+    setLoading(true);
+    setApiError("");
     void getTodayTasks()
       .then((result) => {
         if (!cancelled) {
@@ -323,6 +303,9 @@ export function TaskExperience({
         if (!cancelled) {
           setApiError(reason instanceof Error ? reason.message : "任务暂时无法读取");
         }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -330,16 +313,14 @@ export function TaskExperience({
   }, [view, onStartAttempt]);
 
   const tasks = useMemo(
-    () => experience?.tasks.map(taskItemFromApi) ?? TASKS,
+    () => experience?.tasks.map(taskItemFromApi) ?? [],
     [experience],
   );
-  const effectiveView: TaskView = experience
-    ? tasks.length === 0
-      ? "empty"
-      : tasks.every((task) => task.status === "completed")
-        ? "complete"
-        : "partial"
-    : view;
+  const effectiveView: TaskView = tasks.length === 0
+    ? "empty"
+    : tasks.every((task) => task.status === "completed")
+      ? "complete"
+      : "partial";
 
   async function start(task: TaskItem) {
     if (!onStartAttempt) return;
@@ -355,9 +336,20 @@ export function TaskExperience({
     }
   }
 
+  if (loading || !experience) {
+    return (
+      <div className="task-page task-page--loading">
+        <ChildDataState
+          error={!loading && Boolean(apiError)}
+          message={loading ? "正在读取今天的任务…" : apiError || "任务暂时无法读取"}
+        />
+        <ChildBottomNav active="tasks" onNavigate={onNavigate as ((route: ChildRoute) => void) | undefined} />
+      </div>
+    );
+  }
+
   return (
     <div className={`task-page task-page--${effectiveView}`}>
-      <TaskHeader />
       {apiError && (
         <button
           className="task-api-error"
@@ -369,20 +361,20 @@ export function TaskExperience({
         </button>
       )}
       {effectiveView === "complete" ? (
-        <CompleteTaskPanel earned={experience?.earnedToday ?? 7} />
+        <CompleteTaskPanel earned={experience.earnedToday} />
       ) : (
         <main className="task-main">
           <ProgressColumn
-            earned={experience?.earnedToday ?? (effectiveView === "empty" ? 0 : 6)}
-            goal={experience?.dailyStarGoal ?? 12}
-            balance={experience?.starBalance ?? 150}
+            earned={experience.earnedToday}
+            goal={experience.dailyStarGoal}
+            balance={experience.starBalance}
           />
           {effectiveView === "empty" ? (
             <EmptyTaskPanel />
           ) : (
             <TaskListPanel
               tasks={tasks}
-              streakDays={experience?.streakDays ?? 3}
+              streakDays={experience.streakDays}
               startingTaskId={startingTaskId}
               onStart={start}
             />

@@ -330,6 +330,7 @@ model DailyTask {
   earlyThresholdSecsSnapshot Int?
   earlyBonusStarsSnapshot    Int?
   completedAt                DateTime?
+  completionDurationSeconds  Int?
   expiredAt                  DateTime?
   createdAt                  DateTime        @default(now())
   updatedAt                  DateTime        @updatedAt

@@ -677,6 +677,7 @@ export async function registerParentRoutes(
         status: true,
         baseStarsSnapshot: true,
         completedAt: true,
+        completionDurationSeconds: true,
         attempts: {
           orderBy: { attemptNumber: "asc" },
           select: {

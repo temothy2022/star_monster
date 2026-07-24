@@ -186,6 +186,7 @@ export type TaskHistoryItem = {
   status: "PENDING" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "EXPIRED";
   baseStarsSnapshot: number;
   completedAt: string | null;
+  completionDurationSeconds: number | null;
   attempts: Array<{
     id: string;
     attemptNumber: number;

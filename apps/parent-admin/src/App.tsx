@@ -80,6 +80,14 @@ function formatDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString("zh-CN") : "暂无";
 }
 
+function formatElapsed(seconds: number | null) {
+  if (seconds === null) return "—";
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder > 0 ? `${minutes} 分 ${remainder} 秒` : `${minutes} 分钟`;
+}
+
 function Panel({
   title,
   actions,
@@ -286,7 +294,7 @@ function History({ child }: { child: Child }) {
         {loading ? <div className="empty-state">正在读取任务历史…</div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>日期</th><th>任务</th><th>分类 / 类型</th><th>结果</th><th>尝试</th><th>执行时长</th><th>奖励</th></tr></thead>
+              <thead><tr><th>日期</th><th>任务</th><th>分类 / 类型</th><th>结果</th><th>尝试</th><th>完成用时 / 总执行</th><th>奖励</th></tr></thead>
               <tbody>{tasks.map((task) => {
                 const taskElapsed = task.attempts.reduce((sum, attempt) => sum + (attempt.elapsedSeconds ?? 0), 0);
                 const taskStars = task.attempts.reduce((sum, attempt) => sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded, 0);
@@ -295,7 +303,7 @@ function History({ child }: { child: Child }) {
                   : task.attempts.some((attempt) => attempt.status === "ABANDONED")
                     ? " · 有放弃"
                     : "";
-                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}</td><td><span className={`status status--${task.status === "COMPLETED" ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{Math.round(taskElapsed / 60)} 分钟</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td></tr>;
+                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}</td><td><span className={`status status--${task.status === "COMPLETED" ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td></tr>;
               })}</tbody>
             </table>
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
