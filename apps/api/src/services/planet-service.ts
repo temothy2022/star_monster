@@ -21,6 +21,47 @@ type PlanetSettingsInput = Array<{
   bonusStars: number;
 }>;
 
+export function resolveLifetimeStarsEarned(input: {
+  storedLifetimeStarsEarned: number;
+  starBalance: number;
+  positiveLedgerStars: number;
+}) {
+  return Math.max(
+    input.storedLifetimeStarsEarned,
+    input.starBalance,
+    input.positiveLedgerStars,
+  );
+}
+
+async function reconcileLifetimeStarsEarned(
+  client: Prisma.TransactionClient | typeof prisma,
+  childId: string,
+  child: { starBalance: number; lifetimeStarsEarned: number },
+) {
+  const ledgerTotal = await client.starLedger.aggregate({
+    where: {
+      childId,
+      type: { in: ["TASK_REWARD", "DAILY_GOAL_BONUS", "PLANET_BONUS", "MANUAL_ADJUSTMENT"] },
+      amount: { gt: 0 },
+    },
+    _sum: { amount: true },
+  });
+  const lifetimeStarsEarned = resolveLifetimeStarsEarned({
+    storedLifetimeStarsEarned: child.lifetimeStarsEarned,
+    starBalance: child.starBalance,
+    positiveLedgerStars: ledgerTotal._sum.amount ?? 0,
+  });
+
+  if (lifetimeStarsEarned > child.lifetimeStarsEarned) {
+    await client.childProfile.update({
+      where: { id: childId },
+      data: { lifetimeStarsEarned },
+    });
+  }
+
+  return lifetimeStarsEarned;
+}
+
 async function ensurePlanetProgress(
   client: Prisma.TransactionClient | typeof prisma,
   childId: string,
@@ -92,7 +133,7 @@ export async function syncPlanetProgress(childId: string) {
       where: { childId },
     });
     let starBalance = child.starBalance;
-    let lifetimeStarsEarned = child.lifetimeStarsEarned;
+    let lifetimeStarsEarned = await reconcileLifetimeStarsEarned(tx, childId, child);
 
     for (const planet of PLANET_KEYS) {
       const progress = initialProgress.find((item) => item.planet === planet);
@@ -180,13 +221,16 @@ export async function markPlanetNotified(childId: string, planet: PlanetKey) {
 
 export async function getPlanetSettings(childId: string) {
   await ensurePlanetProgress(prisma, childId);
-  const child = await prisma.childProfile.findUnique({
-    where: { id: childId },
-    select: { starBalance: true, lifetimeStarsEarned: true },
+  return prisma.$transaction(async (tx) => {
+    const child = await tx.childProfile.findUnique({
+      where: { id: childId },
+      select: { starBalance: true, lifetimeStarsEarned: true },
+    });
+    if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
+    const lifetimeStarsEarned = await reconcileLifetimeStarsEarned(tx, childId, child);
+    const planets = await tx.planetProgress.findMany({ where: { childId } });
+    return serializeProgress({ ...child, lifetimeStarsEarned }, planets);
   });
-  if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
-  const planets = await prisma.planetProgress.findMany({ where: { childId } });
-  return serializeProgress(child, planets);
 }
 
 export async function updatePlanetSettings(

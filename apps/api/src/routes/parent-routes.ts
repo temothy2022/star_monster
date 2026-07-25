@@ -691,7 +691,12 @@ export async function registerParentRoutes(
           }
           const updated = await tx.childProfile.update({
             where: { id: childId },
-            data: { starBalance: { increment: input.amount } },
+            data: {
+              starBalance: { increment: input.amount },
+              ...(input.amount > 0
+                ? { lifetimeStarsEarned: { increment: input.amount } }
+                : {}),
+            },
           });
           const ledger = await tx.starLedger.create({
             data: {
