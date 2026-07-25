@@ -33,7 +33,15 @@ type RequestedWish = {
   title: string;
   cost: number;
   image: string;
-  state: "redeemed" | "available" | "insufficient";
+  state:
+    | "redeemed"
+    | "processing"
+    | "cooldown"
+    | "soldout"
+    | "available"
+    | "insufficient";
+  ruleText: string;
+  actionText: string;
 };
 
 const CATEGORY_IMAGES: Record<ChildWish["category"], string> = {
@@ -42,6 +50,22 @@ const CATEGORY_IMAGES: Record<ChildWish["category"], string> = {
   TELEVISION: televisionReward,
   TOYS: toysReward,
 };
+
+function wishRuleText(wish: ChildWish) {
+  if (wish.redemptionType === "ONE_TIME") return "仅可兑换一次";
+  if (wish.redemptionType === "STOCK") {
+    return `剩余 ${wish.stockRemaining ?? 0} 份`;
+  }
+  if (wish.recurrenceKind === "DAILY") return "每天可兑换一次";
+  if (wish.recurrenceKind === "WEEKLY") return "每周可兑换一次";
+  return `每 ${wish.recurrenceIntervalDays ?? 1} 天可兑换一次`;
+}
+
+function nextDateText(date: string | null) {
+  if (!date) return "下个周期可兑换";
+  const [, month, day] = date.split("-");
+  return `${Number(month)}月${Number(day)}日可兑换`;
+}
 
 type FootprintSpeech = {
   lines: [string, string];
@@ -185,6 +209,7 @@ function RequestedWishCard({
         <div>
           <h2>{wish.title}</h2>
           <p><img src={costStar} alt="星星" />{wish.cost} 星星</p>
+          <small className="requested-wish-card__rule">{wish.ruleText}</small>
         </div>
         {wish.state === "redeemed" ? (
           <div className="requested-wish-card__redeemed" aria-label="已兑换">
@@ -195,11 +220,11 @@ function RequestedWishCard({
           <button
             type="button"
             className="requested-wish-card__button"
-            disabled={wish.state === "insufficient"}
+            disabled={wish.state !== "available"}
             onClick={wish.state === "available" ? onRequest : undefined}
           >
             <img src={requestSparkle} alt="" />
-            <span>{wish.state === "available" ? "申请星愿" : "余额不足"}</span>
+            <span>{wish.actionText}</span>
           </button>
         )}
       </div>
@@ -249,12 +274,31 @@ export function WishesRequested({
       title: wish.title,
       cost: wish.costStars,
       image: CATEGORY_IMAGES[wish.category],
+      ruleText: wishRuleText(wish),
       state:
-        wish.activeRedemptionStatus || wish.unavailableReason === "ALREADY_COMPLETED"
+        wish.unavailableReason === "ALREADY_COMPLETED"
           ? "redeemed"
+          : wish.unavailableReason === "ALREADY_REQUESTED"
+            ? "processing"
+            : wish.unavailableReason === "COOLDOWN"
+              ? "cooldown"
+              : wish.unavailableReason === "OUT_OF_STOCK"
+                ? "soldout"
           : wish.canRedeem
             ? "available"
             : "insufficient",
+      actionText:
+        wish.unavailableReason === "ALREADY_COMPLETED"
+          ? "已兑换"
+          : wish.unavailableReason === "ALREADY_REQUESTED"
+            ? "兑换处理中"
+            : wish.unavailableReason === "COOLDOWN"
+              ? nextDateText(wish.nextEligibleDate)
+              : wish.unavailableReason === "OUT_OF_STOCK"
+                ? "已兑完"
+                : wish.canRedeem
+                  ? "申请星愿"
+                  : "余额不足",
     })) ?? [];
 
   async function confirmWish() {

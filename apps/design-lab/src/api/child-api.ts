@@ -196,11 +196,17 @@ export type ChildWish = {
   title: string;
   imageKey: string;
   costStars: number;
-  isRepeatable: boolean;
+  redemptionType: "ONE_TIME" | "RECURRING" | "STOCK";
+  recurrenceKind: "DAILY" | "WEEKLY" | "INTERVAL" | null;
+  recurrenceIntervalDays: number | null;
+  stockRemaining: number | null;
+  nextEligibleDate: string | null;
   canRedeem: boolean;
   unavailableReason:
     | "ALREADY_COMPLETED"
     | "ALREADY_REQUESTED"
+    | "COOLDOWN"
+    | "OUT_OF_STOCK"
     | "INSUFFICIENT_STARS"
     | null;
   activeRedemptionStatus:

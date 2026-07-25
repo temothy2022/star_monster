@@ -110,6 +110,9 @@ async function main() {
         title: "一起去运动",
         imageKey: "sports",
         costStars: 12,
+        redemptionType: "RECURRING",
+        recurrenceKind: "WEEKLY",
+        recurrenceIntervalDays: 7,
         sortOrder: 10,
       },
       {
@@ -118,6 +121,9 @@ async function main() {
         title: "玩一局游戏",
         imageKey: "games",
         costStars: 15,
+        redemptionType: "RECURRING",
+        recurrenceKind: "WEEKLY",
+        recurrenceIntervalDays: 7,
         sortOrder: 20,
       },
       {
@@ -126,6 +132,9 @@ async function main() {
         title: "看一集动画片",
         imageKey: "television",
         costStars: 10,
+        redemptionType: "RECURRING",
+        recurrenceKind: "DAILY",
+        recurrenceIntervalDays: 1,
         sortOrder: 30,
       },
       {
@@ -134,7 +143,7 @@ async function main() {
         title: "选择一个新玩具",
         imageKey: "toys",
         costStars: 60,
-        isRepeatable: false,
+        redemptionType: "ONE_TIME",
         sortOrder: 40,
       },
     ],

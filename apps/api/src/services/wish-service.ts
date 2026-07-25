@@ -1,9 +1,37 @@
-import { Prisma, type RedemptionStatus } from "@prisma/client";
+import {
+  Prisma,
+  type RedemptionStatus,
+  type WishRecurrenceKind,
+} from "@prisma/client";
+import type { AppConfig } from "../config.js";
+import {
+  nextRecurringWishDate,
+  oneTimeWishHiddenAt,
+} from "../domain/wish-rules.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
+import { businessDateAt, businessDateKey } from "../lib/time.js";
 import { writeAudit } from "./audit-service.js";
 
-export async function listChildWishes(childId: string) {
+function nextEligibleDate(
+  completedAt: Date | null | undefined,
+  recurrenceKind: WishRecurrenceKind | null,
+  recurrenceIntervalDays: number | null,
+  config: AppConfig,
+): Date | null {
+  if (!completedAt) return null;
+  return nextRecurringWishDate(
+    businessDateAt(completedAt, config.APP_TIME_ZONE),
+    recurrenceKind ?? "DAILY",
+    recurrenceIntervalDays,
+  );
+}
+
+export async function listChildWishes(
+  childId: string,
+  config: AppConfig,
+  now = new Date(),
+) {
   const [child, wishes] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({ where: { id: childId } }),
     prisma.wishReward.findMany({
@@ -13,36 +41,69 @@ export async function listChildWishes(childId: string) {
         activeRedemptionSlot: { include: { redemption: true } },
         redemptions: {
           where: { status: "COMPLETED" },
-          select: { id: true },
+          select: { id: true, completedAt: true },
+          orderBy: { completedAt: "desc" },
           take: 1,
         },
       },
     }),
   ]);
+  const today = businessDateAt(now, config.APP_TIME_ZONE);
 
   return {
     starBalance: child.starBalance,
-    wishes: wishes.map((wish) => {
+    wishes: wishes.flatMap((wish) => {
+      const latestCompleted = wish.redemptions[0];
+      if (
+        wish.redemptionType === "ONE_TIME" &&
+        latestCompleted?.completedAt &&
+        now >= oneTimeWishHiddenAt(latestCompleted.completedAt)
+      ) {
+        return [];
+      }
+
       const hasCompletedOneTime =
-        !wish.isRepeatable && wish.redemptions.length > 0;
+        wish.redemptionType === "ONE_TIME" && Boolean(latestCompleted);
       const activeStatus = wish.activeRedemptionSlot?.redemption.status ?? null;
+      const recurringNextDate =
+        wish.redemptionType === "RECURRING"
+          ? nextEligibleDate(
+              latestCompleted?.completedAt,
+              wish.recurrenceKind,
+              wish.recurrenceIntervalDays,
+              config,
+            )
+          : null;
       let unavailableReason: string | null = null;
-      if (hasCompletedOneTime) unavailableReason = "ALREADY_COMPLETED";
-      else if (activeStatus) unavailableReason = "ALREADY_REQUESTED";
+      if (activeStatus) unavailableReason = "ALREADY_REQUESTED";
+      else if (hasCompletedOneTime) unavailableReason = "ALREADY_COMPLETED";
+      else if (recurringNextDate && today < recurringNextDate)
+        unavailableReason = "COOLDOWN";
+      else if (
+        wish.redemptionType === "STOCK" &&
+        (wish.stockRemaining ?? 0) <= 0
+      )
+        unavailableReason = "OUT_OF_STOCK";
       else if (child.starBalance < wish.costStars)
         unavailableReason = "INSUFFICIENT_STARS";
 
-      return {
+      return [{
         id: wish.id,
         category: wish.category,
         title: wish.title,
         imageKey: wish.imageKey,
         costStars: wish.costStars,
-        isRepeatable: wish.isRepeatable,
+        redemptionType: wish.redemptionType,
+        recurrenceKind: wish.recurrenceKind,
+        recurrenceIntervalDays: wish.recurrenceIntervalDays,
+        stockRemaining: wish.stockRemaining,
+        nextEligibleDate: recurringNextDate
+          ? businessDateKey(recurringNextDate)
+          : null,
         canRedeem: unavailableReason === null,
         unavailableReason,
         activeRedemptionStatus: activeStatus,
-      };
+      }];
     }),
   };
 }
@@ -51,6 +112,8 @@ export async function redeemWish(
   childId: string,
   wishRewardId: string,
   idempotencyKey: string,
+  config: AppConfig,
+  now = new Date(),
 ) {
   return prisma.$transaction(
     async (tx) => {
@@ -75,7 +138,8 @@ export async function redeemWish(
             activeRedemptionSlot: true,
             redemptions: {
               where: { status: "COMPLETED" },
-              select: { id: true },
+              select: { id: true, completedAt: true },
+              orderBy: { completedAt: "desc" },
               take: 1,
             },
           },
@@ -87,11 +151,44 @@ export async function redeemWish(
       if (wish.activeRedemptionSlot) {
         throw new HttpError(409, "WISH_ALREADY_REQUESTED", "这个星愿正在处理中");
       }
-      if (!wish.isRepeatable && wish.redemptions.length > 0) {
+      const latestCompleted = wish.redemptions[0];
+      if (wish.redemptionType === "ONE_TIME" && latestCompleted) {
         throw new HttpError(409, "WISH_ALREADY_COMPLETED", "这个星愿已经兑换过");
+      }
+      if (wish.redemptionType === "RECURRING") {
+        const nextDate = nextEligibleDate(
+          latestCompleted?.completedAt,
+          wish.recurrenceKind,
+          wish.recurrenceIntervalDays,
+          config,
+        );
+        const today = businessDateAt(now, config.APP_TIME_ZONE);
+        if (nextDate && today < nextDate) {
+          throw new HttpError(
+            409,
+            "WISH_COOLDOWN",
+            `${businessDateKey(nextDate)} 才能再次兑换`,
+          );
+        }
+      }
+      if (
+        wish.redemptionType === "STOCK" &&
+        (wish.stockRemaining ?? 0) <= 0
+      ) {
+        throw new HttpError(409, "WISH_OUT_OF_STOCK", "这个星愿已经兑完");
       }
       if (child.starBalance < wish.costStars) {
         throw new HttpError(409, "INSUFFICIENT_STARS", "星星余额不足");
+      }
+
+      if (wish.redemptionType === "STOCK") {
+        const reserved = await tx.wishReward.updateMany({
+          where: { id: wish.id, stockRemaining: { gt: 0 } },
+          data: { stockRemaining: { decrement: 1 } },
+        });
+        if (!reserved.count) {
+          throw new HttpError(409, "WISH_OUT_OF_STOCK", "这个星愿已经兑完");
+        }
       }
 
       const redemption = await tx.wishRedemption.create({
@@ -101,6 +198,9 @@ export async function redeemWish(
           titleSnapshot: wish.title,
           categorySnapshot: wish.category,
           costStarsSnapshot: wish.costStars,
+          redemptionTypeSnapshot: wish.redemptionType,
+          recurrenceKindSnapshot: wish.recurrenceKind,
+          recurrenceIntervalDaysSnapshot: wish.recurrenceIntervalDays,
         },
       });
       await tx.activeWishRedemptionSlot.create({
@@ -199,6 +299,16 @@ export async function updateRedemptionStatus(input: {
         where: { id: redemption.childId },
         data: { starBalance: { increment: redemption.costStarsSnapshot } },
       });
+      if (redemption.redemptionTypeSnapshot === "STOCK") {
+        const wish = await tx.wishReward.findUnique({
+          where: { id: redemption.wishRewardId },
+          select: { stockRemaining: true },
+        });
+        await tx.wishReward.update({
+          where: { id: redemption.wishRewardId },
+          data: { stockRemaining: (wish?.stockRemaining ?? 0) + 1 },
+        });
+      }
       await tx.starLedger.create({
         data: {
           childId: redemption.childId,

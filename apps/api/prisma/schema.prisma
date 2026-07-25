@@ -81,6 +81,18 @@ enum RedemptionStatus {
   CANCELLED
 }
 
+enum WishRedemptionType {
+  ONE_TIME
+  RECURRING
+  STOCK
+}
+
+enum WishRecurrenceKind {
+  DAILY
+  WEEKLY
+  INTERVAL
+}
+
 enum StarLedgerType {
   TASK_REWARD
   DAILY_GOAL_BONUS
@@ -433,18 +445,21 @@ model PlanetProgress {
 }
 
 model WishReward {
-  id           String       @id @default(cuid())
-  childId      String
-  category     WishCategory
-  title        String
-  imageKey     String
-  costStars    Int
-  isRepeatable Boolean      @default(true)
-  sortOrder    Int          @default(0)
-  isEnabled    Boolean      @default(true)
-  archivedAt   DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id                     String               @id @default(cuid())
+  childId                String
+  category               WishCategory
+  title                  String
+  imageKey               String
+  costStars              Int
+  redemptionType         WishRedemptionType   @default(ONE_TIME)
+  recurrenceKind         WishRecurrenceKind?
+  recurrenceIntervalDays Int?
+  stockRemaining         Int?
+  sortOrder              Int                  @default(0)
+  isEnabled              Boolean              @default(true)
+  archivedAt             DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
   child                ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
   redemptions          WishRedemption[]
@@ -454,20 +469,23 @@ model WishReward {
 }
 
 model WishRedemption {
-  id                String           @id @default(cuid())
-  childId           String
-  wishRewardId      String
-  status            RedemptionStatus @default(PENDING)
-  titleSnapshot     String
-  categorySnapshot  WishCategory
-  costStarsSnapshot Int
-  requestedAt       DateTime         @default(now())
-  arrangedAt        DateTime?
-  completedAt       DateTime?
-  cancelledAt       DateTime?
-  cancelReason      String?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                             String               @id @default(cuid())
+  childId                        String
+  wishRewardId                   String
+  status                         RedemptionStatus     @default(PENDING)
+  titleSnapshot                  String
+  categorySnapshot               WishCategory
+  costStarsSnapshot              Int
+  redemptionTypeSnapshot         WishRedemptionType
+  recurrenceKindSnapshot         WishRecurrenceKind?
+  recurrenceIntervalDaysSnapshot Int?
+  requestedAt                    DateTime             @default(now())
+  arrangedAt                     DateTime?
+  completedAt                    DateTime?
+  cancelledAt                    DateTime?
+  cancelReason                   String?
+  createdAt                      DateTime             @default(now())
+  updatedAt                      DateTime             @updatedAt
 
   child      ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
   wishReward WishReward                @relation(fields: [wishRewardId], references: [id], onDelete: Restrict)

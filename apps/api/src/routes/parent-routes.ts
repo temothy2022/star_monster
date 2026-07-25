@@ -189,15 +189,82 @@ const childProfileSchema = z.object({
   petType: petType.optional(),
   resetOnboarding: z.boolean().optional(),
 });
-const wishSchema = z.object({
+const wishShape = {
   category: wishCategory,
   title: z.string().trim().min(1).max(80),
   costStars: z.number().int().min(1).max(99999),
-  isRepeatable: z.boolean().default(true),
+  redemptionType: z
+    .enum(["ONE_TIME", "RECURRING", "STOCK"])
+    .default("ONE_TIME"),
+  recurrenceKind: z
+    .enum(["DAILY", "WEEKLY", "INTERVAL"])
+    .nullable()
+    .default(null),
+  recurrenceIntervalDays: z
+    .number()
+    .int()
+    .min(1)
+    .max(365)
+    .nullable()
+    .default(null),
+  stockRemaining: z.number().int().min(0).max(99999).nullable().default(null),
   sortOrder: z.number().int().min(0).max(10000).default(0),
   isEnabled: z.boolean().default(true),
+};
+const wishSchema = z.object(wishShape).superRefine((input, context) => {
+  if (input.redemptionType === "RECURRING" && !input.recurrenceKind) {
+    context.addIssue({
+      code: "custom",
+      path: ["recurrenceKind"],
+      message: "循环兑换必须选择周期",
+    });
+  }
+  if (
+    input.redemptionType === "RECURRING" &&
+    input.recurrenceKind === "INTERVAL" &&
+    !input.recurrenceIntervalDays
+  ) {
+    context.addIssue({
+      code: "custom",
+      path: ["recurrenceIntervalDays"],
+      message: "请填写间隔天数",
+    });
+  }
+  if (input.redemptionType === "STOCK" && input.stockRemaining === null) {
+    context.addIssue({
+      code: "custom",
+      path: ["stockRemaining"],
+      message: "库存兑换必须填写库存数量",
+    });
+  }
 });
-const wishPatchSchema = wishSchema.partial();
+const wishPatchSchema = z.object(wishShape).partial();
+
+function normalizedWishData(input: z.infer<typeof wishSchema>) {
+  const recurrenceKind =
+    input.redemptionType === "RECURRING"
+      ? (input.recurrenceKind ?? "DAILY")
+      : null;
+  return {
+    category: input.category,
+    title: input.title,
+    costStars: input.costStars,
+    redemptionType: input.redemptionType,
+    recurrenceKind,
+    recurrenceIntervalDays:
+      recurrenceKind === "DAILY"
+        ? 1
+        : recurrenceKind === "WEEKLY"
+          ? 7
+          : recurrenceKind === "INTERVAL"
+            ? input.recurrenceIntervalDays
+            : null,
+    stockRemaining:
+      input.redemptionType === "STOCK" ? input.stockRemaining : null,
+    sortOrder: input.sortOrder,
+    isEnabled: input.isEnabled,
+  };
+}
 const redemptionStatusSchema = z.object({
   status: z.enum(["ARRANGED", "COMPLETED", "CANCELLED"]),
   cancelReason: z.string().trim().min(2).max(200).optional(),
@@ -505,7 +572,7 @@ export async function registerParentRoutes(
     const wish = await prisma.wishReward.create({
       data: {
         childId: id,
-        ...input,
+        ...normalizedWishData(input),
         imageKey: input.category.toLowerCase(),
       },
     });
@@ -518,19 +585,33 @@ export async function registerParentRoutes(
     async (request, reply) => {
       const { childId, id } = childResourceParams.parse(request.params);
       await requireOwnedChild(request, reply, config, childId);
-      const input = wishPatchSchema.parse(request.body);
-      const result = await prisma.wishReward.updateMany({
+      const patch = wishPatchSchema.parse(request.body);
+      const existing = await prisma.wishReward.findFirst({
         where: { id, childId, archivedAt: null },
+        include: { activeRedemptionSlot: true },
+      });
+      if (!existing) {
+        throw new HttpError(404, "WISH_NOT_FOUND", "没有找到星愿");
+      }
+      const input = wishSchema.parse({ ...existing, ...patch });
+      if (
+        existing.activeRedemptionSlot &&
+        input.redemptionType !== existing.redemptionType
+      ) {
+        throw new HttpError(
+          409,
+          "WISH_HAS_ACTIVE_REDEMPTION",
+          "这个星愿正在兑换处理中，结束后才能修改兑换类型",
+        );
+      }
+      const wish = await prisma.wishReward.update({
+        where: { id: existing.id },
         data: {
-          ...input,
-          ...(input.category
-            ? { imageKey: input.category.toLowerCase() }
-            : {}),
+          ...normalizedWishData(input),
+          imageKey: input.category.toLowerCase(),
         },
       });
-      if (!result.count)
-        throw new HttpError(404, "WISH_NOT_FOUND", "没有找到星愿");
-      return { ok: true };
+      return { wish };
     },
   );
 

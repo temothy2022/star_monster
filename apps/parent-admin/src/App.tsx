@@ -531,10 +531,40 @@ type WishForm = {
   category: Wish["category"];
   title: string;
   costStars: number;
-  isRepeatable: boolean;
+  redemptionType: Wish["redemptionType"];
+  recurrenceKind: Wish["recurrenceKind"];
+  recurrenceIntervalDays: number | null;
+  stockRemaining: number | null;
   isEnabled: boolean;
 };
-const EMPTY_WISH: WishForm = { category: "SPORTS", title: "", costStars: 12, isRepeatable: true, isEnabled: true };
+const EMPTY_WISH: WishForm = {
+  category: "SPORTS",
+  title: "",
+  costStars: 12,
+  redemptionType: "ONE_TIME",
+  recurrenceKind: null,
+  recurrenceIntervalDays: null,
+  stockRemaining: null,
+  isEnabled: true,
+};
+
+function wishRuleLabel(wish: Wish) {
+  if (wish.redemptionType === "ONE_TIME") return "一次性兑换";
+  if (wish.redemptionType === "STOCK") return `库存兑换 · 剩余 ${wish.stockRemaining ?? 0} 份`;
+  if (wish.recurrenceKind === "DAILY") return "循环兑换 · 每天一次";
+  if (wish.recurrenceKind === "WEEKLY") return "循环兑换 · 每周一次";
+  return `循环兑换 · 每 ${wish.recurrenceIntervalDays ?? 1} 天一次`;
+}
+
+function wishRuleHelp(form: WishForm) {
+  if (form.redemptionType === "ONE_TIME") {
+    return "家长确认完成后显示“已兑换”，保留 7 天后自动从孩子端隐藏。";
+  }
+  if (form.redemptionType === "STOCK") {
+    return "孩子申请时预占 1 份，取消兑换会自动归还；库存不会按天清零。";
+  }
+  return "周期从家长确认兑换完成后计算；每周以周一作为新周期起点。";
+}
 
 function Wishes({ child }: { child: Child }) {
   const [wishes, setWishes] = useState<Wish[]>([]);
@@ -563,7 +593,70 @@ function Wishes({ child }: { child: Child }) {
           <label>固定分类<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as Wish["category"] })}><option value="SPORTS">运动</option><option value="GAMES">游戏</option><option value="TELEVISION">电视</option><option value="TOYS">玩具</option></select></label>
           <label>兑换星数<input type="number" min={1} required value={form.costStars} onChange={(event) => setForm({ ...form, costStars: Number(event.target.value) })} /></label>
           <label className="field-span">星愿名称<input required maxLength={80} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-          <label className="checkbox"><input type="checkbox" checked={form.isRepeatable} onChange={(event) => setForm({ ...form, isRepeatable: event.target.checked })} />可以重复兑换</label>
+          <label>兑换类型
+            <select
+              value={form.redemptionType}
+              onChange={(event) => {
+                const redemptionType = event.target.value as Wish["redemptionType"];
+                setForm({
+                  ...form,
+                  redemptionType,
+                  recurrenceKind: redemptionType === "RECURRING" ? "DAILY" : null,
+                  recurrenceIntervalDays: redemptionType === "RECURRING" ? 1 : null,
+                  stockRemaining: redemptionType === "STOCK" ? (form.stockRemaining ?? 1) : null,
+                });
+              }}
+            >
+              <option value="ONE_TIME">一次性兑换</option>
+              <option value="RECURRING">循环兑换</option>
+              <option value="STOCK">库存兑换</option>
+            </select>
+          </label>
+          {form.redemptionType === "RECURRING" && (
+            <label>兑换周期
+              <select
+                value={form.recurrenceKind ?? "DAILY"}
+                onChange={(event) => {
+                  const recurrenceKind = event.target.value as NonNullable<Wish["recurrenceKind"]>;
+                  setForm({
+                    ...form,
+                    recurrenceKind,
+                    recurrenceIntervalDays:
+                      recurrenceKind === "DAILY" ? 1 : recurrenceKind === "WEEKLY" ? 7 : Math.max(2, form.recurrenceIntervalDays ?? 2),
+                  });
+                }}
+              >
+                <option value="DAILY">每天一次</option>
+                <option value="WEEKLY">每周一次</option>
+                <option value="INTERVAL">每 N 天一次</option>
+              </select>
+            </label>
+          )}
+          {form.redemptionType === "RECURRING" && form.recurrenceKind === "INTERVAL" && (
+            <label>间隔天数
+              <input
+                type="number"
+                min={1}
+                max={365}
+                required
+                value={form.recurrenceIntervalDays ?? 2}
+                onChange={(event) => setForm({ ...form, recurrenceIntervalDays: Number(event.target.value) })}
+              />
+            </label>
+          )}
+          {form.redemptionType === "STOCK" && (
+            <label>剩余库存
+              <input
+                type="number"
+                min={0}
+                max={99999}
+                required
+                value={form.stockRemaining ?? 0}
+                onChange={(event) => setForm({ ...form, stockRemaining: Number(event.target.value) })}
+              />
+            </label>
+          )}
+          <p className="field-span wish-rule-help">{wishRuleHelp(form)}</p>
           <label className="checkbox"><input type="checkbox" checked={form.isEnabled} onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} />启用</label>
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
           <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_WISH); }}>取消</button>}<button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加星愿"}</button></div>
@@ -571,7 +664,7 @@ function Wishes({ child }: { child: Child }) {
       </Panel>
       <Panel title={`星愿列表（${wishes.length}）`}>
         <div className="wish-admin-grid">
-          {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wish.isRepeatable ? "可重复" : "一次性"} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, isRepeatable: wish.isRepeatable, isEnabled: wish.isEnabled }); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
+          {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
         </div>
       </Panel>
     </div>

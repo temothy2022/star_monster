@@ -143,7 +143,10 @@ export type Wish = {
   category: "SPORTS" | "GAMES" | "TELEVISION" | "TOYS";
   title: string;
   costStars: number;
-  isRepeatable: boolean;
+  redemptionType: "ONE_TIME" | "RECURRING" | "STOCK";
+  recurrenceKind: "DAILY" | "WEEKLY" | "INTERVAL" | null;
+  recurrenceIntervalDays: number | null;
+  stockRemaining: number | null;
   sortOrder: number;
   isEnabled: boolean;
 };

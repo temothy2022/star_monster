@@ -4874,6 +4874,9 @@ body:has(.footprints-page),
 }
 
 .requested-wish-card--redeemed .requested-wish-card__image img,
+.requested-wish-card--processing .requested-wish-card__image img,
+.requested-wish-card--cooldown .requested-wish-card__image img,
+.requested-wish-card--soldout .requested-wish-card__image img,
 .requested-wish-card--available .requested-wish-card__image img,
 .requested-wish-card--insufficient .requested-wish-card__image img {
   object-position: center;
@@ -4907,6 +4910,14 @@ body:has(.footprints-page),
 .requested-wish-card__body p img {
   width: 17px;
   height: 16px;
+}
+
+.requested-wish-card__rule {
+  display: block;
+  margin-top: 2px;
+  color: #876f64;
+  font-size: 13px;
+  line-height: 19px;
 }
 
 .requested-wish-card__button {
@@ -4943,6 +4954,19 @@ body:has(.footprints-page),
   background: #f2f2f7;
   cursor: not-allowed;
   opacity: 1;
+}
+
+.requested-wish-card--processing .requested-wish-card__button:disabled {
+  background: #fff2c8;
+}
+
+.requested-wish-card--cooldown .requested-wish-card__button:disabled {
+  background: #eaf3ff;
+}
+
+.requested-wish-card--soldout .requested-wish-card__button:disabled {
+  background: #ece8e6;
+  color: #806f68;
 }
 
 .requested-wish-card__redeemed {

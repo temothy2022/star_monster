@@ -29,14 +29,14 @@ export async function registerChildProgressRoutes(
 ): Promise<void> {
   app.get("/api/child/wishes", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    return listChildWishes(child.id);
+    return listChildWishes(child.id, config);
   });
 
   app.post("/api/child/wishes/:id/redeem", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     const { id } = idParams.parse(request.params);
     const { idempotencyKey } = redemptionSchema.parse(request.body);
-    return redeemWish(child.id, id, idempotencyKey);
+    return redeemWish(child.id, id, idempotencyKey, config);
   });
 
   app.get("/api/child/footprints", async (request, reply) => {

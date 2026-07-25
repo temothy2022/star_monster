@@ -201,6 +201,12 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 
 .admin-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .field-span { grid-column: 1 / -1; }
+.wish-rule-help {
+  margin: -4px 0 0;
+  color: #6f7c90;
+  font-size: 13px;
+  line-height: 1.6;
+}
 .checkbox { display: flex !important; min-height: 42px; flex-direction: row !important; align-items: center; gap: 9px !important; }
 .checkbox input { width: 18px; min-height: 18px; }
 .form-help { margin: -6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }

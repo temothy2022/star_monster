@@ -526,6 +526,10 @@ export async function registerParentAiRoutes(
           title: item.title,
           category: item.category,
           costStars: item.costStars,
+          redemptionType: item.redemptionType,
+          recurrenceKind: item.recurrenceKind,
+          recurrenceIntervalDays: item.recurrenceIntervalDays,
+          stockRemaining: item.stockRemaining,
         })),
       };
       const result = await callDeepSeekJson({
