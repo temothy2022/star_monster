@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import balanceStar from "../assets/task-list/semantic/balance-star.png";
 import streakFlame from "../assets/task-list/semantic/streak-flame.png";
 import pendingIcon from "../assets/task-list/semantic/section-pending.png";
@@ -33,25 +33,13 @@ import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
-type TaskAccent =
-  | "reading"
-  | "math"
-  | "exercise"
-  | "chores"
-  | "organizing"
-  | "music"
-  | "chinese"
-  | "english"
-  | "pe"
-  | "other";
-
 type TaskItem = {
   id: string;
   title: string;
   duration: number;
   reward: number;
   icon: TaskIconName;
-  accent: TaskAccent;
+  accentColor: string;
   status: "pending" | "completed";
   mode: "UNTIMED" | "TIMED";
   repeatableDaily: boolean;
@@ -63,6 +51,22 @@ const TASK_ICONS: Record<TaskIconName, string> = {
   training: trainingIcon,
   math: mathIcon,
   return: returnIcon,
+};
+
+// Keep the left rail meaningful at a glance.  This is deliberately based on
+// the persisted task category rather than its icon or timed/untimed state, so
+// the same task always has the same visual cue everywhere it is shown.
+const TASK_ACCENT_COLORS: Record<DailyTask["categorySnapshot"], string> = {
+  READING: "#4CA8E8",
+  MATH: "#7F83D4",
+  EXERCISE: "#F36F6A",
+  CHORES: "#E9A23B",
+  ORGANIZING: "#59B98C",
+  MUSIC: "#B178D3",
+  CHINESE: "#D65A72",
+  ENGLISH: "#45B7C6",
+  PE: "#FF7A3D",
+  OTHER: "#9CA3AF",
 };
 
 function MascotSpeech({ lines }: { lines: [string, string] }) {
@@ -189,7 +193,10 @@ function PendingTaskCard({
   onStart?: (task: TaskItem) => void;
 }) {
   return (
-    <article className={`task-card task-card--pending task-card--${task.accent}`}>
+    <article
+      className="task-card task-card--pending"
+      style={{ "--task-card-accent": task.accentColor } as CSSProperties}
+    >
       <span className="task-card__accent" aria-hidden="true" />
       <div className="task-card__icon-box"><img src={TASK_ICONS[task.icon]} alt="" /></div>
       <div className="task-card__content">
@@ -328,8 +335,8 @@ function iconForTask(task: DailyTask): TaskIconName {
   return "book";
 }
 
-function accentForTask(task: DailyTask): TaskAccent {
-  return task.categorySnapshot.toLowerCase() as TaskAccent;
+function accentForTask(task: DailyTask): string {
+  return TASK_ACCENT_COLORS[task.categorySnapshot];
 }
 
 function taskItemFromApi(task: DailyTask): TaskItem {
@@ -347,7 +354,7 @@ function taskItemFromApi(task: DailyTask): TaskItem {
       ? completedAttempt.baseStarsAwarded + completedAttempt.bonusStarsAwarded
       : task.baseStarsSnapshot,
     icon: iconForTask(task),
-    accent: accentForTask(task),
+    accentColor: accentForTask(task),
     status: isCompleted ? "completed" : "pending",
     mode: task.modeSnapshot,
     repeatableDaily: task.repeatableDailySnapshot,
