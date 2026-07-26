@@ -4,8 +4,8 @@ import confettiB from "../assets/onboarding/step3-confetti-b.svg";
 import confettiC from "../assets/onboarding/step3-confetti-c.svg";
 import energyCluster from "../assets/onboarding/step3-energy-cluster.png";
 import flowArrow from "../assets/onboarding/step3-flow-arrow.png";
-import heading from "../assets/onboarding/step3-heading.png";
-import taskCard from "../assets/onboarding/step3-task-card.png";
+import heading from "../assets/onboarding/step3-heading.webp";
+import taskCard from "../assets/onboarding/step3-task-card.webp";
 import { useMascot } from "../mascots";
 import { OnboardingViewport } from "./OnboardingViewport";
 

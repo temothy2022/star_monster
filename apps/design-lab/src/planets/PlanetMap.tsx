@@ -129,7 +129,12 @@ export function PlanetMap({
                       )}
                     </span>
                     <span className="planet-card__art">
-                      <img src={planet.image} alt="" />
+                      <img
+                        src={planet.image}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </span>
                     <span className="planet-card__name">{planet.name}</span>
                     <span className="planet-card__english">

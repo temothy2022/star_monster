@@ -5,21 +5,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import douyaNeutral from "./assets/mascots/douya-neutral.png";
-import douyaFocus from "./assets/mascots/douya-focus.png";
-import douyaCelebrate from "./assets/mascots/douya-celebrate.png";
-import paopaoNeutral from "./assets/mascots/paopao-neutral.png";
-import paopaoFocus from "./assets/mascots/paopao-focus.png";
-import paopaoCelebrate from "./assets/mascots/paopao-celebrate.png";
-import tuantuanNeutral from "./assets/mascots/tuantuan-neutral.png";
-import tuantuanFocus from "./assets/mascots/tuantuan-focus.png";
-import tuantuanCelebrate from "./assets/mascots/tuantuan-celebrate.png";
-import miluNeutral from "./assets/mascots/milu-neutral.png";
-import miluFocus from "./assets/mascots/milu-focus.png";
-import miluCelebrate from "./assets/mascots/milu-celebrate.png";
-import shanshanNeutral from "./assets/mascots/shanshan-neutral.png";
-import shanshanFocus from "./assets/mascots/shanshan-focus.png";
-import shanshanCelebrate from "./assets/mascots/shanshan-celebrate.png";
+import douyaNeutral from "./assets/mascots/douya-neutral.webp";
+import douyaFocus from "./assets/mascots/douya-focus.webp";
+import douyaCelebrate from "./assets/mascots/douya-celebrate.webp";
+import paopaoNeutral from "./assets/mascots/paopao-neutral.webp";
+import paopaoFocus from "./assets/mascots/paopao-focus.webp";
+import paopaoCelebrate from "./assets/mascots/paopao-celebrate.webp";
+import tuantuanNeutral from "./assets/mascots/tuantuan-neutral.webp";
+import tuantuanFocus from "./assets/mascots/tuantuan-focus.webp";
+import tuantuanCelebrate from "./assets/mascots/tuantuan-celebrate.webp";
+import miluNeutral from "./assets/mascots/milu-neutral.webp";
+import miluFocus from "./assets/mascots/milu-focus.webp";
+import miluCelebrate from "./assets/mascots/milu-celebrate.webp";
+import shanshanNeutral from "./assets/mascots/shanshan-neutral.webp";
+import shanshanFocus from "./assets/mascots/shanshan-focus.webp";
+import shanshanCelebrate from "./assets/mascots/shanshan-celebrate.webp";
 
 export type PetType = "DOUYA" | "PAOPAO" | "TUANTUAN" | "MILU" | "SHANSHAN";
 export type MascotMood = "neutral" | "focus" | "celebrate";

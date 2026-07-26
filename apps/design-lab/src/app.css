@@ -1360,7 +1360,7 @@ select {
   outline: 0;
   color: #283858;
   background: #fffaf0;
-  font-family: "Baloo 2", "Noto Sans SC", sans-serif;
+  font-family: var(--sm-font-numeric);
   font-size: clamp(28px, 4vw, 38px);
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -1480,7 +1480,7 @@ select {
   border-radius: 12px;
   background: transparent;
   color: #584239;
-  font: 500 16px/20px "Noto Sans SC", sans-serif;
+  font: 500 16px/20px var(--sm-font-sans);
   cursor: pointer;
 }
 
@@ -1834,7 +1834,7 @@ body:has(.planet-map-page),
   border-radius: 999px;
   color: #fff;
   background: #a53c00;
-  font: 700 18px/1 "Noto Sans SC", sans-serif;
+  font: 700 18px/1 var(--sm-font-sans);
 }
 
 @media (max-height: 900px) and (orientation: landscape) {
@@ -4502,7 +4502,7 @@ body:has(.page-index),
 .page-index__header p {
   margin: 0 0 10px;
   color: #a53c00;
-  font-family: "Baloo 2", sans-serif;
+  font-family: var(--sm-font-numeric);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 2px;
@@ -4659,7 +4659,7 @@ body:has(.page-index),
   place-items: center;
   border-radius: 50%;
   background: #fec73c;
-  font-family: "Baloo 2", sans-serif;
+  font-family: var(--sm-font-numeric);
   font-size: 18px;
   font-weight: 600;
 }

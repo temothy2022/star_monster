@@ -9,7 +9,6 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
-    "@fontsource/noto-sans-sc": "^5.2.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

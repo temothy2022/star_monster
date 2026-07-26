@@ -1,11 +1,11 @@
-import earth from "../assets/planets/earth.png";
-import jupiter from "../assets/planets/jupiter.png";
-import mars from "../assets/planets/mars.png";
-import mercury from "../assets/planets/mercury.png";
-import neptune from "../assets/planets/neptune.png";
-import saturn from "../assets/planets/saturn.png";
-import uranus from "../assets/planets/uranus.png";
-import venus from "../assets/planets/venus.png";
+import earth from "../assets/planets/earth.webp";
+import jupiter from "../assets/planets/jupiter.webp";
+import mars from "../assets/planets/mars.webp";
+import mercury from "../assets/planets/mercury.webp";
+import neptune from "../assets/planets/neptune.webp";
+import saturn from "../assets/planets/saturn.webp";
+import uranus from "../assets/planets/uranus.webp";
+import venus from "../assets/planets/venus.webp";
 
 export const PLANET_KEYS = [
   "MERCURY",

@@ -15,10 +15,10 @@ import booksIcon from "../assets/footprints/task-books.svg";
 import { useMascot } from "../mascots";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
-import sportsReward from "../assets/reward-categories/sports.png";
-import gamesReward from "../assets/reward-categories/games.png";
-import televisionReward from "../assets/reward-categories/television.png";
-import toysReward from "../assets/reward-categories/toys.png";
+import sportsReward from "../assets/reward-categories/sports.webp";
+import gamesReward from "../assets/reward-categories/games.webp";
+import televisionReward from "../assets/reward-categories/television.webp";
+import toysReward from "../assets/reward-categories/toys.webp";
 import {
   ApiError,
   getChildFootprints,
@@ -204,7 +204,7 @@ function RequestedWishCard({
   return (
     <article className={`requested-wish-card requested-wish-card--${wish.state}`}>
       <div className="requested-wish-card__image">
-        <img src={wish.image} alt="" />
+        <img src={wish.image} alt="" loading="lazy" decoding="async" />
       </div>
       <div className="requested-wish-card__body">
         <div>

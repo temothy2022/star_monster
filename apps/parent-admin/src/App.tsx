@@ -16,18 +16,18 @@ import {
   type Wish,
 } from "./api";
 import { AiAssistant } from "./AiAssistant";
-import sportsReward from "../../design-lab/src/assets/reward-categories/sports.png";
-import gamesReward from "../../design-lab/src/assets/reward-categories/games.png";
-import televisionReward from "../../design-lab/src/assets/reward-categories/television.png";
-import toysReward from "../../design-lab/src/assets/reward-categories/toys.png";
-import earthPlanet from "../../design-lab/src/assets/planets/earth.png";
-import jupiterPlanet from "../../design-lab/src/assets/planets/jupiter.png";
-import marsPlanet from "../../design-lab/src/assets/planets/mars.png";
-import mercuryPlanet from "../../design-lab/src/assets/planets/mercury.png";
-import neptunePlanet from "../../design-lab/src/assets/planets/neptune.png";
-import saturnPlanet from "../../design-lab/src/assets/planets/saturn.png";
-import uranusPlanet from "../../design-lab/src/assets/planets/uranus.png";
-import venusPlanet from "../../design-lab/src/assets/planets/venus.png";
+import sportsReward from "../../design-lab/src/assets/reward-categories/sports.webp";
+import gamesReward from "../../design-lab/src/assets/reward-categories/games.webp";
+import televisionReward from "../../design-lab/src/assets/reward-categories/television.webp";
+import toysReward from "../../design-lab/src/assets/reward-categories/toys.webp";
+import earthPlanet from "../../design-lab/src/assets/planets/earth.webp";
+import jupiterPlanet from "../../design-lab/src/assets/planets/jupiter.webp";
+import marsPlanet from "../../design-lab/src/assets/planets/mars.webp";
+import mercuryPlanet from "../../design-lab/src/assets/planets/mercury.webp";
+import neptunePlanet from "../../design-lab/src/assets/planets/neptune.webp";
+import saturnPlanet from "../../design-lab/src/assets/planets/saturn.webp";
+import uranusPlanet from "../../design-lab/src/assets/planets/uranus.webp";
+import venusPlanet from "../../design-lab/src/assets/planets/venus.webp";
 
 type Section =
   | "overview"
@@ -664,7 +664,7 @@ function Wishes({ child }: { child: Child }) {
       </Panel>
       <Panel title={`星愿列表（${wishes.length}）`}>
         <div className="wish-admin-grid">
-          {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
+          {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" loading="lazy" decoding="async" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
         </div>
       </Panel>
     </div>
@@ -826,7 +826,12 @@ function Planets({
                     key={planet.planet}
                   >
                     <div className="planet-setting-card__visual">
-                      <img src={meta.image} alt={meta.name} />
+                      <img
+                        src={meta.image}
+                        alt={meta.name}
+                        loading="lazy"
+                        decoding="async"
+                      />
                       <span>{planet.unlocked ? "已点亮" : "未点亮"}</span>
                     </div>
                     <div className="planet-setting-card__heading">

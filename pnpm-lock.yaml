@@ -44,12 +44,6 @@ importers:
 
   apps/design-lab:
     dependencies:
-      '@fontsource/baloo-2':
-        specifier: ^5.2.8
-        version: 5.3.0
-      '@fontsource/noto-sans-sc':
-        specifier: ^5.2.8
-        version: 5.3.0
       '@star-monsters/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
@@ -84,9 +78,6 @@ importers:
 
   apps/parent-admin:
     dependencies:
-      '@fontsource/noto-sans-sc':
-        specifier: ^5.2.8
-        version: 5.3.0
       react:
         specifier: ^19.2.0
         version: 19.2.7
@@ -112,9 +103,6 @@ importers:
 
   apps/super-admin:
     dependencies:
-      '@fontsource/noto-sans-sc':
-        specifier: ^5.2.8
-        version: 5.3.0
       react:
         specifier: ^19.2.0
         version: 19.2.7
@@ -433,12 +421,6 @@ packages:
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
-
-  '@fontsource/baloo-2@5.3.0':
-    resolution: {integrity: sha512-CBuxZ27jvMmD5+KaaPkMWv/yjdRNppVAd5/002yAyvyQyLNL3aZCbkx6gbAT/bjxPd1A0VMdDQjfcELI8chccQ==}
-
-  '@fontsource/noto-sans-sc@5.3.0':
-    resolution: {integrity: sha512-HeqIlGm0+ohOKxZLuHj1qW6r6avHH0OWdKERAcSDI0RQ+MXrteuLKA+M+5eOA8rYy0MFvOR5AT0fQo2rUkye0Q==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -1636,10 +1618,6 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.4.0
-
-  '@fontsource/baloo-2@5.3.0': {}
-
-  '@fontsource/noto-sans-sc@5.3.0': {}
 
   '@img/colour@1.1.0': {}
 

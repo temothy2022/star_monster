@@ -1,9 +1,9 @@
-import backButton from "../assets/onboarding/step2-back-button.png";
+import backButton from "../assets/onboarding/step2-back-button.webp";
 import changeIcon from "../assets/onboarding/step2-change.svg";
 import gradeIcon from "../assets/onboarding/step2-grade.svg";
 import headerIcon from "../assets/onboarding/step2-header.svg";
 import launchIcon from "../assets/onboarding/step2-launch.svg";
-import spaceship from "../assets/onboarding/step2-spaceship.png";
+import spaceship from "../assets/onboarding/step2-spaceship.webp";
 import sparkIcon from "../assets/onboarding/step2-spark.svg";
 import userIcon from "../assets/onboarding/step2-user.svg";
 import { OnboardingViewport } from "./OnboardingViewport";

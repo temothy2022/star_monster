@@ -1,19 +1,6 @@
-import { useEffect, useState } from "react";
-import { OnboardingStep1 } from "./onboarding/OnboardingStep1";
-import { OnboardingStep2 } from "./onboarding/OnboardingStep2";
-import { OnboardingStep3 } from "./onboarding/OnboardingStep3";
-import { OnboardingStep4 } from "./onboarding/OnboardingStep4";
-import { TaskExperience, TaskView } from "./tasks/TaskListPages";
-import { UntimedTaskActive, UntimedTaskComplete } from "./tasks/UntimedTaskPages";
-import {
-  TimedTaskActive,
-  TimedTaskComplete,
-  TimedTaskTimeout,
-} from "./tasks/TimedTaskPages";
-import { Footprints, WishesRequested } from "./progress/WishesAndFootprints";
-import { PlanetJourneyPage, PlanetMap } from "./planets/PlanetMap";
+import { lazy, useEffect, useState } from "react";
+import type { TaskView } from "./tasks/TaskListPages";
 import type { PlanetKey } from "./planets/planet-data";
-import { PageIndex } from "./PageIndex";
 import type { PageIndexRoute } from "./PageIndex";
 import { useMascot } from "./mascots";
 import { ChildLoginPage } from "./auth/ChildLoginPage";
@@ -29,6 +16,80 @@ import {
   saveOnboarding,
 } from "./api/child-api";
 import type { TaskAttempt } from "./api/child-api";
+
+const OnboardingStep1 = lazy(() =>
+  import("./onboarding/OnboardingStep1").then((module) => ({
+    default: module.OnboardingStep1,
+  })),
+);
+const OnboardingStep2 = lazy(() =>
+  import("./onboarding/OnboardingStep2").then((module) => ({
+    default: module.OnboardingStep2,
+  })),
+);
+const OnboardingStep3 = lazy(() =>
+  import("./onboarding/OnboardingStep3").then((module) => ({
+    default: module.OnboardingStep3,
+  })),
+);
+const OnboardingStep4 = lazy(() =>
+  import("./onboarding/OnboardingStep4").then((module) => ({
+    default: module.OnboardingStep4,
+  })),
+);
+const TaskExperience = lazy(() =>
+  import("./tasks/TaskListPages").then((module) => ({
+    default: module.TaskExperience,
+  })),
+);
+const UntimedTaskActive = lazy(() =>
+  import("./tasks/UntimedTaskPages").then((module) => ({
+    default: module.UntimedTaskActive,
+  })),
+);
+const UntimedTaskComplete = lazy(() =>
+  import("./tasks/UntimedTaskPages").then((module) => ({
+    default: module.UntimedTaskComplete,
+  })),
+);
+const TimedTaskActive = lazy(() =>
+  import("./tasks/TimedTaskPages").then((module) => ({
+    default: module.TimedTaskActive,
+  })),
+);
+const TimedTaskComplete = lazy(() =>
+  import("./tasks/TimedTaskPages").then((module) => ({
+    default: module.TimedTaskComplete,
+  })),
+);
+const TimedTaskTimeout = lazy(() =>
+  import("./tasks/TimedTaskPages").then((module) => ({
+    default: module.TimedTaskTimeout,
+  })),
+);
+const WishesRequested = lazy(() =>
+  import("./progress/WishesAndFootprints").then((module) => ({
+    default: module.WishesRequested,
+  })),
+);
+const Footprints = lazy(() =>
+  import("./progress/WishesAndFootprints").then((module) => ({
+    default: module.Footprints,
+  })),
+);
+const PlanetMap = lazy(() =>
+  import("./planets/PlanetMap").then((module) => ({
+    default: module.PlanetMap,
+  })),
+);
+const PlanetJourneyPage = lazy(() =>
+  import("./planets/PlanetMap").then((module) => ({
+    default: module.PlanetJourneyPage,
+  })),
+);
+const PageIndex = lazy(() =>
+  import("./PageIndex").then((module) => ({ default: module.PageIndex })),
+);
 
 type AppRoute =
   | "login"

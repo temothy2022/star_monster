@@ -8,11 +8,10 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "assets:optimize": "node scripts/optimize-images.mjs",
-    "assets:audit": "node scripts/optimize-images.mjs --check"
+    "assets:audit": "node scripts/optimize-images.mjs --check && node scripts/convert-web-images.mjs --check",
+    "assets:webp": "node scripts/convert-web-images.mjs"
   },
   "dependencies": {
-    "@fontsource/baloo-2": "^5.2.8",
-    "@fontsource/noto-sans-sc": "^5.2.8",
     "@star-monsters/design-tokens": "workspace:*",
     "@star-monsters/ui": "workspace:*",
     "react": "^19.2.0",

@@ -18,6 +18,8 @@
     "db:deploy": "pnpm --filter @star-monsters/api db:deploy",
     "db:push": "pnpm --filter @star-monsters/api db:push",
     "db:seed": "pnpm --filter @star-monsters/api db:seed",
+    "assets:audit": "pnpm --filter @star-monsters/design-lab assets:audit",
+    "assets:webp": "pnpm --filter @star-monsters/design-lab assets:webp",
     "deploy:production": "bash scripts/deploy-production.sh"
   }
 }

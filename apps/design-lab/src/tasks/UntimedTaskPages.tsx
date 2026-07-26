@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import ongoingBackground from "../assets/untimed-task/ongoing-bg.png";
+import ongoingBackground from "../assets/untimed-task/ongoing-bg.webp";
 import ongoingStar from "../assets/wishes/star.svg";
 import backIcon from "../assets/untimed-task/back.svg";
 import moreIcon from "../assets/untimed-task/more.svg";
 import pauseIcon from "../assets/untimed-task/pause.svg";
 import cancelIcon from "../assets/untimed-task/cancel.svg";
 import abandonBackground from "../assets/untimed-task/abandon-bg.png";
-import spaceship from "../assets/untimed-task/spaceship.png";
+import spaceship from "../assets/untimed-task/spaceship.webp";
 import playIcon from "../assets/untimed-task/play.svg";
 import exitIcon from "../assets/untimed-task/exit.svg";
 import helpIcon from "../assets/untimed-task/help.svg";

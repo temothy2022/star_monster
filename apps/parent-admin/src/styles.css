@@ -1,5 +1,6 @@
 :root {
-  font-family: "Noto Sans SC", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
   color: #243654;
   background: #f7f5ef;
   font-synthesis: none;
