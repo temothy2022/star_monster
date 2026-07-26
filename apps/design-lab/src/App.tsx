@@ -113,6 +113,13 @@ function reportActionError(reason: unknown) {
   window.alert(reason instanceof Error ? reason.message : "操作没有完成，请稍后再试");
 }
 
+const STALE_ATTEMPT_ERROR_CODES = new Set([
+  "ATTEMPT_NOT_ACTIVE",
+  "ATTEMPT_NOT_FOUND",
+  "TASK_NOT_FOUND",
+  "TASK_ALREADY_COMPLETED",
+]);
+
 function isActiveTaskRoute(route: AppRoute) {
   return (
     route === "untimed-active" ||
@@ -163,6 +170,19 @@ export function App() {
     if (nextRoute === route) return;
     window.history.pushState({ route: nextRoute }, "", `#${nextRoute}`);
     setRoute(nextRoute);
+  }
+
+  function handleAttemptActionError(reason: unknown) {
+    if (
+      reason instanceof ApiError &&
+      (reason.status === 404 || STALE_ATTEMPT_ERROR_CODES.has(reason.code ?? ""))
+    ) {
+      setActiveAttempt(null);
+      setLastCompletion(null);
+      navigate("tasks-partial");
+      return;
+    }
+    reportActionError(reason);
   }
 
   useEffect(() => {
@@ -286,13 +306,13 @@ export function App() {
           if (!activeAttempt) return;
           void pauseAttempt(activeAttempt.id)
             .then(({ attempt }) => setActiveAttempt(attempt))
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
         onResume={() => {
           if (!activeAttempt) return;
           void resumeAttempt(activeAttempt.id)
             .then(({ attempt }) => setActiveAttempt(attempt))
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
         onAbandon={() => {
           if (!activeAttempt) {
@@ -304,7 +324,7 @@ export function App() {
               setActiveAttempt(null);
               navigate("tasks-partial");
             })
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
         onComplete={() => {
           if (!activeAttempt) {
@@ -312,7 +332,13 @@ export function App() {
             return;
           }
           void completeAttempt(activeAttempt.id)
-            .then(({ reward }) => {
+            .then(({ reward, alreadyCompleted }) => {
+              if (alreadyCompleted) {
+                setActiveAttempt(null);
+                setLastCompletion(null);
+                navigate("tasks-partial");
+                return;
+              }
               setLastCompletion({
                 taskTitle: activeAttempt.dailyTask.titleSnapshot,
                 ...reward,
@@ -320,7 +346,7 @@ export function App() {
               setActiveAttempt(null);
               navigate("untimed-complete");
             })
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
       />
     );
@@ -354,13 +380,13 @@ export function App() {
           if (!activeAttempt) return;
           void pauseAttempt(activeAttempt.id)
             .then(({ attempt }) => setActiveAttempt(attempt))
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
         onResume={() => {
           if (!activeAttempt) return;
           void resumeAttempt(activeAttempt.id)
             .then(({ attempt }) => setActiveAttempt(attempt))
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
         onAbandon={() => {
           if (!activeAttempt) {
@@ -372,7 +398,7 @@ export function App() {
               setActiveAttempt(null);
               navigate("tasks-partial");
             })
-            .catch(reportActionError);
+            .catch(handleAttemptActionError);
         }}
         onComplete={() => {
           if (!activeAttempt) {
@@ -380,7 +406,13 @@ export function App() {
             return;
           }
           void completeAttempt(activeAttempt.id)
-            .then(({ reward }) => {
+            .then(({ reward, alreadyCompleted }) => {
+              if (alreadyCompleted) {
+                setActiveAttempt(null);
+                setLastCompletion(null);
+                navigate("tasks-partial");
+                return;
+              }
               setLastCompletion({
                 taskTitle: activeAttempt.dailyTask.titleSnapshot,
                 ...reward,
@@ -388,17 +420,40 @@ export function App() {
               setActiveAttempt(null);
               navigate("timed-complete");
             })
-            .catch(reportActionError);
+            .catch((reason: unknown) => {
+              if (
+                reason instanceof ApiError &&
+                reason.code === "TASK_TIMED_OUT"
+              ) {
+                setActiveAttempt(null);
+                navigate("timed-timeout");
+                return;
+              }
+              handleAttemptActionError(reason);
+            });
         }}
         onTimeout={() => {
           if (!activeAttempt) {
             navigate("timed-timeout");
             return;
           }
-          void completeAttempt(activeAttempt.id).finally(() => {
-            setActiveAttempt(null);
-            navigate("timed-timeout");
-          }).catch(() => undefined);
+          void completeAttempt(activeAttempt.id)
+            .then(({ alreadyCompleted }) => {
+              setActiveAttempt(null);
+              setLastCompletion(null);
+              navigate(alreadyCompleted ? "tasks-partial" : "timed-timeout");
+            })
+            .catch((reason: unknown) => {
+              if (
+                reason instanceof ApiError &&
+                reason.code === "TASK_TIMED_OUT"
+              ) {
+                setActiveAttempt(null);
+                navigate("timed-timeout");
+                return;
+              }
+              handleAttemptActionError(reason);
+            });
         }}
       />
     );

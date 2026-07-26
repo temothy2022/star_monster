@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import balanceStar from "../assets/task-list/semantic/balance-star.png";
 import streakFlame from "../assets/task-list/semantic/streak-flame.png";
 import pendingIcon from "../assets/task-list/semantic/section-pending.png";
@@ -30,6 +36,7 @@ import {
   type TodayTaskExperience,
 } from "../api/child-api";
 import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -379,6 +386,11 @@ export function TaskExperience({
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
+  const onStartAttemptRef = useRef(onStartAttempt);
+
+  useEffect(() => {
+    onStartAttemptRef.current = onStartAttempt;
+  }, [onStartAttempt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,7 +418,7 @@ export function TaskExperience({
           : null,
       );
       setExperience(result);
-      if (result.active) onStartAttempt?.(result.active);
+      if (result.active) onStartAttemptRef.current?.(result.active);
     })()
       .catch((reason: unknown) => {
         if (reason instanceof ApiError && reason.status === 401) {
@@ -423,7 +435,22 @@ export function TaskExperience({
     return () => {
       cancelled = true;
     };
-  }, [view, onStartAttempt]);
+  }, [view]);
+
+  useLiveRefresh(
+    async () => {
+      try {
+        const result = await getTodayTasks();
+        setExperience(result);
+        if (result.active) onStartAttemptRef.current?.(result.active);
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: Boolean(experience) },
+  );
 
   const tasks = useMemo(
     () => experience?.tasks.map(taskItemFromApi) ?? [],
@@ -443,6 +470,15 @@ export function TaskExperience({
       const result = await startDailyTask(task.id);
       onStartAttempt(result.attempt);
     } catch (reason) {
+      if (
+        reason instanceof ApiError &&
+        (reason.status === 404 ||
+          reason.code === "TASK_ALREADY_COMPLETED" ||
+          reason.code === "TASK_NOT_STARTABLE")
+      ) {
+        setExperience(await getTodayTasks());
+        return;
+      }
       setApiError(reason instanceof Error ? reason.message : "任务暂时无法开始");
     } finally {
       setStartingTaskId(null);

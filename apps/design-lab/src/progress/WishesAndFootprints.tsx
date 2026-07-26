@@ -27,6 +27,7 @@ import {
   type ChildWish,
   type FootprintResponse,
 } from "../api/child-api";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 
 type RequestedWish = {
   id: string;
@@ -268,6 +269,21 @@ export function WishesRequested({
     };
   }, []);
 
+  useLiveRefresh(
+    async () => {
+      try {
+        setWishData(await getChildWishes());
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    {
+      enabled: Boolean(wishData) && !selectedWish && !submitting,
+    },
+  );
+
   const displayedWishes: RequestedWish[] =
     wishData?.wishes.map((wish) => ({
       id: wish.id,
@@ -426,6 +442,20 @@ export function Footprints({
       cancelled = true;
     };
   }, [selectedDate]);
+
+  useLiveRefresh(
+    async () => {
+      try {
+        const result = await getChildFootprints(selectedDate);
+        setFootprints(result);
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: Boolean(footprints) },
+  );
 
   const displayedDays = footprints
     ? footprints.days.map((item) => ({

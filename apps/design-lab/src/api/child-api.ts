@@ -146,7 +146,9 @@ export type TodayTaskExperience = {
 };
 
 export async function getTodayTasks() {
-  return request<TodayTaskExperience>("/api/child/tasks/today");
+  return request<TodayTaskExperience>("/api/child/tasks/today", {
+    cache: "no-store",
+  });
 }
 
 export async function startDailyTask(dailyTaskId: string) {

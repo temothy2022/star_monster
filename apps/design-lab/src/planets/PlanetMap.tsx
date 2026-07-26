@@ -16,6 +16,7 @@ import {
 import { ChildDataState } from "../components/ChildDataState";
 import { PlanetJourneyScreen } from "../onboarding/OnboardingStep4";
 import { PLANET_BY_KEY, type PlanetKey } from "./planet-data";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 
 function remainingEnergy(
   planet: ChildPlanet,
@@ -52,6 +53,19 @@ export function PlanetMap({
       cancelled = true;
     };
   }, []);
+
+  useLiveRefresh(
+    async () => {
+      try {
+        setData(await getChildPlanets());
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "#login";
+        }
+      }
+    },
+    { enabled: Boolean(data) },
+  );
 
   return (
     <main className="planet-map-page">
