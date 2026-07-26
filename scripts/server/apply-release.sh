@@ -25,7 +25,9 @@ cd "$PROJECT_ROOT"
 LOCKFILE_HASH="$(sha256sum pnpm-lock.yaml | awk '{print $1}')"
 STAMP_FILE=".deploy-pnpm-lock.sha256"
 if [[ ! -f "$STAMP_FILE" ]] || [[ "$(cat "$STAMP_FILE")" != "$LOCKFILE_HASH" ]]; then
-  corepack pnpm install --frozen-lockfile
+  # Deployments run over non-interactive SSH. CI mode allows pnpm to recreate
+  # node_modules when the lockfile removes or changes dependencies.
+  CI=true corepack pnpm install --frozen-lockfile
   printf '%s\n' "$LOCKFILE_HASH" > "$STAMP_FILE"
 fi
 
