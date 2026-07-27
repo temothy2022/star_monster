@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type DragEvent,
+  type FormEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import {
   ApiError,
   PARENT_SESSION_EXPIRED_EVENT,
@@ -6,6 +14,8 @@ import {
   staffApi,
   type Child,
   type Device,
+  type HanziCharacterResource,
+  type HanziLearningSettings,
   type LedgerEntry,
   type PlanetKey,
   type PlanetSetting,
@@ -33,6 +43,7 @@ type Section =
   | "overview"
   | "history"
   | "tasks"
+  | "hanzi"
   | "wishes"
   | "redemptions"
   | "stars"
@@ -44,6 +55,7 @@ const SECTION_LABELS: Record<Section, string> = {
   overview: "数据概览",
   history: "任务历史",
   tasks: "任务管理",
+  hanzi: "汉字学习",
   wishes: "星愿管理",
   redemptions: "兑换处理",
   stars: "星星流水",
@@ -350,6 +362,7 @@ function History({ child }: { child: Child }) {
 
 type TaskForm = {
   title: string;
+  experienceKind: "STANDARD" | "HANZI_LEARNING";
   category: string;
   mode: "UNTIMED" | "TIMED";
   durationMinutes: number;
@@ -370,6 +383,7 @@ type TaskForm = {
 
 const EMPTY_TASK: TaskForm = {
   title: "",
+  experienceKind: "STANDARD",
   category: "CHINESE",
   mode: "UNTIMED",
   durationMinutes: 15,
@@ -391,6 +405,7 @@ const EMPTY_TASK: TaskForm = {
 function taskFormFrom(template: TaskTemplate): TaskForm {
   return {
     title: template.title,
+    experienceKind: template.experienceKind,
     category: template.category,
     mode: template.mode,
     durationMinutes: Math.round(((template.mode === "TIMED" ? template.timeLimitSeconds : template.suggestedSeconds) ?? 60) / 60),
@@ -411,18 +426,20 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
 }
 
 function taskPayload(form: TaskForm, sortOrder = 0) {
+  const isHanzi = form.experienceKind === "HANZI_LEARNING";
   return {
     title: form.title,
-    category: form.category,
-    iconKey: form.category.toLowerCase(),
-    mode: form.mode,
-    suggestedSeconds: form.mode === "UNTIMED" ? form.durationMinutes * 60 : null,
-    timeLimitSeconds: form.mode === "TIMED" ? form.durationMinutes * 60 : null,
+    experienceKind: form.experienceKind,
+    category: isHanzi ? "CHINESE" : form.category,
+    iconKey: isHanzi ? "chinese" : form.category.toLowerCase(),
+    mode: isHanzi ? "UNTIMED" : form.mode,
+    suggestedSeconds: isHanzi || form.mode === "UNTIMED" ? form.durationMinutes * 60 : null,
+    timeLimitSeconds: !isHanzi && form.mode === "TIMED" ? form.durationMinutes * 60 : null,
     baseStars: form.baseStars,
-    earlyBonusEnabled: form.mode === "TIMED" && form.earlyBonusEnabled,
-    earlyThresholdSeconds: form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyThresholdMinutes * 60 : null,
-    earlyBonusStars: form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyBonusStars : null,
-    repeatableDaily: form.repeatableDaily,
+    earlyBonusEnabled: !isHanzi && form.mode === "TIMED" && form.earlyBonusEnabled,
+    earlyThresholdSeconds: !isHanzi && form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyThresholdMinutes * 60 : null,
+    earlyBonusStars: !isHanzi && form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyBonusStars : null,
+    repeatableDaily: !isHanzi && form.repeatableDaily,
     scheduleKind: form.scheduleKind,
     weekdays: form.scheduleKind === "SELECTED_WEEKDAYS" ? form.weekdays : [],
     oneTimeDate: form.scheduleKind === "ONE_TIME" ? form.oneTimeDate : null,
@@ -439,6 +456,8 @@ function Tasks({ child }: { child: Child }) {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [form, setForm] = useState<TaskForm>(EMPTY_TASK);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -468,13 +487,99 @@ function Tasks({ child }: { child: Child }) {
     }
   }
 
+  async function saveOrder(reordered: TaskTemplate[]) {
+    const normalized = reordered.map((item, order) => ({
+      ...item,
+      sortOrder: order * 10,
+    }));
+    setTemplates(normalized);
+    setError("");
+    try {
+      await parentApi.reorderTemplates(
+        child.id,
+        normalized.map((item) => ({ id: item.id, sortOrder: item.sortOrder })),
+      );
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "任务排序保存失败");
+      await load();
+    }
+  }
+
   async function move(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= templates.length) return;
     const reordered = [...templates];
     [reordered[index], reordered[target]] = [reordered[target]!, reordered[index]!];
-    await parentApi.reorderTemplates(child.id, reordered.map((item, order) => ({ id: item.id, sortOrder: order * 10 })));
-    await load();
+    await saveOrder(reordered);
+  }
+
+  function startDragging(event: DragEvent<HTMLElement>, id: string) {
+    setDraggingId(id);
+    setDragOverId(id);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", id);
+  }
+
+  function dragOver(event: DragEvent<HTMLElement>, id: string) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (dragOverId !== id) setDragOverId(id);
+  }
+
+  function dropTask(event: DragEvent<HTMLElement>, targetId: string) {
+    event.preventDefault();
+    const sourceId = draggingId || event.dataTransfer.getData("text/plain");
+    setDraggingId(null);
+    setDragOverId(null);
+    reorderTask(sourceId, targetId);
+  }
+
+  function reorderTask(sourceId: string | null, targetId: string | null) {
+    if (!sourceId || sourceId === targetId) return;
+    const sourceIndex = templates.findIndex((item) => item.id === sourceId);
+    const targetIndex = templates.findIndex((item) => item.id === targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    const reordered = [...templates];
+    const [dragged] = reordered.splice(sourceIndex, 1);
+    if (!dragged) return;
+    reordered.splice(targetIndex, 0, dragged);
+    void saveOrder(reordered);
+  }
+
+  function taskIdAtPoint(clientX: number, clientY: number) {
+    return document
+      .elementFromPoint(clientX, clientY)
+      ?.closest<HTMLElement>("[data-task-id]")
+      ?.dataset.taskId ?? null;
+  }
+
+  function startPointerDragging(event: PointerEvent<HTMLButtonElement>, id: string) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingId(id);
+    setDragOverId(id);
+  }
+
+  function pointerDragOver(event: PointerEvent<HTMLButtonElement>) {
+    if (!draggingId) return;
+    event.preventDefault();
+    const targetId = taskIdAtPoint(event.clientX, event.clientY);
+    if (targetId && targetId !== dragOverId) setDragOverId(targetId);
+  }
+
+  function finishPointerDragging(event: PointerEvent<HTMLButtonElement>) {
+    if (!draggingId) return;
+    event.preventDefault();
+    const sourceId = draggingId;
+    const targetId = taskIdAtPoint(event.clientX, event.clientY) ?? dragOverId;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setDraggingId(null);
+    setDragOverId(null);
+    reorderTask(sourceId, targetId);
   }
 
   return (
@@ -482,8 +587,20 @@ function Tasks({ child }: { child: Child }) {
       <Panel title={editingId ? "编辑任务" : "添加任务"}>
         <form className="admin-form" onSubmit={submit}>
           <label className="field-span">任务名称<input required maxLength={80} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
-          <label>分类<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label>任务类型<select value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
+          <label className="field-span">任务内容<select value={form.experienceKind} onChange={(event) => {
+            const experienceKind = event.target.value as TaskForm["experienceKind"];
+            setForm({
+              ...form,
+              experienceKind,
+              title: experienceKind === "HANZI_LEARNING" && !form.title.trim() ? "汉字学习" : form.title,
+              category: experienceKind === "HANZI_LEARNING" ? "CHINESE" : form.category,
+              mode: experienceKind === "HANZI_LEARNING" ? "UNTIMED" : form.mode,
+              repeatableDaily: experienceKind === "HANZI_LEARNING" ? false : form.repeatableDaily,
+              earlyBonusEnabled: experienceKind === "HANZI_LEARNING" ? false : form.earlyBonusEnabled,
+            });
+          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option></select></label>
+          <label>分类<select disabled={form.experienceKind === "HANZI_LEARNING"} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>计时类型<select disabled={form.experienceKind === "HANZI_LEARNING"} value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
           <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<input type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
           <label>基础星星<input type="number" min={1} max={999} value={form.baseStars} onChange={(event) => setForm({ ...form, baseStars: Number(event.target.value) })} /></label>
           {form.mode === "TIMED" && <label className="checkbox field-span"><input type="checkbox" checked={form.earlyBonusEnabled} onChange={(event) => setForm({ ...form, earlyBonusEnabled: event.target.checked })} />启用提前完成加奖</label>}
@@ -491,7 +608,7 @@ function Tasks({ child }: { child: Child }) {
             <label>剩余至少（分钟）<input type="number" min={1} value={form.earlyThresholdMinutes} onChange={(event) => setForm({ ...form, earlyThresholdMinutes: Number(event.target.value) })} /></label>
             <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
-          <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>
+          {form.experienceKind !== "HANZI_LEARNING" && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
           <label>出现方式<select value={form.scheduleKind} onChange={(event) => setForm({ ...form, scheduleKind: event.target.value as TaskForm["scheduleKind"] })}><option value="DAILY">每天</option><option value="WORKDAYS">工作日</option><option value="SELECTED_WEEKDAYS">指定星期</option><option value="ONE_TIME">一次性任务</option></select></label>
           {form.scheduleKind === "ONE_TIME" && <label>任务日期<input required type="date" value={form.oneTimeDate} onChange={(event) => setForm({ ...form, oneTimeDate: event.target.value })} /></label>}
           {form.scheduleKind === "SELECTED_WEEKDAYS" && <fieldset className="weekday-field field-span"><legend>选择星期</legend>{["日","一","二","三","四","五","六"].map((label, weekday) => <label key={weekday}><input type="checkbox" checked={form.weekdays.includes(weekday)} onChange={(event) => setForm({ ...form, weekdays: event.target.checked ? [...form.weekdays, weekday] : form.weekdays.filter((item) => item !== weekday) })} />周{label}</label>)}</fieldset>}
@@ -509,8 +626,33 @@ function Tasks({ child }: { child: Child }) {
       <Panel title={`任务模板（${templates.length}）`}>
         <div className="admin-list">
           {templates.map((template, index) => (
-            <article className="list-card" key={template.id}>
-              <div className="list-card__main"><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+            <article
+              className={`list-card list-card--draggable${draggingId === template.id ? " list-card--dragging" : ""}${dragOverId === template.id && draggingId !== template.id ? " list-card--drag-over" : ""}`}
+              data-task-id={template.id}
+              draggable
+              key={template.id}
+              onDragStart={(event) => startDragging(event, template.id)}
+              onDragOver={(event) => dragOver(event, template.id)}
+              onDrop={(event) => dropTask(event, template.id)}
+              onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+            >
+              <div className="list-card__main"><button
+                type="button"
+                className="task-drag-handle"
+                title="拖动调整顺序"
+                aria-label={`拖动“${template.title}”调整顺序`}
+                onPointerDown={(event) => startPointerDragging(event, template.id)}
+                onPointerMove={pointerDragOver}
+                onPointerUp={finishPointerDragging}
+                onPointerCancel={(event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId);
+                  }
+                  setDraggingId(null);
+                  setDragOverId(null);
+                }}
+                onClick={(event) => event.preventDefault()}
+              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === templates.length - 1} onClick={() => void move(index, 1)}>↓</button>
@@ -523,6 +665,301 @@ function Tasks({ child }: { child: Child }) {
           {!templates.length && <div className="empty-state">还没有任务模板</div>}
         </div>
       </Panel>
+    </div>
+  );
+}
+
+const DEFAULT_HANZI_SETTINGS: HanziLearningSettings = {
+  newCharactersPerDay: 3,
+  reviewDailyLimit: 25,
+  consolidationQuestionCount: 3,
+};
+
+type HanziCharacterForm = {
+  character: string;
+  internalPinyin: string;
+  meaning: string;
+  shapeHint: string;
+  sentence: string;
+  wordsText: string;
+  imageKey: string;
+  characterAudioUrl: string;
+  sentenceAudioUrl: string;
+  sortOrder: number;
+};
+
+const EMPTY_HANZI_CHARACTER: HanziCharacterForm = {
+  character: "",
+  internalPinyin: "",
+  meaning: "",
+  shapeHint: "",
+  sentence: "",
+  wordsText: "",
+  imageKey: "default-hanzi",
+  characterAudioUrl: "",
+  sentenceAudioUrl: "",
+  sortOrder: 0,
+};
+
+function hanziFormFrom(item: HanziCharacterResource): HanziCharacterForm {
+  return {
+    character: item.character,
+    internalPinyin: item.internalPinyin,
+    meaning: item.meaning,
+    shapeHint: item.shapeHint,
+    sentence: item.sentence.replace("__", item.character),
+    wordsText: item.words.join("、"),
+    imageKey: item.imageKey,
+    characterAudioUrl: item.characterAudioUrl ?? "",
+    sentenceAudioUrl: item.sentenceAudioUrl ?? "",
+    sortOrder: item.sortOrder,
+  };
+}
+
+function hanziPayload(form: HanziCharacterForm) {
+  const character = form.character.trim();
+  const readableSentence = form.sentence.trim();
+  const sentence = readableSentence.includes("__")
+    ? readableSentence
+    : readableSentence.includes(character)
+      ? readableSentence.replace(character, "__")
+      : "";
+  if (!sentence) throw new Error("例句中必须包含当前汉字");
+  const words = form.wordsText
+    .split(/[、,，\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!words.length) throw new Error("请至少填写一个词组");
+  return {
+    character,
+    internalPinyin: form.internalPinyin.trim(),
+    meaning: form.meaning.trim(),
+    shapeHint: form.shapeHint.trim(),
+    sentence,
+    words,
+    imageKey: form.imageKey.trim() || "default-hanzi",
+    characterAudioUrl: form.characterAudioUrl.trim() || null,
+    sentenceAudioUrl: form.sentenceAudioUrl.trim() || null,
+    sortOrder: form.sortOrder,
+    isEnabled: true,
+  };
+}
+
+function HanziLearning({ child }: { child: Child }) {
+  const [settings, setSettings] = useState<HanziLearningSettings>(DEFAULT_HANZI_SETTINGS);
+  const [characters, setCharacters] = useState<HanziCharacterResource[]>([]);
+  const [characterCount, setCharacterCount] = useState(0);
+  const [progress, setProgress] = useState<Partial<Record<"LEARNING" | "MASTERED", number>>>({});
+  const [characterForm, setCharacterForm] = useState<HanziCharacterForm>(EMPTY_HANZI_CHARACTER);
+  const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalCharacters, setTotalCharacters] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [libraryBusy, setLibraryBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [libraryMessage, setLibraryMessage] = useState("");
+  const [error, setError] = useState("");
+  const pageSize = 30;
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    void parentApi.hanziSettings(child.id)
+      .then((result) => {
+        setSettings(result.settings);
+        setCharacterCount(result.characterCount);
+        setProgress(result.progress);
+      })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "汉字学习配置加载失败"))
+      .finally(() => setLoading(false));
+  }, [child.id]);
+
+  async function loadCharacters(nextPage = page, nextQuery = searchQuery) {
+    const result = await parentApi.hanziCharacters(child.id, {
+      q: nextQuery,
+      page: nextPage,
+      pageSize,
+    });
+    setCharacters(result.characters);
+    setTotalCharacters(result.total);
+    setPage(result.page);
+  }
+
+  useEffect(() => {
+    setLibraryBusy(true);
+    setError("");
+    void loadCharacters(page, searchQuery)
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "基础字库加载失败"))
+      .finally(() => setLibraryBusy(false));
+  }, [child.id, page, searchQuery]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await parentApi.updateHanziSettings(child.id, settings);
+      setSettings(result.settings);
+      setMessage("汉字学习参数已保存");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitCharacter(event: FormEvent) {
+    event.preventDefault();
+    setLibraryBusy(true);
+    setError("");
+    setLibraryMessage("");
+    try {
+      const payload = hanziPayload(characterForm);
+      if (editingCharacterId) {
+        await parentApi.updateHanziCharacter(
+          child.id,
+          editingCharacterId,
+          payload,
+        );
+        setLibraryMessage(`“${payload.character}”已经更新`);
+      } else {
+        await parentApi.createHanziCharacter(child.id, payload);
+        setLibraryMessage(`“${payload.character}”已经加入基础字库`);
+      }
+      setCharacterForm(EMPTY_HANZI_CHARACTER);
+      setEditingCharacterId(null);
+      const settingsResult = await parentApi.hanziSettings(child.id);
+      setCharacterCount(settingsResult.characterCount);
+      if (page !== 1) setPage(1);
+      else await loadCharacters(1, searchQuery);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "汉字保存失败");
+    } finally {
+      setLibraryBusy(false);
+    }
+  }
+
+  async function removeCharacter(item: HanziCharacterResource) {
+    if (!window.confirm(`从基础字库删除“${item.character}”？已经产生的学习历史会保留。`)) return;
+    setLibraryBusy(true);
+    setError("");
+    setLibraryMessage("");
+    try {
+      await parentApi.deleteHanziCharacter(child.id, item.id);
+      setLibraryMessage(`“${item.character}”已经从基础字库删除`);
+      if (editingCharacterId === item.id) {
+        setEditingCharacterId(null);
+        setCharacterForm(EMPTY_HANZI_CHARACTER);
+      }
+      const settingsResult = await parentApi.hanziSettings(child.id);
+      setCharacterCount(settingsResult.characterCount);
+      const targetPage = characters.length === 1 && page > 1 ? page - 1 : page;
+      if (targetPage !== page) setPage(targetPage);
+      else await loadCharacters(targetPage, searchQuery);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "汉字删除失败");
+    } finally {
+      setLibraryBusy(false);
+    }
+  }
+
+  function searchCharacters(event: FormEvent) {
+    event.preventDefault();
+    setPage(1);
+    setSearchQuery(searchInput.trim());
+  }
+
+  return (
+    <div className="admin-stack">
+      <div className="admin-two-column">
+        <Panel title="每日学习参数">
+          {loading ? <div className="empty-state">正在读取设置…</div> : (
+            <form className="admin-form" onSubmit={submit}>
+              <label>每日新字数量<input type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
+              <label>每日复习上限<input type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
+              <label>听句挑战题数<input type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
+              <div className="field-span admin-help">孩子点击“汉字学习任务”后，会依次完成到期复习、新字学习和听句挑战。三个环节全部结束，系统才会按原任务规则发放星星并记录任务完成。</div>
+              {message && <div className="field-span"><Notice>{message}</Notice></div>}
+              <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
+            </form>
+          )}
+        </Panel>
+        <Panel title="学习概览">
+          <div className="metric-grid">
+            <article><span>学习中</span><strong>{progress.LEARNING ?? 0}</strong><small>个汉字</small></article>
+            <article><span>已掌握</span><strong>{progress.MASTERED ?? 0}</strong><small>个汉字</small></article>
+            <article><span>当前字库</span><strong>{characterCount}</strong><small>个汉字</small></article>
+          </div>
+        </Panel>
+      </div>
+      <div className="admin-two-column hanzi-library-layout">
+        <Panel title={editingCharacterId ? "编辑汉字" : "新增汉字"}>
+          <form className="admin-form" onSubmit={submitCharacter}>
+            <label>汉字<input required maxLength={2} value={characterForm.character} onChange={(event) => setCharacterForm({ ...characterForm, character: event.target.value })} /></label>
+            <label>拼音<input required maxLength={50} placeholder="例如：shuǐ" value={characterForm.internalPinyin} onChange={(event) => setCharacterForm({ ...characterForm, internalPinyin: event.target.value })} /></label>
+            <label className="field-span">含义<input required maxLength={120} placeholder="例如：流动的水" value={characterForm.meaning} onChange={(event) => setCharacterForm({ ...characterForm, meaning: event.target.value })} /></label>
+            <label className="field-span">字形联想提示<input required maxLength={240} placeholder="例如：像水流向两边散开" value={characterForm.shapeHint} onChange={(event) => setCharacterForm({ ...characterForm, shapeHint: event.target.value })} /></label>
+            <label className="field-span">统一例句<input required maxLength={300} placeholder="例如：小鱼在水里游来游去。" value={characterForm.sentence} onChange={(event) => setCharacterForm({ ...characterForm, sentence: event.target.value })} /><small>例句必须包含当前汉字，系统会自动标记听句挑战的填空位置。</small></label>
+            <label className="field-span">词组<textarea required placeholder="使用顿号、逗号或换行分隔，例如：河水、水杯、雨水" value={characterForm.wordsText} onChange={(event) => setCharacterForm({ ...characterForm, wordsText: event.target.value })} /></label>
+            <label className="field-span">图片地址或资源键<input required maxLength={2048} placeholder="COS/CDN 图片地址，暂无时使用 default-hanzi" value={characterForm.imageKey} onChange={(event) => setCharacterForm({ ...characterForm, imageKey: event.target.value })} /></label>
+            <label className="field-span">汉字读音地址<input maxLength={2048} placeholder="可留空，留空时使用浏览器朗读" value={characterForm.characterAudioUrl} onChange={(event) => setCharacterForm({ ...characterForm, characterAudioUrl: event.target.value })} /></label>
+            <label className="field-span">例句读音地址<input maxLength={2048} placeholder="可留空，留空时使用浏览器朗读" value={characterForm.sentenceAudioUrl} onChange={(event) => setCharacterForm({ ...characterForm, sentenceAudioUrl: event.target.value })} /></label>
+            <label>学习顺序<input type="number" min={0} max={1000000} value={characterForm.sortOrder} onChange={(event) => setCharacterForm({ ...characterForm, sortOrder: Number(event.target.value) })} /></label>
+            <div className="form-actions field-span">
+              {editingCharacterId ? <button type="button" className="ghost-button" onClick={() => { setEditingCharacterId(null); setCharacterForm(EMPTY_HANZI_CHARACTER); }}>取消编辑</button> : null}
+              <button className="primary-button" disabled={libraryBusy}>{libraryBusy ? "保存中…" : editingCharacterId ? "保存修改" : "加入字库"}</button>
+            </div>
+          </form>
+        </Panel>
+        <Panel title={`基础汉字库（${totalCharacters}${searchQuery ? " 条搜索结果" : " 个"}）`}>
+          <p className="admin-help">支持单独新增、编辑和删除。图片与正式读音建议填写对象存储或 CDN 地址；留空读音时继续使用浏览器朗读。</p>
+          <form className="hanzi-library-search" onSubmit={searchCharacters}>
+            <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索汉字、拼音、含义或例句" />
+            <button type="submit">搜索</button>
+            {searchQuery ? <button type="button" onClick={() => { setSearchInput(""); setPage(1); setSearchQuery(""); }}>清除</button> : null}
+          </form>
+          {libraryMessage ? <Notice>{libraryMessage}</Notice> : null}
+          <div className="admin-list hanzi-library-list">
+            {characters.map((item) => (
+              <article className="list-card" key={item.id}>
+                <div className="list-card__main">
+                  <div className="hanzi-admin-glyph">{item.character}</div>
+                  <div>
+                    <h3>{item.character}（{item.internalPinyin}）· {item.meaning}</h3>
+                    <p>{item.words.join("、")}</p>
+                    <small>{item.sentence.replace("__", item.character)}</small>
+                  </div>
+                </div>
+                <div className="hanzi-resource-actions">
+                  <div className="hanzi-resource-status">
+                    <span className={item.characterAudioUrl ? "status status--completed" : "status status--pending"}>{item.characterAudioUrl ? "字音已配置" : "字音：浏览器朗读"}</span>
+                    <span className={item.sentenceAudioUrl ? "status status--completed" : "status status--pending"}>{item.sentenceAudioUrl ? "句音已配置" : "句音：浏览器朗读"}</span>
+                    <span className={item.imageKey === "default-hanzi" ? "status status--pending" : "status status--completed"}>{item.imageKey === "default-hanzi" ? "默认图片" : "专属图片"}</span>
+                  </div>
+                  <div className="list-card__actions">
+                    <button type="button" onClick={() => { setEditingCharacterId(item.id); setCharacterForm(hanziFormFrom(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑</button>
+                    <button type="button" className="danger-text" disabled={libraryBusy} onClick={() => void removeCharacter(item)}>删除</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+            {!characters.length && !libraryBusy ? <div className="empty-state">没有找到符合条件的汉字</div> : null}
+            {libraryBusy && !characters.length ? <div className="empty-state">正在读取基础字库…</div> : null}
+          </div>
+          {totalCharacters > pageSize ? (
+            <div className="hanzi-library-pagination">
+              <button type="button" disabled={page <= 1 || libraryBusy} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button>
+              <span>第 {page} / {Math.ceil(totalCharacters / pageSize)} 页</span>
+              <button type="button" disabled={page >= Math.ceil(totalCharacters / pageSize) || libraryBusy} onClick={() => setPage((value) => value + 1)}>下一页</button>
+            </div>
+          ) : null}
+        </Panel>
+      </div>
+      {error ? <Notice kind="error">{error}</Notice> : null}
     </div>
   );
 }
@@ -1048,7 +1485,7 @@ export function App() {
       <aside className="admin-sidebar">
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>
-        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "planets" ? "◎" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
+        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "hanzi" ? "字" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "planets" ? "◎" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
         <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div>
       </aside>
       <main className="admin-main">
@@ -1059,6 +1496,7 @@ export function App() {
             {section === "overview" && <Overview child={selectedChild} />}
             {section === "history" && <History child={selectedChild} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
+            {section === "hanzi" && <HanziLearning child={selectedChild} />}
             {section === "wishes" && <Wishes child={selectedChild} />}
             {section === "redemptions" && <Redemptions child={selectedChild} />}
             {section === "stars" && <Stars child={selectedChild} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}

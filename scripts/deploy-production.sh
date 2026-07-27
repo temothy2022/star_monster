@@ -30,10 +30,16 @@ fi
 cd "$PROJECT_ROOT"
 
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Refusing to publish uncommitted changes. Commit the current version first."
-  exit 1
+  if [[ "${DEPLOY_ALLOW_DIRTY:-false}" != "true" ]]; then
+    echo "Refusing to publish uncommitted changes. Commit the current version first."
+    echo "To intentionally publish the current working tree, set DEPLOY_ALLOW_DIRTY=true."
+    exit 1
+  fi
+  RELEASE_VERSION="$(git rev-parse --short HEAD)-dirty-$(date -u +%Y%m%d%H%M%S)"
+  echo "Warning: publishing an explicitly allowed uncommitted working tree as $RELEASE_VERSION"
+else
+  RELEASE_VERSION="$(git rev-parse HEAD)"
 fi
-RELEASE_VERSION="$(git rev-parse HEAD)"
 
 echo "1/3 Building the three web apps locally..."
 pnpm --filter @star-monsters/design-lab build

@@ -7,6 +7,7 @@ import { HttpError } from "./lib/http-error.js";
 import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { registerChildProfileRoutes } from "./routes/child-profile-routes.js";
 import { registerChildTaskRoutes } from "./routes/child-task-routes.js";
+import { registerChildHanziRoutes } from "./routes/child-hanzi-routes.js";
 import { registerChildProgressRoutes } from "./routes/child-progress-routes.js";
 import { registerSuperAdminRoutes } from "./routes/super-admin-routes.js";
 import { registerParentRoutes } from "./routes/parent-routes.js";
@@ -41,6 +42,7 @@ export async function buildApp(config: AppConfig) {
   await registerAuthRoutes(app, config);
   await registerChildProfileRoutes(app, config);
   await registerChildTaskRoutes(app, config);
+  await registerChildHanziRoutes(app, config);
   await registerChildProgressRoutes(app, config);
   await registerSuperAdminRoutes(app, config);
   await registerParentRoutes(app, config);

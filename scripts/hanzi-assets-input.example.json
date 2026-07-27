@@ -1,0 +1,20 @@
+[
+  {
+    "id": "hanzi-shan",
+    "character": "山",
+    "pinyin": "shān",
+    "meaning": "高高的大山",
+    "imageDescription": "a tall rounded mountain with soft clouds and a warm sunrise, no markings on the mountain",
+    "sentence": "我们一起爬上了高山。",
+    "words": ["山顶", "山水", "高山"]
+  },
+  {
+    "id": "hanzi-shui",
+    "character": "水",
+    "pinyin": "shuǐ",
+    "meaning": "流动的水",
+    "imageDescription": "clear flowing water with small fish and soft ripples in a gentle stream",
+    "sentence": "小鱼在水里游来游去。",
+    "words": ["河水", "水杯", "雨水"]
+  }
+]

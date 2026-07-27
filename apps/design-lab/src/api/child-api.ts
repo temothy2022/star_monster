@@ -112,6 +112,7 @@ export type DailyTask = {
     | "OTHER";
   iconKeySnapshot: string;
   modeSnapshot: "UNTIMED" | "TIMED";
+  experienceKindSnapshot: "STANDARD" | "HANZI_LEARNING";
   suggestedSecondsSnapshot: number | null;
   timeLimitSecondsSnapshot: number | null;
   baseStarsSnapshot: number;
@@ -190,6 +191,108 @@ export async function completeAttempt(attemptId: string) {
     };
     alreadyCompleted: boolean;
   }>(`/api/child/attempts/${attemptId}/complete`, { method: "POST" });
+}
+
+export type HanziCharacter = {
+  id: string;
+  character: string;
+  internalPinyin: string;
+  meaning: string;
+  shapeHint: string;
+  sentence: string;
+  words: string[];
+  imageKey: string;
+  characterAudioUrl: string | null;
+  sentenceAudioUrl: string | null;
+};
+
+export type HanziLearningSession = {
+  id: string;
+  taskAttemptId: string;
+  phase: "REVIEW" | "NEW_LEARNING" | "CONSOLIDATION" | "COMPLETED";
+  reviewCharacterIds: string[];
+  reviewIndex: number;
+  reviewKnownIds: string[];
+  reviewUnknownIds: string[];
+  newCharacterIds: string[];
+  newIndex: number;
+  questionIndex: number;
+  consolidationCorrect: number;
+  consolidationTotal: number;
+  questions: Array<{ targetId: string; optionIds: string[] }>;
+  characters: HanziCharacter[];
+  summary: {
+    reviewKnown: number;
+    reviewUnknown: number;
+    learned: number;
+    correct: number;
+    total: number;
+  };
+};
+
+export async function startHanziLearningSession(attemptId: string) {
+  return request<{ session: HanziLearningSession }>(
+    "/api/child/hanzi/sessions/start",
+    {
+      method: "POST",
+      body: JSON.stringify({ attemptId }),
+    },
+  );
+}
+
+export async function answerHanziReview(
+  sessionId: string,
+  characterId: string,
+  known: boolean,
+) {
+  return request<{ session: HanziLearningSession }>(
+    `/api/child/hanzi/sessions/${sessionId}/review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ characterId, known }),
+    },
+  );
+}
+
+export async function completeHanziNewCharacter(
+  sessionId: string,
+  characterId: string,
+) {
+  return request<{ session: HanziLearningSession }>(
+    `/api/child/hanzi/sessions/${sessionId}/learn`,
+    {
+      method: "POST",
+      body: JSON.stringify({ characterId }),
+    },
+  );
+}
+
+export async function answerHanziQuestion(
+  sessionId: string,
+  questionIndex: number,
+  selectedCharacterId: string,
+) {
+  return request<{
+    correct: boolean;
+    targetCharacterId: string;
+    session: HanziLearningSession;
+  }>(`/api/child/hanzi/sessions/${sessionId}/answer`, {
+    method: "POST",
+    body: JSON.stringify({ questionIndex, selectedCharacterId }),
+  });
+}
+
+export async function finishHanziLearningSession(sessionId: string) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/hanzi/sessions/${sessionId}/finish`, { method: "POST" });
 }
 
 export type ChildWish = {

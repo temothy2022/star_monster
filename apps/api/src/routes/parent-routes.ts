@@ -28,6 +28,7 @@ const taskCategory = z.enum([
   "OTHER",
 ]);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
+const taskExperienceKind = z.enum(["STANDARD", "HANZI_LEARNING"]);
 const scheduleKind = z.enum([
   "DAILY",
   "WORKDAYS",
@@ -94,11 +95,48 @@ const planetSettingsSchema = z
     }
   });
 
+const hanziSettingsSchema = z.object({
+  newCharactersPerDay: z.number().int().min(1).max(10),
+  reviewDailyLimit: z.number().int().min(1).max(50),
+  consolidationQuestionCount: z.number().int().min(1).max(10),
+});
+const hanziCharacterShape = {
+  character: z.string().trim().min(1).max(2),
+  internalPinyin: z.string().trim().min(1).max(50),
+  meaning: z.string().trim().min(1).max(120),
+  shapeHint: z.string().trim().min(1).max(240),
+  sentence: z.string().trim().min(3).max(300),
+  words: z.array(z.string().trim().min(1).max(30)).min(1).max(10),
+  imageKey: z.string().trim().min(1).max(2048).default("default-hanzi"),
+  characterAudioUrl: z.string().trim().max(2048).nullable().optional(),
+  sentenceAudioUrl: z.string().trim().max(2048).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(1_000_000).default(0),
+  isEnabled: z.boolean().default(true),
+};
+const hanziCharacterSchema = z
+  .object(hanziCharacterShape)
+  .superRefine((input, context) => {
+    if (!input.sentence.includes("__")) {
+      context.addIssue({
+        code: "custom",
+        path: ["sentence"],
+        message: "例句必须用 __ 标记汉字所在的位置",
+      });
+    }
+  });
+const hanziCharacterPatchSchema = z.object(hanziCharacterShape).partial();
+const hanziLibraryQuery = z.object({
+  q: z.string().trim().max(80).default(""),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(30),
+});
+
 const taskTemplateShape = {
   title: z.string().trim().min(1).max(80),
   category: taskCategory,
   iconKey: presetIcon,
   mode: taskMode,
+  experienceKind: taskExperienceKind.default("STANDARD"),
   suggestedSeconds: z.number().int().min(0).max(86400).nullable().optional(),
   timeLimitSeconds: z.number().int().min(10).max(86400).nullable().optional(),
   baseStars: z.number().int().min(1).max(999),
@@ -135,6 +173,16 @@ const taskTemplateSchema = z
         code: "custom",
         path: ["timeLimitSeconds"],
         message: "限时任务必须设置时限",
+      });
+    }
+    if (
+      input.experienceKind === "HANZI_LEARNING" &&
+      (input.mode !== "UNTIMED" || input.repeatableDaily)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["experienceKind"],
+        message: "汉字学习必须是不限时且当天不可重复领取的任务",
       });
     }
     if (
@@ -317,6 +365,7 @@ function templateData(input: z.infer<typeof taskTemplateSchema>) {
     category: input.category,
     iconKey: input.iconKey,
     mode: input.mode,
+    experienceKind: input.experienceKind,
     suggestedSeconds:
       input.mode === "UNTIMED" ? (input.suggestedSeconds ?? null) : null,
     timeLimitSeconds:
@@ -512,6 +561,29 @@ export async function registerParentRoutes(
         where: { id },
         data: templateData(merged),
       });
+      const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+      await prisma.dailyTask.updateMany({
+        where: {
+          childId,
+          templateId: id,
+          taskDate: today,
+          status: "PENDING",
+        },
+        data: {
+          titleSnapshot: template.title,
+          categorySnapshot: template.category,
+          iconKeySnapshot: template.iconKey,
+          modeSnapshot: template.mode,
+          experienceKindSnapshot: template.experienceKind,
+          suggestedSecondsSnapshot: template.suggestedSeconds,
+          timeLimitSecondsSnapshot: template.timeLimitSeconds,
+          baseStarsSnapshot: template.baseStars,
+          earlyBonusEnabledSnapshot: template.earlyBonusEnabled,
+          earlyThresholdSecsSnapshot: template.earlyThresholdSeconds,
+          earlyBonusStarsSnapshot: template.earlyBonusStars,
+          repeatableDailySnapshot: template.repeatableDaily,
+        },
+      });
       return { template };
     },
   );
@@ -538,18 +610,188 @@ export async function registerParentRoutes(
       await requireOwnedChild(request, reply, config, childId);
       const { items } = reorderSchema.parse(request.body);
       const owned = await prisma.taskTemplate.count({
-        where: { childId, id: { in: items.map((item) => item.id) } },
+        where: {
+          childId,
+          archivedAt: null,
+          id: { in: items.map((item) => item.id) },
+        },
       });
       if (owned !== items.length)
         throw new HttpError(400, "INVALID_TEMPLATE_IDS", "任务排序中包含无效项目");
+      const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
       await prisma.$transaction(
-        items.map((item) =>
+        items.flatMap((item) => [
           prisma.taskTemplate.update({
             where: { id: item.id },
             data: { sortOrder: item.sortOrder },
           }),
-        ),
+          prisma.dailyTask.updateMany({
+            where: {
+              childId,
+              templateId: item.id,
+              taskDate: today,
+            },
+            data: { sortOrder: item.sortOrder },
+          }),
+        ]),
       );
+      return { ok: true };
+    },
+  );
+
+  app.get("/api/parent/children/:id/hanzi/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const [settings, progress, characterCount] = await Promise.all([
+      prisma.hanziLearningSettings.upsert({
+        where: { childId: id },
+        update: {},
+        create: { childId: id },
+      }),
+      prisma.hanziLearningProgress.groupBy({
+        by: ["status"],
+        where: { childId: id },
+        _count: { _all: true },
+      }),
+      prisma.hanziCharacter.count({ where: { isEnabled: true } }),
+    ]);
+    return {
+      settings,
+      progress: Object.fromEntries(
+        progress.map((item) => [item.status, item._count._all]),
+      ),
+      characterCount,
+    };
+  });
+
+  app.patch("/api/parent/children/:id/hanzi/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const input = hanziSettingsSchema.parse(request.body);
+    const settings = await prisma.hanziLearningSettings.upsert({
+      where: { childId: id },
+      update: input,
+      create: { childId: id, ...input },
+    });
+    return { settings };
+  });
+
+  app.get(
+    "/api/parent/children/:id/hanzi/characters",
+    async (request, reply) => {
+      const { id } = idParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, id);
+      const { q, page, pageSize } = hanziLibraryQuery.parse(request.query);
+      const where: Prisma.HanziCharacterWhereInput = {
+        isEnabled: true,
+        ...(q
+          ? {
+              OR: [
+                { character: { contains: q, mode: "insensitive" } },
+                { internalPinyin: { contains: q, mode: "insensitive" } },
+                { meaning: { contains: q, mode: "insensitive" } },
+                { shapeHint: { contains: q, mode: "insensitive" } },
+                { sentence: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      };
+      const [characters, total] = await Promise.all([
+        prisma.hanziCharacter.findMany({
+          where,
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.hanziCharacter.count({ where }),
+      ]);
+      return { characters, total, page, pageSize };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:id/hanzi/characters",
+    async (request, reply) => {
+      const { id } = idParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, id);
+      const input = hanziCharacterSchema.parse(request.body);
+      try {
+        const character = await prisma.hanziCharacter.create({
+          data: {
+            ...input,
+            characterAudioUrl: input.characterAudioUrl || null,
+            sentenceAudioUrl: input.sentenceAudioUrl || null,
+          },
+        });
+        reply.status(201);
+        return { character };
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          throw new HttpError(409, "HANZI_ALREADY_EXISTS", "这个汉字已经在基础字库中");
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.patch(
+    "/api/parent/children/:childId/hanzi/characters/:id",
+    async (request, reply) => {
+      const { childId, id } = childResourceParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const patch = hanziCharacterPatchSchema.parse(request.body);
+      const existing = await prisma.hanziCharacter.findUnique({ where: { id } });
+      if (!existing || !existing.isEnabled) {
+        throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
+      }
+      const input = hanziCharacterSchema.parse({ ...existing, ...patch });
+      try {
+        const character = await prisma.hanziCharacter.update({
+          where: { id },
+          data: {
+            ...input,
+            characterAudioUrl: input.characterAudioUrl || null,
+            sentenceAudioUrl: input.sentenceAudioUrl || null,
+          },
+        });
+        return { character };
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          throw new HttpError(409, "HANZI_ALREADY_EXISTS", "这个汉字已经在基础字库中");
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.delete(
+    "/api/parent/children/:childId/hanzi/characters/:id",
+    async (request, reply) => {
+      const { childId, id } = childResourceParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const enabledCount = await prisma.hanziCharacter.count({
+        where: { isEnabled: true },
+      });
+      if (enabledCount <= 3) {
+        throw new HttpError(
+          409,
+          "HANZI_LIBRARY_MINIMUM",
+          "基础字库至少需要保留 3 个汉字，才能生成听句挑战选项",
+        );
+      }
+      const result = await prisma.hanziCharacter.updateMany({
+        where: { id, isEnabled: true },
+        data: { isEnabled: false },
+      });
+      if (!result.count) {
+        throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
+      }
       return { ok: true };
     },
   );

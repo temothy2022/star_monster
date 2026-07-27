@@ -87,6 +87,71 @@ const PlanetJourneyPage = lazy(() =>
     default: module.PlanetJourneyPage,
   })),
 );
+const HanziLearningHome = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziLearningHome,
+  })),
+);
+const HanziReviewFront = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziReviewFront,
+  })),
+);
+const HanziCardBack = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziCardBack,
+  })),
+);
+const HanziKnowFeedback = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziKnowFeedback,
+  })),
+);
+const HanziDontKnowFeedback = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziDontKnowFeedback,
+  })),
+);
+const HanziNewShape = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziNewShape,
+  })),
+);
+const HanziNewSound = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziNewSound,
+  })),
+);
+const HanziNewMeaning = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziNewMeaning,
+  })),
+);
+const HanziLearningResult = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziLearningResult,
+  })),
+);
+const HanziLearningExperience = lazy(() =>
+  import("./hanzi/HanziLearningExperience").then((module) => ({
+    default: module.HanziLearningExperience,
+  })),
+);
+const HanziListenQuestion = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziListenQuestion,
+  })),
+);
+const HanziListenCorrect = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziListenCorrect,
+  })),
+);
+const HanziListenWrong = lazy(() =>
+  import("./hanzi/HanziLearningPages").then((module) => ({
+    default: module.HanziListenWrong,
+  })),
+);
 const PageIndex = lazy(() =>
   import("./PageIndex").then((module) => ({ default: module.PageIndex })),
 );
@@ -118,7 +183,20 @@ type AppRoute =
   | "planet-uranus"
   | "planet-neptune"
   | "wishes-requested"
-  | "footprints";
+  | "footprints"
+  | "hanzi-home"
+  | "hanzi-review-front"
+  | "hanzi-card-back"
+  | "hanzi-know-feedback"
+  | "hanzi-dont-know-feedback"
+  | "hanzi-new-shape"
+  | "hanzi-new-sound"
+  | "hanzi-new-meaning"
+  | "hanzi-listen-question"
+  | "hanzi-listen-correct"
+  | "hanzi-listen-wrong"
+  | "hanzi-result"
+  | "hanzi-session";
 
 const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
   MERCURY: "planet-mercury",
@@ -165,6 +243,19 @@ function readRouteFromHash(): AppRoute {
     "planet-neptune",
     "wishes-requested",
     "footprints",
+    "hanzi-home",
+    "hanzi-review-front",
+    "hanzi-card-back",
+    "hanzi-know-feedback",
+    "hanzi-dont-know-feedback",
+    "hanzi-new-shape",
+    "hanzi-new-sound",
+    "hanzi-new-meaning",
+    "hanzi-listen-question",
+    "hanzi-listen-correct",
+    "hanzi-listen-wrong",
+    "hanzi-result",
+    "hanzi-session",
   ];
 
   return routes.includes(route) ? route : "login";
@@ -186,7 +277,8 @@ function isActiveTaskRoute(route: AppRoute) {
     route === "untimed-active" ||
     route === "untimed-menu" ||
     route === "untimed-abandon" ||
-    route === "timed-active"
+    route === "timed-active" ||
+    route === "hanzi-session"
   );
 }
 
@@ -271,7 +363,9 @@ export function App() {
 
         setActiveAttempt(active);
         const expectedRoute =
-          active.dailyTask.modeSnapshot === "TIMED"
+          active.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
+            ? "hanzi-session"
+            : active.dailyTask.modeSnapshot === "TIMED"
             ? "timed-active"
             : route === "untimed-menu" || route === "untimed-abandon"
               ? route
@@ -323,7 +417,9 @@ export function App() {
         onStartAttempt={(attempt) => {
           setActiveAttempt(attempt);
           navigate(
-            attempt.dailyTask.modeSnapshot === "TIMED"
+            attempt.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
+              ? "hanzi-session"
+              : attempt.dailyTask.modeSnapshot === "TIMED"
               ? "timed-active"
               : "untimed-active",
           );
@@ -339,6 +435,34 @@ export function App() {
           if (petType) selectPet(petType);
           if (savedNickname) setNickname(savedNickname);
           navigate(onboardingCompleted ? "tasks-partial" : "step-1");
+        }}
+      />
+    );
+  }
+
+  if (route === "hanzi-session") {
+    return (
+      <HanziLearningExperience
+        attemptId={activeAttempt!.id}
+        onExit={() => {
+          if (!activeAttempt) {
+            navigate("tasks-partial");
+            return;
+          }
+          void abandonAttempt(activeAttempt.id)
+            .then(() => {
+              setActiveAttempt(null);
+              navigate("tasks-partial");
+            })
+            .catch(handleAttemptActionError);
+        }}
+        onCompleted={(reward) => {
+          setLastCompletion({
+            taskTitle: activeAttempt!.dailyTask.titleSnapshot,
+            ...reward,
+          });
+          setActiveAttempt(null);
+          navigate("untimed-complete");
         }}
       />
     );
@@ -559,6 +683,54 @@ export function App() {
 
   if (route === "footprints") {
     return <Footprints onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-home") {
+    return <HanziLearningHome onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-review-front") {
+    return <HanziReviewFront onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-card-back") {
+    return <HanziCardBack onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-know-feedback") {
+    return <HanziKnowFeedback onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-dont-know-feedback") {
+    return <HanziDontKnowFeedback onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-new-shape") {
+    return <HanziNewShape onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-new-sound") {
+    return <HanziNewSound onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-new-meaning") {
+    return <HanziNewMeaning onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-listen-question") {
+    return <HanziListenQuestion onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-listen-correct") {
+    return <HanziListenCorrect onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-listen-wrong") {
+    return <HanziListenWrong onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-result") {
+    return <HanziLearningResult onNavigate={navigate} />;
   }
 
   if (route === "step-2") {

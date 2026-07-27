@@ -16,7 +16,19 @@ export type PageIndexRoute =
   | "timed-timeout"
   | "map"
   | "wishes-requested"
-  | "footprints";
+  | "footprints"
+  | "hanzi-home"
+  | "hanzi-review-front"
+  | "hanzi-card-back"
+  | "hanzi-know-feedback"
+  | "hanzi-dont-know-feedback"
+  | "hanzi-new-shape"
+  | "hanzi-new-sound"
+  | "hanzi-new-meaning"
+  | "hanzi-listen-question"
+  | "hanzi-listen-correct"
+  | "hanzi-listen-wrong"
+  | "hanzi-result";
 
 type PageGroup = {
   title: string;
@@ -75,6 +87,22 @@ const groups: PageGroup[] = [
     title: "足迹",
     pages: [
       { route: "footprints", name: "7 天足迹", note: "选择星期并查看单日详情" },
+    ],
+  },
+  {
+    title: "汉字学习",
+    pages: [
+      { route: "hanzi-home", name: "学习首页", note: "复习、新字、听句挑战入口" },
+      { route: "hanzi-review-front", name: "复习卡片正面", note: "汉字识别与认识/不认识按钮" },
+      { route: "hanzi-card-back", name: "复习卡片背面", note: "含释义图、词义与听一听" },
+      { route: "hanzi-know-feedback", name: "认识反馈", note: "绿色鼓励提示" },
+      { route: "hanzi-dont-know-feedback", name: "不认识反馈", note: "重新认识引导页" },
+      { route: "hanzi-new-shape", name: "认识新字 · 看字形", note: "三步学习第 1 步" },
+      { route: "hanzi-new-sound", name: "认识新字 · 听读音", note: "三步学习第 2 步" },
+      { route: "hanzi-new-meaning", name: "认识新字 · 想意思", note: "三步学习第 3 步" },
+      { route: "hanzi-listen-question", name: "听句挑战 · 未作答", note: "播放句子并选择正确汉字" },
+      { route: "hanzi-listen-wrong", name: "听句挑战 · 回答错误", note: "正确答案提示与继续按钮" },
+      { route: "hanzi-result", name: "学习结果", note: "复习、新学、听句挑战统计" },
     ],
   },
 ];

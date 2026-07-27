@@ -98,6 +98,7 @@ export async function generateDailyTasks(
       categorySnapshot: template.category,
       iconKeySnapshot: template.iconKey,
       modeSnapshot: template.mode,
+      experienceKindSnapshot: template.experienceKind,
       suggestedSecondsSnapshot: template.suggestedSeconds,
       timeLimitSecondsSnapshot: template.timeLimitSeconds,
       baseStarsSnapshot: template.baseStars,
@@ -492,6 +493,19 @@ export async function completeTask(
       },
       alreadyCompleted: true,
     };
+  }
+  if (existing.dailyTask.experienceKindSnapshot === "HANZI_LEARNING") {
+    const learningSession = await prisma.hanziLearningSession.findUnique({
+      where: { taskAttemptId: existing.id },
+      select: { phase: true },
+    });
+    if (learningSession?.phase !== "COMPLETED") {
+      throw new HttpError(
+        409,
+        "HANZI_SESSION_INCOMPLETE",
+        "请先完成全部汉字学习内容",
+      );
+    }
   }
 
   const attempt = await requireActiveAttempt(childId, attemptId);

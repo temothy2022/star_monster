@@ -24,6 +24,7 @@ export type Child = {
 export type TaskTemplate = {
   id: string;
   title: string;
+  experienceKind: "STANDARD" | "HANZI_LEARNING";
   category: string;
   iconKey: string;
   mode: "UNTIMED" | "TIMED";
@@ -43,6 +44,33 @@ export type TaskTemplate = {
   learningPracticeKind: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
   targetSessionsPerWeek: number | null;
   minimumGapDays: number | null;
+};
+
+export type HanziLearningSettings = {
+  newCharactersPerDay: number;
+  reviewDailyLimit: number;
+  consolidationQuestionCount: number;
+};
+
+export type HanziCharacterResource = {
+  id: string;
+  character: string;
+  internalPinyin: string;
+  meaning: string;
+  shapeHint: string;
+  sentence: string;
+  words: string[];
+  imageKey: string;
+  characterAudioUrl: string | null;
+  sentenceAudioUrl: string | null;
+  sortOrder: number;
+  isEnabled: boolean;
+};
+
+export type HanziSettingsResponse = {
+  settings: HanziLearningSettings;
+  progress: Partial<Record<"LEARNING" | "MASTERED", number>>;
+  characterCount: number;
 };
 
 export type AiConfig = {
@@ -309,6 +337,57 @@ export const parentApi = {
   templates: (childId: string) =>
     api<{ templates: TaskTemplate[] }>(
       `/api/parent/children/${childId}/task-templates`,
+    ),
+  hanziSettings: (childId: string) =>
+    api<HanziSettingsResponse>(
+      `/api/parent/children/${childId}/hanzi/settings`,
+    ),
+  updateHanziSettings: (
+    childId: string,
+    data: HanziLearningSettings,
+  ) =>
+    api<{ settings: HanziLearningSettings }>(
+      `/api/parent/children/${childId}/hanzi/settings`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
+  hanziCharacters: (
+    childId: string,
+    query: { q?: string; page?: number; pageSize?: number } = {},
+  ) => {
+    const search = new URLSearchParams();
+    if (query.q) search.set("q", query.q);
+    if (query.page) search.set("page", String(query.page));
+    if (query.pageSize) search.set("pageSize", String(query.pageSize));
+    return api<{
+      characters: HanziCharacterResource[];
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(
+      `/api/parent/children/${childId}/hanzi/characters?${search.toString()}`,
+    );
+  },
+  createHanziCharacter: (
+    childId: string,
+    data: Record<string, unknown>,
+  ) =>
+    api<{ character: HanziCharacterResource }>(
+      `/api/parent/children/${childId}/hanzi/characters`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+  updateHanziCharacter: (
+    childId: string,
+    id: string,
+    data: Record<string, unknown>,
+  ) =>
+    api<{ character: HanziCharacterResource }>(
+      `/api/parent/children/${childId}/hanzi/characters/${id}`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
+  deleteHanziCharacter: (childId: string, id: string) =>
+    api<{ ok: true }>(
+      `/api/parent/children/${childId}/hanzi/characters/${id}`,
+      { method: "DELETE" },
     ),
   createTemplate: (childId: string, data: Record<string, unknown>) =>
     api<{ template: TaskTemplate }>(

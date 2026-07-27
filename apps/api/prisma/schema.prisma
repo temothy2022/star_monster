@@ -43,6 +43,11 @@ enum TaskMode {
   TIMED
 }
 
+enum TaskExperienceKind {
+  STANDARD
+  HANZI_LEARNING
+}
+
 enum ScheduleKind {
   DAILY
   WORKDAYS
@@ -124,6 +129,18 @@ enum LearningPracticeKind {
   NEW_CONTENT
   REVIEW
   MIXED
+}
+
+enum HanziLearningStatus {
+  LEARNING
+  MASTERED
+}
+
+enum HanziSessionPhase {
+  REVIEW
+  NEW_LEARNING
+  CONSOLIDATION
+  COMPLETED
 }
 
 enum AiRecommendationKind {
@@ -219,6 +236,9 @@ model ChildProfile {
   availabilitySlots  ChildAvailabilitySlot[]
   aiRecommendations  AiRecommendation[]
   planetProgress     PlanetProgress[]
+  hanziSettings      HanziLearningSettings?
+  hanziProgress      HanziLearningProgress[]
+  hanziSessions      HanziLearningSession[]
 
   @@index([familyId, status])
 }
@@ -246,6 +266,7 @@ model TaskTemplate {
   category              TaskCategory
   iconKey               String
   mode                  TaskMode
+  experienceKind        TaskExperienceKind   @default(STANDARD)
   suggestedSeconds      Int?
   timeLimitSeconds      Int?
   baseStars             Int
@@ -339,28 +360,29 @@ model AiRecommendation {
 }
 
 model DailyTask {
-  id                         String          @id @default(cuid())
+  id                         String             @id @default(cuid())
   childId                    String
   templateId                 String
-  taskDate                   DateTime        @db.Date
-  status                     DailyTaskStatus @default(PENDING)
+  taskDate                   DateTime           @db.Date
+  status                     DailyTaskStatus    @default(PENDING)
   sortOrder                  Int
   titleSnapshot              String
   categorySnapshot           TaskCategory
   iconKeySnapshot            String
   modeSnapshot               TaskMode
+  experienceKindSnapshot     TaskExperienceKind @default(STANDARD)
   suggestedSecondsSnapshot   Int?
   timeLimitSecondsSnapshot   Int?
   baseStarsSnapshot          Int
   earlyBonusEnabledSnapshot  Boolean
   earlyThresholdSecsSnapshot Int?
   earlyBonusStarsSnapshot    Int?
-  repeatableDailySnapshot    Boolean         @default(false)
+  repeatableDailySnapshot    Boolean            @default(false)
   completedAt                DateTime?
   completionDurationSeconds  Int?
   expiredAt                  DateTime?
-  createdAt                  DateTime        @default(now())
-  updatedAt                  DateTime        @updatedAt
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
 
   child    ChildProfile  @relation(fields: [childId], references: [id], onDelete: Cascade)
   template TaskTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
@@ -368,6 +390,86 @@ model DailyTask {
 
   @@unique([childId, templateId, taskDate])
   @@index([childId, taskDate, status, sortOrder])
+}
+
+model HanziCharacter {
+  id                String   @id @default(cuid())
+  character         String   @unique
+  internalPinyin    String
+  meaning           String
+  shapeHint         String
+  sentence          String
+  words             String[] @default([])
+  imageKey          String   @default("default-hanzi")
+  characterAudioUrl String?
+  sentenceAudioUrl  String?
+  sortOrder         Int      @default(0)
+  isEnabled         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  progress HanziLearningProgress[]
+
+  @@index([isEnabled, sortOrder])
+}
+
+model HanziLearningSettings {
+  id                         String   @id @default(cuid())
+  childId                    String   @unique
+  newCharactersPerDay        Int      @default(3)
+  reviewDailyLimit           Int      @default(25)
+  consolidationQuestionCount Int      @default(3)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+model HanziLearningProgress {
+  id               String              @id @default(cuid())
+  childId          String
+  characterId      String
+  status           HanziLearningStatus @default(LEARNING)
+  learnedDate      DateTime            @db.Date
+  reviewStage      Int                 @default(0)
+  nextReviewDate   DateTime?           @db.Date
+  isDifficult      Boolean             @default(false)
+  consecutiveWrong Int                 @default(0)
+  lastReviewedAt   DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  child     ChildProfile   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  character HanziCharacter @relation(fields: [characterId], references: [id], onDelete: Restrict)
+
+  @@unique([childId, characterId])
+  @@index([childId, status, nextReviewDate])
+}
+
+model HanziLearningSession {
+  id                     String            @id @default(cuid())
+  childId                String
+  taskAttemptId          String            @unique
+  sessionDate            DateTime          @db.Date
+  phase                  HanziSessionPhase
+  reviewCharacterIds     String[]          @default([])
+  reviewIndex            Int               @default(0)
+  reviewKnownIds         String[]          @default([])
+  reviewUnknownIds       String[]          @default([])
+  newCharacterIds        String[]          @default([])
+  newIndex               Int               @default(0)
+  consolidationQuestions Json
+  questionIndex          Int               @default(0)
+  consolidationCorrect   Int               @default(0)
+  consolidationTotal     Int               @default(0)
+  completedAt            DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+
+  @@index([childId, sessionDate])
 }
 
 model TaskAttempt {
@@ -387,10 +489,11 @@ model TaskAttempt {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  child      ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
-  dailyTask  DailyTask       @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
-  reward     StarLedger?
-  activeSlot ActiveTaskSlot?
+  child        ChildProfile          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dailyTask    DailyTask             @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
+  reward       StarLedger?
+  activeSlot   ActiveTaskSlot?
+  hanziSession HanziLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])
   @@index([childId, status])
@@ -445,21 +548,21 @@ model PlanetProgress {
 }
 
 model WishReward {
-  id                     String               @id @default(cuid())
+  id                     String              @id @default(cuid())
   childId                String
   category               WishCategory
   title                  String
   imageKey               String
   costStars              Int
-  redemptionType         WishRedemptionType   @default(ONE_TIME)
+  redemptionType         WishRedemptionType  @default(ONE_TIME)
   recurrenceKind         WishRecurrenceKind?
   recurrenceIntervalDays Int?
   stockRemaining         Int?
-  sortOrder              Int                  @default(0)
-  isEnabled              Boolean              @default(true)
+  sortOrder              Int                 @default(0)
+  isEnabled              Boolean             @default(true)
   archivedAt             DateTime?
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
   child                ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
   redemptions          WishRedemption[]
@@ -469,23 +572,23 @@ model WishReward {
 }
 
 model WishRedemption {
-  id                             String               @id @default(cuid())
+  id                             String              @id @default(cuid())
   childId                        String
   wishRewardId                   String
-  status                         RedemptionStatus     @default(PENDING)
+  status                         RedemptionStatus    @default(PENDING)
   titleSnapshot                  String
   categorySnapshot               WishCategory
   costStarsSnapshot              Int
   redemptionTypeSnapshot         WishRedemptionType
   recurrenceKindSnapshot         WishRecurrenceKind?
   recurrenceIntervalDaysSnapshot Int?
-  requestedAt                    DateTime             @default(now())
+  requestedAt                    DateTime            @default(now())
   arrangedAt                     DateTime?
   completedAt                    DateTime?
   cancelledAt                    DateTime?
   cancelReason                   String?
-  createdAt                      DateTime             @default(now())
-  updatedAt                      DateTime             @updatedAt
+  createdAt                      DateTime            @default(now())
+  updatedAt                      DateTime            @updatedAt
 
   child      ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
   wishReward WishReward                @relation(fields: [wishRewardId], references: [id], onDelete: Restrict)
