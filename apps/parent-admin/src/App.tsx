@@ -682,6 +682,7 @@ type HanziCharacterForm = {
   shapeHint: string;
   sentence: string;
   wordsText: string;
+  wordAudioUrlsText: string;
   imageKey: string;
   characterAudioUrl: string;
   sentenceAudioUrl: string;
@@ -695,6 +696,7 @@ const EMPTY_HANZI_CHARACTER: HanziCharacterForm = {
   shapeHint: "",
   sentence: "",
   wordsText: "",
+  wordAudioUrlsText: "",
   imageKey: "default-hanzi",
   characterAudioUrl: "",
   sentenceAudioUrl: "",
@@ -709,6 +711,7 @@ function hanziFormFrom(item: HanziCharacterResource): HanziCharacterForm {
     shapeHint: item.shapeHint,
     sentence: item.sentence.replace("__", item.character),
     wordsText: item.words.join("、"),
+    wordAudioUrlsText: item.wordAudioUrls.join("\n"),
     imageKey: item.imageKey,
     characterAudioUrl: item.characterAudioUrl ?? "",
     sentenceAudioUrl: item.sentenceAudioUrl ?? "",
@@ -729,7 +732,12 @@ function hanziPayload(form: HanziCharacterForm) {
     .split(/[、,，\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+  const wordAudioUrls = form.wordAudioUrlsText
+    .split(/[、,，\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   if (!words.length) throw new Error("请至少填写一个词组");
+  if (wordAudioUrls.length > words.length) throw new Error("词语读音地址不能多于词组数量");
   return {
     character,
     internalPinyin: form.internalPinyin.trim(),
@@ -737,6 +745,7 @@ function hanziPayload(form: HanziCharacterForm) {
     shapeHint: form.shapeHint.trim(),
     sentence,
     words,
+    wordAudioUrls,
     imageKey: form.imageKey.trim() || "default-hanzi",
     characterAudioUrl: form.characterAudioUrl.trim() || null,
     sentenceAudioUrl: form.sentenceAudioUrl.trim() || null,
@@ -905,6 +914,7 @@ function HanziLearning({ child }: { child: Child }) {
             <label className="field-span">字形联想提示<input required maxLength={240} placeholder="例如：像水流向两边散开" value={characterForm.shapeHint} onChange={(event) => setCharacterForm({ ...characterForm, shapeHint: event.target.value })} /></label>
             <label className="field-span">统一例句<input required maxLength={300} placeholder="例如：小鱼在水里游来游去。" value={characterForm.sentence} onChange={(event) => setCharacterForm({ ...characterForm, sentence: event.target.value })} /><small>例句必须包含当前汉字，系统会自动标记听句挑战的填空位置。</small></label>
             <label className="field-span">词组<textarea required placeholder="使用顿号、逗号或换行分隔，例如：河水、水杯、雨水" value={characterForm.wordsText} onChange={(event) => setCharacterForm({ ...characterForm, wordsText: event.target.value })} /></label>
+            <label className="field-span">词语读音地址<textarea placeholder="可留空；每行对应一个词组" value={characterForm.wordAudioUrlsText} onChange={(event) => setCharacterForm({ ...characterForm, wordAudioUrlsText: event.target.value })} /></label>
             <label className="field-span">图片地址或资源键<input required maxLength={2048} placeholder="COS/CDN 图片地址，暂无时使用 default-hanzi" value={characterForm.imageKey} onChange={(event) => setCharacterForm({ ...characterForm, imageKey: event.target.value })} /></label>
             <label className="field-span">汉字读音地址<input maxLength={2048} placeholder="可留空，留空时使用浏览器朗读" value={characterForm.characterAudioUrl} onChange={(event) => setCharacterForm({ ...characterForm, characterAudioUrl: event.target.value })} /></label>
             <label className="field-span">例句读音地址<input maxLength={2048} placeholder="可留空，留空时使用浏览器朗读" value={characterForm.sentenceAudioUrl} onChange={(event) => setCharacterForm({ ...characterForm, sentenceAudioUrl: event.target.value })} /></label>

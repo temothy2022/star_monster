@@ -20,6 +20,10 @@
     "db:seed": "pnpm --filter @star-monsters/api db:seed",
     "assets:audit": "pnpm --filter @star-monsters/design-lab assets:audit",
     "assets:webp": "pnpm --filter @star-monsters/design-lab assets:webp",
+    "hanzi:prepare": "node scripts/prepare-hanzi-assets-input.mjs",
+    "hanzi:generate": "node scripts/generate-hanzi-minimax-sample.mjs",
+    "hanzi:deploy-assets": "bash scripts/deploy-hanzi-assets.sh",
+    "hanzi:import": "pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts",
     "deploy:production": "bash scripts/deploy-production.sh"
   }
 }

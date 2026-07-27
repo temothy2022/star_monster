@@ -629,8 +629,8 @@ export function HanziLearningExperience({
               </button>
             </div>
             <div className="hanzi-sound-vocabulary" aria-label={`${newCharacter.character}的词语`}>
-              {newCharacter.words.slice(0, 3).map((word) => (
-                <button type="button" key={word} onClick={() => speak(word)} aria-label={`播放词语${word}`}>
+              {newCharacter.words.slice(0, 3).map((word, index) => (
+                <button type="button" key={word} onClick={() => speak(word, newCharacter.wordAudioUrls[index])} aria-label={`播放词语${word}`}>
                   <span>{word}</span><img src={meaningSpeakerIcon} alt="" aria-hidden="true" />
                 </button>
               ))}

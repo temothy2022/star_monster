@@ -107,6 +107,7 @@ const hanziCharacterShape = {
   shapeHint: z.string().trim().min(1).max(240),
   sentence: z.string().trim().min(3).max(300),
   words: z.array(z.string().trim().min(1).max(30)).min(1).max(10),
+  wordAudioUrls: z.array(z.string().trim().max(2048)).max(10).default([]),
   imageKey: z.string().trim().min(1).max(2048).default("default-hanzi"),
   characterAudioUrl: z.string().trim().max(2048).nullable().optional(),
   sentenceAudioUrl: z.string().trim().max(2048).nullable().optional(),
@@ -719,6 +720,7 @@ export async function registerParentRoutes(
         const character = await prisma.hanziCharacter.create({
           data: {
             ...input,
+            wordAudioUrls: input.wordAudioUrls.filter(Boolean),
             characterAudioUrl: input.characterAudioUrl || null,
             sentenceAudioUrl: input.sentenceAudioUrl || null,
           },
@@ -753,6 +755,7 @@ export async function registerParentRoutes(
           where: { id },
           data: {
             ...input,
+            wordAudioUrls: input.wordAudioUrls.filter(Boolean),
             characterAudioUrl: input.characterAudioUrl || null,
             sentenceAudioUrl: input.sentenceAudioUrl || null,
           },

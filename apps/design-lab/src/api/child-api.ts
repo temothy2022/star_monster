@@ -201,6 +201,7 @@ export type HanziCharacter = {
   shapeHint: string;
   sentence: string;
   words: string[];
+  wordAudioUrls: string[];
   imageKey: string;
   characterAudioUrl: string | null;
   sentenceAudioUrl: string | null;

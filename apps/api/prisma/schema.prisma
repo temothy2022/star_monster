@@ -400,6 +400,7 @@ model HanziCharacter {
   shapeHint         String
   sentence          String
   words             String[] @default([])
+  wordAudioUrls     String[] @default([])
   imageKey          String   @default("default-hanzi")
   characterAudioUrl String?
   sentenceAudioUrl  String?

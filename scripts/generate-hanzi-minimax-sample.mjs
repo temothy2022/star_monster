@@ -7,51 +7,28 @@ const SAMPLE_CHARACTERS = [
     character: "山",
     pinyin: "shān",
     meaning: "高高的大山",
+    shapeHint: "像三座山峰连在一起",
     imageDescription: "a tall rounded mountain with soft clouds and a warm sunrise, no markings on the mountain",
-    sentence: "我们一起爬上了高山。",
+    sentence: "我们一起爬上了高__。",
     words: ["山顶", "山水", "高山"],
+    sortOrder: 10,
   },
   {
     id: "hanzi-shui",
     character: "水",
     pinyin: "shuǐ",
     meaning: "流动的水",
+    shapeHint: "像水流向两边散开",
     imageDescription: "clear flowing water with small fish and soft ripples in a gentle stream",
-    sentence: "小鱼在水里游来游去。",
+    sentence: "小鱼在__里游来游去。",
     words: ["河水", "水杯", "雨水"],
-  },
-  {
-    id: "hanzi-huo",
-    character: "火",
-    pinyin: "huǒ",
-    meaning: "暖暖的火焰",
-    imageDescription: "a safe cozy fireplace flame glowing warmly in a simple child-friendly room, no danger",
-    sentence: "冬天的火炉真暖和。",
-    words: ["火苗", "火车", "大火"],
-  },
-  {
-    id: "hanzi-mu",
-    character: "木",
-    pinyin: "mù",
-    meaning: "一棵大树",
-    imageDescription: "a friendly big tree with rounded leaves in a simple forest scene",
-    sentence: "森林里有很多树木。",
-    words: ["木头", "树木", "木马"],
-  },
-  {
-    id: "hanzi-ren",
-    character: "人",
-    pinyin: "rén",
-    meaning: "站立的人",
-    imageDescription: "a simple cheerful child standing and waving in a park, no text on clothes or objects",
-    sentence: "公园里有很多人。",
-    words: ["大人", "人们", "主人"],
+    sortOrder: 20,
   },
 ];
 
 const apiKey = process.env.MINIMAX_API_KEY;
 if (!apiKey) {
-  console.error("Missing MINIMAX_API_KEY.");
+  console.error("Missing MINIMAX_API_KEY. Run: export MINIMAX_API_KEY='你的密钥'");
   process.exit(1);
 }
 
@@ -65,7 +42,8 @@ const speechEndpoints = [
 ];
 
 const args = parseArgs(process.argv.slice(2));
-const outputDir = path.resolve(args.output ?? "outputs/hanzi-assets-sample");
+const outputDir = path.resolve(args.output ?? "outputs/hanzi-assets");
+const publicBaseUrl = normalizeBaseUrl(args["public-base-url"] ?? process.env.HANZI_ASSET_PUBLIC_BASE_URL ?? "");
 const imageCandidates = Number(args["image-candidates"] ?? 1);
 const overwrite = Boolean(args.overwrite);
 const only = String(args.only ?? "all");
@@ -79,6 +57,12 @@ if (!["all", "image", "audio"].includes(only)) {
 }
 if (!Number.isInteger(imageCandidates) || imageCandidates < 1 || imageCandidates > 4) {
   throw new Error("--image-candidates must be an integer from 1 to 4.");
+}
+if (!Number.isInteger(start) || start < 0) {
+  throw new Error("--offset must be a non-negative integer.");
+}
+if (!Number.isInteger(limit) || limit < 1) {
+  throw new Error("--limit must be a positive integer.");
 }
 
 function parseArgs(values) {
@@ -98,38 +82,63 @@ function parseArgs(values) {
   return parsed;
 }
 
+function normalizeBaseUrl(value) {
+  const text = String(value || "").trim();
+  return text ? text.replace(/\/+$/, "") : "";
+}
+
 async function loadCharacters(input) {
-  if (!input) return SAMPLE_CHARACTERS;
+  if (!input) return SAMPLE_CHARACTERS.map(normalizeCharacter);
   const source = JSON.parse(await readFile(path.resolve(input), "utf8"));
   if (!Array.isArray(source)) {
     throw new Error("Input JSON must be an array of hanzi character objects.");
   }
-  return source.map((item, index) => normalizeCharacter(item, index));
+  return source.map(normalizeCharacter);
 }
 
-function normalizeCharacter(item, index) {
-  if (!item.character || !item.meaning || !item.sentence) {
-    throw new Error(`Character item ${index} must include character, meaning, and sentence.`);
+function normalizeCharacter(item, index = 0) {
+  const character = String(item.character ?? "").trim();
+  const sentence = String(item.sentence ?? "").trim();
+  const words = Array.isArray(item.words) ? item.words.map((word) => String(word).trim()).filter(Boolean) : [];
+  const missing = [];
+  if (!character) missing.push("character");
+  if (!item.pinyin) missing.push("pinyin");
+  if (!item.meaning) missing.push("meaning");
+  if (!item.shapeHint) missing.push("shapeHint");
+  if (!item.imageDescription) missing.push("imageDescription");
+  if (!sentence) missing.push("sentence");
+  if (!words.length) missing.push("words");
+  if (missing.length) {
+    throw new Error(`Character item ${index} is missing: ${missing.join(", ")}`);
   }
   return {
-    id: item.id || `hanzi-${slugify(item.character)}`,
-    character: String(item.character),
-    pinyin: item.pinyin ? String(item.pinyin) : "",
-    meaning: String(item.meaning),
-    imageDescription: item.imageDescription ? String(item.imageDescription) : "",
-    sentence: String(item.sentence).replaceAll("__", String(item.character)),
-    words: Array.isArray(item.words) ? item.words.map(String).filter(Boolean) : [],
+    id: String(item.id || `hanzi-u${character.codePointAt(0)?.toString(16) ?? index}`).trim(),
+    character,
+    pinyin: String(item.pinyin).trim(),
+    meaning: String(item.meaning).trim(),
+    shapeHint: String(item.shapeHint).trim(),
+    imageDescription: String(item.imageDescription).trim(),
+    sentence: sentenceWithMarker(sentence, character),
+    spokenSentence: sentence.replaceAll("__", character),
+    words,
+    sortOrder: Number.isInteger(Number(item.sortOrder)) ? Number(item.sortOrder) : (index + 1) * 10,
+    isEnabled: item.isEnabled !== false,
   };
 }
 
-function slugify(value) {
-  return Array.from(String(value))
-    .map((char) => char.codePointAt(0)?.toString(16) ?? "x")
-    .join("-");
+function sentenceWithMarker(sentence, character) {
+  if (sentence.includes("__")) return sentence;
+  if (sentence.includes(character)) return sentence.replace(character, "__");
+  throw new Error(`Sentence must contain ${character} or __ marker: ${sentence}`);
 }
 
 function safeFilePart(value) {
-  return String(value).replace(/[\\/:*?"<>|]/g, "_");
+  return String(value).replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "-");
+}
+
+function dirName(item) {
+  const order = String(item.sortOrder).padStart(5, "0");
+  return `${order}-${safeFilePart(item.id)}`;
 }
 
 function imagePrompt(item) {
@@ -189,13 +198,21 @@ async function postJsonWithFallback(urls, payload) {
   throw new Error(errors.join("\n"));
 }
 
+function relativeAssetPath(item, fileName) {
+  return `${dirName(item)}/${fileName}`;
+}
+
+function publicUrl(relativePath) {
+  return publicBaseUrl ? `${publicBaseUrl}/${relativePath}` : relativePath;
+}
+
 async function generateImages(item, itemDir) {
   const files = [];
   for (let index = 1; index <= imageCandidates; index += 1) {
-    const suffix = imageCandidates === 1 ? "" : `-candidate-${index}`;
-    const file = path.join(itemDir, `${item.id}${suffix}.jpeg`);
+    const fileName = imageCandidates === 1 ? "image.jpeg" : `image-candidate-${index}.jpeg`;
+    const file = path.join(itemDir, fileName);
     if (!overwrite && await fileExists(file)) {
-      files.push(file);
+      files.push({ file, relativePath: relativeAssetPath(item, fileName), skipped: true });
       continue;
     }
     const json = await postJsonWithFallback(imageEndpoints, {
@@ -211,14 +228,14 @@ async function generateImages(item, itemDir) {
       throw new Error(`Image response missing image_base64 for ${item.character}`);
     }
     await writeFile(file, Buffer.from(encoded, "base64"));
-    files.push(file);
+    files.push({ file, relativePath: relativeAssetPath(item, fileName), skipped: false });
   }
   return files;
 }
 
-async function generateSpeech(text, file) {
+async function generateSpeech(text, file, relativePath) {
   if (!overwrite && await fileExists(file)) {
-    return { file, skipped: true, usageCharacters: text.length, audioSize: null };
+    return { file, relativePath, url: publicUrl(relativePath), skipped: true, usageCharacters: text.length, audioSize: null };
   }
   const json = await postJsonWithFallback(speechEndpoints, {
     model: "speech-2.8-turbo",
@@ -239,9 +256,7 @@ async function generateSpeech(text, file) {
       format: "mp3",
       channel: 1,
     },
-    pronunciation_dict: {
-      tone: [],
-    },
+    pronunciation_dict: { tone: [] },
     subtitle_enable: false,
   });
   const hex = json.data?.audio;
@@ -251,6 +266,8 @@ async function generateSpeech(text, file) {
   await writeFile(file, Buffer.from(hex, "hex"));
   return {
     file,
+    relativePath,
+    url: publicUrl(relativePath),
     usageCharacters: json.extra_info?.usage_characters ?? text.length,
     audioSize: json.extra_info?.audio_size ?? null,
   };
@@ -260,31 +277,46 @@ await mkdir(outputDir, { recursive: true });
 
 const manifest = [];
 for (const [index, item] of batch.entries()) {
-  const itemDir = path.join(outputDir, item.id);
+  const itemDir = path.join(outputDir, dirName(item));
   await mkdir(itemDir, { recursive: true });
-  console.log(`[${start + index + 1}/${characters.length}] Generating ${item.character}...`);
+  console.log(`[${start + index + 1}/${characters.length}] Generating ${item.character} (${item.id})...`);
 
   const images = only === "audio" ? [] : await generateImages(item, itemDir);
   const characterAudio = only === "image"
     ? null
-    : await generateSpeech(item.character, path.join(itemDir, `${item.id}-character.mp3`));
+    : await generateSpeech(item.character, path.join(itemDir, "character.mp3"), relativeAssetPath(item, "character.mp3"));
   const sentenceAudio = only === "image"
     ? null
-    : await generateSpeech(item.sentence, path.join(itemDir, `${item.id}-sentence.mp3`));
+    : await generateSpeech(item.spokenSentence, path.join(itemDir, "sentence.mp3"), relativeAssetPath(item, "sentence.mp3"));
   const wordAudio = [];
   if (only !== "image") {
-    for (const word of item.words) {
-      wordAudio.push(await generateSpeech(word, path.join(itemDir, `${item.id}-word-${safeFilePart(word)}.mp3`)));
+    for (const [wordIndex, word] of item.words.entries()) {
+      const fileName = `word-${String(wordIndex + 1).padStart(2, "0")}-${safeFilePart(word)}.mp3`;
+      wordAudio.push(await generateSpeech(word, path.join(itemDir, fileName), relativeAssetPath(item, fileName)));
     }
   }
 
   manifest.push({
-    ...item,
-    imageFiles: images,
-    imageFile: images[0] ?? null,
+    id: item.id,
+    character: item.character,
+    pinyin: item.pinyin,
+    internalPinyin: item.pinyin,
+    meaning: item.meaning,
+    shapeHint: item.shapeHint,
+    imageDescription: item.imageDescription,
+    sentence: item.sentence,
+    spokenSentence: item.spokenSentence,
+    words: item.words,
+    sortOrder: item.sortOrder,
+    isEnabled: item.isEnabled,
+    imageFiles: images.map((image) => ({ ...image, url: publicUrl(image.relativePath) })),
+    imageFile: images[0]?.file ?? null,
+    imageUrl: images[0] ? publicUrl(images[0].relativePath) : null,
+    imageKey: images[0] ? publicUrl(images[0].relativePath) : "default-hanzi",
     characterAudio,
     sentenceAudio,
     wordAudio,
+    wordAudioUrls: wordAudio.map((audio) => audio.url),
   });
 }
 

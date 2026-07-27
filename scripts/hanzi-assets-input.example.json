@@ -4,8 +4,9 @@
     "character": "山",
     "pinyin": "shān",
     "meaning": "高高的大山",
+    "shapeHint": "像三座山峰连在一起",
     "imageDescription": "a tall rounded mountain with soft clouds and a warm sunrise, no markings on the mountain",
-    "sentence": "我们一起爬上了高山。",
+    "sentence": "我们一起爬上了高__。",
     "words": ["山顶", "山水", "高山"]
   },
   {
@@ -13,8 +14,9 @@
     "character": "水",
     "pinyin": "shuǐ",
     "meaning": "流动的水",
+    "shapeHint": "像水流向两边散开",
     "imageDescription": "clear flowing water with small fish and soft ripples in a gentle stream",
-    "sentence": "小鱼在水里游来游去。",
+    "sentence": "小鱼在__里游来游去。",
     "words": ["河水", "水杯", "雨水"]
   }
 ]

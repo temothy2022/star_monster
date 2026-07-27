@@ -1,0 +1,2 @@
+ALTER TABLE "HanziCharacter"
+ADD COLUMN "wordAudioUrls" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
