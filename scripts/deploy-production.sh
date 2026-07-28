@@ -50,6 +50,7 @@ echo "2/3 Checking SSH access..."
 "${SSH[@]}" "$REMOTE" "test -d '$DEPLOY_PATH'"
 
 echo "3/3 Uploading release and applying it on the server..."
+# Hanzi media is deployed separately and may be owned by root on the server.
 rsync -az --delete \
   --exclude '.git/' \
   --exclude '.pnpm-store/' \
@@ -62,6 +63,7 @@ rsync -az --delete \
   --exclude 'test-results/' \
   --exclude 'work/' \
   --exclude 'outputs/' \
+  --exclude 'hanzi-assets/' \
   -e "$RSYNC_SSH" \
   "$PROJECT_ROOT/" "$REMOTE:$DEPLOY_PATH/"
 
