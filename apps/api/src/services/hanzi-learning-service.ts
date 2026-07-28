@@ -12,6 +12,27 @@ type ConsolidationQuestion = {
   optionIds: string[];
 };
 
+type HanziSessionRecord = {
+  id: string;
+  childId: string;
+  taskAttemptId: string;
+  sessionDate: Date;
+  phase: string;
+  reviewCharacterIds: string[] | null;
+  reviewIndex: number | null;
+  reviewKnownIds: string[] | null;
+  reviewUnknownIds: string[] | null;
+  newCharacterIds: string[] | null;
+  newIndex: number | null;
+  consolidationQuestions: Prisma.JsonValue;
+  questionIndex: number | null;
+  consolidationCorrect: number | null;
+  consolidationTotal: number | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 function addUtcDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setUTCDate(result.getUTCDate() + days);
@@ -20,6 +41,18 @@ function addUtcDays(date: Date, days: number): Date {
 
 function unique(items: string[]): string[] {
   return [...new Set(items)];
+}
+
+function normalizePositiveInt(value: number | null | undefined, fallback: number): number {
+  return value != null && Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function normalizeNonNegativeInt(value: number | null | undefined, fallback: number): number {
+  return value != null && Number.isInteger(value) && value >= 0 ? value : fallback;
+}
+
+function normalizeStringArray(value: string[] | null | undefined) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 function questionsFromJson(value: Prisma.JsonValue): ConsolidationQuestion[] {
@@ -86,11 +119,20 @@ async function requireHanziAttempt(childId: string, attemptId: string) {
   return slot.attempt;
 }
 
-async function serializeSession(session: HanziLearningSession) {
+async function serializeSession(session: HanziSessionRecord) {
+  const reviewCharacterIds = normalizeStringArray(session.reviewCharacterIds);
+  const reviewKnownIds = normalizeStringArray(session.reviewKnownIds);
+  const reviewUnknownIds = normalizeStringArray(session.reviewUnknownIds);
+  const newCharacterIds = normalizeStringArray(session.newCharacterIds);
+  const reviewIndex = normalizeNonNegativeInt(session.reviewIndex, 0);
+  const newIndex = normalizeNonNegativeInt(session.newIndex, 0);
+  const questionIndex = normalizeNonNegativeInt(session.questionIndex, 0);
+  const consolidationCorrect = normalizeNonNegativeInt(session.consolidationCorrect, 0);
+  const consolidationTotal = normalizeNonNegativeInt(session.consolidationTotal, 0);
   const questions = questionsFromJson(session.consolidationQuestions);
   const characterIds = unique([
-    ...session.reviewCharacterIds,
-    ...session.newCharacterIds,
+    ...reviewCharacterIds,
+    ...newCharacterIds,
     ...questions.flatMap((question) => [
       question.targetId,
       ...question.optionIds,
@@ -102,14 +144,23 @@ async function serializeSession(session: HanziLearningSession) {
   });
   return {
     ...session,
+    reviewCharacterIds,
+    reviewIndex,
+    reviewKnownIds,
+    reviewUnknownIds,
+    newCharacterIds,
+    newIndex,
+    questionIndex,
+    consolidationCorrect,
+    consolidationTotal,
     questions,
     characters,
     summary: {
-      reviewKnown: session.reviewKnownIds.length,
-      reviewUnknown: session.reviewUnknownIds.length,
-      learned: session.newCharacterIds.length,
-      correct: session.consolidationCorrect,
-      total: session.consolidationTotal,
+      reviewKnown: reviewKnownIds.length,
+      reviewUnknown: reviewUnknownIds.length,
+      learned: newCharacterIds.length,
+      correct: consolidationCorrect,
+      total: consolidationTotal,
     },
   };
 }
@@ -131,6 +182,21 @@ export async function startHanziSession(
     update: {},
     create: { childId },
   });
+  const normalizedSettings = {
+    newCharactersPerDay: normalizePositiveInt(settings.newCharactersPerDay, 3),
+    reviewDailyLimit: normalizePositiveInt(settings.reviewDailyLimit, 25),
+    consolidationQuestionCount: normalizePositiveInt(settings.consolidationQuestionCount, 3),
+  };
+  if (
+    normalizedSettings.newCharactersPerDay !== settings.newCharactersPerDay ||
+    normalizedSettings.reviewDailyLimit !== settings.reviewDailyLimit ||
+    normalizedSettings.consolidationQuestionCount !== settings.consolidationQuestionCount
+  ) {
+    await prisma.hanziLearningSettings.update({
+      where: { id: settings.id },
+      data: normalizedSettings,
+    });
+  }
   const [dueProgress, newCharacters, pool] = await Promise.all([
     prisma.hanziLearningProgress.findMany({
       where: {
@@ -143,7 +209,7 @@ export async function startHanziSession(
         { nextReviewDate: "asc" },
         { createdAt: "asc" },
       ],
-      take: settings.reviewDailyLimit,
+      take: normalizedSettings.reviewDailyLimit,
       include: { character: true },
     }),
     prisma.hanziCharacter.findMany({
@@ -152,7 +218,7 @@ export async function startHanziSession(
         progress: { none: { childId } },
       },
       orderBy: { sortOrder: "asc" },
-      take: settings.newCharactersPerDay,
+      take: normalizedSettings.newCharactersPerDay,
     }),
     prisma.hanziCharacter.findMany({
       where: { isEnabled: true },
@@ -163,7 +229,7 @@ export async function startHanziSession(
     throw new HttpError(409, "HANZI_LIBRARY_EMPTY", "汉字词库还没有可学习的内容");
   }
 
-  const reviewCharacters = dueProgress.map((item) => item.character);
+  const reviewCharacters = dueProgress.map((item) => (item as { character: HanziCharacter }).character);
   const targets = unique([
     ...reviewCharacters.map((item) => item.id),
     ...newCharacters.map((item) => item.id),
@@ -171,11 +237,7 @@ export async function startHanziSession(
     .map((id) => pool.find((item) => item.id === id))
     .filter((item): item is HanziCharacter => Boolean(item));
   const questionTargets = targets.length ? targets : pool.slice(0, 1);
-  const questions = buildQuestions(
-    questionTargets,
-    pool,
-    settings.consolidationQuestionCount,
-  );
+  const questions = buildQuestions(questionTargets, pool, normalizedSettings.consolidationQuestionCount);
   const phase = reviewCharacters.length
     ? "REVIEW"
     : newCharacters.length

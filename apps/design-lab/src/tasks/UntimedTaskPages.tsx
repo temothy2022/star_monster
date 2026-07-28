@@ -33,6 +33,7 @@ type ActiveTaskProps = {
   onResume?: () => void;
   onAbandon?: () => void;
   paused?: boolean;
+  completing?: boolean;
   taskTitle: string;
   rewardStars: number;
   initialOverlay?: UntimedOverlay;
@@ -130,6 +131,7 @@ export function UntimedTaskActive({
   onResume,
   onAbandon,
   paused = false,
+  completing = false,
   taskTitle,
   rewardStars,
   initialOverlay = null,
@@ -138,6 +140,21 @@ export function UntimedTaskActive({
     initialOverlay === "abandon" ? null : initialOverlay,
   );
   const leaveTask = onAbandon ?? onBack;
+
+  useEffect(() => {
+    [
+      completeBackground,
+      completeSpark,
+      outlineStar,
+      heartIcon,
+      centerStar,
+      bookIcon,
+      arrowIcon,
+    ].forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
+  }, []);
 
   return (
     <main className="untimed-page untimed-page--active">
@@ -164,6 +181,8 @@ export function UntimedTaskActive({
           </div>
           <button
             type="button"
+            disabled={completing}
+            aria-busy={completing}
             onClick={
               paused
                 ? onResume

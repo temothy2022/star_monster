@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   answerHanziQuestion,
@@ -27,15 +27,23 @@ function speak(text: string, audioUrl?: string | null) {
   if (audioUrl) {
     const audio = new Audio(audioUrl);
     void audio.play().catch(() => undefined);
-    return;
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
   }
-  if (!("speechSynthesis" in window)) return;
+  if (!("speechSynthesis" in window)) return () => undefined;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "zh-CN";
   utterance.rate = 0.72;
   utterance.pitch = 1.05;
   window.speechSynthesis.speak(utterance);
+  return () => {
+    utterance.onend = null;
+    utterance.onerror = null;
+    window.speechSynthesis.cancel();
+  };
 }
 
 function resolvedSentence(character: HanziCharacter) {
@@ -56,12 +64,13 @@ function speakCharacterThenText(
   let cancelled = false;
   let pauseTimer: number | undefined;
   let audio: HTMLAudioElement | undefined;
+  let followingCleanup: (() => void) | undefined;
   let fallbackStarted = false;
 
   const speakFollowingText = () => {
     if (cancelled) return;
     pauseTimer = window.setTimeout(() => {
-      if (!cancelled) speak(text, textAudioUrl);
+      if (!cancelled) followingCleanup = speak(text, textAudioUrl);
     }, 500);
   };
 
@@ -94,7 +103,9 @@ function speakCharacterThenText(
       audio.onended = null;
       audio.onerror = null;
       audio.pause();
+      audio.currentTime = 0;
     }
+    followingCleanup?.();
     window.speechSynthesis?.cancel();
   };
 }
@@ -181,12 +192,39 @@ export function HanziLearningExperience({
     nextSession: HanziLearningSession;
   } | null>(null);
 
-  useEffect(
-    () => () => {
-      activeSpeechCleanup.current?.();
-      activeSpeechCleanup.current = null;
+  const stopActiveSpeech = useCallback(() => {
+    activeSpeechCleanup.current?.();
+    activeSpeechCleanup.current = null;
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  const playSpeech = useCallback(
+    (text: string, audioUrl?: string | null) => {
+      stopActiveSpeech();
+      activeSpeechCleanup.current = speak(text, audioUrl);
     },
-    [],
+    [stopActiveSpeech],
+  );
+
+  const playCharacterThenText = useCallback(
+    (
+      character: HanziCharacter,
+      text: string,
+      textAudioUrl?: string | null,
+    ) => {
+      stopActiveSpeech();
+      activeSpeechCleanup.current = speakCharacterThenText(
+        character,
+        text,
+        textAudioUrl,
+      );
+    },
+    [stopActiveSpeech],
+  );
+
+  useEffect(
+    () => () => stopActiveSpeech(),
+    [stopActiveSpeech],
   );
 
   useEffect(() => {
@@ -210,9 +248,9 @@ export function HanziLearningExperience({
       });
     return () => {
       cancelled = true;
-      window.speechSynthesis?.cancel();
+      stopActiveSpeech();
     };
-  }, [attemptId]);
+  }, [attemptId, stopActiveSpeech]);
 
   const characterById = useMemo(
     () => new Map(session?.characters.map((character) => [character.id, character]) ?? []),
@@ -229,7 +267,7 @@ export function HanziLearningExperience({
 
   useEffect(() => {
     if (!started || !currentNewCharacter) return;
-    activeSpeechCleanup.current?.();
+    stopActiveSpeech();
     const cleanup = speakCharacterThenText(
       currentNewCharacter,
       resolvedSentence(currentNewCharacter),
@@ -242,7 +280,7 @@ export function HanziLearningExperience({
         activeSpeechCleanup.current = null;
       }
     };
-  }, [currentNewCharacter, started]);
+  }, [currentNewCharacter, started, stopActiveSpeech]);
 
   useEffect(() => {
     if (
@@ -253,16 +291,25 @@ export function HanziLearningExperience({
     ) {
       return;
     }
-    speak(
+    stopActiveSpeech();
+    const cleanup = speak(
       resolvedSentence(currentQuestionTarget),
       currentQuestionTarget.sentenceAudioUrl,
     );
+    activeSpeechCleanup.current = cleanup;
+    return () => {
+      if (activeSpeechCleanup.current === cleanup) {
+        cleanup();
+        activeSpeechCleanup.current = null;
+      }
+    };
   }, [
     answerFeedback,
     currentQuestionTarget,
     session?.phase,
     session?.questionIndex,
     started,
+    stopActiveSpeech,
   ]);
 
   if (!session) {
@@ -321,13 +368,12 @@ export function HanziLearningExperience({
     if (!newCharacter || busy) return;
     if (newStep < 2) {
       const nextStep = newStep + 1;
-      activeSpeechCleanup.current?.();
-      activeSpeechCleanup.current = null;
+      stopActiveSpeech();
       setNewStep(nextStep);
       if (nextStep === 1) {
-        speak(newCharacter.character, newCharacter.characterAudioUrl);
+        playSpeech(newCharacter.character, newCharacter.characterAudioUrl);
       } else {
-        activeSpeechCleanup.current = speakCharacterThenText(
+        playCharacterThenText(
           newCharacter,
           resolvedSentence(newCharacter),
           newCharacter.sentenceAudioUrl,
@@ -335,6 +381,7 @@ export function HanziLearningExperience({
       }
       return;
     }
+    stopActiveSpeech();
     setBusy(true);
     setError("");
     try {
@@ -350,6 +397,7 @@ export function HanziLearningExperience({
 
   async function selectAnswer(characterId: string) {
     if (!question || answerFeedback || busy) return;
+    stopActiveSpeech();
     setBusy(true);
     setError("");
     try {
@@ -365,9 +413,9 @@ export function HanziLearningExperience({
         nextSession: result.session,
       });
       if (result.correct && questionTarget) {
-        speak(questionTarget.character, questionTarget.characterAudioUrl);
+        playSpeech(questionTarget.character, questionTarget.characterAudioUrl);
       } else if (questionTarget) {
-        speak(
+        playSpeech(
           resolvedSentence(questionTarget),
           questionTarget.sentenceAudioUrl,
         );
@@ -381,14 +429,13 @@ export function HanziLearningExperience({
 
   function continueQuestion() {
     if (!answerFeedback) return;
+    stopActiveSpeech();
     setSession(answerFeedback.nextSession);
     setAnswerFeedback(null);
   }
 
   function returnToOverview(nextSession: HanziLearningSession = session!) {
-    activeSpeechCleanup.current?.();
-    activeSpeechCleanup.current = null;
-    window.speechSynthesis?.cancel();
+    stopActiveSpeech();
     setSession(nextSession);
     setStarted(false);
     setNewStep(0);
@@ -413,9 +460,7 @@ export function HanziLearningExperience({
     }
     if (session?.phase === "NEW_LEARNING") {
       if (newStep > 0) {
-        activeSpeechCleanup.current?.();
-        activeSpeechCleanup.current = null;
-        window.speechSynthesis?.cancel();
+        stopActiveSpeech();
         setNewStep((current) => current - 1);
         return;
       }
@@ -431,6 +476,7 @@ export function HanziLearningExperience({
 
   async function finish() {
     if (busy) return;
+    stopActiveSpeech();
     setBusy(true);
     setError("");
     try {
@@ -519,7 +565,7 @@ export function HanziLearningExperience({
           <button
             className="hanzi-coach-audio"
             type="button"
-            onClick={() => speak(unknownCharacter.character, unknownCharacter.characterAudioUrl)}
+            onClick={() => playSpeech(unknownCharacter.character, unknownCharacter.characterAudioUrl)}
           >
             <PlayIcon />听一听
           </button>
@@ -547,7 +593,7 @@ export function HanziLearningExperience({
             type="button"
             onClick={() => {
               setFlipped((current) => !current);
-              if (!flipped) speak(reviewCharacter.character, reviewCharacter.characterAudioUrl);
+              if (!flipped) playSpeech(reviewCharacter.character, reviewCharacter.characterAudioUrl);
             }}
           >
             <span className="hanzi-review-card__face hanzi-review-card__face--front">
@@ -624,13 +670,13 @@ export function HanziLearningExperience({
           <section className="hanzi-sound-card hanzi-runtime-new-card">
             <div className="hanzi-sound-character">
               <CharacterBox character={newCharacter.character} />
-              <button className="hanzi-audio-orb" type="button" onClick={() => speak(newCharacter.character, newCharacter.characterAudioUrl)} aria-label={`播放${newCharacter.character}的读音`}>
+              <button className="hanzi-audio-orb" type="button" onClick={() => playSpeech(newCharacter.character, newCharacter.characterAudioUrl)} aria-label={`播放${newCharacter.character}的读音`}>
                 <img src={meaningSpeakerIcon} alt="" />
               </button>
             </div>
             <div className="hanzi-sound-vocabulary" aria-label={`${newCharacter.character}的词语`}>
               {newCharacter.words.slice(0, 3).map((word, index) => (
-                <button type="button" key={word} onClick={() => speak(word, newCharacter.wordAudioUrls[index])} aria-label={`播放词语${word}`}>
+                <button type="button" key={word} onClick={() => playSpeech(word, newCharacter.wordAudioUrls[index])} aria-label={`播放词语${word}`}>
                   <span>{word}</span><img src={meaningSpeakerIcon} alt="" aria-hidden="true" />
                 </button>
               ))}
@@ -647,7 +693,7 @@ export function HanziLearningExperience({
                 <button
                   className="hanzi-meaning-sentence"
                   type="button"
-                  onClick={() => speak(resolvedSentence(newCharacter), newCharacter.sentenceAudioUrl)}
+                  onClick={() => playSpeech(resolvedSentence(newCharacter), newCharacter.sentenceAudioUrl)}
                   aria-label="播放例句"
                 >
                   <img src={meaningSpeakerIcon} alt="" aria-hidden="true" />
@@ -696,7 +742,7 @@ export function HanziLearningExperience({
                 className="hanzi-listen-play"
                 type="button"
                 aria-label="播放句子"
-                onClick={() => speak(resolvedSentence(questionTarget), questionTarget.sentenceAudioUrl)}
+                onClick={() => playSpeech(resolvedSentence(questionTarget), questionTarget.sentenceAudioUrl)}
               ><PlayIcon /></button>
               <div><h1>听句挑战</h1><p>选出正确的字，放进句子里</p></div>
             </header>
@@ -735,6 +781,12 @@ export function HanziLearningExperience({
     );
   }
 
+  const scoreTotal = Math.max(0, session.summary.total);
+  const scoreRatio =
+    scoreTotal > 0
+      ? Math.min(1, Math.max(0, session.summary.correct / scoreTotal))
+      : 0;
+
   return (
     <main className="hanzi-page hanzi-page--result">
       <HanziTaskControls onAbandon={onExit} />
@@ -757,7 +809,12 @@ export function HanziLearningExperience({
         </article>
         <article>
           <h2>听句挑战</h2>
-          <div className="hanzi-score-ring">
+          <div
+            className="hanzi-score-ring"
+            style={{
+              background: `conic-gradient(#4da8e8 ${scoreRatio * 360}deg, #e7f2ff 0deg)`,
+            }}
+          >
             <div className="hanzi-score-ring__value"><strong>{session.summary.correct}</strong><span>/ {session.summary.total}</span></div>
           </div>
         </article>

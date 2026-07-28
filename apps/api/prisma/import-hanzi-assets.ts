@@ -15,6 +15,7 @@ const args = parseArgs(process.argv.slice(2));
 const manifestFile = args.manifest;
 const publicBaseUrl = normalizeBaseUrl(args["public-base-url"] ?? process.env.HANZI_ASSET_PUBLIC_BASE_URL ?? "");
 const dryRun = Boolean(args["dry-run"]);
+const allowMissingMedia = Boolean(args["allow-missing-media"]);
 
 if (!manifestFile) {
   console.error("Missing --manifest. Example: pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts --manifest outputs/hanzi-assets/manifest.json --public-base-url https://timi.duckpte.com/hanzi-assets/v1");
@@ -66,6 +67,9 @@ function sentenceWithMarker(sentence: string, character: string) {
 
 function normalizeEntry(entry: Record<string, unknown>, index: number) {
   const character = String(entry.character || "").trim();
+  if (!character) throw new Error(`Manifest item ${index} is missing character.`);
+  const internalPinyin = String(entry.internalPinyin || entry.pinyin || "").trim();
+  const sentence = sentenceWithMarker(String(entry.sentence || "").trim(), character);
   const words = Array.isArray(entry.words)
     ? entry.words.map((word) => String(word).trim()).filter(Boolean)
     : [];
@@ -74,20 +78,40 @@ function normalizeEntry(entry: Record<string, unknown>, index: number) {
     : Array.isArray(entry.wordAudio)
       ? entry.wordAudio.map((item) => fullUrl((item as { url?: unknown; relativePath?: unknown }).url ?? (item as { relativePath?: unknown }).relativePath)).filter(Boolean)
       : [];
-  if (!character) throw new Error(`Manifest item ${index} is missing character.`);
-  if (!words.length) throw new Error(`Manifest item ${character} is missing words.`);
+  if (!internalPinyin || internalPinyin === "待补") {
+    throw new Error(`Manifest item ${character} has invalid pinyin.`);
+  }
+  if (words.length !== 3 || new Set(words).size !== 3) {
+    throw new Error(`Manifest item ${character} must have exactly 3 distinct words.`);
+  }
+  if (words.some((word) => !word.includes(character))) {
+    throw new Error(`Manifest item ${character} contains a word without the character.`);
+  }
+  if (
+    (!allowMissingMedia && wordAudioUrls.length !== words.length) ||
+    (allowMissingMedia && wordAudioUrls.length > 0 && wordAudioUrls.length !== words.length)
+  ) {
+    throw new Error(`Manifest item ${character} has ${words.length} words but ${wordAudioUrls.length} word audio URLs.`);
+  }
+  if (sentence === `我们来认识__。`) {
+    throw new Error(`Manifest item ${character} still uses the generic sentence.`);
+  }
+  const sentenceAudioUrl = fullUrl((entry.sentenceAudio as { url?: unknown } | null)?.url || entry.sentenceAudioUrl) || null;
+  if (!allowMissingMedia && !sentenceAudioUrl) {
+    throw new Error(`Manifest item ${character} is missing sentence audio.`);
+  }
   return {
     id: String(entry.id || `hanzi-u${character.codePointAt(0)?.toString(16) ?? index}`),
     character,
-    internalPinyin: String(entry.internalPinyin || entry.pinyin || "").trim(),
+    internalPinyin,
     meaning: String(entry.meaning || "").trim(),
     shapeHint: String(entry.shapeHint || "").trim(),
-    sentence: sentenceWithMarker(String(entry.sentence || "").trim(), character),
+    sentence,
     words,
     wordAudioUrls,
     imageKey: fullUrl(entry.imageKey || entry.imageUrl) || "default-hanzi",
     characterAudioUrl: fullUrl((entry.characterAudio as { url?: unknown } | null)?.url || entry.characterAudioUrl) || null,
-    sentenceAudioUrl: fullUrl((entry.sentenceAudio as { url?: unknown } | null)?.url || entry.sentenceAudioUrl) || null,
+    sentenceAudioUrl,
     sortOrder: Number.isInteger(Number(entry.sortOrder)) ? Number(entry.sortOrder) : (index + 1) * 10,
     isEnabled: entry.isEnabled !== false,
   };
@@ -97,7 +121,10 @@ const raw = JSON.parse(await readFile(resolveInputFile(String(manifestFile)), "u
 if (!Array.isArray(raw)) throw new Error("Manifest must be a JSON array.");
 const entries = raw.map(normalizeEntry);
 
-console.log(`Ready to import ${entries.length} hanzi entries${dryRun ? " (dry run)" : ""}.`);
+console.log(
+  `Ready to import ${entries.length} hanzi entries${dryRun ? " (dry run)" : ""}` +
+    `${allowMissingMedia ? " (missing media allowed)" : ""}.`,
+);
 if (!dryRun) {
   for (const entry of entries) {
     await prisma.hanziCharacter.upsert({

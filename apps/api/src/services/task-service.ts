@@ -3,6 +3,7 @@ import {
   type DailyTask,
   type TaskAttempt,
 } from "@prisma/client";
+import { performance } from "node:perf_hooks";
 import type { AppConfig } from "../config.js";
 import {
   activeElapsedSeconds,
@@ -18,6 +19,11 @@ import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 
 type AttemptWithTask = TaskAttempt & { dailyTask: DailyTask };
+type CompleteTaskTiming = { stage: string; ms: number };
+type CompleteTaskOptions = {
+  now?: Date;
+  onTiming?: (timing: CompleteTaskTiming) => void;
+};
 
 function isUniqueConstraint(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -461,16 +467,25 @@ export async function abandonTask(
 export async function completeTask(
   childId: string,
   attemptId: string,
-  now = new Date(),
+  options: Date | CompleteTaskOptions = {},
 ) {
+  const now = options instanceof Date ? options : options.now ?? new Date();
+  const onTiming = options instanceof Date ? undefined : options.onTiming;
+  const mark = (stage: string, startedAt: number) => {
+    onTiming?.({ stage, ms: Math.round(performance.now() - startedAt) });
+  };
+
+  let stageStartedAt = performance.now();
   const existing = await prisma.taskAttempt.findFirst({
     where: { id: attemptId, childId },
     include: { dailyTask: true },
   });
+  mark("load-attempt", stageStartedAt);
   if (!existing) {
     throw new HttpError(404, "ATTEMPT_NOT_FOUND", "没有找到这次任务");
   }
   if (existing.status === "COMPLETED") {
+    stageStartedAt = performance.now();
     const dailyGoalBonus = await prisma.starLedger.findFirst({
       where: {
         childId,
@@ -479,6 +494,7 @@ export async function completeTask(
       },
       select: { amount: true },
     });
+    mark("load-existing-daily-goal-bonus", stageStartedAt);
     const dailyGoalBonusStars = dailyGoalBonus?.amount ?? 0;
     return {
       attempt: existing,
@@ -495,10 +511,12 @@ export async function completeTask(
     };
   }
   if (existing.dailyTask.experienceKindSnapshot === "HANZI_LEARNING") {
+    stageStartedAt = performance.now();
     const learningSession = await prisma.hanziLearningSession.findUnique({
       where: { taskAttemptId: existing.id },
       select: { phase: true },
     });
+    mark("load-hanzi-session", stageStartedAt);
     if (learningSession?.phase !== "COMPLETED") {
       throw new HttpError(
         409,
@@ -508,7 +526,9 @@ export async function completeTask(
     }
   }
 
+  stageStartedAt = performance.now();
   const attempt = await requireActiveAttempt(childId, attemptId);
+  mark("load-active-attempt", stageStartedAt);
   const elapsedSeconds = activeElapsedSeconds(attempt, now);
   const remaining =
     attempt.dailyTask.modeSnapshot === "TIMED"
@@ -533,15 +553,20 @@ export async function completeTask(
     remainingSeconds: remaining,
   });
 
+  stageStartedAt = performance.now();
   const completion = await prisma.$transaction(
     async (tx) => {
+      const transactionStartedAt = performance.now();
+      let transactionStageStartedAt = performance.now();
       const currentSlot = await tx.activeTaskSlot.findUnique({
         where: { childId },
       });
+      mark("transaction-load-slot", transactionStageStartedAt);
       if (!currentSlot || currentSlot.attemptId !== attempt.id) {
         throw new HttpError(409, "ATTEMPT_NOT_ACTIVE", "这个任务已不在进行中");
       }
 
+      transactionStageStartedAt = performance.now();
       const updatedAttempt = await tx.taskAttempt.update({
         where: { id: attempt.id },
         data: {
@@ -553,6 +578,8 @@ export async function completeTask(
           bonusStarsAwarded: reward.bonusStars,
         },
       });
+      mark("transaction-update-attempt", transactionStageStartedAt);
+      transactionStageStartedAt = performance.now();
       await tx.dailyTask.update({
         where: { id: attempt.dailyTaskId },
         data: {
@@ -563,6 +590,8 @@ export async function completeTask(
           completionDurationSeconds: elapsedSeconds,
         },
       });
+      mark("transaction-update-daily-task", transactionStageStartedAt);
+      transactionStageStartedAt = performance.now();
       const childSettings = await tx.childProfile.findUniqueOrThrow({
         where: { id: childId },
         select: {
@@ -571,6 +600,8 @@ export async function completeTask(
           dailyGoalBonusStars: true,
         },
       });
+      mark("transaction-load-child-settings", transactionStageStartedAt);
+      transactionStageStartedAt = performance.now();
       const childAfterTaskReward = await tx.childProfile.update({
         where: { id: childId },
         data: {
@@ -578,6 +609,8 @@ export async function completeTask(
           lifetimeStarsEarned: { increment: reward.totalStars },
         },
       });
+      mark("transaction-update-child-task-reward", transactionStageStartedAt);
+      transactionStageStartedAt = performance.now();
       await tx.starLedger.create({
         data: {
           childId,
@@ -590,7 +623,9 @@ export async function completeTask(
           idempotencyKey: `task:${attempt.id}:reward`,
         },
       });
+      mark("transaction-create-task-ledger", transactionStageStartedAt);
 
+      transactionStageStartedAt = performance.now();
       const completedTaskReward = await tx.taskAttempt.aggregate({
         where: {
           childId,
@@ -602,6 +637,7 @@ export async function completeTask(
           bonusStarsAwarded: true,
         },
       });
+      mark("transaction-aggregate-day-reward", transactionStageStartedAt);
       const taskStarsEarnedToday =
         (completedTaskReward._sum.baseStarsAwarded ?? 0) +
         (completedTaskReward._sum.bonusStarsAwarded ?? 0);
@@ -610,11 +646,13 @@ export async function completeTask(
       let dailyGoalBonusStars = 0;
 
       if (childSettings.dailyGoalBonusEnabled) {
+        transactionStageStartedAt = performance.now();
         const existingGoalBonus = await tx.starLedger.findUnique({
           where: {
             idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}`,
           },
         });
+        mark("transaction-load-daily-goal-ledger", transactionStageStartedAt);
         const bonusToAward = dailyGoalBonusAmount({
           enabled: childSettings.dailyGoalBonusEnabled,
           goalStars: childSettings.dailyStarGoal,
@@ -624,6 +662,7 @@ export async function completeTask(
         });
 
         if (bonusToAward > 0) {
+          transactionStageStartedAt = performance.now();
           const childAfterGoalBonus = await tx.childProfile.update({
             where: { id: childId },
             data: {
@@ -633,6 +672,8 @@ export async function completeTask(
               },
             },
           });
+          mark("transaction-update-child-daily-goal", transactionStageStartedAt);
+          transactionStageStartedAt = performance.now();
           await tx.starLedger.create({
             data: {
               childId,
@@ -644,15 +685,20 @@ export async function completeTask(
               idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}`,
             },
           });
+          mark("transaction-create-daily-goal-ledger", transactionStageStartedAt);
           dailyGoalBonusStars = bonusToAward;
         }
       }
 
+      transactionStageStartedAt = performance.now();
       await tx.activeTaskSlot.delete({ where: { childId } });
+      mark("transaction-delete-active-slot", transactionStageStartedAt);
+      mark("transaction-callback-total", transactionStartedAt);
       return { updatedAttempt, dailyGoalBonusStars };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
+  mark("transaction-total", stageStartedAt);
 
   return {
     attempt: { ...completion.updatedAttempt, dailyTask: attempt.dailyTask },

@@ -17,6 +17,9 @@ import {
 } from "./api/child-api";
 import type { TaskAttempt } from "./api/child-api";
 
+const loadUntimedTaskPages = () => import("./tasks/UntimedTaskPages");
+const loadTimedTaskPages = () => import("./tasks/TimedTaskPages");
+
 const OnboardingStep1 = lazy(() =>
   import("./onboarding/OnboardingStep1").then((module) => ({
     default: module.OnboardingStep1,
@@ -43,27 +46,27 @@ const TaskExperience = lazy(() =>
   })),
 );
 const UntimedTaskActive = lazy(() =>
-  import("./tasks/UntimedTaskPages").then((module) => ({
+  loadUntimedTaskPages().then((module) => ({
     default: module.UntimedTaskActive,
   })),
 );
 const UntimedTaskComplete = lazy(() =>
-  import("./tasks/UntimedTaskPages").then((module) => ({
+  loadUntimedTaskPages().then((module) => ({
     default: module.UntimedTaskComplete,
   })),
 );
 const TimedTaskActive = lazy(() =>
-  import("./tasks/TimedTaskPages").then((module) => ({
+  loadTimedTaskPages().then((module) => ({
     default: module.TimedTaskActive,
   })),
 );
 const TimedTaskComplete = lazy(() =>
-  import("./tasks/TimedTaskPages").then((module) => ({
+  loadTimedTaskPages().then((module) => ({
     default: module.TimedTaskComplete,
   })),
 );
 const TimedTaskTimeout = lazy(() =>
-  import("./tasks/TimedTaskPages").then((module) => ({
+  loadTimedTaskPages().then((module) => ({
     default: module.TimedTaskTimeout,
   })),
 );
@@ -293,6 +296,7 @@ export function App() {
     bonusStars: number;
     totalStars: number;
   } | null>(null);
+  const [isCompletingAttempt, setIsCompletingAttempt] = useState(false);
   const { mascot, selectedPet, selectPet } = useMascot();
 
   useEffect(() => {
@@ -324,6 +328,15 @@ export function App() {
     window.history.pushState({ route: nextRoute }, "", `#${nextRoute}`);
     setRoute(nextRoute);
   }
+
+  useEffect(() => {
+    if (route === "untimed-active" || route === "untimed-menu" || route === "untimed-abandon") {
+      void loadUntimedTaskPages();
+    }
+    if (route === "timed-active") {
+      void loadTimedTaskPages();
+    }
+  }, [route]);
 
   function handleAttemptActionError(reason: unknown) {
     if (
@@ -396,6 +409,10 @@ export function App() {
       cancelled = true;
     };
   }, [activeAttempt, route]);
+
+  useEffect(() => {
+    setIsCompletingAttempt(false);
+  }, [activeAttempt?.id]);
 
   if (isActiveTaskRoute(route) && !activeAttempt) {
     return (
@@ -487,6 +504,7 @@ export function App() {
         taskTitle={activeAttempt!.dailyTask.titleSnapshot}
         rewardStars={activeAttempt!.dailyTask.baseStarsSnapshot}
         paused={activeAttempt?.status === "PAUSED"}
+        completing={isCompletingAttempt}
         onPause={() => {
           if (!activeAttempt) return;
           void pauseAttempt(activeAttempt.id)
@@ -512,15 +530,18 @@ export function App() {
             .catch(handleAttemptActionError);
         }}
         onComplete={() => {
+          if (isCompletingAttempt) return;
           if (!activeAttempt) {
             navigate("untimed-complete");
             return;
           }
+          setIsCompletingAttempt(true);
           void completeAttempt(activeAttempt.id)
             .then(({ reward, alreadyCompleted }) => {
               if (alreadyCompleted) {
                 setActiveAttempt(null);
                 setLastCompletion(null);
+                setIsCompletingAttempt(false);
                 navigate("tasks-partial");
                 return;
               }
@@ -529,9 +550,13 @@ export function App() {
                 ...reward,
               });
               setActiveAttempt(null);
+              setIsCompletingAttempt(false);
               navigate("untimed-complete");
             })
-            .catch(handleAttemptActionError);
+            .catch((reason: unknown) => {
+              setIsCompletingAttempt(false);
+              handleAttemptActionError(reason);
+            });
         }}
       />
     );
@@ -561,6 +586,7 @@ export function App() {
           activeAttempt!.dailyTask.earlyThresholdSecsSnapshot
         }
         paused={activeAttempt?.status === "PAUSED"}
+        completing={isCompletingAttempt}
         onPause={() => {
           if (!activeAttempt) return;
           void pauseAttempt(activeAttempt.id)
@@ -586,15 +612,18 @@ export function App() {
             .catch(handleAttemptActionError);
         }}
         onComplete={() => {
+          if (isCompletingAttempt) return;
           if (!activeAttempt) {
             navigate("timed-complete");
             return;
           }
+          setIsCompletingAttempt(true);
           void completeAttempt(activeAttempt.id)
             .then(({ reward, alreadyCompleted }) => {
               if (alreadyCompleted) {
                 setActiveAttempt(null);
                 setLastCompletion(null);
+                setIsCompletingAttempt(false);
                 navigate("tasks-partial");
                 return;
               }
@@ -603,9 +632,11 @@ export function App() {
                 ...reward,
               });
               setActiveAttempt(null);
+              setIsCompletingAttempt(false);
               navigate("timed-complete");
             })
             .catch((reason: unknown) => {
+              setIsCompletingAttempt(false);
               if (
                 reason instanceof ApiError &&
                 reason.code === "TASK_TIMED_OUT"

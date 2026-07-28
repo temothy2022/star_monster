@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { requireChild } from "../services/auth-service.js";
@@ -49,6 +50,36 @@ export async function registerChildTaskRoutes(
   app.post("/api/child/attempts/:id/complete", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     const { id } = idParams.parse(request.params);
-    return completeTask(child.id, id);
+    const timings: Array<{ stage: string; ms: number }> = [];
+    const startedAt = performance.now();
+
+    try {
+      const result = await completeTask(child.id, id, {
+        onTiming: (timing) => timings.push(timing),
+      });
+      request.log.info(
+        {
+          childId: child.id,
+          attemptId: id,
+          alreadyCompleted: result.alreadyCompleted,
+          totalMs: Math.round(performance.now() - startedAt),
+          timings,
+        },
+        "child task complete timing",
+      );
+      return result;
+    } catch (error) {
+      request.log.warn(
+        {
+          childId: child.id,
+          attemptId: id,
+          totalMs: Math.round(performance.now() - startedAt),
+          timings,
+          error,
+        },
+        "child task complete failed timing",
+      );
+      throw error;
+    }
   });
 }

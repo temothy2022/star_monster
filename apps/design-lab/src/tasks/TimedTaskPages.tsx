@@ -39,6 +39,7 @@ type TimedTaskActiveProps = TimedTaskProps & {
   initialRemainingSeconds: number;
   earlyThresholdSeconds?: number | null;
   paused?: boolean;
+  completing?: boolean;
 };
 
 function CloseButton({
@@ -77,6 +78,7 @@ export function TimedTaskActive({
   initialRemainingSeconds,
   earlyThresholdSeconds = 120,
   paused = false,
+  completing = false,
 }: TimedTaskActiveProps) {
   const [remaining, setRemaining] = useState(initialRemainingSeconds);
   const [overlay, setOverlay] = useState<UntimedOverlay>(null);
@@ -87,6 +89,17 @@ export function TimedTaskActive({
     setRemaining(initialRemainingSeconds);
     lastTickAt.current = Date.now();
   }, [initialRemainingSeconds]);
+  useEffect(() => {
+    [
+      completeBackground,
+      completeCheckIcon,
+      completeLightningIcon,
+      completeArrowIcon,
+    ].forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
+  }, []);
   useEffect(() => {
     lastTickAt.current = Date.now();
     if (paused || remaining <= 0) return;
@@ -100,11 +113,11 @@ export function TimedTaskActive({
     return () => window.clearInterval(timer);
   }, [paused, remaining <= 0]);
   useEffect(() => {
-    if (remaining === 0 && !timeoutSent.current) {
+    if (remaining === 0 && !timeoutSent.current && !completing) {
       timeoutSent.current = true;
       onTimeout?.();
     }
-  }, [onTimeout, remaining]);
+  }, [completing, onTimeout, remaining]);
 
   const bonusRemaining =
     earlyThresholdSeconds === null
@@ -164,6 +177,8 @@ export function TimedTaskActive({
         <button
           className="timed-primary-button timed-primary-button--dark"
           type="button"
+          disabled={completing}
+          aria-busy={completing}
           onClick={
             paused
               ? onResume

@@ -564,7 +564,10 @@ export function HanziLearningResult({ onNavigate }: { onNavigate: Navigate }) {
         </article>
         <article>
           <h2>听句挑战</h2>
-          <div className="hanzi-score-ring">
+          <div
+            className="hanzi-score-ring"
+            style={{ background: "conic-gradient(#4da8e8 240deg, #e7f2ff 0deg)" }}
+          >
             <div className="hanzi-score-ring__value"><strong>2</strong><span>/ 3</span></div>
           </div>
         </article>

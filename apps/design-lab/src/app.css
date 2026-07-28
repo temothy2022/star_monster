@@ -3992,34 +3992,46 @@ select {
 
 .hanzi-result-characters {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 16px;
-  margin-top: 34px;
+  gap: clamp(8px, 1.25vw, 16px);
+  width: 100%;
+  margin-top: clamp(18px, 2.65vw, 34px);
 }
 
 .hanzi-result-characters b {
   display: grid;
-  width: 62px;
-  height: 62px;
+  width: clamp(40px, 4.85vw, 62px);
+  height: clamp(40px, 4.85vw, 62px);
   place-items: center;
   border: 2px solid var(--hanzi-ink);
-  border-radius: 18px;
+  border-radius: clamp(12px, 1.4vw, 18px);
   background: #fff1ed;
-  font-size: 34px;
+  font-size: clamp(22px, 2.65vw, 34px);
+  line-height: 1;
 }
 
 .hanzi-score-ring {
+  position: relative;
   display: grid;
   width: 150px;
   height: 150px;
   margin: 20px auto 14px;
   place-items: center;
-  border: 14px solid #e7f2ff;
-  border-top-color: #4da8e8;
   border-radius: 50%;
 }
 
+.hanzi-score-ring::before {
+  position: absolute;
+  inset: 14px;
+  border-radius: inherit;
+  background: var(--hanzi-surface);
+  content: "";
+}
+
 .hanzi-score-ring__value {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -5928,7 +5940,11 @@ body:has(.untimed-page),
   cursor: pointer;
 }
 
-.untimed-active-card > button:active {
+.untimed-active-card > button:disabled {
+  cursor: progress;
+}
+
+.untimed-active-card > button:active:not(:disabled) {
   transform: translateY(5px);
   box-shadow:
     0 3px 0 #8b3200,
@@ -6621,7 +6637,11 @@ body:has(.page-index),
   height: 16px;
 }
 
-.timed-primary-button:active {
+.timed-primary-button:disabled {
+  cursor: progress;
+}
+
+.timed-primary-button:active:not(:disabled) {
   transform: translateY(5px);
   box-shadow: 0 3px 0 var(--timed-ink);
 }
