@@ -14,6 +14,10 @@ import backIcon from "../assets/icon-arrow-left.svg";
 import playIcon from "../assets/untimed-task/play.svg";
 import defaultHanziImage from "../assets/hanzi/test-generated-shui.jpeg";
 import meaningSpeakerIcon from "../assets/hanzi/meaning-speaker.svg";
+import {
+  getHanziAudioElement,
+  preloadHanziSessionAssets,
+} from "./hanzi-asset-preloader";
 import { HanziTaskControls } from "./HanziTaskControls";
 
 type CompletionReward = {
@@ -25,7 +29,9 @@ type CompletionReward = {
 
 function speak(text: string, audioUrl?: string | null) {
   if (audioUrl) {
-    const audio = new Audio(audioUrl);
+    const audio = getHanziAudioElement(audioUrl);
+    audio.pause();
+    audio.currentTime = 0;
     void audio.play().catch(() => undefined);
     return () => {
       audio.pause();
@@ -88,7 +94,9 @@ function speakCharacterThenText(
   };
 
   if (character.characterAudioUrl) {
-    audio = new Audio(character.characterAudioUrl);
+    audio = getHanziAudioElement(character.characterAudioUrl);
+    audio.pause();
+    audio.currentTime = 0;
     audio.onended = speakFollowingText;
     audio.onerror = speakWithBrowserVoice;
     void audio.play().catch(speakWithBrowserVoice);
@@ -166,6 +174,25 @@ function sentenceParts(sentence: string) {
   return { before, after };
 }
 
+function advanceQuestionLocally(
+  session: HanziLearningSession,
+  correct: boolean,
+): HanziLearningSession {
+  const nextCorrect = session.consolidationCorrect + (correct ? 1 : 0);
+  const nextTotal = session.consolidationTotal + 1;
+  return {
+    ...session,
+    questionIndex: session.questionIndex + 1,
+    consolidationCorrect: nextCorrect,
+    consolidationTotal: nextTotal,
+    summary: {
+      ...session.summary,
+      correct: nextCorrect,
+      total: nextTotal,
+    },
+  };
+}
+
 export function HanziLearningExperience({
   attemptId,
   onExit,
@@ -185,6 +212,13 @@ export function HanziLearningExperience({
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
   const [pendingSession, setPendingSession] = useState<HanziLearningSession | null>(null);
   const activeSpeechCleanup = useRef<null | (() => void)>(null);
+  const assetPreloadAbort = useRef<AbortController | null>(null);
+  const assetPreloadTimer = useRef<number | null>(null);
+  const preloadedSessionId = useRef<string | null>(null);
+  const answerSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const answerSaveGeneration = useRef(0);
+  const answerSaveFailed = useRef(false);
+  const [pendingAnswerSaves, setPendingAnswerSaves] = useState(0);
   const [answerFeedback, setAnswerFeedback] = useState<{
     selectedId: string;
     targetId: string;
@@ -222,10 +256,15 @@ export function HanziLearningExperience({
     [stopActiveSpeech],
   );
 
-  useEffect(
-    () => () => stopActiveSpeech(),
-    [stopActiveSpeech],
-  );
+  useEffect(() => {
+    return () => {
+      stopActiveSpeech();
+      if (assetPreloadTimer.current !== null) {
+        window.clearTimeout(assetPreloadTimer.current);
+      }
+      assetPreloadAbort.current?.abort();
+    };
+  }, [stopActiveSpeech]);
 
   useEffect(() => {
     let cancelled = false;
@@ -264,6 +303,21 @@ export function HanziLearningExperience({
   const currentQuestionTarget = currentQuestion
     ? characterById.get(currentQuestion.targetId) ?? null
     : null;
+
+  useEffect(() => {
+    if (!session || preloadedSessionId.current === session.id) return;
+    preloadedSessionId.current = session.id;
+    assetPreloadAbort.current?.abort();
+    const controller = new AbortController();
+    assetPreloadAbort.current = controller;
+
+    // Let the session overview render first, then quietly warm the browser
+    // cache with today's images and audio using a small request pool.
+    assetPreloadTimer.current = window.setTimeout(() => {
+      assetPreloadTimer.current = null;
+      void preloadHanziSessionAssets(session, controller.signal);
+    }, started ? 500 : 50);
+  }, [session, started]);
 
   useEffect(() => {
     if (!started || !currentNewCharacter) return;
@@ -395,36 +449,82 @@ export function HanziLearningExperience({
     }
   }
 
-  async function selectAnswer(characterId: string) {
-    if (!question || answerFeedback || busy) return;
-    stopActiveSpeech();
-    setBusy(true);
-    setError("");
-    try {
-      const result = await answerHanziQuestion(
-        session!.id,
-        session!.questionIndex,
-        characterId,
-      );
-      setAnswerFeedback({
-        selectedId: characterId,
-        targetId: result.targetCharacterId,
-        correct: result.correct,
-        nextSession: result.session,
-      });
-      if (result.correct && questionTarget) {
-        playSpeech(questionTarget.character, questionTarget.characterAudioUrl);
-      } else if (questionTarget) {
-        playSpeech(
-          resolvedSentence(questionTarget),
-          questionTarget.sentenceAudioUrl,
+  function saveAnswerInBackground(
+    sessionId: string,
+    questionIndex: number,
+    selectedCharacterId: string,
+    expectedTargetId: string,
+    expectedCorrect: boolean,
+  ) {
+    const generation = answerSaveGeneration.current;
+    setPendingAnswerSaves((current) => current + 1);
+    answerSaveQueue.current = answerSaveQueue.current
+      .then(async () => {
+        if (generation !== answerSaveGeneration.current) return;
+        const result = await answerHanziQuestion(
+          sessionId,
+          questionIndex,
+          selectedCharacterId,
         );
-      }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "答案暂时无法保存");
-    } finally {
-      setBusy(false);
+        if (
+          result.targetCharacterId !== expectedTargetId ||
+          result.correct !== expectedCorrect
+        ) {
+          throw new Error("本地答案与服务器记录不一致");
+        }
+      })
+      .catch(async (reason: unknown) => {
+        if (generation !== answerSaveGeneration.current) return;
+        answerSaveGeneration.current += 1;
+        answerSaveFailed.current = true;
+        stopActiveSpeech();
+        setAnswerFeedback(null);
+        setError(
+          reason instanceof Error
+            ? `答题记录保存失败：${reason.message}`
+            : "答题记录暂时无法保存",
+        );
+        try {
+          const { session: latestSession } =
+            await startHanziLearningSession(attemptId);
+          setSession(latestSession);
+          answerSaveFailed.current = false;
+        } catch {
+          // Keep the visible error and let the child retry or leave the task.
+        }
+      })
+      .finally(() => {
+        setPendingAnswerSaves((current) => Math.max(0, current - 1));
+      });
+  }
+
+  function selectAnswer(characterId: string) {
+    if (!question || answerFeedback) return;
+    stopActiveSpeech();
+    setError("");
+    const locallyCorrect = characterId === question.targetId;
+    const optimisticSession = advanceQuestionLocally(session!, locallyCorrect);
+    setAnswerFeedback({
+      selectedId: characterId,
+      targetId: question.targetId,
+      correct: locallyCorrect,
+      nextSession: optimisticSession,
+    });
+    if (locallyCorrect && questionTarget) {
+      playSpeech(questionTarget.character, questionTarget.characterAudioUrl);
+    } else if (questionTarget) {
+      playSpeech(
+        resolvedSentence(questionTarget),
+        questionTarget.sentenceAudioUrl,
+      );
     }
+    saveAnswerInBackground(
+      session!.id,
+      session!.questionIndex,
+      characterId,
+      question.targetId,
+      locallyCorrect,
+    );
   }
 
   function continueQuestion() {
@@ -480,6 +580,11 @@ export function HanziLearningExperience({
     setBusy(true);
     setError("");
     try {
+      await answerSaveQueue.current;
+      if (answerSaveFailed.current) {
+        setError("有答题记录尚未保存，请重新完成未保存的题目");
+        return;
+      }
       const result = await finishHanziLearningSession(session!.id);
       onCompleted(result.reward);
     } catch (reason) {
@@ -761,7 +866,7 @@ export function HanziLearningExperience({
               return (
                 <button
                   className={`${answerFeedback?.selectedId === id ? "hanzi-listen-option--selected" : ""}${answerFeedback?.targetId === id ? " hanzi-listen-option--correct" : ""}`}
-                  disabled={Boolean(answerFeedback) || busy}
+                  disabled={Boolean(answerFeedback)}
                   key={id}
                   type="button"
                   onClick={() => void selectAnswer(id)}
@@ -774,7 +879,13 @@ export function HanziLearningExperience({
           ) : null}
         </section>
         {answerFeedback ? (
-          <button className="hanzi-listen-next" type="button" onClick={continueQuestion}>继续 <span>→</span></button>
+          <button
+            className="hanzi-listen-next"
+            type="button"
+            onClick={continueQuestion}
+          >
+            继续 <span>→</span>
+          </button>
         ) : null}
         {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
       </main>
@@ -823,7 +934,11 @@ export function HanziLearningExperience({
       <footer className="hanzi-result-footer">
         <p>这些汉字会在合适的时候再回来见你，见得越多，记得越牢。</p>
         <button disabled={busy} type="button" onClick={() => void finish()}>
-          {busy ? "正在完成…" : "完成任务"}
+          {busy
+            ? pendingAnswerSaves > 0
+              ? "正在保存答题记录…"
+              : "正在完成…"
+            : "完成任务"}
         </button>
       </footer>
     </main>
