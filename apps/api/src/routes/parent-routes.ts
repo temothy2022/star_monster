@@ -5,8 +5,9 @@ import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
+import { isScheduledForDate } from "../domain/task-rules.js";
 import { requireStaff } from "../services/auth-service.js";
-import { generateDailyTasks } from "../services/task-service.js";
+import { abandonTask, generateDailyTasks } from "../services/task-service.js";
 import {
   getPlanetSettings,
   PLANET_KEYS,
@@ -563,27 +564,34 @@ export async function registerParentRoutes(
         data: templateData(merged),
       });
       const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+      const remainsScheduledToday =
+        template.isEnabled && isScheduledForDate(template, today);
       await prisma.dailyTask.updateMany({
         where: {
           childId,
           templateId: id,
           taskDate: today,
-          status: "PENDING",
+          status: { in: ["PENDING", "EXPIRED"] },
         },
-        data: {
-          titleSnapshot: template.title,
-          categorySnapshot: template.category,
-          iconKeySnapshot: template.iconKey,
-          modeSnapshot: template.mode,
-          experienceKindSnapshot: template.experienceKind,
-          suggestedSecondsSnapshot: template.suggestedSeconds,
-          timeLimitSecondsSnapshot: template.timeLimitSeconds,
-          baseStarsSnapshot: template.baseStars,
-          earlyBonusEnabledSnapshot: template.earlyBonusEnabled,
-          earlyThresholdSecsSnapshot: template.earlyThresholdSeconds,
-          earlyBonusStarsSnapshot: template.earlyBonusStars,
-          repeatableDailySnapshot: template.repeatableDaily,
-        },
+        data: remainsScheduledToday
+          ? {
+              status: "PENDING",
+              expiredAt: null,
+              sortOrder: template.sortOrder,
+              titleSnapshot: template.title,
+              categorySnapshot: template.category,
+              iconKeySnapshot: template.iconKey,
+              modeSnapshot: template.mode,
+              experienceKindSnapshot: template.experienceKind,
+              suggestedSecondsSnapshot: template.suggestedSeconds,
+              timeLimitSecondsSnapshot: template.timeLimitSeconds,
+              baseStarsSnapshot: template.baseStars,
+              earlyBonusEnabledSnapshot: template.earlyBonusEnabled,
+              earlyThresholdSecsSnapshot: template.earlyThresholdSeconds,
+              earlyBonusStarsSnapshot: template.earlyBonusStars,
+              repeatableDailySnapshot: template.repeatableDaily,
+            }
+          : { status: "EXPIRED", expiredAt: new Date() },
       });
       return { template };
     },
@@ -594,12 +602,29 @@ export async function registerParentRoutes(
     async (request, reply) => {
       const { childId, id } = childResourceParams.parse(request.params);
       await requireOwnedChild(request, reply, config, childId);
+      const activeSlot = await prisma.activeTaskSlot.findUnique({
+        where: { childId },
+        include: { attempt: { include: { dailyTask: true } } },
+      });
+      if (activeSlot?.attempt.dailyTask.templateId === id) {
+        await abandonTask(childId, activeSlot.attempt.id);
+      }
       const result = await prisma.taskTemplate.updateMany({
         where: { id, childId, archivedAt: null },
         data: { archivedAt: new Date(), isEnabled: false },
       });
       if (!result.count)
         throw new HttpError(404, "TASK_TEMPLATE_NOT_FOUND", "没有找到任务模板");
+      const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+      await prisma.dailyTask.updateMany({
+        where: {
+          childId,
+          templateId: id,
+          taskDate: today,
+          status: { in: ["PENDING", "EXPIRED"] },
+        },
+        data: { status: "EXPIRED", expiredAt: new Date() },
+      });
       return { ok: true };
     },
   );

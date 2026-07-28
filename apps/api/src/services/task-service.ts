@@ -184,7 +184,7 @@ export async function getTodayTaskExperience(
   const [child, tasks, activeSlot, scoredDays, dailyGoalBonus] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({ where: { id: childId } }),
     prisma.dailyTask.findMany({
-      where: { childId, taskDate: today },
+      where: { childId, taskDate: today, status: { not: "EXPIRED" } },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: {
         attempts: {

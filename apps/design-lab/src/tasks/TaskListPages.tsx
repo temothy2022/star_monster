@@ -453,7 +453,9 @@ export function TaskExperience({
   );
 
   const tasks = useMemo(
-    () => experience?.tasks.map(taskItemFromApi) ?? [],
+    () => experience?.tasks
+      .filter((task) => task.status !== "EXPIRED")
+      .map(taskItemFromApi) ?? [],
     [experience],
   );
   const effectiveView: TaskView = tasks.length === 0
