@@ -116,6 +116,58 @@ export async function generateDailyTasks(
   });
 }
 
+/**
+ * DailyTask rows are snapshots, so changing or archiving a template does not
+ * automatically remove a snapshot that was generated earlier in the day.
+ * Reconcile pending snapshots whenever the child task list is prepared. This
+ * keeps the child view in sync while preserving completed/in-progress history.
+ */
+async function reconcileTodayTaskSnapshots(
+  childId: string,
+  today: Date,
+  now: Date,
+): Promise<void> {
+  const [dailyTasks, templates] = await Promise.all([
+    prisma.dailyTask.findMany({
+      where: { childId, taskDate: today, status: "PENDING" },
+      select: { id: true, templateId: true },
+    }),
+    prisma.taskTemplate.findMany({
+      where: { childId },
+      select: {
+        id: true,
+        isEnabled: true,
+        archivedAt: true,
+        scheduleKind: true,
+        weekdays: true,
+        oneTimeDate: true,
+      },
+    }),
+  ]);
+
+  if (dailyTasks.length === 0) return;
+
+  const templateById = new Map(templates.map((template) => [template.id, template]));
+  const staleIds = dailyTasks
+    .filter((dailyTask) => {
+      const template = templateById.get(dailyTask.templateId);
+      return (
+        !template ||
+        !template.isEnabled ||
+        template.archivedAt !== null ||
+        !isScheduledForDate(template, today)
+      );
+    })
+    .map((dailyTask) => dailyTask.id);
+
+  if (staleIds.length === 0) return;
+
+  await prisma.dailyTask.updateMany({
+    where: { id: { in: staleIds }, status: "PENDING" },
+    data: { status: "EXPIRED", expiredAt: now },
+  });
+}
+
 async function settleTimedOutAttempt(
   childId: string,
   now: Date,
@@ -165,6 +217,7 @@ export async function prepareDailyTasks(
   const today = businessDateAt(now, config.APP_TIME_ZONE);
   await settlePreviousDay(childId, today, now);
   await generateDailyTasks(childId, today);
+  await reconcileTodayTaskSnapshots(childId, today, now);
   const timedOutAttempt = await settleTimedOutAttempt(childId, now);
   return { timedOutAttemptId: timedOutAttempt?.id ?? null };
 }
