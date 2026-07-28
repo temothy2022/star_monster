@@ -1,6 +1,27 @@
 # AGENTS.md
 
-> 本文件整理自截至 2026-07-27 的项目代码、仓库文档和产品对话。后续用户的明确要求优先级最高；若本文件与更晚的明确需求冲突，以更晚需求为准。不确定的信息统一标记为 `[待确认]`。
+> 本文件整理自截至 2026-07-28 的项目代码、仓库文档和产品对话。后续用户的明确要求优先级最高；若本文件与更晚的明确需求冲突，以更晚需求为准。不确定的信息统一标记为 `[待确认]`。
+
+## 0. 新窗口接手清单
+
+新 Codex 接手后先执行，不要凭旧对话猜测工作区状态：
+
+```bash
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+pwd
+git status --short
+git log -5 --oneline
+```
+
+然后按任务类型处理：
+
+- 继续本地开发：先看第 9.3 节，启动 PostgreSQL 和 `pnpm dev:all`。
+- 修改数据库：先读 Prisma schema 和已有 migrations，再看第 9.4 节。
+- 发布普通代码：只走第 9.7 节的 `pnpm deploy:production`。
+- 发布汉字图片/音频：只走第 9.8 节的独立媒体流水线。
+- 调查线上故障：先验证 `/api/health`、线上 Git SHA 和 systemd 日志，不要直接改生产数据。
+- 需要查看真实页面效果时，必须等用户明确要求“测前端”或“看看页面效果”，再启动浏览器；
+  默认遵守文末自测规范。
 
 ## 1. 项目概述
 
@@ -61,7 +82,8 @@
 | API 健康检查 | `http://127.0.0.1:8787/api/health` |
 
 - 三个 Vite 服务均监听 `0.0.0.0`，用于局域网 iPad 访问。
-- 生产域名：`timi.duckpte.com`；当前 HTTPS 证书和自动续期状态 `[待确认]`。
+- 生产域名：`timi.duckpte.com`；HTTPS 已启用并由 Certbot 管理，自动续期状态
+  `[待确认]`。
 - 生产服务器公网 IP 曾为 `124.156.187.215`，SSH 用户为 `ubuntu`。
 - 生产项目目录：`/opt/star-monsters`。
 - API systemd 服务：`star-monsters-api.service`，监听 `127.0.0.1:8787`。
@@ -215,29 +237,39 @@
   9 RPM 后继续，禁止通过盲目提高并发绕过接口限额。
 - 例句音频使用内容指纹文件名，避免 iPad/Nginx 长缓存继续播放旧句子。
 
-### 2.2 开发中
-
-#### 汉字学习功能（当前工作区，未提交）
+### 2.2 当前交接状态（2026-07-28）
 
 - 当前分支：`main`。
-- Prisma schema、汉字迁移、孩子端 API/页面、家长端汉字管理仍是未提交改动。
-- 最近完成的 UI 修改：
-  - 听读音播放图标改为白色。
-  - 删除三个认识新字页面白框内重复步骤标题。
-  - 正确/错误反馈页压缩空白，低高度 iPad 横屏无需滚动才能看到“继续”。
-  - 返回改为上一步，新增统一三点放弃菜单。
-- 已通过孩子端构建，但整个汉字模块尚缺专项 API/数据库自动测试。
-- 尚未将最新汉字学习迁移和代码发布到生产。
-- 当前没有外部阻塞；卡点是补齐 API 自测、确认数据库迁移、提交并部署。
+- 汉字学习功能、数据库迁移、家长端字库管理和 698 个汉字资源均已发布到生产。
+- 698 个汉字的图片、汉字读音、词语读音和例句读音位于生产服务器
+  `/opt/star-monsters/hanzi-assets/v1`，并已通过
+  `apps/api/prisma/import-hanzi-assets.ts` 导入生产数据库。
+- 生产静态资源公网前缀为
+  `https://timi.duckpte.com/hanzi-assets/v1`。
+- 汉字会话会在进入任务概览后，以 3 个后台并发预加载当天所需图片和音频；
+  当前内容优先，音频使用受控 LRU 媒体缓存复用。
+- 听句选字的正确答案已随会话一次性下发，点击后由前端立即判断并展示反馈；
+  答题记录按题号顺序异步提交，最终完成任务前等待提交队列清空。
+- 任务模板归档、停用或改为当天不适用时，孩子端加载今日任务会对账并隐藏遗留的
+  `PENDING DailyTask` 快照。
+- 最近功能提交：
+  - `fe9ab72`：优化汉字资源预加载和听句答题响应。
+  - `5b7a5c8`：同步归档任务到孩子端。
+  - `629306a`：同步后台任务变更到孩子端。
+- 当前没有已知的发布阻塞；后续开发前先执行 `git status --short`，不要假设工作区一定干净。
 
 ### 2.3 已讨论但尚未开始或未最终确定
 
-- 汉字字库的大批量导入/上传流程尚未实现。
-- 汉字专属图片、汉字音频、词语音频、句子音频的正式生产方案尚未确定：
-  - 当前没有专属图片时使用默认图片。
-  - 当前没有音频 URL 时使用浏览器 `speechSynthesis` 中文语音兜底。
-  - `HanziCharacter` 目前有汉字音频和句子音频 URL，没有独立词语音频字段。
-  - 推荐使用 MiniMax 离线批量生成并上传到对象存储，孩子端只加载静态图片/音频，不在运行时调用第三方生成接口。
+- 汉字字库的 CSV/XLSX 管理后台批量上传界面尚未实现；当前全量导入使用 JSON manifest
+  和命令行导入器，个别汉字通过家长后台增删改查。
+- 汉字生产资源方案已经落地为“MiniMax 离线生成 → 本地压缩 → rsync 独立上传
+  → manifest 导入数据库”；孩子学习时不实时调用 MiniMax。
+- 当前没有专属图片时仍使用默认图片，没有音频 URL 时仍使用浏览器
+  `speechSynthesis` 中文语音兜底。
+- `HanziCharacter.wordAudioUrls` 已存在并已迁移，不能再按旧文档误判为没有词语音频字段。
+- 腾讯云 COS/CDN 尚未接入。当前媒体由轻量服务器 Nginx 直接提供，最多约 10 个用户时
+  先继续观察；大陆访问速度或带宽成为瓶颈后，优先迁移媒体到 COS，再决定是否增加 CDN。
+- 后续如果继续生成或修复汉字资源：
   - MiniMax 密钥使用环境变量 `MINIMAX_API_KEY`；不得写入 `AGENTS.md`、代码、日志或 Git。
   - 语音建议使用 HTTP 同步语音合成 `/v1/t2a_v2`，模型优先 `speech-2.8-turbo`，输出 `mp3`，适合汉字、词语、短句这种短文本。
   - 图片建议使用 `/v1/image_generation`，模型优先 `image-01`，`aspect_ratio: "1:1"`，`response_format: "base64"` 或 `"url"` 后立即下载归档。
@@ -253,8 +285,7 @@
 画面只表现一个清晰主体或一个简单场景，主体完整居中，四周都保留 18%-24% 空白安全边距，不要让主体接触或越过图片边缘；背景简洁；避免书本、卡片、告示牌、屏幕等天然容易出现文字的物体；所有物体表面必须干净无符号。
 负向约束：text, Chinese text, English text, letters, numbers, pinyin, subtitles, handwriting, calligraphy, typography, signboard, book page, worksheet, flashcard, UI, icon label, logo, watermark, stamp, seal, symbol, inscription, mark, glyph, distorted text, gibberish text, pseudo text.
 ```
-- 腾讯云 COS/CDN 尚未接入。当前最多约 10 个用户时不必因并发升级服务器；字库图片和音频明显增多后，建议优先把媒体放 COS，并视国内访问速度和流量决定是否加 CDN。最终方案 `[待确认]`。
-- 汉字学习的真实字库内容、图片版权、配音音色和资源命名规范 `[待确认]`。
+- 汉字图片版权、配音音色的长期生产规范和人工复核责任人 `[待确认]`。
 - iPadOS/Safari 最低支持版本、自动播放策略的产品降级文案 `[待确认]`。
 
 ## 3. 架构决策
@@ -320,6 +351,12 @@
 - 不能为未点亮星球另存灰图；使用 CSS filter。
 - Nginx 对带指纹的 JS/CSS/图片/字体设置一年缓存，HTML 和 API 不按同样策略缓存。
 - 不再加载大体积 Noto Sans SC 字体包，优先使用系统常用中文字体栈。
+- 汉字媒体不进入 Vite bundle；生产路径为 `/hanzi-assets/v1/...`，Nginx 设置 30 天
+  公共缓存。代码发布必须继续排除 `hanzi-assets/`、`outputs/` 和 `work/`。
+- 汉字会话启动后只预加载本次会话涉及的资源，不得一次性预加载 698 个汉字。
+  当前限制为 3 个后台请求并发和最多 180 个音频元素的 LRU 缓存。
+- 听句选字使用会话内已经下发的 `targetId` 本地即时判断；API 负责按顺序持久化答案，
+  不能重新改回“等待服务器返回后才显示对错”。
 
 ## 4. API 约定
 
@@ -589,9 +626,10 @@ pnpm deploy:production
 
 ## 8. 下一步计划
 
-### P0：完成当前汉字学习交付
+### P0：继续真实 iPad 使用验证
 
-1. 为汉字学习补充服务层/API 测试：
+1. 在真实孩子任务中继续观察汉字媒体预加载、自动播放和异步答题保存。
+2. 为汉字学习补充服务层/API 自动测试：
    - 空字库。
    - 少于 3 个字。
    - 同时启动同一 attempt。
@@ -599,67 +637,338 @@ pnpm deploy:production
    - 越序提交。
    - 任务被另一浏览器完成/放弃。
    - 完整流程完成后任务只发奖一次。
-2. 应用并读回 `20260727120000_hanzi_learning` 迁移，确认表、唯一键和种子字库。
-3. 全仓执行类型检查、API 测试和构建。
-4. 提交当前未提交改动。
-5. 使用 `pnpm deploy:production` 发布，并用 API 健康检查和数据库读回验证。
+3. 任何新问题先复现并区分：API 延迟、静态资源下载、Safari 自动播放限制或前端渲染。
 
-### P1：完善汉字资源
+### P1：完善汉字内容与批量管理
 
-1. 确定正式媒体方案 `[待确认]`：
-   - 已讨论的候选方案是离线批量生成并人工复核汉字图片和普通话音频。
-   - 已讨论可上传腾讯云 COS，数据库只存 URL/资源键。
-   - 是否完全禁止孩子学习时在线实时生成音频或图片 `[待确认]`。
-2. 决定是否新增词语音频字段；当前词语只使用浏览器 TTS。
-3. 制定图片尺寸、WebP、音频格式、采样率、音量和命名规范。
-4. 对每个字的例句、词组、图片和读音做人工审核，避免错误资源直接进入孩子端。
-
-### P1：字库批量导入
-
-1. 实现 CSV/XLSX/JSON 模板下载与批量上传。
-2. 上传时提供逐行校验、重复字检测、预览、失败原因和部分/全量提交策略。
-3. 导入完成后数据库读回核对数量、排序和资源 URL。
+1. 持续人工抽检 698 个汉字的例句、词语、读音和图片语义。
+2. 实现 CSV/XLSX/JSON 模板下载与后台批量上传。
+3. 上传时提供逐行校验、重复字检测、预览、失败原因和部分/全量提交策略。
+4. 导入完成后数据库读回核对数量、排序和资源 URL。
 
 ### P2：性能与基础设施
 
-1. 统计生产首屏 JS、CSS、图片和音频的真实体积与请求耗时。
+1. 统计生产汉字会话首次进入与缓存命中后的图片、音频真实请求耗时。
 2. 字库资源增长后接入 COS；是否开启 CDN 根据大陆 iPad 实测结果决定 `[待确认]`。
 3. 当前用户规模不优先升级计算服务器；优先做资源拆分、缓存和媒体外置。
 4. 更新 `docs/product-rules-v1.md`，同步三种星愿、无限领取任务、航图和汉字学习，消除旧规则冲突。
 
-## 9. 常用命令
+## 9. 环境与部署交接手册
+
+### 9.1 重要路径与运行关系
+
+- 本地仓库绝对路径：
+  `/Users/qing/Documents/Codex/2026-07-22/ni`
+- 本地使用 Node.js 22.x、Corepack/pnpm 11.9.0、Docker Desktop。
+- 本地 PostgreSQL 由根目录 `docker-compose.yml` 启动；当前这台 Mac 在根目录
+  `.env` 中设置 `POSTGRES_PORT=5433`，因此 `apps/api/.env` 的 `DATABASE_URL`
+  也连接 `127.0.0.1:5433`。仓库默认端口仍是 5432。
+- `pnpm dev:all` 同时启动四个长期运行进程：
+  - API：`0.0.0.0:8787`
+  - 孩子端：`0.0.0.0:5175`
+  - 家长端：`0.0.0.0:5176`
+  - 超级后台：`0.0.0.0:5177`
+- 三个 Vite 前端把相对请求 `/api/...` 代理到本机 `127.0.0.1:8787`。
+- 生产代码目录：`/opt/star-monsters`。
+- 生产媒体目录：`/opt/star-monsters/hanzi-assets/v1`。
+- 生产 API：systemd 服务 `star-monsters-api.service`，监听
+  `127.0.0.1:8787`，由 Nginx 代理。
+- 生产域名：`https://timi.duckpte.com`。
+- 生产孩子端：`https://timi.duckpte.com/`
+- 生产家长管理平台：`https://timi.duckpte.com/parent/`
+- 生产超级后台：`https://timi.duckpte.com/super/`
+- 生产 API 健康检查：`https://timi.duckpte.com/api/health`
+- 代码发布和汉字媒体发布是两条独立流水线，不能混为一条。
+
+### 9.2 新 Mac/首次本地启动
+
+先确认 Docker Desktop 已启动，然后在终端执行：
 
 ```bash
-# 首次本地启动
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+
+corepack enable
+corepack prepare pnpm@11.9.0 --activate
 pnpm install
-docker compose up -d
+
+docker compose up -d postgres
 pnpm db:deploy
 pnpm db:seed
 pnpm dev:all
+```
 
-# 日常启动
-docker compose up -d
+环境文件规则：
+
+- 根目录 `.env` 只控制 Docker 暴露的 PostgreSQL 端口，可从 `.env.example` 创建。
+- `apps/api/.env` 控制 API、数据库连接、Cookie、登录代码 pepper、AI 加密密钥、
+  CORS 来源和本地种子账号，可从 `apps/api/.env.example` 创建。
+- 如果环境文件已经存在，不要用示例文件覆盖；其中的 pepper、加密密钥和本地账号
+  可能已被当前数据库使用。
+- 不要把任何 `.env`、`.deploy.env`、DeepSeek/MiniMax Key 或密码提交到 Git。
+- `pnpm db:seed` 只在确实需要初始化/补种本地数据时运行；孩子完整探险代码只会在
+  seed 终端输出中完整显示。
+
+### 9.3 日常本地开发与局域网 iPad
+
+每次重新开发通常只需要：
+
+```bash
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+docker compose up -d postgres
 pnpm dev:all
+```
 
-# 质量检查
+这个终端必须保持运行。启动后先验证：
+
+```bash
+docker compose ps
+curl -sS http://127.0.0.1:8787/api/health
+```
+
+正常健康检查返回：
+
+```json
+{"ok":true,"database":"ready"}
+```
+
+本机访问地址：
+
+- 页面清单：`http://127.0.0.1:5175/#pages`
+- 孩子登录：`http://127.0.0.1:5175/#login`
+- 家长管理平台：`http://127.0.0.1:5176`
+- 超级后台：`http://127.0.0.1:5177`
+
+局域网访问：
+
+1. Mac 与 iPad 必须在同一个局域网。
+2. 查看 Mac 当前局域网 IP：`ipconfig getifaddr en0`；如果为空，再检查实际使用的
+   以太网/Wi-Fi 网卡。
+3. 把 `127.0.0.1` 换成这个 IP。例如当前曾使用
+   `http://192.168.0.217:5175/#login`。
+4. 局域网 IP 变化后，同步修改 `apps/api/.env` 中三个 `*_APP_ORIGIN`，再重启
+   `pnpm dev:all`。
+
+停止本地开发：
+
+- 在运行 `pnpm dev:all` 的终端按 `Control-C`。
+- 如需停止数据库，执行 `docker compose stop postgres`。
+- 不要随手执行 `docker compose down -v`；`-v` 会删除本地 PostgreSQL 数据卷。
+
+### 9.4 本地数据库操作
+
+```bash
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+
+# schema 修改后生成 Prisma Client
+pnpm db:generate
+
+# 开发新迁移（只有修改 schema 并准备创建 migration 时使用）
+pnpm db:migrate
+
+# 应用仓库已有迁移（首次启动、拉取新代码后使用）
+pnpm db:deploy
+
+# 初始化/补充本地种子数据
+pnpm db:seed
+```
+
+数据库读回示例：
+
+```bash
+docker compose exec -T postgres \
+  psql -U star_monsters -d star_monsters -c \
+  'SELECT COUNT(*) FROM "HanziCharacter";'
+```
+
+### 9.5 代码质量检查
+
+常规代码提交前执行：
+
+```bash
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+
+pnpm typecheck
+pnpm test
+pnpm build
+git diff --check
+```
+
+只改某一端时可以先做更快的专项检查：
+
+```bash
+pnpm --filter @star-monsters/api typecheck
+pnpm --filter @star-monsters/design-lab typecheck
+pnpm --filter @star-monsters/parent-admin typecheck
+pnpm --filter @star-monsters/super-admin typecheck
+```
+
+### 9.6 生产发布前置配置（通常不需要重复）
+
+本机私有配置文件 `.deploy.env` 必须存在且被 Git 忽略。当前生产连接参数为：
+
+```dotenv
+DEPLOY_HOST=124.156.187.215
+DEPLOY_USER=ubuntu
+DEPLOY_PORT=22
+DEPLOY_IDENTITY_FILE=/Users/qing/.ssh/star_monsters_deploy
+DEPLOY_PATH=/opt/star-monsters
+```
+
+它不包含密码或私钥内容。SSH 私钥本体只保存在
+`/Users/qing/.ssh/star_monsters_deploy`，不得加入仓库。
+
+发布前验证 SSH：
+
+```bash
+ssh -o BatchMode=yes -o IdentitiesOnly=yes \
+  -i /Users/qing/.ssh/star_monsters_deploy \
+  ubuntu@124.156.187.215 'echo SSH_READY'
+```
+
+如果出现 `Connection closed`，先关闭或绕过本机代理再试；如果出现
+`Permission denied (publickey)`，检查使用的用户名、私钥路径和服务器
+`authorized_keys`，不要直接修改服务器 SSH 安全配置。
+
+服务器一次性配置位于：
+
+- `/etc/star-monsters/deploy.env`：三个 Nginx 静态目录和 API systemd 服务名。
+- `/opt/star-monsters/apps/api/.env`：生产数据库和服务秘密。
+- `/etc/nginx/sites-enabled/star-monsters`：域名、HTTPS、三端静态站点、API 代理和
+  `/hanzi-assets/` 静态媒体。
+
+这些文件不会被本地代码发布覆盖。
+
+### 9.7 日常发布代码到生产
+
+发布脚本拒绝未提交的工作区，这是为了保证本地、Git 和线上版本一致。标准流程：
+
+```bash
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+
+git status --short
 pnpm typecheck
 pnpm test
 pnpm build
 
-# 数据库
-pnpm db:generate
-pnpm db:migrate
-pnpm db:deploy
-pnpm db:seed
-
-# 资源
-pnpm assets:audit
-pnpm assets:webp
-pnpm --filter @star-monsters/design-lab assets:optimize
-
-# 生产发布
+git add -A
+git commit -m "描述本次修改"
 pnpm deploy:production
 ```
+
+`pnpm deploy:production` 会自动完成：
+
+1. 在本机构建孩子端、家长端、超级后台。
+2. 检查 SSH。
+3. rsync 代码与构建产物到 `/opt/star-monsters`。
+4. 保留生产 `.env`、数据库、`work/`、`outputs/` 和独立
+   `hanzi-assets/` 媒体目录。
+5. 服务器执行 `prisma generate`、`prisma migrate deploy`、API 构建。
+6. 重启并检查 `star-monsters-api.service`。
+7. 把发布 Git SHA 写入 `/opt/star-monsters/.release-version`。
+
+不要为了省一步而设置 `DEPLOY_ALLOW_DIRTY=true`；正常发布先提交代码。
+
+发布后验证：
+
+```bash
+curl -sS https://timi.duckpte.com/api/health
+
+ssh -i /Users/qing/.ssh/star_monsters_deploy \
+  ubuntu@124.156.187.215 \
+  'cat /opt/star-monsters/.release-version; systemctl is-active star-monsters-api.service'
+```
+
+预期分别看到数据库 `ready`、一个 Git SHA 和 `active`。
+
+生产故障排查：
+
+```bash
+ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@124.156.187.215
+
+sudo systemctl status star-monsters-api.service --no-pager
+sudo journalctl -u star-monsters-api.service -n 100 --no-pager
+sudo nginx -t
+```
+
+### 9.8 汉字图片/音频的独立生产发布
+
+当前 698 个汉字已经完成，不改媒体时不要重复执行本节。完整说明见
+`docs/hanzi-assets-pipeline.md`。
+
+本地资源目录：
+
+- 内容源：`work/hanzi-assets-input.json`
+- 人工审核文本：`work/hanzi-content-reviewed.tsv`
+- 生成结果与 manifest：`outputs/hanzi-assets/`
+
+生成完成后先检查并压缩图片：
+
+```bash
+cd "/Users/qing/Documents/Codex/2026-07-22/ni"
+
+pnpm hanzi:compress-images:check -- --input outputs/hanzi-assets
+pnpm hanzi:compress-images -- --input outputs/hanzi-assets --dry-run
+pnpm hanzi:compress-images -- --input outputs/hanzi-assets
+```
+
+确认 `outputs/hanzi-assets/manifest.json` 是完整全量文件后上传：
+
+```bash
+pnpm hanzi:deploy-assets
+```
+
+重要：`hanzi:deploy-assets` 使用 `rsync --delete`。如果本地
+`outputs/hanzi-assets/` 是残缺的小批次，上传会删除生产服务器上不在本地目录中的
+其他汉字资源；运行前必须确认本地目录是预期的完整集合。
+
+上传目标：
+
+```text
+/opt/star-monsters/hanzi-assets/v1
+```
+
+资源上传后，把 manifest 导入生产数据库：
+
+```bash
+ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@124.156.187.215 \
+  'cd /opt/star-monsters && corepack pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts \
+  --manifest /opt/star-monsters/hanzi-assets/v1/manifest.json \
+  --public-base-url https://timi.duckpte.com/hanzi-assets/v1'
+```
+
+成功结果应包含 `"entries": 698` 和 `"importedCount": 698`（全量不变时）。
+
+本地数据库需要同步同一 manifest 时：
+
+```bash
+pnpm hanzi:import -- \
+  --manifest outputs/hanzi-assets/manifest.json \
+  --public-base-url https://timi.duckpte.com/hanzi-assets/v1
+```
+
+代码发布 `pnpm deploy:production` 不会上传、覆盖或删除汉字媒体；媒体上传
+`pnpm hanzi:deploy-assets` 也不会发布 React/API 代码。
+
+### 9.9 高频错误速查
+
+- `No package.json found in /Users/qing`：没有进入仓库，先执行本节中的 `cd`。
+- `tsc: command not found` / `vite: command not found`：在仓库根目录执行
+  `pnpm install --frozen-lockfile`，再重新构建。
+- `Refusing to publish uncommitted changes`：执行 `git status --short`，确认改动后
+  `git add`、`git commit`，再发布。
+- `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`：服务器发布必须使用当前
+  `scripts/server/apply-release.sh`，其中已经设置 `CI=true`；确认线上脚本不是旧版。
+- SSH `Connection closed`：先关闭本机代理。
+- SSH `Permission denied (publickey)`：明确指定
+  `/Users/qing/.ssh/star_monsters_deploy`，并确认登录用户为 `ubuntu`。
+- 本地 API 500：先看运行 `pnpm dev:all` 的 API 终端，再检查
+  `docker compose ps` 和 `curl http://127.0.0.1:8787/api/health`。
+- Prisma `P2022` 缺列：先执行 `pnpm db:deploy`，再重启 API。
+- 生产 API 失败：查看 `journalctl -u star-monsters-api.service`，不要只根据前端
+  “服务器暂时无法处理请求”猜测。
+- 汉字资源 404：检查服务器
+  `/opt/star-monsters/hanzi-assets/v1/manifest.json`、Nginx
+  `/hanzi-assets/` alias 和数据库 URL 前缀。
 
 ## 自测规范
 
