@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import startBackground from "../assets/timed-task/start-bg.jpeg";
-import fireIcon from "../assets/timed-task/start-icon-3.svg";
 import bonusStarIcon from "../assets/timed-task/start-icon-4.svg";
 import startCloseIcon from "../assets/timed-task/start-icon-5.svg";
 import startArrowIcon from "../assets/timed-task/start-icon-2.svg";
@@ -128,6 +127,9 @@ export function TimedTaskActive({
       ? 1
       : Math.max(1, initialRemainingSeconds - earlyThresholdSeconds);
   const bonusPercent = Math.round((bonusRemaining / bonusTotal) * 100);
+  const timerPercent = Math.round(
+    (Math.max(0, remaining) / Math.max(1, initialRemainingSeconds)) * 100,
+  );
 
   return (
     <main
@@ -145,52 +147,56 @@ export function TimedTaskActive({
       </button>
 
       <section className="timed-active-card" aria-labelledby="timed-active-title">
-        <div className="timed-task-title-pill">
-          <img src={fireIcon} alt="" />
-          <h1 id="timed-active-title">{title}</h1>
-        </div>
-
-        <div className="timed-countdown">
-          <p>剩余时间</p>
-          <strong>{formatCountdown(remaining)}</strong>
-        </div>
-
-        <section className="timed-bonus-card" aria-label="加奖时间">
-          <h2>
-            <img src={bonusStarIcon} alt="" />
-            <span>加奖时间</span>
-          </h2>
-          <strong>还剩 {formatCountdown(bonusRemaining)}</strong>
-          <div
-            className="timed-bonus-progress"
-            role="progressbar"
-            aria-label="加奖时间进度"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={bonusPercent}
-          >
-            <span style={{ width: `${bonusPercent}%` }} />
+        <div className="timed-active-content">
+          <div className="timed-task-title-pill">
+            <h1 id="timed-active-title">{title}</h1>
           </div>
-          <p>在加奖时间内完成可获额外星愿！</p>
-        </section>
 
-        <button
-          className="timed-primary-button timed-primary-button--dark"
-          type="button"
-          disabled={completing}
-          aria-busy={completing}
-          onClick={
-            paused
-              ? onResume
-              : () => {
-                  prepareCompletionSound();
-                  onComplete();
-                }
-          }
-        >
-          <span>{paused ? "继续任务" : "我做完啦"}</span>
-          <img src={startArrowIcon} alt="" />
-        </button>
+          <div
+            className="timed-countdown"
+            style={{ "--timer-progress": `${timerPercent}%` } as CSSProperties}
+          >
+            <div className="timed-countdown__content">
+              <p>剩余时间</p>
+              <strong>{formatCountdown(remaining)}</strong>
+            </div>
+          </div>
+
+          <section className="timed-bonus-card" aria-label="加奖时间">
+            <h2>
+              <img src={bonusStarIcon} alt="" />
+              <span>加奖时间</span>
+            </h2>
+            <div
+              className="timed-bonus-progress"
+              role="progressbar"
+              aria-label="加奖时间进度"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={bonusPercent}
+            >
+              <span style={{ width: `${bonusPercent}%` }} />
+            </div>
+          </section>
+
+          <button
+            className="timed-primary-button timed-primary-button--dark"
+            type="button"
+            disabled={completing}
+            aria-busy={completing}
+            onClick={
+              paused
+                ? onResume
+                : () => {
+                    prepareCompletionSound();
+                    onComplete();
+                  }
+            }
+          >
+            <span>{paused ? "继续任务" : "继续答题"}</span>
+            <img src={startArrowIcon} alt="" />
+          </button>
+        </div>
       </section>
       {overlay === "menu" && (
         <MoreMenu
