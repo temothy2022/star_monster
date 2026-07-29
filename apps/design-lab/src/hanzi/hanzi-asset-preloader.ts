@@ -63,11 +63,10 @@ async function preloadAudio(url: string, signal: AbortSignal) {
   });
 }
 
-function characterAssetUrls(character: HanziCharacter): string[] {
+function characterAudioUrls(character: HanziCharacter): string[] {
   return [
     character.characterAudioUrl,
     character.sentenceAudioUrl,
-    character.imageKey === "default-hanzi" ? null : character.imageKey,
     ...character.wordAudioUrls,
   ].filter(
     (url): url is string =>
@@ -97,7 +96,8 @@ export function collectHanziSessionAssetUrls(
 
   const seenCharacterIds = new Set<string>();
   const seenUrls = new Set<string>();
-  const urls: string[] = [];
+  const imageUrls: string[] = [];
+  const audioUrls: string[] = [];
 
   for (const characterId of orderedCharacterIds) {
     if (seenCharacterIds.has(characterId)) continue;
@@ -105,14 +105,21 @@ export function collectHanziSessionAssetUrls(
     const character = characterById.get(characterId);
     if (!character) continue;
 
-    for (const url of characterAssetUrls(character)) {
+    const imageUrl =
+      character.imageKey === "default-hanzi" ? null : character.imageKey;
+    if (imageUrl && !seenUrls.has(imageUrl)) {
+      seenUrls.add(imageUrl);
+      imageUrls.push(imageUrl);
+    }
+
+    for (const url of characterAudioUrls(character)) {
       if (seenUrls.has(url)) continue;
       seenUrls.add(url);
-      urls.push(url);
+      audioUrls.push(url);
     }
   }
 
-  return urls;
+  return [...imageUrls, ...audioUrls];
 }
 
 export async function preloadHanziSessionAssets(

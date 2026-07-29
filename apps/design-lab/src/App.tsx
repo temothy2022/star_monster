@@ -379,7 +379,7 @@ export function App() {
     reportActionError(reason);
   }
 
-  function leavePoemAttempt() {
+  function leaveLearningAttempt() {
     const attemptId = activeAttempt?.id;
     if (!attemptId) {
       navigate("tasks-partial");
@@ -545,18 +545,7 @@ export function App() {
     return (
       <HanziLearningExperience
         attemptId={activeAttempt!.id}
-        onExit={() => {
-          if (!activeAttempt) {
-            navigate("tasks-partial");
-            return;
-          }
-          void abandonAttempt(activeAttempt.id)
-            .then(() => {
-              setActiveAttempt(null);
-              navigate("tasks-partial");
-            })
-            .catch(handleAttemptActionError);
-        }}
+        onExit={leaveLearningAttempt}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,
@@ -573,7 +562,7 @@ export function App() {
     return (
       <PoemLearningExperience
         attemptId={activeAttempt!.id}
-        onExit={leavePoemAttempt}
+        onExit={leaveLearningAttempt}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,

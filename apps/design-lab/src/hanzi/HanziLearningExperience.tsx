@@ -195,6 +195,20 @@ function advanceQuestionLocally(
   };
 }
 
+function advanceNewCharacterLocally(
+  session: HanziLearningSession,
+): HanziLearningSession {
+  const nextIndex = session.newIndex + 1;
+  return {
+    ...session,
+    newIndex: nextIndex,
+    phase:
+      nextIndex >= session.newCharacterIds.length
+        ? "CONSOLIDATION"
+        : "NEW_LEARNING",
+  };
+}
+
 export function HanziLearningExperience({
   attemptId,
   onExit,
@@ -217,9 +231,14 @@ export function HanziLearningExperience({
   const assetPreloadAbort = useRef<AbortController | null>(null);
   const assetPreloadTimer = useRef<number | null>(null);
   const preloadedSessionId = useRef<string | null>(null);
+  const requestAbort = useRef(new AbortController());
+  const learnSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const learnSaveGeneration = useRef(0);
+  const learnSaveFailed = useRef(false);
   const answerSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const answerSaveGeneration = useRef(0);
   const answerSaveFailed = useRef(false);
+  const [pendingLearnSaves, setPendingLearnSaves] = useState(0);
   const [pendingAnswerSaves, setPendingAnswerSaves] = useState(0);
   const [answerFeedback, setAnswerFeedback] = useState<{
     selectedId: string;
@@ -265,13 +284,17 @@ export function HanziLearningExperience({
         window.clearTimeout(assetPreloadTimer.current);
       }
       assetPreloadAbort.current?.abort();
+      requestAbort.current.abort();
     };
   }, [stopActiveSpeech]);
 
   useEffect(() => {
+    const requestController = new AbortController();
+    requestAbort.current.abort();
+    requestAbort.current = requestController;
     let cancelled = false;
     setError("");
-    void startHanziLearningSession(attemptId)
+    void startHanziLearningSession(attemptId, requestController.signal)
       .then(({ session: loaded }) => {
         if (cancelled) return;
         setSession(loaded);
@@ -293,9 +316,17 @@ export function HanziLearningExperience({
       });
     return () => {
       cancelled = true;
+      requestController.abort();
       stopActiveSpeech();
     };
   }, [attemptId, stopActiveSpeech]);
+
+  const abandonLearning = useCallback(() => {
+    requestAbort.current.abort();
+    assetPreloadAbort.current?.abort();
+    stopActiveSpeech();
+    onExit();
+  }, [onExit, stopActiveSpeech]);
 
   const characterById = useMemo(
     () => new Map(session?.characters.map((character) => [character.id, character]) ?? []),
@@ -397,6 +428,7 @@ export function HanziLearningExperience({
         session!.id,
         reviewCharacter.id,
         known,
+        requestAbort.current.signal,
       );
       if (known) {
         setKnownToast(true);
@@ -424,7 +456,61 @@ export function HanziLearningExperience({
     setFlipped(false);
   }
 
-  async function nextNewStep() {
+  function saveNewCharacterInBackground(
+    sessionId: string,
+    characterId: string,
+    expectedNewIndex: number,
+  ) {
+    const generation = learnSaveGeneration.current;
+    setPendingLearnSaves((current) => current + 1);
+    learnSaveQueue.current = learnSaveQueue.current
+      .then(async () => {
+        if (generation !== learnSaveGeneration.current) return;
+        const result = await completeHanziNewCharacter(
+          sessionId,
+          characterId,
+          requestAbort.current.signal,
+        );
+        if (result.session.newIndex < expectedNewIndex) {
+          throw new Error("服务器没有保存最新的新字进度");
+        }
+      })
+      .catch(async (reason: unknown) => {
+        if (
+          generation !== learnSaveGeneration.current ||
+          requestAbort.current.signal.aborted
+        ) {
+          return;
+        }
+        learnSaveGeneration.current += 1;
+        answerSaveGeneration.current += 1;
+        learnSaveFailed.current = true;
+        stopActiveSpeech();
+        setAnswerFeedback(null);
+        setError(
+          reason instanceof Error
+            ? `新字进度保存失败：${reason.message}`
+            : "新字进度暂时无法保存",
+        );
+        try {
+          const { session: latestSession } =
+            await startHanziLearningSession(
+              attemptId,
+              requestAbort.current.signal,
+            );
+          setSession(latestSession);
+          setNewStep(0);
+          learnSaveFailed.current = false;
+        } catch {
+          // Keep the visible error and let the child retry or leave the task.
+        }
+      })
+      .finally(() => {
+        setPendingLearnSaves((current) => Math.max(0, current - 1));
+      });
+  }
+
+  function nextNewStep() {
     if (!newCharacter || busy) return;
     if (newStep < 2) {
       const nextStep = newStep + 1;
@@ -442,17 +528,15 @@ export function HanziLearningExperience({
       return;
     }
     stopActiveSpeech();
-    setBusy(true);
     setError("");
-    try {
-      const result = await completeHanziNewCharacter(session!.id, newCharacter.id);
-      setSession(result.session);
-      setNewStep(0);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "新字进度暂时无法保存");
-    } finally {
-      setBusy(false);
-    }
+    const optimisticSession = advanceNewCharacterLocally(session!);
+    setSession(optimisticSession);
+    setNewStep(0);
+    saveNewCharacterInBackground(
+      session!.id,
+      newCharacter.id,
+      optimisticSession.newIndex,
+    );
   }
 
   function saveAnswerInBackground(
@@ -467,10 +551,15 @@ export function HanziLearningExperience({
     answerSaveQueue.current = answerSaveQueue.current
       .then(async () => {
         if (generation !== answerSaveGeneration.current) return;
+        await learnSaveQueue.current;
+        if (learnSaveFailed.current) {
+          throw new Error("新字进度尚未保存");
+        }
         const result = await answerHanziQuestion(
           sessionId,
           questionIndex,
           selectedCharacterId,
+          requestAbort.current.signal,
         );
         if (
           result.targetCharacterId !== expectedTargetId ||
@@ -492,7 +581,10 @@ export function HanziLearningExperience({
         );
         try {
           const { session: latestSession } =
-            await startHanziLearningSession(attemptId);
+            await startHanziLearningSession(
+              attemptId,
+              requestAbort.current.signal,
+            );
           setSession(latestSession);
           answerSaveFailed.current = false;
         } catch {
@@ -586,12 +678,16 @@ export function HanziLearningExperience({
     setBusy(true);
     setError("");
     try {
+      await learnSaveQueue.current;
       await answerSaveQueue.current;
-      if (answerSaveFailed.current) {
-        setError("有答题记录尚未保存，请重新完成未保存的题目");
+      if (learnSaveFailed.current || answerSaveFailed.current) {
+        setError("有学习记录尚未保存，请重新完成未保存的内容");
         return;
       }
-      const result = await finishHanziLearningSession(session!.id);
+      const result = await finishHanziLearningSession(
+        session!.id,
+        requestAbort.current.signal,
+      );
       onCompleted(result.reward);
     } catch (reason) {
       if (
@@ -638,7 +734,7 @@ export function HanziLearningExperience({
           <h1>汉字学习</h1>
           <div className="hanzi-time-chip"><span aria-hidden="true">◷</span>约 7 分钟</div>
         </header>
-        <HanziTaskControls onAbandon={onExit} />
+        <HanziTaskControls onAbandon={abandonLearning} />
         <section className="hanzi-stage-list" aria-label="今日汉字学习流程">
           {stages.map((stage, index) => (
             <article className={`hanzi-stage-card hanzi-stage-card--${stage.tone}`} key={stage.title}>
@@ -668,7 +764,7 @@ export function HanziLearningExperience({
           total={session.reviewCharacterIds.length}
           onBack={goBackOneStep}
         />
-        <HanziTaskControls onAbandon={onExit} />
+        <HanziTaskControls onAbandon={abandonLearning} />
         <section className="hanzi-coach-card">
           <span className="hanzi-coach-card__spark" aria-hidden="true">✦</span>
           <h1>没关系，我们再认识一次！</h1>
@@ -697,7 +793,7 @@ export function HanziLearningExperience({
           total={session.reviewCharacterIds.length}
           onBack={goBackOneStep}
         />
-        <HanziTaskControls onAbandon={onExit} />
+        <HanziTaskControls onAbandon={abandonLearning} />
         <section className="hanzi-review-canvas">
           <button
             className={`hanzi-review-card${flipped ? " hanzi-review-card--flipped" : ""}`}
@@ -719,6 +815,8 @@ export function HanziLearningExperience({
                 className="hanzi-runtime-default-image"
                 src={characterImageSource(reviewCharacter)}
                 alt={`${reviewCharacter.character}字形联想图`}
+                decoding="async"
+                fetchPriority="high"
               />
               <div className="hanzi-card-back__bottom">
                 <strong>{reviewCharacter.meaning}</strong>
@@ -760,7 +858,7 @@ export function HanziLearningExperience({
           </div>
           <div className="hanzi-new-word-progress"><span style={{ width: `${overallProgress}%` }} /></div>
         </header>
-        <HanziTaskControls onAbandon={onExit} />
+        <HanziTaskControls onAbandon={abandonLearning} />
         <div className="hanzi-step-indicators" aria-label="认识新字步骤">
           {["看字形", "听读音", "想意思"].map((label, index) => (
             <div className={`hanzi-step-pill${index === newStep ? " hanzi-step-pill--active" : ""}${index < newStep ? " hanzi-step-pill--done" : ""}`} key={label}>
@@ -773,7 +871,12 @@ export function HanziLearningExperience({
             <div className="hanzi-shape-card__content">
               <CharacterBox character={newCharacter.character} />
               <div className="hanzi-shape-image-only">
-                <img src={characterImageSource(newCharacter)} alt={`${newCharacter.character}字形联想图`} />
+                <img
+                  src={characterImageSource(newCharacter)}
+                  alt={`${newCharacter.character}字形联想图`}
+                  decoding="async"
+                  fetchPriority="high"
+                />
               </div>
             </div>
           </section>
@@ -797,7 +900,12 @@ export function HanziLearningExperience({
           <section className="hanzi-meaning-canvas hanzi-runtime-new-card">
             <div className="hanzi-meaning-core">
               <div className="hanzi-meaning-figure">
-                <img src={characterImageSource(newCharacter)} alt={`${newCharacter.character}含义图`} />
+                <img
+                  src={characterImageSource(newCharacter)}
+                  alt={`${newCharacter.character}含义图`}
+                  decoding="async"
+                  fetchPriority="high"
+                />
               </div>
               <div className="hanzi-meaning-panel">
                 <div className="hanzi-meaning-panel__character"><strong>{newCharacter.character}</strong><span>{newCharacter.meaning}</span></div>
@@ -842,7 +950,7 @@ export function HanziLearningExperience({
     return (
       <main className={`hanzi-page ${answerFeedback && !answerFeedback.correct ? "hanzi-page--listen-wrong" : "hanzi-page--listen-challenge"}${answerFeedback?.correct ? " hanzi-page--listen-correct" : ""}`}>
         <BackButton onClick={goBackOneStep} />
-        <HanziTaskControls onAbandon={onExit} />
+        <HanziTaskControls onAbandon={abandonLearning} />
         {answerFeedback?.correct ? (
           <div className="hanzi-feedback-toast hanzi-feedback-toast--listen" role="status"><span>✓</span>真棒！回答正确！</div>
         ) : null}
@@ -906,7 +1014,7 @@ export function HanziLearningExperience({
 
   return (
     <main className="hanzi-page hanzi-page--result">
-      <HanziTaskControls onAbandon={onExit} />
+      <HanziTaskControls onAbandon={abandonLearning} />
       <header className="hanzi-result-header">
         <div className="hanzi-result-medal" aria-hidden="true">✓</div>
         <div><h1>今天的汉字学习完成啦！</h1><p>今天认识了好多汉字朋友！</p></div>
@@ -947,7 +1055,7 @@ export function HanziLearningExperience({
           onClick={() => void finish()}
         >
           {busy
-            ? pendingAnswerSaves > 0
+            ? pendingLearnSaves > 0 || pendingAnswerSaves > 0
               ? <LoadingDots label="正在保存" />
               : <LoadingDots label="正在完成" />
             : "完成任务"}

@@ -312,6 +312,9 @@ const PERFORMANCE_OPERATION_LABELS: Record<string, string> = {
   abandon_task: "放弃任务",
   start_hanzi_session: "打开汉字学习",
   start_poem_session: "打开古诗学习",
+  save_hanzi_review: "保存汉字复习",
+  save_hanzi_character: "保存新字进度",
+  save_hanzi_answer: "保存听句答案",
 };
 
 const PERFORMANCE_DIAGNOSIS: Record<

@@ -271,12 +271,16 @@ export type HanziLearningSession = {
   };
 };
 
-export async function startHanziLearningSession(attemptId: string) {
+export async function startHanziLearningSession(
+  attemptId: string,
+  signal?: AbortSignal,
+) {
   return request<{ session: HanziLearningSession }>(
     "/api/child/hanzi/sessions/start",
     {
       method: "POST",
       body: JSON.stringify({ attemptId }),
+      signal,
     },
   );
 }
@@ -285,12 +289,14 @@ export async function answerHanziReview(
   sessionId: string,
   characterId: string,
   known: boolean,
+  signal?: AbortSignal,
 ) {
   return request<{ session: HanziLearningSession }>(
     `/api/child/hanzi/sessions/${sessionId}/review`,
     {
       method: "POST",
       body: JSON.stringify({ characterId, known }),
+      signal,
     },
   );
 }
@@ -298,12 +304,14 @@ export async function answerHanziReview(
 export async function completeHanziNewCharacter(
   sessionId: string,
   characterId: string,
+  signal?: AbortSignal,
 ) {
   return request<{ session: HanziLearningSession }>(
     `/api/child/hanzi/sessions/${sessionId}/learn`,
     {
       method: "POST",
       body: JSON.stringify({ characterId }),
+      signal,
     },
   );
 }
@@ -312,6 +320,7 @@ export async function answerHanziQuestion(
   sessionId: string,
   questionIndex: number,
   selectedCharacterId: string,
+  signal?: AbortSignal,
 ) {
   return request<{
     correct: boolean;
@@ -320,10 +329,14 @@ export async function answerHanziQuestion(
   }>(`/api/child/hanzi/sessions/${sessionId}/answer`, {
     method: "POST",
     body: JSON.stringify({ questionIndex, selectedCharacterId }),
+    signal,
   });
 }
 
-export async function finishHanziLearningSession(sessionId: string) {
+export async function finishHanziLearningSession(
+  sessionId: string,
+  signal?: AbortSignal,
+) {
   return request<{
     attempt: TaskAttempt;
     reward: {
@@ -333,7 +346,10 @@ export async function finishHanziLearningSession(sessionId: string) {
       totalStars: number;
     };
     alreadyCompleted: boolean;
-  }>(`/api/child/hanzi/sessions/${sessionId}/finish`, { method: "POST" });
+  }>(`/api/child/hanzi/sessions/${sessionId}/finish`, {
+    method: "POST",
+    signal,
+  });
 }
 
 export type Poem = {
