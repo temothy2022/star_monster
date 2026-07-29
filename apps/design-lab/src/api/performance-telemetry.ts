@@ -22,8 +22,11 @@ type NetworkInformation = {
 
 const navigationStartedAt = new Map<string, number>();
 const latestApiMetrics = new Map<string, ApiPerformanceMetric>();
+const pendingMetrics: Array<Record<string, unknown>> = [];
 const moduleLoadedAt = now();
 let startupReported = false;
+let metricFlushTimer: number | null = null;
+let metricFlushInProgress = false;
 
 const MAIN_READ_PATHS = new Set([
   "/api/child/tasks/today",
@@ -91,12 +94,20 @@ function getResourceTiming(path: string, startedAt: number) {
 
   const url = new URL(path, window.location.href).href;
   const entries = performance.getEntriesByName(url, "resource") as PerformanceResourceTiming[];
-  const entry = [...entries]
-    .reverse()
-    .find((candidate) => candidate.startTime >= startedAt - 2);
+  const entry = entries
+    .map((candidate) => ({
+      candidate,
+      distance: Math.abs(candidate.startTime - startedAt),
+    }))
+    .filter(({ distance }) => distance <= 250)
+    .sort((left, right) => left.distance - right.distance)[0]?.candidate;
   if (!entry) return null;
 
   return {
+    totalMs:
+      entry.responseEnd > 0
+        ? Math.max(0, entry.responseEnd - entry.startTime)
+        : null,
     ttfbMs:
       entry.responseStart > 0
         ? Math.max(0, entry.responseStart - entry.startTime)
@@ -127,14 +138,50 @@ function clientContext() {
   };
 }
 
+function scheduleMetricFlush(delayMs = 3_000) {
+  if (metricFlushTimer !== null) return;
+  metricFlushTimer = window.setTimeout(() => {
+    metricFlushTimer = null;
+    void flushPerformanceMetrics();
+  }, delayMs);
+}
+
+async function flushPerformanceMetrics() {
+  if (metricFlushInProgress || pendingMetrics.length === 0) return;
+  metricFlushInProgress = true;
+  const metrics = pendingMetrics.splice(0, 30);
+
+  try {
+    const response = await fetch("/api/child/telemetry/performance", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ metrics }),
+      keepalive: true,
+    });
+    if (!response.ok) throw new Error("Performance telemetry was rejected");
+  } catch {
+    pendingMetrics.unshift(...metrics);
+    if (pendingMetrics.length > 100) {
+      pendingMetrics.splice(0, pendingMetrics.length - 100);
+    }
+  } finally {
+    metricFlushInProgress = false;
+    if (pendingMetrics.length > 0) scheduleMetricFlush(5_000);
+  }
+}
+
 function sendPerformanceMetric(payload: Record<string, unknown>) {
-  void fetch("/api/child/telemetry/performance", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...payload, ...clientContext() }),
-    keepalive: true,
-  }).catch(() => undefined);
+  pendingMetrics.push({ ...payload, ...clientContext() });
+  if (pendingMetrics.length >= 10) {
+    if (metricFlushTimer !== null) {
+      window.clearTimeout(metricFlushTimer);
+      metricFlushTimer = null;
+    }
+    void flushPerformanceMetrics();
+    return;
+  }
+  scheduleMetricFlush();
 }
 
 function resourceMetric(
@@ -183,6 +230,10 @@ export function recordApiPerformance(input: {
 
   const normalizedPath = normalizeApiPath(input.path);
   const resource = getResourceTiming(input.path, input.startedAt);
+  const browserAfterResponseMs =
+    resource?.totalMs === null || resource?.totalMs === undefined
+      ? null
+      : Math.max(0, input.totalMs - resource.totalMs);
   const metric: ApiPerformanceMetric = {
     ...input,
     normalizedPath,
@@ -190,7 +241,10 @@ export function recordApiPerformance(input: {
     clientOverheadMs:
       input.serverMs === null
         ? null
-        : Math.max(0, input.totalMs - input.serverMs),
+        : Math.max(
+            0,
+            (resource?.totalMs ?? input.totalMs) - input.serverMs,
+          ),
     ttfbMs: resource?.ttfbMs ?? null,
     downloadMs: resource?.downloadMs ?? null,
     transferSize: resource?.transferSize ?? null,
@@ -209,6 +263,8 @@ export function recordApiPerformance(input: {
     totalMs: roundDuration(metric.totalMs),
     serverMs: roundDuration(metric.serverMs),
     clientOverheadMs: roundDuration(metric.clientOverheadMs),
+    apiTotalMs: roundDuration(resource?.totalMs ?? metric.totalMs),
+    nonApiMs: roundDuration(browserAfterResponseMs),
     ttfbMs: roundDuration(metric.ttfbMs),
     downloadMs: roundDuration(metric.downloadMs),
     transferSize: metric.transferSize,

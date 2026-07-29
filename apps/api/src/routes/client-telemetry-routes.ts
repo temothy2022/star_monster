@@ -33,21 +33,23 @@ const telemetrySchema = z.object({
     .optional(),
 });
 
+const telemetryPayloadSchema = z.union([
+  telemetrySchema.transform((metric) => [metric]),
+  z
+    .object({
+      metrics: z.array(telemetrySchema).min(1).max(30),
+    })
+    .transform(({ metrics }) => metrics),
+]);
+
 export async function registerClientTelemetryRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ): Promise<void> {
   app.post("/api/child/telemetry/performance", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    const metric = telemetrySchema.parse(request.body);
-    const details = {
-      event: "child_client_performance",
-      childId: child.id,
-      ...metric,
-    };
-
-    await prisma.childPerformanceMetric.create({
-      data: {
+    const metrics = telemetryPayloadSchema.parse(request.body);
+    const records = metrics.map((metric) => ({
         childId: child.id,
         kind: metric.kind,
         operation: metric.operation,
@@ -69,17 +71,36 @@ export async function registerClientTelemetryRoutes(
         effectiveType: metric.connection?.effectiveType,
         connectionRttMs: metric.connection?.rtt,
         downlinkMbps: metric.connection?.downlink,
-      },
-    });
+    }));
 
-    if (
-      metric.totalMs >= 1_000 ||
-      (metric.serverMs ?? 0) >= 750 ||
-      (metric.status ?? 200) >= 500
-    ) {
-      request.log.warn(details, "child client performance slow");
+    await prisma.childPerformanceMetric.createMany({ data: records });
+
+    const slowMetrics = metrics.filter(
+      (metric) =>
+        metric.totalMs >= 1_000 ||
+        (metric.serverMs ?? 0) >= 750 ||
+        (metric.status ?? 200) >= 500,
+    );
+    if (slowMetrics.length > 0) {
+      request.log.warn(
+        {
+          event: "child_client_performance_batch",
+          childId: child.id,
+          metricCount: metrics.length,
+          slowMetricCount: slowMetrics.length,
+          slowMetrics,
+        },
+        "child client performance slow",
+      );
     } else {
-      request.log.info(details, "child client performance");
+      request.log.info(
+        {
+          event: "child_client_performance_batch",
+          childId: child.id,
+          metricCount: metrics.length,
+        },
+        "child client performance",
+      );
     }
     return { ok: true };
   });

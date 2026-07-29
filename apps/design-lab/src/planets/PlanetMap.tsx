@@ -38,7 +38,8 @@ export function PlanetMap({
 
   useEffect(() => {
     let cancelled = false;
-    void getChildPlanets()
+    const controller = new AbortController();
+    void getChildPlanets(controller.signal)
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -52,13 +53,14 @@ export function PlanetMap({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 
   useLiveRefresh(
-    async () => {
+    async (signal) => {
       try {
-        setData(await getChildPlanets());
+        setData(await getChildPlanets(signal));
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "#login";

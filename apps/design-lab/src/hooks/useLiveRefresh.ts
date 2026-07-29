@@ -8,7 +8,7 @@ const DEFAULT_INTERVAL_MS = 4_000;
  * app switching immediate; the interval covers two browsers left open at once.
  */
 export function useLiveRefresh(
-  refresh: () => void | Promise<void>,
+  refresh: (signal: AbortSignal) => void | Promise<void>,
   {
     enabled = true,
     intervalMs = DEFAULT_INTERVAL_MS,
@@ -28,6 +28,7 @@ export function useLiveRefresh(
     if (!enabled) return;
 
     let disposed = false;
+    const controller = new AbortController();
     const run = async () => {
       if (
         disposed ||
@@ -39,7 +40,7 @@ export function useLiveRefresh(
 
       refreshingRef.current = true;
       try {
-        await refreshRef.current();
+        await refreshRef.current(controller.signal);
       } finally {
         refreshingRef.current = false;
       }
@@ -54,6 +55,7 @@ export function useLiveRefresh(
 
     return () => {
       disposed = true;
+      controller.abort();
       window.clearInterval(timer);
       window.removeEventListener("focus", run);
       document.removeEventListener("visibilitychange", handleVisibility);

@@ -409,12 +409,13 @@ export function TaskExperience({
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     setLoading(!experience);
     setApiError("");
     setPlanetUnlock(null);
 
-    const planetRequest = getChildPlanets();
-    void getTodayTasks()
+    const planetRequest = getChildPlanets(controller.signal);
+    void getTodayTasks(controller.signal)
       .then((result) => {
         if (cancelled) return;
         updateExperience(result);
@@ -456,13 +457,14 @@ export function TaskExperience({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [view]);
 
   useLiveRefresh(
-    async () => {
+    async (signal) => {
       try {
-        const result = await getTodayTasks();
+        const result = await getTodayTasks(signal);
         updateExperience(result);
         if (result.active) onStartAttemptRef.current?.(result.active);
       } catch (reason) {

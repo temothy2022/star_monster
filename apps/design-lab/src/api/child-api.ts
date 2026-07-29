@@ -73,16 +73,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     return (await response.json()) as T;
   } finally {
-    const finishedAt = globalThis.performance?.now() ?? Date.now();
-    recordApiPerformance({
-      path,
-      method: init?.method ?? "GET",
-      status,
-      requestId,
-      startedAt,
-      totalMs: Math.max(0, finishedAt - startedAt),
-      serverMs,
-    });
+    if (!init?.signal?.aborted) {
+      const finishedAt = globalThis.performance?.now() ?? Date.now();
+      recordApiPerformance({
+        path,
+        method: init?.method ?? "GET",
+        status,
+        requestId,
+        startedAt,
+        totalMs: Math.max(0, finishedAt - startedAt),
+        serverMs,
+      });
+    }
   }
 }
 
@@ -183,9 +185,10 @@ export type TodayTaskExperience = {
   timedOutAttemptId: string | null;
 };
 
-export async function getTodayTasks() {
+export async function getTodayTasks(signal?: AbortSignal) {
   return request<TodayTaskExperience>("/api/child/tasks/today", {
     cache: "no-store",
+    signal,
   });
 }
 
@@ -445,9 +448,10 @@ export type ChildWish = {
     | null;
 };
 
-export async function getChildWishes() {
+export async function getChildWishes(signal?: AbortSignal) {
   return request<{ starBalance: number; wishes: ChildWish[] }>(
     "/api/child/wishes",
+    { signal },
   );
 }
 
@@ -479,9 +483,14 @@ export type FootprintResponse = {
   }>;
 };
 
-export async function getChildFootprints(date?: string) {
+export async function getChildFootprints(
+  date?: string,
+  signal?: AbortSignal,
+) {
   const query = date ? `?date=${encodeURIComponent(date)}` : "";
-  return request<FootprintResponse>(`/api/child/footprints${query}`);
+  return request<FootprintResponse>(`/api/child/footprints${query}`, {
+    signal,
+  });
 }
 
 export type ChildPlanet = {
@@ -504,8 +513,8 @@ export type PlanetMapResponse = {
   pendingCelebrations: PlanetKey[];
 };
 
-export async function getChildPlanets() {
-  return request<PlanetMapResponse>("/api/child/planets");
+export async function getChildPlanets(signal?: AbortSignal) {
+  return request<PlanetMapResponse>("/api/child/planets", { signal });
 }
 
 export async function markChildPlanetCelebrated(planet: PlanetKey) {

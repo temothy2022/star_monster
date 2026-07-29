@@ -252,7 +252,8 @@ export function WishesRequested({
 
   useEffect(() => {
     let cancelled = false;
-    void getChildWishes()
+    const controller = new AbortController();
+    void getChildWishes(controller.signal)
       .then((result) => {
         if (!cancelled) setWishData(result);
       })
@@ -267,13 +268,14 @@ export function WishesRequested({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 
   useLiveRefresh(
-    async () => {
+    async (signal) => {
       try {
-        setWishData(await getChildWishes());
+        setWishData(await getChildWishes(signal));
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
@@ -428,8 +430,9 @@ export function Footprints({
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     setError("");
-    void getChildFootprints(selectedDate)
+    void getChildFootprints(selectedDate, controller.signal)
       .then((result) => {
         if (!cancelled) {
           setFootprints(result);
@@ -447,13 +450,14 @@ export function Footprints({
       });
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [selectedDate]);
 
   useLiveRefresh(
-    async () => {
+    async (signal) => {
       try {
-        const result = await getChildFootprints(selectedDate);
+        const result = await getChildFootprints(selectedDate, signal);
         setFootprints(result);
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
