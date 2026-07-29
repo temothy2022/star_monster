@@ -1,5 +1,6 @@
 import { Prisma, type HanziCharacter, type HanziLearningSession } from "@prisma/client";
 import type { AppConfig } from "../config.js";
+import { selectDailyHanziCharacters } from "../domain/hanzi-selection.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
@@ -197,7 +198,7 @@ export async function startHanziSession(
       data: normalizedSettings,
     });
   }
-  const [dueProgress, newCharacters, pool] = await Promise.all([
+  const [dueProgress, unlearnedCharacterIds, pool] = await Promise.all([
     prisma.hanziLearningProgress.findMany({
       where: {
         childId,
@@ -217,14 +218,21 @@ export async function startHanziSession(
         isEnabled: true,
         progress: { none: { childId } },
       },
-      orderBy: { sortOrder: "asc" },
-      take: normalizedSettings.newCharactersPerDay,
+      orderBy: { id: "asc" },
+      select: { id: true },
     }),
     prisma.hanziCharacter.findMany({
       where: { isEnabled: true },
       orderBy: { sortOrder: "asc" },
     }),
   ]);
+  const newCharacters = selectDailyHanziCharacters(
+    unlearnedCharacterIds,
+    normalizedSettings.newCharactersPerDay,
+    `${childId}:${today.toISOString().slice(0, 10)}`,
+  )
+    .map(({ id }) => pool.find((character) => character.id === id))
+    .filter((character): character is HanziCharacter => Boolean(character));
   if (!pool.length) {
     throw new HttpError(409, "HANZI_LIBRARY_EMPTY", "汉字词库还没有可学习的内容");
   }
