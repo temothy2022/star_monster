@@ -7,6 +7,10 @@ import { ChildLoginPage } from "./auth/ChildLoginPage";
 import { ChildDataState } from "./components/ChildDataState";
 import { PoemLearningExperience } from "./poem/PoemLearningExperience";
 import {
+  markChildNavigation,
+  reportChildRouteRendered,
+} from "./api/performance-telemetry";
+import {
   ApiError,
   abandonAttempt,
   completeAttempt,
@@ -319,7 +323,11 @@ export function App() {
       window.history.replaceState({ route: "login" }, "", "#login");
     }
 
-    const handlePopState = () => setRoute(readRouteFromHash());
+    const handlePopState = () => {
+      const nextRoute = readRouteFromHash();
+      markChildNavigation(nextRoute);
+      setRoute(nextRoute);
+    };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
@@ -340,9 +348,14 @@ export function App() {
 
   function navigate(nextRoute: AppRoute) {
     if (nextRoute === route) return;
+    markChildNavigation(nextRoute);
     window.history.pushState({ route: nextRoute }, "", `#${nextRoute}`);
     setRoute(nextRoute);
   }
+
+  useEffect(() => {
+    reportChildRouteRendered(route);
+  }, [route]);
 
   useEffect(() => {
     if (route === "untimed-active" || route === "untimed-menu" || route === "untimed-abandon") {

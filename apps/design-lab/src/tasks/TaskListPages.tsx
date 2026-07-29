@@ -37,7 +37,10 @@ import {
 } from "../api/child-api";
 import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
-import { reportChildPageReady } from "../api/performance-telemetry";
+import {
+  reportChildAppStartupReady,
+  reportChildPageReady,
+} from "../api/performance-telemetry";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -410,28 +413,14 @@ export function TaskExperience({
     setApiError("");
     setPlanetUnlock(null);
 
-    void (async () => {
-      let planetData: Awaited<ReturnType<typeof getChildPlanets>> | null = null;
-      try {
-        planetData = await getChildPlanets();
-      } catch (reason) {
-        if (reason instanceof ApiError && reason.status === 401) throw reason;
-        if (!cancelled) {
-          setApiError("星球点亮提醒暂时无法读取，今天的任务仍可正常使用");
-        }
-      }
-      const result = await getTodayTasks();
-      if (cancelled) return;
-
-      const nextPlanet = planetData?.pendingNotifications[0];
-      setPlanetUnlock(
-        nextPlanet && planetData
-          ? planetData.planets.find((planet) => planet.planet === nextPlanet) ?? null
-          : null,
-      );
-      updateExperience(result);
-      if (result.active) onStartAttemptRef.current?.(result.active);
-    })()
+    const planetRequest = getChildPlanets();
+    void getTodayTasks()
+      .then((result) => {
+        if (cancelled) return;
+        updateExperience(result);
+        reportChildAppStartupReady("/api/child/tasks/today");
+        if (result.active) onStartAttemptRef.current?.(result.active);
+      })
       .catch((reason: unknown) => {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
@@ -443,6 +432,27 @@ export function TaskExperience({
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+
+    void planetRequest
+      .then((planetData) => {
+        if (cancelled) return;
+        const nextPlanet = planetData.pendingNotifications[0];
+        setPlanetUnlock(
+          nextPlanet
+            ? planetData.planets.find(
+                (planet) => planet.planet === nextPlanet,
+              ) ?? null
+            : null,
+        );
+      })
+      .catch((reason: unknown) => {
+        if (cancelled) return;
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+          return;
+        }
+        setApiError("星球点亮提醒暂时无法读取，今天的任务仍可正常使用");
       });
     return () => {
       cancelled = true;
