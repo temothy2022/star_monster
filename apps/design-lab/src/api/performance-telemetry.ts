@@ -81,6 +81,7 @@ function operationFor(path: string) {
     "/api/child/hanzi/sessions/:id/learn": "save_hanzi_character",
     "/api/child/hanzi/sessions/:id/answer": "save_hanzi_answer",
     "/api/child/hanzi/sessions/:id/finish": "complete_hanzi_task",
+    "/api/child/hanzi/sessions/:id/finalize": "complete_hanzi_task",
     "/api/child/poems/sessions/:id/finish": "complete_poem_task",
     "/api/child/poems/sessions/:id/learn": "complete_poem_learning",
   };
@@ -185,6 +186,21 @@ function sendPerformanceMetric(payload: Record<string, unknown>) {
     return;
   }
   scheduleMetricFlush();
+}
+
+export function reportChildMediaDiagnostic(input: {
+  operation: string;
+  status: number;
+  totalMs: number;
+  path?: string;
+}) {
+  sendPerformanceMetric({
+    kind: "media",
+    operation: input.operation,
+    path: input.path ?? "/hanzi-media",
+    status: input.status,
+    totalMs: Math.max(0, input.totalMs),
+  });
 }
 
 function resourceMetric(

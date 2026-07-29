@@ -6,11 +6,31 @@ import {
   answerHanziQuestion,
   answerHanziReview,
   completeHanziNewCharacter,
+  finalizeHanziSession,
   finishHanziSession,
   startHanziSession,
 } from "../services/hanzi-learning-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
+const finalizeSchema = z.object({
+  reviewAnswers: z
+    .array(
+      z.object({
+        characterId: z.string().min(1),
+        known: z.boolean(),
+      }),
+    )
+    .max(50),
+  learnedCharacterIds: z.array(z.string().min(1)).max(20),
+  answers: z
+    .array(
+      z.object({
+        questionIndex: z.number().int().min(0).max(20),
+        selectedCharacterId: z.string().min(1),
+      }),
+    )
+    .max(20),
+});
 
 export async function registerChildHanziRoutes(
   app: FastifyInstance,
@@ -60,4 +80,14 @@ export async function registerChildHanziRoutes(
     const { id } = idParams.parse(request.params);
     return finishHanziSession(child.id, id);
   });
+
+  app.post(
+    "/api/child/hanzi/sessions/:id/finalize",
+    async (request, reply) => {
+      const { child } = await requireChild(request, reply, config);
+      const { id } = idParams.parse(request.params);
+      const input = finalizeSchema.parse(request.body);
+      return finalizeHanziSession(child.id, id, input, config);
+    },
+  );
 }

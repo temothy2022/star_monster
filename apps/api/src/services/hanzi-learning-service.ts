@@ -1,5 +1,10 @@
 import { Prisma, type HanziCharacter, type HanziLearningSession } from "@prisma/client";
 import type { AppConfig } from "../config.js";
+import {
+  planHanziCompletion,
+  type HanziQuestionAnswer,
+  type HanziReviewAnswer,
+} from "../domain/hanzi-completion.js";
 import { selectDailyHanziCharacters } from "../domain/hanzi-selection.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
@@ -474,4 +479,157 @@ export async function finishHanziSession(
     data: { phase: "COMPLETED", completedAt: new Date() },
   });
   return completeTask(childId, session.taskAttemptId);
+}
+
+export async function finalizeHanziSession(
+  childId: string,
+  sessionId: string,
+  input: {
+    reviewAnswers: HanziReviewAnswer[];
+    learnedCharacterIds: string[];
+    answers: HanziQuestionAnswer[];
+  },
+  config: AppConfig,
+) {
+  const initialSession = await prisma.hanziLearningSession.findFirst({
+    where: { id: sessionId, childId },
+  });
+  if (!initialSession) {
+    throw new HttpError(404, "HANZI_SESSION_NOT_FOUND", "没有找到学习记录");
+  }
+  if (initialSession.phase === "COMPLETED") {
+    return completeTask(childId, initialSession.taskAttemptId);
+  }
+  await requireHanziAttempt(childId, initialSession.taskAttemptId);
+  const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+
+  const taskAttemptId = await prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "HanziLearningSession"
+        WHERE "id" = ${sessionId}
+        FOR UPDATE
+      `;
+      const session = await tx.hanziLearningSession.findFirst({
+        where: { id: sessionId, childId },
+      });
+      if (!session) {
+        throw new HttpError(
+          404,
+          "HANZI_SESSION_NOT_FOUND",
+          "没有找到学习记录",
+        );
+      }
+      if (session.phase === "COMPLETED") return session.taskAttemptId;
+
+      const questions = questionsFromJson(session.consolidationQuestions);
+      const plan = planHanziCompletion({
+        reviewCharacterIds: session.reviewCharacterIds,
+        reviewIndex: session.reviewIndex,
+        newCharacterIds: session.newCharacterIds,
+        newIndex: session.newIndex,
+        questions,
+        questionIndex: session.questionIndex,
+        ...input,
+      });
+
+      const reviewKnownIds = [...session.reviewKnownIds];
+      const reviewUnknownIds = [...session.reviewUnknownIds];
+      for (const answer of plan.remainingReviewAnswers) {
+        const progress = await tx.hanziLearningProgress.findUnique({
+          where: {
+            childId_characterId: {
+              childId,
+              characterId: answer.characterId,
+            },
+          },
+        });
+        if (!progress) {
+          throw new HttpError(
+            404,
+            "HANZI_PROGRESS_NOT_FOUND",
+            "没有找到这个字的复习进度",
+          );
+        }
+        if (answer.known) {
+          const nextStage = progress.reviewStage + 1;
+          await tx.hanziLearningProgress.update({
+            where: { id: progress.id },
+            data: {
+              status:
+                nextStage >= REVIEW_INTERVAL_DAYS.length
+                  ? "MASTERED"
+                  : "LEARNING",
+              reviewStage: Math.min(nextStage, REVIEW_INTERVAL_DAYS.length),
+              nextReviewDate:
+                nextStage >= REVIEW_INTERVAL_DAYS.length
+                  ? null
+                  : addUtcDays(today, REVIEW_INTERVAL_DAYS[nextStage]!),
+              consecutiveWrong: 0,
+              lastReviewedAt: new Date(),
+            },
+          });
+          reviewKnownIds.push(answer.characterId);
+        } else {
+          const wrongCount = progress.consecutiveWrong + 1;
+          const nextStage = Math.max(0, progress.reviewStage - 1);
+          const difficult = wrongCount >= 2;
+          const baseInterval = REVIEW_INTERVAL_DAYS[nextStage] ?? 2;
+          await tx.hanziLearningProgress.update({
+            where: { id: progress.id },
+            data: {
+              status: "LEARNING",
+              reviewStage: nextStage,
+              nextReviewDate: addUtcDays(
+                today,
+                difficult
+                  ? Math.max(1, Math.floor(baseInterval / 2))
+                  : baseInterval,
+              ),
+              isDifficult: difficult || progress.isDifficult,
+              consecutiveWrong: wrongCount,
+              lastReviewedAt: new Date(),
+            },
+          });
+          reviewUnknownIds.push(answer.characterId);
+        }
+      }
+
+      for (const characterId of plan.remainingNewCharacterIds) {
+        await tx.hanziLearningProgress.upsert({
+          where: { childId_characterId: { childId, characterId } },
+          update: {},
+          create: {
+            childId,
+            characterId,
+            learnedDate: today,
+            reviewStage: 0,
+            nextReviewDate: addUtcDays(today, REVIEW_INTERVAL_DAYS[0]),
+          },
+        });
+      }
+
+      await tx.hanziLearningSession.update({
+        where: { id: session.id },
+        data: {
+          phase: "COMPLETED",
+          reviewIndex: session.reviewCharacterIds.length,
+          reviewKnownIds: unique(reviewKnownIds),
+          reviewUnknownIds: unique(reviewUnknownIds),
+          newIndex: session.newCharacterIds.length,
+          questionIndex: questions.length,
+          consolidationCorrect:
+            session.consolidationCorrect + plan.additionalCorrect,
+          consolidationTotal:
+            session.consolidationTotal + plan.remainingAnswers.length,
+          completedAt: new Date(),
+        },
+      });
+      return session.taskAttemptId;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+
+  return completeTask(childId, taskAttemptId);
 }

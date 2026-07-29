@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SyntheticEvent,
+} from "react";
 import {
   ApiError,
-  answerHanziQuestion,
-  answerHanziReview,
-  completeHanziNewCharacter,
-  finishHanziLearningSession,
+  finalizeHanziLearningSession,
   startHanziLearningSession,
   type HanziCharacter,
   type HanziLearningSession,
@@ -20,7 +24,10 @@ import {
   preloadHanziSessionAssets,
 } from "./hanzi-asset-preloader";
 import { HanziTaskControls } from "./HanziTaskControls";
-import { reportChildPageReady } from "../api/performance-telemetry";
+import {
+  reportChildMediaDiagnostic,
+  reportChildPageReady,
+} from "../api/performance-telemetry";
 
 type CompletionReward = {
   baseStars: number;
@@ -29,28 +36,69 @@ type CompletionReward = {
   totalStars: number;
 };
 
+function mediaPath(url?: string | null) {
+  if (!url) return undefined;
+  try {
+    return new URL(url, window.location.href).pathname.slice(0, 160);
+  } catch {
+    return undefined;
+  }
+}
+
 function speak(text: string, audioUrl?: string | null) {
+  let cancelled = false;
+  let fallbackCleanup: (() => void) | undefined;
+  const startedAt = performance.now();
+  const speakWithBrowserVoice = () => {
+    if (cancelled || fallbackCleanup) return;
+    reportChildMediaDiagnostic({
+      operation: audioUrl
+        ? "hanzi_audio_fallback"
+        : "hanzi_browser_voice_used",
+      status: audioUrl ? 0 : 200,
+      totalMs: performance.now() - startedAt,
+      path: mediaPath(audioUrl),
+    });
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "zh-CN";
+    utterance.rate = 0.72;
+    utterance.pitch = 1.05;
+    utterance.onerror = () => {
+      reportChildMediaDiagnostic({
+        operation: "hanzi_browser_voice_failed",
+        status: 0,
+        totalMs: performance.now() - startedAt,
+        path: mediaPath(audioUrl),
+      });
+    };
+    window.speechSynthesis.speak(utterance);
+    fallbackCleanup = () => {
+      utterance.onend = null;
+      utterance.onerror = null;
+      window.speechSynthesis.cancel();
+    };
+  };
+
   if (audioUrl) {
     const audio = getHanziAudioElement(audioUrl);
     audio.pause();
     audio.currentTime = 0;
-    void audio.play().catch(() => undefined);
+    audio.onerror = speakWithBrowserVoice;
+    void audio.play().catch(speakWithBrowserVoice);
     return () => {
+      cancelled = true;
+      audio.onerror = null;
       audio.pause();
       audio.currentTime = 0;
+      fallbackCleanup?.();
     };
   }
-  if (!("speechSynthesis" in window)) return () => undefined;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "zh-CN";
-  utterance.rate = 0.72;
-  utterance.pitch = 1.05;
-  window.speechSynthesis.speak(utterance);
+  speakWithBrowserVoice();
   return () => {
-    utterance.onend = null;
-    utterance.onerror = null;
-    window.speechSynthesis.cancel();
+    cancelled = true;
+    fallbackCleanup?.();
   };
 }
 
@@ -62,6 +110,20 @@ function characterImageSource(character: HanziCharacter) {
   const imageKey = character.imageKey.trim();
   if (!imageKey || imageKey === "default-hanzi") return defaultHanziImage;
   return imageKey;
+}
+
+function handleCharacterImageError(
+  event: SyntheticEvent<HTMLImageElement>,
+) {
+  const image = event.currentTarget;
+  if (image.src.endsWith(defaultHanziImage)) return;
+  reportChildMediaDiagnostic({
+    operation: "hanzi_image_fallback",
+    status: 0,
+    totalMs: 0,
+    path: new URL(image.src, window.location.href).pathname,
+  });
+  image.src = defaultHanziImage;
 }
 
 function speakCharacterThenText(
@@ -85,6 +147,14 @@ function speakCharacterThenText(
   const speakWithBrowserVoice = () => {
     if (fallbackStarted || cancelled) return;
     fallbackStarted = true;
+    reportChildMediaDiagnostic({
+      operation: character.characterAudioUrl
+        ? "hanzi_character_audio_fallback"
+        : "hanzi_character_browser_voice_used",
+      status: character.characterAudioUrl ? 0 : 200,
+      totalMs: 0,
+      path: mediaPath(character.characterAudioUrl),
+    });
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(character.character);
@@ -118,6 +188,147 @@ function speakCharacterThenText(
     followingCleanup?.();
     window.speechSynthesis?.cancel();
   };
+}
+
+type HanziLocalDraft = {
+  version: 1;
+  sessionId: string;
+  reviewIndex: number;
+  reviewKnownIds: string[];
+  reviewUnknownIds: string[];
+  newIndex: number;
+  questionIndex: number;
+  consolidationCorrect: number;
+  consolidationTotal: number;
+  answerSelections: Record<string, string>;
+};
+
+function draftKey(sessionId: string) {
+  return `hanzi-learning-draft:${sessionId}`;
+}
+
+function phaseForLocalProgress(
+  session: HanziLearningSession,
+  reviewIndex: number,
+  newIndex: number,
+) {
+  if (reviewIndex < session.reviewCharacterIds.length) return "REVIEW";
+  if (newIndex < session.newCharacterIds.length) return "NEW_LEARNING";
+  return "CONSOLIDATION";
+}
+
+function restoreLocalDraft(session: HanziLearningSession) {
+  try {
+    const raw = window.localStorage.getItem(draftKey(session.id));
+    if (!raw) return { session, answerSelections: {} as Record<string, string> };
+    const draft = JSON.parse(raw) as Partial<HanziLocalDraft>;
+    if (draft.version !== 1 || draft.sessionId !== session.id) {
+      return { session, answerSelections: {} as Record<string, string> };
+    }
+    const reviewIndex = Math.min(
+      session.reviewCharacterIds.length,
+      Math.max(session.reviewIndex, Number(draft.reviewIndex) || 0),
+    );
+    const newIndex = Math.min(
+      session.newCharacterIds.length,
+      Math.max(session.newIndex, Number(draft.newIndex) || 0),
+    );
+    const questionIndex = Math.min(
+      session.questions.length,
+      Math.max(session.questionIndex, Number(draft.questionIndex) || 0),
+    );
+    const validReviewIds = new Set(session.reviewCharacterIds);
+    const reviewKnownIds = [
+      ...new Set([
+        ...session.reviewKnownIds,
+        ...(draft.reviewKnownIds ?? []).filter((id) => validReviewIds.has(id)),
+      ]),
+    ];
+    const reviewUnknownIds = [
+      ...new Set([
+        ...session.reviewUnknownIds,
+        ...(draft.reviewUnknownIds ?? []).filter((id) =>
+          validReviewIds.has(id),
+        ),
+      ]),
+    ];
+    const consolidationTotal = Math.min(
+      session.questions.length,
+      Math.max(
+        session.consolidationTotal,
+        Number(draft.consolidationTotal) || 0,
+      ),
+    );
+    const consolidationCorrect = Math.min(
+      consolidationTotal,
+      Math.max(
+        session.consolidationCorrect,
+        Number(draft.consolidationCorrect) || 0,
+      ),
+    );
+    const restored: HanziLearningSession = {
+      ...session,
+      phase:
+        session.phase === "COMPLETED"
+          ? "COMPLETED"
+          : phaseForLocalProgress(session, reviewIndex, newIndex),
+      reviewIndex,
+      reviewKnownIds,
+      reviewUnknownIds,
+      newIndex,
+      questionIndex,
+      consolidationCorrect,
+      consolidationTotal,
+      summary: {
+        ...session.summary,
+        reviewKnown: reviewKnownIds.length,
+        reviewUnknown: reviewUnknownIds.length,
+        correct: consolidationCorrect,
+        total: consolidationTotal,
+      },
+    };
+    return {
+      session: restored,
+      answerSelections:
+        draft.answerSelections &&
+        typeof draft.answerSelections === "object"
+          ? draft.answerSelections
+          : {},
+    };
+  } catch {
+    return { session, answerSelections: {} as Record<string, string> };
+  }
+}
+
+function saveLocalDraft(
+  session: HanziLearningSession,
+  answerSelections: Record<string, string>,
+) {
+  const draft: HanziLocalDraft = {
+    version: 1,
+    sessionId: session.id,
+    reviewIndex: session.reviewIndex,
+    reviewKnownIds: session.reviewKnownIds,
+    reviewUnknownIds: session.reviewUnknownIds,
+    newIndex: session.newIndex,
+    questionIndex: session.questionIndex,
+    consolidationCorrect: session.consolidationCorrect,
+    consolidationTotal: session.consolidationTotal,
+    answerSelections,
+  };
+  try {
+    window.localStorage.setItem(draftKey(session.id), JSON.stringify(draft));
+  } catch {
+    // Learning can continue without local resume support.
+  }
+}
+
+function clearLocalDraft(sessionId: string) {
+  try {
+    window.localStorage.removeItem(draftKey(sessionId));
+  } catch {
+    // Ignore storage restrictions in private browsing.
+  }
 }
 
 function BackButton({ onClick }: { onClick: () => void }) {
@@ -209,6 +420,32 @@ function advanceNewCharacterLocally(
   };
 }
 
+function advanceReviewLocally(
+  session: HanziLearningSession,
+  characterId: string,
+  known: boolean,
+): HanziLearningSession {
+  const nextIndex = session.reviewIndex + 1;
+  const reviewKnownIds = known
+    ? [...new Set([...session.reviewKnownIds, characterId])]
+    : session.reviewKnownIds;
+  const reviewUnknownIds = known
+    ? session.reviewUnknownIds
+    : [...new Set([...session.reviewUnknownIds, characterId])];
+  return {
+    ...session,
+    reviewIndex: nextIndex,
+    reviewKnownIds,
+    reviewUnknownIds,
+    phase: phaseForLocalProgress(session, nextIndex, session.newIndex),
+    summary: {
+      ...session.summary,
+      reviewKnown: reviewKnownIds.length,
+      reviewUnknown: reviewUnknownIds.length,
+    },
+  };
+}
+
 export function HanziLearningExperience({
   attemptId,
   onExit,
@@ -227,19 +464,17 @@ export function HanziLearningExperience({
   const [knownToast, setKnownToast] = useState(false);
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
   const [pendingSession, setPendingSession] = useState<HanziLearningSession | null>(null);
+  const [answerSelections, setAnswerSelections] = useState<Record<string, string>>({});
+  const [assetProgress, setAssetProgress] = useState({
+    total: 0,
+    completed: 0,
+    failed: 0,
+    ready: false,
+  });
   const activeSpeechCleanup = useRef<null | (() => void)>(null);
   const assetPreloadAbort = useRef<AbortController | null>(null);
-  const assetPreloadTimer = useRef<number | null>(null);
   const preloadedSessionId = useRef<string | null>(null);
   const requestAbort = useRef(new AbortController());
-  const learnSaveQueue = useRef<Promise<void>>(Promise.resolve());
-  const learnSaveGeneration = useRef(0);
-  const learnSaveFailed = useRef(false);
-  const answerSaveQueue = useRef<Promise<void>>(Promise.resolve());
-  const answerSaveGeneration = useRef(0);
-  const answerSaveFailed = useRef(false);
-  const [pendingLearnSaves, setPendingLearnSaves] = useState(0);
-  const [pendingAnswerSaves, setPendingAnswerSaves] = useState(0);
   const [answerFeedback, setAnswerFeedback] = useState<{
     selectedId: string;
     targetId: string;
@@ -280,9 +515,6 @@ export function HanziLearningExperience({
   useEffect(() => {
     return () => {
       stopActiveSpeech();
-      if (assetPreloadTimer.current !== null) {
-        window.clearTimeout(assetPreloadTimer.current);
-      }
       assetPreloadAbort.current?.abort();
       requestAbort.current.abort();
     };
@@ -297,18 +529,14 @@ export function HanziLearningExperience({
     void startHanziLearningSession(attemptId, requestController.signal)
       .then(({ session: loaded }) => {
         if (cancelled) return;
-        setSession(loaded);
+        const restored = restoreLocalDraft(loaded);
+        setSession(restored.session);
+        setAnswerSelections(restored.answerSelections);
+        setStarted(false);
         reportChildPageReady(
           "hanzi-session",
           "/api/child/hanzi/sessions/start",
         );
-        if (
-          loaded.reviewIndex > 0 ||
-          loaded.newIndex > 0 ||
-          loaded.questionIndex > 0
-        ) {
-          setStarted(true);
-        }
       })
       .catch((reason: unknown) => {
         if (cancelled) return;
@@ -325,8 +553,9 @@ export function HanziLearningExperience({
     requestAbort.current.abort();
     assetPreloadAbort.current?.abort();
     stopActiveSpeech();
+    if (session) clearLocalDraft(session.id);
     onExit();
-  }, [onExit, stopActiveSpeech]);
+  }, [onExit, session, stopActiveSpeech]);
 
   const characterById = useMemo(
     () => new Map(session?.characters.map((character) => [character.id, character]) ?? []),
@@ -342,66 +571,33 @@ export function HanziLearningExperience({
     : null;
 
   useEffect(() => {
+    if (!session || session.phase === "COMPLETED") return;
+    saveLocalDraft(session, answerSelections);
+  }, [answerSelections, session]);
+
+  useEffect(() => {
     if (!session || preloadedSessionId.current === session.id) return;
     preloadedSessionId.current = session.id;
     assetPreloadAbort.current?.abort();
     const controller = new AbortController();
     assetPreloadAbort.current = controller;
-
-    // Let the session overview render first, then quietly warm the browser
-    // cache with today's images and audio using a small request pool.
-    assetPreloadTimer.current = window.setTimeout(() => {
-      assetPreloadTimer.current = null;
-      void preloadHanziSessionAssets(session, controller.signal);
-    }, started ? 500 : 50);
-  }, [session, started]);
-
-  useEffect(() => {
-    if (!started || !currentNewCharacter) return;
-    stopActiveSpeech();
-    const cleanup = speakCharacterThenText(
-      currentNewCharacter,
-      resolvedSentence(currentNewCharacter),
-      currentNewCharacter.sentenceAudioUrl,
-    );
-    activeSpeechCleanup.current = cleanup;
-    return () => {
-      if (activeSpeechCleanup.current === cleanup) {
-        cleanup();
-        activeSpeechCleanup.current = null;
-      }
-    };
-  }, [currentNewCharacter, started, stopActiveSpeech]);
-
-  useEffect(() => {
-    if (
-      !started ||
-      session?.phase !== "CONSOLIDATION" ||
-      answerFeedback ||
-      !currentQuestionTarget
-    ) {
-      return;
-    }
-    stopActiveSpeech();
-    const cleanup = speak(
-      resolvedSentence(currentQuestionTarget),
-      currentQuestionTarget.sentenceAudioUrl,
-    );
-    activeSpeechCleanup.current = cleanup;
-    return () => {
-      if (activeSpeechCleanup.current === cleanup) {
-        cleanup();
-        activeSpeechCleanup.current = null;
-      }
-    };
-  }, [
-    answerFeedback,
-    currentQuestionTarget,
-    session?.phase,
-    session?.questionIndex,
-    started,
-    stopActiveSpeech,
-  ]);
+    setAssetProgress({ total: 0, completed: 0, failed: 0, ready: false });
+    const startedAt = performance.now();
+    void preloadHanziSessionAssets(session, controller.signal, (progress) => {
+      setAssetProgress({ ...progress, ready: progress.completed >= progress.total });
+    }).then((result) => {
+      if (controller.signal.aborted) return;
+      setAssetProgress({ ...result, ready: true });
+      reportChildMediaDiagnostic({
+        operation:
+          result.failed > 0
+            ? "hanzi_assets_preload_partial"
+            : "hanzi_assets_preload_complete",
+        status: result.failed > 0 ? 206 : 200,
+        totalMs: performance.now() - startedAt,
+      });
+    });
+  }, [session]);
 
   if (!session) {
     return (
@@ -419,95 +615,67 @@ export function HanziLearningExperience({
   const allQuestionsAnswered =
     session.questionIndex >= session.questions.length;
 
-  async function submitReview(known: boolean) {
-    if (!reviewCharacter || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await answerHanziReview(
-        session!.id,
-        reviewCharacter.id,
-        known,
-        requestAbort.current.signal,
+  function playEntryForSession(nextSession: HanziLearningSession) {
+    if (nextSession.phase === "NEW_LEARNING") {
+      const character = characterById.get(
+        nextSession.newCharacterIds[nextSession.newIndex] ?? "",
       );
-      if (known) {
-        setKnownToast(true);
-        window.setTimeout(() => {
-          setKnownToast(false);
-          setFlipped(false);
-          setSession(result.session);
-        }, 700);
-      } else {
-        setUnknownCharacter(reviewCharacter);
-        setPendingSession(result.session);
+      if (character) {
+        playCharacterThenText(
+          character,
+          resolvedSentence(character),
+          character.sentenceAudioUrl,
+        );
       }
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "复习结果暂时无法保存");
-    } finally {
-      setBusy(false);
+      return;
+    }
+    if (nextSession.phase === "CONSOLIDATION") {
+      const nextQuestion = nextSession.questions[nextSession.questionIndex];
+      const target = nextQuestion
+        ? characterById.get(nextQuestion.targetId)
+        : null;
+      if (target) {
+        playSpeech(resolvedSentence(target), target.sentenceAudioUrl);
+      }
+    }
+  }
+
+  function beginLearning() {
+    if (!assetProgress.ready) return;
+    setError("");
+    setStarted(true);
+    playEntryForSession(session!);
+  }
+
+  function submitReview(known: boolean) {
+    if (!reviewCharacter || busy) return;
+    setError("");
+    const nextSession = advanceReviewLocally(
+      session!,
+      reviewCharacter.id,
+      known,
+    );
+    if (known) {
+      playEntryForSession(nextSession);
+      setKnownToast(true);
+      window.setTimeout(() => {
+        setKnownToast(false);
+        setFlipped(false);
+        setSession(nextSession);
+      }, 700);
+    } else {
+      setUnknownCharacter(reviewCharacter);
+      setPendingSession(nextSession);
     }
   }
 
   function continueAfterUnknown() {
     if (!pendingSession) return;
+    playEntryForSession(pendingSession);
     setSession(pendingSession);
     setPendingSession(null);
     setUnknownCharacter(null);
     setFlipped(false);
-  }
-
-  function saveNewCharacterInBackground(
-    sessionId: string,
-    characterId: string,
-    expectedNewIndex: number,
-  ) {
-    const generation = learnSaveGeneration.current;
-    setPendingLearnSaves((current) => current + 1);
-    learnSaveQueue.current = learnSaveQueue.current
-      .then(async () => {
-        if (generation !== learnSaveGeneration.current) return;
-        const result = await completeHanziNewCharacter(
-          sessionId,
-          characterId,
-          requestAbort.current.signal,
-        );
-        if (result.session.newIndex < expectedNewIndex) {
-          throw new Error("服务器没有保存最新的新字进度");
-        }
-      })
-      .catch(async (reason: unknown) => {
-        if (
-          generation !== learnSaveGeneration.current ||
-          requestAbort.current.signal.aborted
-        ) {
-          return;
-        }
-        learnSaveGeneration.current += 1;
-        answerSaveGeneration.current += 1;
-        learnSaveFailed.current = true;
-        stopActiveSpeech();
-        setAnswerFeedback(null);
-        setError(
-          reason instanceof Error
-            ? `新字进度保存失败：${reason.message}`
-            : "新字进度暂时无法保存",
-        );
-        try {
-          const { session: latestSession } =
-            await startHanziLearningSession(
-              attemptId,
-              requestAbort.current.signal,
-            );
-          setSession(latestSession);
-          setNewStep(0);
-          learnSaveFailed.current = false;
-        } catch {
-          // Keep the visible error and let the child retry or leave the task.
-        }
-      })
-      .finally(() => {
-        setPendingLearnSaves((current) => Math.max(0, current - 1));
-      });
   }
 
   function nextNewStep() {
@@ -530,70 +698,9 @@ export function HanziLearningExperience({
     stopActiveSpeech();
     setError("");
     const optimisticSession = advanceNewCharacterLocally(session!);
+    playEntryForSession(optimisticSession);
     setSession(optimisticSession);
     setNewStep(0);
-    saveNewCharacterInBackground(
-      session!.id,
-      newCharacter.id,
-      optimisticSession.newIndex,
-    );
-  }
-
-  function saveAnswerInBackground(
-    sessionId: string,
-    questionIndex: number,
-    selectedCharacterId: string,
-    expectedTargetId: string,
-    expectedCorrect: boolean,
-  ) {
-    const generation = answerSaveGeneration.current;
-    setPendingAnswerSaves((current) => current + 1);
-    answerSaveQueue.current = answerSaveQueue.current
-      .then(async () => {
-        if (generation !== answerSaveGeneration.current) return;
-        await learnSaveQueue.current;
-        if (learnSaveFailed.current) {
-          throw new Error("新字进度尚未保存");
-        }
-        const result = await answerHanziQuestion(
-          sessionId,
-          questionIndex,
-          selectedCharacterId,
-          requestAbort.current.signal,
-        );
-        if (
-          result.targetCharacterId !== expectedTargetId ||
-          result.correct !== expectedCorrect
-        ) {
-          throw new Error("本地答案与服务器记录不一致");
-        }
-      })
-      .catch(async (reason: unknown) => {
-        if (generation !== answerSaveGeneration.current) return;
-        answerSaveGeneration.current += 1;
-        answerSaveFailed.current = true;
-        stopActiveSpeech();
-        setAnswerFeedback(null);
-        setError(
-          reason instanceof Error
-            ? `答题记录保存失败：${reason.message}`
-            : "答题记录暂时无法保存",
-        );
-        try {
-          const { session: latestSession } =
-            await startHanziLearningSession(
-              attemptId,
-              requestAbort.current.signal,
-            );
-          setSession(latestSession);
-          answerSaveFailed.current = false;
-        } catch {
-          // Keep the visible error and let the child retry or leave the task.
-        }
-      })
-      .finally(() => {
-        setPendingAnswerSaves((current) => Math.max(0, current - 1));
-      });
   }
 
   function selectAnswer(characterId: string) {
@@ -608,6 +715,10 @@ export function HanziLearningExperience({
       correct: locallyCorrect,
       nextSession: optimisticSession,
     });
+    setAnswerSelections((current) => ({
+      ...current,
+      [session!.questionIndex]: characterId,
+    }));
     if (locallyCorrect && questionTarget) {
       playSpeech(questionTarget.character, questionTarget.characterAudioUrl);
     } else if (questionTarget) {
@@ -616,18 +727,12 @@ export function HanziLearningExperience({
         questionTarget.sentenceAudioUrl,
       );
     }
-    saveAnswerInBackground(
-      session!.id,
-      session!.questionIndex,
-      characterId,
-      question.targetId,
-      locallyCorrect,
-    );
   }
 
   function continueQuestion() {
     if (!answerFeedback) return;
     stopActiveSpeech();
+    playEntryForSession(answerFeedback.nextSession);
     setSession(answerFeedback.nextSession);
     setAnswerFeedback(null);
   }
@@ -678,16 +783,30 @@ export function HanziLearningExperience({
     setBusy(true);
     setError("");
     try {
-      await learnSaveQueue.current;
-      await answerSaveQueue.current;
-      if (learnSaveFailed.current || answerSaveFailed.current) {
-        setError("有学习记录尚未保存，请重新完成未保存的内容");
-        return;
-      }
-      const result = await finishHanziLearningSession(
+      const reviewKnownIds = new Set(session!.reviewKnownIds);
+      const reviewUnknownIds = new Set(session!.reviewUnknownIds);
+      const result = await finalizeHanziLearningSession(
         session!.id,
+        {
+          reviewAnswers: session!.reviewCharacterIds.map((characterId) => ({
+            characterId,
+            known: reviewKnownIds.has(characterId)
+              ? true
+              : reviewUnknownIds.has(characterId)
+                ? false
+                : false,
+          })),
+          learnedCharacterIds: session!.newCharacterIds,
+          answers: Object.entries(answerSelections).map(
+            ([questionIndex, selectedCharacterId]) => ({
+              questionIndex: Number(questionIndex),
+              selectedCharacterId,
+            }),
+          ),
+        },
         requestAbort.current.signal,
       );
+      clearLocalDraft(session!.id);
       onCompleted(result.reward);
     } catch (reason) {
       if (
@@ -704,6 +823,16 @@ export function HanziLearningExperience({
   }
 
   if (!started) {
+    const assetPercent =
+      assetProgress.total > 0
+        ? Math.round(
+            (Math.min(assetProgress.completed, assetProgress.total) /
+              assetProgress.total) *
+              100,
+          )
+        : assetProgress.ready
+          ? 100
+          : 0;
     const stages = [
       {
         title: "先复习",
@@ -748,8 +877,49 @@ export function HanziLearningExperience({
           ))}
         </section>
         {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
+        <section
+          className="hanzi-asset-preparation"
+          aria-label="学习资源准备进度"
+          aria-live="polite"
+        >
+          <div className="hanzi-asset-preparation__header">
+            <strong>
+              {assetProgress.ready ? "学习资源准备好了" : "正在准备图片和朗读"}
+            </strong>
+            <span>{assetPercent}%</span>
+          </div>
+          <div
+            className="hanzi-asset-preparation__track"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={assetPercent}
+          >
+            <span style={{ width: `${assetPercent}%` }} />
+          </div>
+          <p>
+            {assetProgress.ready && assetProgress.failed > 0
+              ? `${assetProgress.failed} 项将自动使用备用资源`
+              : assetProgress.ready
+                ? "现在可以开始学习"
+                : "准备完成后即可开始"}
+          </p>
+        </section>
         <footer className="hanzi-bottom-action">
-          <button type="button" onClick={() => setStarted(true)}>开始学习 <span aria-hidden="true">→</span></button>
+          <button
+            disabled={!assetProgress.ready}
+            type="button"
+            onClick={beginLearning}
+          >
+            {assetProgress.ready
+              ? session.reviewIndex > 0 ||
+                session.newIndex > 0 ||
+                session.questionIndex > 0
+                ? "继续学习"
+                : "开始学习"
+              : `正在准备 ${assetPercent}%`}
+            {assetProgress.ready ? <span aria-hidden="true">→</span> : null}
+          </button>
         </footer>
       </main>
     );
@@ -817,6 +987,7 @@ export function HanziLearningExperience({
                 alt={`${reviewCharacter.character}字形联想图`}
                 decoding="async"
                 fetchPriority="high"
+                onError={handleCharacterImageError}
               />
               <div className="hanzi-card-back__bottom">
                 <strong>{reviewCharacter.meaning}</strong>
@@ -876,6 +1047,7 @@ export function HanziLearningExperience({
                   alt={`${newCharacter.character}字形联想图`}
                   decoding="async"
                   fetchPriority="high"
+                  onError={handleCharacterImageError}
                 />
               </div>
             </div>
@@ -905,6 +1077,7 @@ export function HanziLearningExperience({
                   alt={`${newCharacter.character}含义图`}
                   decoding="async"
                   fetchPriority="high"
+                  onError={handleCharacterImageError}
                 />
               </div>
               <div className="hanzi-meaning-panel">
@@ -1054,11 +1227,7 @@ export function HanziLearningExperience({
           type="button"
           onClick={() => void finish()}
         >
-          {busy
-            ? pendingLearnSaves > 0 || pendingAnswerSaves > 0
-              ? <LoadingDots label="正在保存" />
-              : <LoadingDots label="正在完成" />
-            : "完成任务"}
+          {busy ? <LoadingDots label="正在完成" /> : "完成任务"}
         </button>
       </footer>
     </main>

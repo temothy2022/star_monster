@@ -2262,7 +2262,7 @@ select {
 .hanzi-page.hanzi-page--home {
   display: grid;
   min-height: 600px;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   row-gap: clamp(10px, 2dvh, 18px);
   padding-bottom: max(18px, env(safe-area-inset-bottom));
 }
@@ -2320,12 +2320,58 @@ select {
 
 .hanzi-page--home .hanzi-stage-list {
   width: min(720px, calc(100% - 64px));
-  height: min(567px, 100%);
+  height: min(520px, 100%);
   min-height: 0;
   grid-template-rows: repeat(3, minmax(0, 1fr));
   align-self: center;
   margin: 0 auto;
   gap: clamp(10px, 2.2dvh, 24px);
+}
+
+.hanzi-asset-preparation {
+  display: grid;
+  width: min(720px, calc(100% - 64px));
+  gap: 7px;
+  margin: 0 auto;
+  color: var(--hanzi-ink);
+}
+
+.hanzi-asset-preparation__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: clamp(14px, 2dvh, 17px);
+}
+
+.hanzi-asset-preparation__header span {
+  color: #4f6f91;
+  font-family: var(--sm-font-numeric);
+  font-weight: 800;
+}
+
+.hanzi-asset-preparation__track {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid #b7c7d9;
+  border-radius: 5px;
+  background: #eaf1f8;
+}
+
+.hanzi-asset-preparation__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4da8e8;
+  transition: width 180ms ease-out;
+}
+
+.hanzi-asset-preparation p {
+  min-height: 18px;
+  margin: 0;
+  color: #65758b;
+  font-size: clamp(12px, 1.7dvh, 14px);
+  line-height: 18px;
 }
 
 .hanzi-stage-card {
@@ -2447,6 +2493,12 @@ select {
   height: 100%;
   min-height: 0;
   font-size: clamp(24px, 3.6dvh, 32px);
+}
+
+.hanzi-page--home .hanzi-bottom-action button:disabled {
+  cursor: wait;
+  background: #8da6b9;
+  box-shadow: 0 4px 0 rgba(37, 59, 89, 0.12);
 }
 
 .hanzi-bottom-action button,
@@ -4734,6 +4786,10 @@ select {
   .hanzi-stage-list {
     width: min(100% - 48px, 720px);
     gap: 18px;
+  }
+
+  .hanzi-asset-preparation {
+    width: min(100% - 48px, 720px);
   }
 
   .hanzi-stage-card {

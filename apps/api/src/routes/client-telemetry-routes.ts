@@ -7,7 +7,7 @@ import { requireChild } from "../services/auth-service.js";
 const nullableDuration = z.number().finite().min(0).max(300_000).nullable().optional();
 
 const telemetrySchema = z.object({
-  kind: z.enum(["api", "navigation", "route", "startup"]),
+  kind: z.enum(["api", "navigation", "route", "startup", "media"]),
   operation: z.string().trim().min(1).max(80),
   path: z.string().trim().min(1).max(160),
   method: z.string().trim().min(1).max(12).optional(),
@@ -79,7 +79,8 @@ export async function registerClientTelemetryRoutes(
       (metric) =>
         metric.totalMs >= 1_000 ||
         (metric.serverMs ?? 0) >= 750 ||
-        (metric.status ?? 200) >= 500,
+        metric.status === 0 ||
+        (metric.status ?? 200) >= 400,
     );
     if (slowMetrics.length > 0) {
       request.log.warn(

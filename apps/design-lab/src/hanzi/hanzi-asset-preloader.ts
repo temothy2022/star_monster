@@ -3,18 +3,26 @@ import type {
   HanziLearningSession,
 } from "../api/child-api";
 
-const MAX_BACKGROUND_REQUESTS = 3;
+const MAX_BACKGROUND_REQUESTS = 4;
 const MAX_AUDIO_CACHE_ENTRIES = 180;
 const audioCache = new Map<string, HTMLAudioElement>();
+const audioObjectUrls = new Map<string, string>();
 
 function isAudioUrl(url: string) {
   return /\.(?:aac|m4a|mp3|ogg|wav)(?:[?#].*)?$/i.test(url);
 }
 
-function createCachedAudio(url: string) {
+function releaseAudioObjectUrl(url: string) {
+  const objectUrl = audioObjectUrls.get(url);
+  if (!objectUrl) return;
+  URL.revokeObjectURL(objectUrl);
+  audioObjectUrls.delete(url);
+}
+
+function createCachedAudio(url: string, source = url) {
   const audio = new Audio();
   audio.preload = "auto";
-  audio.src = url;
+  audio.src = source;
   audioCache.set(url, audio);
 
   while (audioCache.size > MAX_AUDIO_CACHE_ENTRIES) {
@@ -25,6 +33,7 @@ function createCachedAudio(url: string) {
     oldest[1].pause();
     oldest[1].removeAttribute("src");
     oldest[1].load();
+    releaseAudioObjectUrl(oldest[0]);
     audioCache.delete(oldest[0]);
   }
 
@@ -43,22 +52,51 @@ export function getHanziAudioElement(url: string): HTMLAudioElement {
 }
 
 async function preloadAudio(url: string, signal: AbortSignal) {
-  const audio = getHanziAudioElement(url);
-  if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return;
+  const cached = audioCache.get(url);
+  if (
+    cached &&
+    audioObjectUrls.has(url) &&
+    cached.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+  ) {
+    return true;
+  }
 
-  await new Promise<void>((resolve) => {
+  const response = await fetch(url, {
+    cache: "force-cache",
+    credentials: "same-origin",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Audio preload failed with ${response.status}`);
+  }
+  const blob = await response.blob();
+  if (signal.aborted) return false;
+
+  const objectUrl = URL.createObjectURL(blob);
+  const audio = cached ?? createCachedAudio(url, objectUrl);
+  if (cached) {
+    cached.pause();
+    releaseAudioObjectUrl(url);
+    cached.src = objectUrl;
+  }
+  audioObjectUrls.set(url, objectUrl);
+
+  return new Promise<boolean>((resolve) => {
     let timeout: number | undefined;
-    const finish = () => {
-      audio.removeEventListener("loadeddata", finish);
-      audio.removeEventListener("error", finish);
-      signal.removeEventListener("abort", finish);
+    const finish = (loaded: boolean) => {
+      audio.removeEventListener("loadeddata", handleLoaded);
+      audio.removeEventListener("error", handleError);
+      signal.removeEventListener("abort", handleAbort);
       if (timeout !== undefined) window.clearTimeout(timeout);
-      resolve();
+      resolve(loaded);
     };
-    audio.addEventListener("loadeddata", finish, { once: true });
-    audio.addEventListener("error", finish, { once: true });
-    signal.addEventListener("abort", finish, { once: true });
-    timeout = window.setTimeout(finish, 5_000);
+    const handleLoaded = () => finish(true);
+    const handleError = () => finish(false);
+    const handleAbort = () => finish(false);
+    audio.addEventListener("loadeddata", handleLoaded, { once: true });
+    audio.addEventListener("error", handleError, { once: true });
+    signal.addEventListener("abort", handleAbort, { once: true });
+    timeout = window.setTimeout(() => finish(false), 3_000);
     audio.load();
   });
 }
@@ -80,54 +118,60 @@ export function collectHanziSessionAssetUrls(
   const characterById = new Map(
     session.characters.map((character) => [character.id, character]),
   );
-  const currentQuestion = session.questions[session.questionIndex];
-  const orderedCharacterIds = [
+  const reviewCharacterIds = [
     session.reviewCharacterIds[session.reviewIndex],
-    session.newCharacterIds[session.newIndex],
-    currentQuestion?.targetId,
-    ...(currentQuestion?.optionIds ?? []),
     ...session.reviewCharacterIds,
-    ...session.newCharacterIds,
-    ...session.questions.flatMap((question) => [
-      question.targetId,
-      ...question.optionIds,
-    ]),
   ].filter((id): id is string => Boolean(id));
-
-  const seenCharacterIds = new Set<string>();
+  const newCharacterIds = [
+    session.newCharacterIds[session.newIndex],
+    ...session.newCharacterIds,
+  ].filter((id): id is string => Boolean(id));
   const seenUrls = new Set<string>();
-  const imageUrls: string[] = [];
-  const audioUrls: string[] = [];
+  const urls: string[] = [];
+  const addUrl = (url?: string | null) => {
+    if (!url || seenUrls.has(url)) return;
+    seenUrls.add(url);
+    urls.push(url);
+  };
+  const addImage = (character?: HanziCharacter) => {
+    if (!character || character.imageKey === "default-hanzi") return;
+    addUrl(character.imageKey);
+  };
 
-  for (const characterId of orderedCharacterIds) {
-    if (seenCharacterIds.has(characterId)) continue;
-    seenCharacterIds.add(characterId);
+  for (const characterId of [...reviewCharacterIds, ...newCharacterIds]) {
     const character = characterById.get(characterId);
-    if (!character) continue;
-
-    const imageUrl =
-      character.imageKey === "default-hanzi" ? null : character.imageKey;
-    if (imageUrl && !seenUrls.has(imageUrl)) {
-      seenUrls.add(imageUrl);
-      imageUrls.push(imageUrl);
-    }
-
-    for (const url of characterAudioUrls(character)) {
-      if (seenUrls.has(url)) continue;
-      seenUrls.add(url);
-      audioUrls.push(url);
-    }
+    addImage(character);
   }
 
-  return [...imageUrls, ...audioUrls];
+  for (const characterId of reviewCharacterIds) {
+    addUrl(characterById.get(characterId)?.characterAudioUrl);
+  }
+  for (const characterId of newCharacterIds) {
+    const character = characterById.get(characterId);
+    if (!character) continue;
+    for (const url of characterAudioUrls(character)) addUrl(url);
+  }
+  for (const question of session.questions) {
+    addUrl(characterById.get(question.targetId)?.sentenceAudioUrl);
+  }
+
+  return urls;
 }
 
 export async function preloadHanziSessionAssets(
   session: HanziLearningSession,
   signal: AbortSignal,
-): Promise<void> {
+  onProgress?: (progress: {
+    total: number;
+    completed: number;
+    failed: number;
+  }) => void,
+): Promise<{ total: number; completed: number; failed: number }> {
   const urls = collectHanziSessionAssetUrls(session);
   let cursor = 0;
+  let completed = 0;
+  let failed = 0;
+  onProgress?.({ total: urls.length, completed, failed });
 
   async function worker() {
     while (!signal.aborted) {
@@ -136,26 +180,31 @@ export async function preloadHanziSessionAssets(
       const url = urls[index];
       if (!url) return;
 
+      let loaded = false;
       try {
         if (isAudioUrl(url)) {
-          await preloadAudio(url, signal);
-          continue;
+          loaded = await preloadAudio(url, signal);
+        } else {
+          const response = await fetch(url, {
+            cache: "force-cache",
+            credentials: "same-origin",
+            signal,
+          });
+          if (!response.ok) {
+            throw new Error(`Asset preload failed with ${response.status}`);
+          }
+          await response.arrayBuffer();
+          loaded = true;
         }
-        const response = await fetch(url, {
-          cache: "force-cache",
-          credentials: "same-origin",
-          signal,
-        });
-        if (!response.ok) {
-          throw new Error(`Asset preload failed with ${response.status}`);
-        }
-        // Reading the body ensures Safari stores the complete response in its
-        // HTTP cache instead of only retaining the response headers.
-        await response.arrayBuffer();
       } catch (error) {
         if (signal.aborted) return;
-        // A failed background preload must never block the learning flow.
         console.debug("Hanzi asset preload skipped", url, error);
+      } finally {
+        if (!signal.aborted) {
+          completed += 1;
+          if (!loaded) failed += 1;
+          onProgress?.({ total: urls.length, completed, failed });
+        }
       }
     }
   }
@@ -166,4 +215,5 @@ export async function preloadHanziSessionAssets(
       () => worker(),
     ),
   );
+  return { total: urls.length, completed, failed };
 }

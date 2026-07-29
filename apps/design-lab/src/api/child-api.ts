@@ -352,6 +352,34 @@ export async function finishHanziLearningSession(
   });
 }
 
+export async function finalizeHanziLearningSession(
+  sessionId: string,
+  input: {
+    reviewAnswers: Array<{ characterId: string; known: boolean }>;
+    learnedCharacterIds: string[];
+    answers: Array<{
+      questionIndex: number;
+      selectedCharacterId: string;
+    }>;
+  },
+  signal?: AbortSignal,
+) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/hanzi/sessions/${sessionId}/finalize`, {
+    method: "POST",
+    body: JSON.stringify(input),
+    signal,
+  });
+}
+
 export type Poem = {
   id: string;
   title: string;
