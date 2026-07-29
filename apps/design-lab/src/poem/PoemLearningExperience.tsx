@@ -67,14 +67,14 @@ function reviewHint(clause: string): string {
   return `${first}${"＿".repeat(Math.min(hiddenCount, 8))}${punctuation}`;
 }
 
-function speakPoem(
+async function speakPoem(
   poem: Poem,
   onStarted?: () => void,
   onEnded?: () => void,
   onError?: () => void,
-): () => void {
+): Promise<() => void> {
   if (poem.audioUrl) {
-    const audio = getPoemAudioElement(poem.audioUrl);
+    const audio = await getPoemAudioElement(poem.audioUrl);
     let stopped = false;
     audio.pause();
     audio.currentTime = 0;
@@ -135,6 +135,7 @@ export function PoemLearningExperience({
   const [error, setError] = useState("");
   const [confirmingExit, setConfirmingExit] = useState(false);
   const stopAudioRef = useRef<(() => void) | null>(null);
+  const playbackRequestRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +155,7 @@ export function PoemLearningExperience({
       });
     return () => {
       cancelled = true;
+      playbackRequestRef.current += 1;
       stopAudioRef.current?.();
     };
   }, [attemptId]);
@@ -182,22 +184,32 @@ export function PoemLearningExperience({
     };
   }, [session]);
 
-  function playCurrent() {
-    if (!poem || playing || busy) return;
+  async function playCurrent() {
+    if (!poem || busy) return;
+    const requestId = playbackRequestRef.current + 1;
+    playbackRequestRef.current = requestId;
     setError("");
     setPlaying(true);
     stopAudioRef.current?.();
-    stopAudioRef.current = speakPoem(
+    stopAudioRef.current = null;
+    const cleanup = await speakPoem(
       poem,
       undefined,
       () => {
-        setPlaying(false);
+        if (playbackRequestRef.current === requestId) setPlaying(false);
       },
       () => {
-        setPlaying(false);
-        setError("暂时无法播放朗读，请再试一次");
+        if (playbackRequestRef.current === requestId) {
+          setPlaying(false);
+          setError("暂时无法播放朗读，请再试一次");
+        }
       },
     );
+    if (playbackRequestRef.current !== requestId) {
+      cleanup();
+      return;
+    }
+    stopAudioRef.current = cleanup;
   }
 
   async function finishLearning(currentPoem: Poem) {
@@ -315,8 +327,8 @@ export function PoemLearningExperience({
             className={`poem-page__listen ${playing ? "is-playing" : ""}`}
             type="button"
             aria-label={`播放${poem.title}`}
-            disabled={playing || busy}
-            onClick={() => playCurrent()}
+            disabled={busy}
+            onClick={() => void playCurrent()}
           >
             <img src={speakerIcon} alt="" aria-hidden="true" />
           </button>

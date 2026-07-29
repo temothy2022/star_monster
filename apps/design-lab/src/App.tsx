@@ -300,6 +300,8 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(readRouteFromHash);
   const [nickname, setNickname] = useState("");
   const [activeAttempt, setActiveAttempt] = useState<TaskAttempt | null>(null);
+  const [optimisticallyAbandonedAttemptId, setOptimisticallyAbandonedAttemptId] =
+    useState<string | null>(null);
   const [attemptRestoreError, setAttemptRestoreError] = useState("");
   const [lastCompletion, setLastCompletion] = useState<{
     taskTitle: string;
@@ -360,6 +362,52 @@ export function App() {
       return;
     }
     reportActionError(reason);
+  }
+
+  function leavePoemAttempt() {
+    const attemptId = activeAttempt?.id;
+    if (!attemptId) {
+      navigate("tasks-partial");
+      return;
+    }
+
+    setOptimisticallyAbandonedAttemptId(attemptId);
+    setActiveAttempt(null);
+    navigate("tasks-partial");
+
+    void (async () => {
+      let lastError: unknown;
+      for (let retry = 0; retry < 3; retry += 1) {
+        try {
+          await abandonAttempt(attemptId);
+          setOptimisticallyAbandonedAttemptId((current) =>
+            current === attemptId ? null : current,
+          );
+          return;
+        } catch (reason) {
+          if (
+            reason instanceof ApiError &&
+            (reason.status === 404 ||
+              STALE_ATTEMPT_ERROR_CODES.has(reason.code ?? ""))
+          ) {
+            setOptimisticallyAbandonedAttemptId((current) =>
+              current === attemptId ? null : current,
+            );
+            return;
+          }
+          lastError = reason;
+          if (retry < 2) {
+            await new Promise((resolve) =>
+              window.setTimeout(resolve, 500 * 2 ** retry),
+            );
+          }
+        }
+      }
+      setOptimisticallyAbandonedAttemptId((current) =>
+        current === attemptId ? null : current,
+      );
+      reportActionError(lastError);
+    })();
   }
 
   useEffect(() => {
@@ -446,6 +494,7 @@ export function App() {
         view={view}
         onNavigate={navigate}
         onStartAttempt={(attempt) => {
+          if (attempt.id === optimisticallyAbandonedAttemptId) return;
           setActiveAttempt(attempt);
           navigate(
             attempt.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
@@ -506,18 +555,7 @@ export function App() {
     return (
       <PoemLearningExperience
         attemptId={activeAttempt!.id}
-        onExit={() => {
-          if (!activeAttempt) {
-            navigate("tasks-partial");
-            return;
-          }
-          void abandonAttempt(activeAttempt.id)
-            .then(() => {
-              setActiveAttempt(null);
-              navigate("tasks-partial");
-            })
-            .catch(handleAttemptActionError);
-        }}
+        onExit={leavePoemAttempt}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,

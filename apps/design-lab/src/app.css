@@ -305,6 +305,10 @@ body:has(.poem-page),
 .poem-page--runtime {
   width: 100%;
   min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .poem-page--runtime .hanzi-more-button {
@@ -325,6 +329,7 @@ body:has(.poem-page),
   color: var(--poem-muted);
   font-size: 15px;
   font-weight: 700;
+  margin-left: 18px;
 }
 
 .poem-page--runtime .poem-page__recitation-column {
@@ -344,7 +349,7 @@ body:has(.poem-page),
 }
 
 .poem-runtime__text .poem-page__line {
-  justify-content: center;
+  justify-content: flex-start;
   gap: 7px;
 }
 
@@ -502,6 +507,7 @@ body:has(.poem-page),
     overflow-y: auto;
     padding: max(22px, env(safe-area-inset-top)) 24px
       max(28px, env(safe-area-inset-bottom));
+    border-radius: 0;
   }
 
   .poem-page--runtime .poem-page__header {
@@ -525,6 +531,7 @@ body:has(.poem-page),
     top: 58px;
     left: 50%;
     z-index: 1;
+    margin-left: 0;
     transform: translateX(-50%);
   }
 

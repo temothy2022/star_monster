@@ -1,62 +1,70 @@
 import type { Poem } from "../api/child-api";
 
 const MAX_AUDIO_CACHE_ENTRIES = 16;
-const audioCache = new Map<string, HTMLAudioElement>();
+type AudioCacheEntry = {
+  audio: HTMLAudioElement;
+  objectUrl: string | null;
+  ready: Promise<void>;
+};
+
+const audioCache = new Map<string, AudioCacheEntry>();
 
 function createCachedAudio(url: string) {
   const audio = new Audio();
   audio.preload = "auto";
-  audio.src = url;
-  audioCache.set(url, audio);
+  const entry: AudioCacheEntry = {
+    audio,
+    objectUrl: null,
+    ready: Promise.resolve(),
+  };
+  entry.ready = fetch(url, {
+    cache: "force-cache",
+    credentials: "same-origin",
+  })
+    .then((response) => {
+      if (!response.ok) throw new Error(`Audio preload failed with ${response.status}`);
+      return response.blob();
+    })
+    .then((blob) => {
+      entry.objectUrl = URL.createObjectURL(blob);
+      audio.src = entry.objectUrl;
+      audio.load();
+    })
+    .catch(() => {
+      // Keep playback available even when the explicit memory warmup fails.
+      audio.src = url;
+      audio.load();
+    });
+  audioCache.set(url, entry);
 
   while (audioCache.size > MAX_AUDIO_CACHE_ENTRIES) {
     const oldest = audioCache.entries().next().value as
-      | [string, HTMLAudioElement]
+      | [string, AudioCacheEntry]
       | undefined;
     if (!oldest) break;
-    oldest[1].pause();
-    oldest[1].removeAttribute("src");
-    oldest[1].load();
+    oldest[1].audio.pause();
+    oldest[1].audio.removeAttribute("src");
+    oldest[1].audio.load();
+    if (oldest[1].objectUrl) URL.revokeObjectURL(oldest[1].objectUrl);
     audioCache.delete(oldest[0]);
   }
 
-  return audio;
+  return entry;
 }
 
-export function getPoemAudioElement(url: string): HTMLAudioElement {
+export async function getPoemAudioElement(
+  url: string,
+): Promise<HTMLAudioElement> {
   const cached = audioCache.get(url);
   if (cached) {
     audioCache.delete(url);
     audioCache.set(url, cached);
-    return cached;
+    await cached.ready;
+    return cached.audio;
   }
-  return createCachedAudio(url);
-}
-
-async function preloadAudio(url: string, signal: AbortSignal) {
-  const audio = getPoemAudioElement(url);
-  if (
-    !audio.paused ||
-    audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
-  ) {
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    let timeout: number | undefined;
-    const finish = () => {
-      audio.removeEventListener("loadeddata", finish);
-      audio.removeEventListener("error", finish);
-      signal.removeEventListener("abort", finish);
-      if (timeout !== undefined) window.clearTimeout(timeout);
-      resolve();
-    };
-    audio.addEventListener("loadeddata", finish, { once: true });
-    audio.addEventListener("error", finish, { once: true });
-    signal.addEventListener("abort", finish, { once: true });
-    timeout = window.setTimeout(finish, 5_000);
-    audio.load();
-  });
+  const entry = createCachedAudio(url);
+  await entry.ready;
+  return entry.audio;
 }
 
 export async function preloadPoemAssets(
@@ -73,7 +81,7 @@ export async function preloadPoemAssets(
     urls.map(async (url) => {
       try {
         if (/\.mp3(?:[?#].*)?$/i.test(url)) {
-          await preloadAudio(url, signal);
+          await getPoemAudioElement(url);
           return;
         }
         const response = await fetch(url, {
