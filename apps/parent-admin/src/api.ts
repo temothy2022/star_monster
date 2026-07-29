@@ -73,6 +73,12 @@ export type HanziCharacterResource = {
   isEnabled: boolean;
 };
 
+export type HanziMediaKind =
+  | "image"
+  | "character-audio"
+  | "sentence-audio"
+  | "word-audio";
+
 export type HanziSettingsResponse = {
   settings: HanziLearningSettings;
   progress: Partial<Record<"LEARNING" | "MASTERED", number>>;
@@ -376,6 +382,21 @@ export class ApiError extends Error {
 
 export const PARENT_SESSION_EXPIRED_EVENT = "parent-session-expired";
 
+function uploadContentType(file: File) {
+  if (file.type) return file.type;
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const types: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    mp3: "audio/mpeg",
+    m4a: "audio/mp4",
+    wav: "audio/wav",
+  };
+  return types[extension ?? ""] ?? "application/octet-stream";
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
@@ -479,6 +500,27 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/characters/${id}`,
       { method: "PATCH", body: JSON.stringify(data) },
     ),
+  uploadHanziMedia: (
+    childId: string,
+    id: string,
+    kind: HanziMediaKind,
+    file: File,
+    wordIndex?: number,
+  ) => {
+    const search = new URLSearchParams();
+    if (wordIndex !== undefined) {
+      search.set("wordIndex", String(wordIndex));
+    }
+    const suffix = search.size ? `?${search.toString()}` : "";
+    return api<{ character: HanziCharacterResource }>(
+      `/api/parent/children/${childId}/hanzi/characters/${id}/media/${kind}${suffix}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": uploadContentType(file) },
+        body: file,
+      },
+    );
+  },
   deleteHanziCharacter: (childId: string, id: string) =>
     api<{ ok: true }>(
       `/api/parent/children/${childId}/hanzi/characters/${id}`,

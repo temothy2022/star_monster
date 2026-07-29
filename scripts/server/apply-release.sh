@@ -17,6 +17,7 @@ source "$SERVER_CONFIG"
 : "${PARENT_WEB_ROOT:?PARENT_WEB_ROOT is required}"
 : "${SUPER_WEB_ROOT:?SUPER_WEB_ROOT is required}"
 API_SERVICE="${API_SERVICE:-star-monsters-api.service}"
+HANZI_UPLOAD_DIR="${HANZI_UPLOAD_DIR:-/opt/star-monsters/hanzi-assets/v1/uploads}"
 
 cd "$PROJECT_ROOT"
 
@@ -37,6 +38,14 @@ fi
 corepack pnpm --filter @star-monsters/api db:generate
 corepack pnpm --filter @star-monsters/api db:deploy
 corepack pnpm --filter @star-monsters/api build
+
+API_RUN_USER="$(systemctl show "$API_SERVICE" -p User --value)"
+if [[ -z "$API_RUN_USER" ]]; then
+  echo "The API service must run as a named user before enabling media uploads."
+  exit 1
+fi
+API_RUN_GROUP="$(id -gn "$API_RUN_USER")"
+sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$HANZI_UPLOAD_DIR"
 
 # If Nginx already serves the workspace dist directory, rsync has uploaded the
 # files into place. A separate web root is also supported for future migrations.

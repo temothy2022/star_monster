@@ -10,3 +10,4 @@ test-results
 .deploy.env
 coverage
 outputs
+/hanzi-assets/

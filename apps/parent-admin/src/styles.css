@@ -250,6 +250,134 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .hanzi-library-list { max-height: 720px; overflow-y: auto; padding-right: 3px; }
 .hanzi-resource-actions { display: grid; flex: 0 0 auto; justify-items: end; gap: 10px; }
 .hanzi-resource-actions .list-card__actions { justify-content: flex-end; }
+.hanzi-admin-media {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e2e5e9;
+  border-radius: 8px;
+  background: #fff9f4;
+}
+.hanzi-admin-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hanzi-admin-media .hanzi-admin-glyph {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+.hanzi-audio-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #d4d9e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #35445c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hanzi-audio-button--playing {
+  border-color: #f0a37f;
+  background: #fff0e5;
+  color: #a64113;
+}
+.hanzi-media-editor {
+  display: grid;
+  gap: 0;
+  margin-top: 4px;
+  border-top: 1px solid #e3e6ea;
+  border-bottom: 1px solid #e3e6ea;
+}
+.hanzi-media-editor__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0 12px;
+}
+.hanzi-media-editor__heading h3 {
+  margin: 0 0 4px;
+  color: #243654;
+  font-size: 15px;
+}
+.hanzi-media-editor__heading p,
+.hanzi-media-editor__heading span {
+  margin: 0;
+  color: #7a8595;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.hanzi-media-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 0;
+  border-top: 1px solid #eef0f3;
+}
+.hanzi-media-row > div:not(.hanzi-media-preview) {
+  display: grid;
+  gap: 3px;
+}
+.hanzi-media-row strong {
+  color: #34425a;
+  font-size: 13px;
+}
+.hanzi-media-row small {
+  color: #8791a1;
+  font-size: 11px;
+}
+.hanzi-media-row--image {
+  grid-template-columns: 76px minmax(120px, 1fr) auto;
+}
+.hanzi-media-preview {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e1e5ea;
+  border-radius: 8px;
+  background: #fff9f4;
+}
+.hanzi-media-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hanzi-media-preview strong {
+  font-size: 30px;
+}
+.hanzi-upload-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid #d4d9e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #35445c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.hanzi-upload-button input { display: none; }
+.hanzi-upload-button--disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
 .hanzi-library-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; color: #6f7c90; font-size: 13px; }
 .hanzi-library-pagination button:disabled { cursor: not-allowed; opacity: .5; }
 .admin-form label small { color: #8791a1; font-size: 11px; font-weight: 500; line-height: 1.5; }
@@ -729,6 +857,9 @@ td { font-size: 13px; }
   .hanzi-library-search button[type="button"] { grid-column: 1 / -1; }
   .hanzi-resource-actions { width: 100%; justify-items: start; }
   .hanzi-resource-status, .hanzi-resource-actions .list-card__actions { justify-content: flex-start; }
+  .hanzi-media-row {
+    grid-template-columns: minmax(120px, 1fr) auto auto;
+  }
   .poem-weekday-picker { grid-template-columns: repeat(4, minmax(58px, 1fr)); }
 }
 
@@ -754,4 +885,17 @@ td { font-size: 13px; }
   .performance-diagnosis__item { padding: 14px 0; border-right: 0; border-bottom: 1px solid #e5e8ed; }
   .performance-breakdown > div:last-child,
   .performance-diagnosis__item:last-child { border-bottom: 0; }
+  .hanzi-media-row,
+  .hanzi-media-row--image {
+    grid-template-columns: 1fr auto;
+  }
+  .hanzi-media-row--image .hanzi-media-preview {
+    grid-row: span 2;
+  }
+  .hanzi-media-row .hanzi-audio-button {
+    justify-self: start;
+  }
+  .hanzi-media-row .hanzi-upload-button {
+    justify-self: end;
+  }
 }

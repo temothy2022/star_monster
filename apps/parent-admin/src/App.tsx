@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type DragEvent,
   type FormEvent,
@@ -16,6 +17,7 @@ import {
   type Device,
   type HanziCharacterResource,
   type HanziLearningSettings,
+  type HanziMediaKind,
   type LedgerEntry,
   type PlanetKey,
   type PlanetSetting,
@@ -988,7 +990,7 @@ type HanziCharacterForm = {
   shapeHint: string;
   sentence: string;
   wordsText: string;
-  wordAudioUrlsText: string;
+  wordAudioUrls: string[];
   imageKey: string;
   characterAudioUrl: string;
   sentenceAudioUrl: string;
@@ -1002,7 +1004,7 @@ const EMPTY_HANZI_CHARACTER: HanziCharacterForm = {
   shapeHint: "",
   sentence: "",
   wordsText: "",
-  wordAudioUrlsText: "",
+  wordAudioUrls: [],
   imageKey: "default-hanzi",
   characterAudioUrl: "",
   sentenceAudioUrl: "",
@@ -1017,7 +1019,7 @@ function hanziFormFrom(item: HanziCharacterResource): HanziCharacterForm {
     shapeHint: item.shapeHint,
     sentence: item.sentence.replace("__", item.character),
     wordsText: item.words.join("、"),
-    wordAudioUrlsText: item.wordAudioUrls.join("\n"),
+    wordAudioUrls: [...item.wordAudioUrls],
     imageKey: item.imageKey,
     characterAudioUrl: item.characterAudioUrl ?? "",
     sentenceAudioUrl: item.sentenceAudioUrl ?? "",
@@ -1038,12 +1040,7 @@ function hanziPayload(form: HanziCharacterForm) {
     .split(/[、,，\n]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-  const wordAudioUrls = form.wordAudioUrlsText
-    .split(/[、,，\n]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
   if (!words.length) throw new Error("请至少填写一个词组");
-  if (wordAudioUrls.length > words.length) throw new Error("词语读音地址不能多于词组数量");
   return {
     character,
     internalPinyin: form.internalPinyin.trim(),
@@ -1051,13 +1048,79 @@ function hanziPayload(form: HanziCharacterForm) {
     shapeHint: form.shapeHint.trim(),
     sentence,
     words,
-    wordAudioUrls,
+    wordAudioUrls: words.map(
+      (_, index) => form.wordAudioUrls[index]?.trim() ?? "",
+    ),
     imageKey: form.imageKey.trim() || "default-hanzi",
     characterAudioUrl: form.characterAudioUrl.trim() || null,
     sentenceAudioUrl: form.sentenceAudioUrl.trim() || null,
     sortOrder: form.sortOrder,
     isEnabled: true,
   };
+}
+
+function HanziAudioButton({
+  mediaKey,
+  label,
+  url,
+  fallbackText,
+  playingMediaKey,
+  onToggle,
+}: {
+  mediaKey: string;
+  label: string;
+  url: string | null;
+  fallbackText: string;
+  playingMediaKey: string | null;
+  onToggle: (
+    mediaKey: string,
+    url: string | null,
+    fallbackText: string,
+  ) => void;
+}) {
+  const playing = playingMediaKey === mediaKey;
+  return (
+    <button
+      type="button"
+      className={`hanzi-audio-button${playing ? " hanzi-audio-button--playing" : ""}`}
+      title={playing ? `停止${label}` : `播放${label}`}
+      onClick={() => onToggle(mediaKey, url, fallbackText)}
+    >
+      <span aria-hidden="true">{playing ? "■" : "▶"}</span>
+      {playing ? "停止" : label}
+    </button>
+  );
+}
+
+function HanziUploadControl({
+  label,
+  accept,
+  disabled,
+  onSelect,
+}: {
+  label: string;
+  accept: string;
+  disabled: boolean;
+  onSelect: (file: File) => void;
+}) {
+  return (
+    <label
+      className={`hanzi-upload-button${disabled ? " hanzi-upload-button--disabled" : ""}`}
+    >
+      <span aria-hidden="true">↑</span>
+      {label}
+      <input
+        type="file"
+        accept={accept}
+        disabled={disabled}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          if (file) onSelect(file);
+          event.currentTarget.value = "";
+        }}
+      />
+    </label>
+  );
 }
 
 function HanziLearning({ child }: { child: Child }) {
@@ -1077,7 +1140,74 @@ function HanziLearning({ child }: { child: Child }) {
   const [message, setMessage] = useState("");
   const [libraryMessage, setLibraryMessage] = useState("");
   const [error, setError] = useState("");
+  const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
+  const [playingMediaKey, setPlayingMediaKey] = useState<string | null>(null);
+  const activeAudio = useRef<HTMLAudioElement | null>(null);
   const pageSize = 30;
+
+  function stopMediaPlayback() {
+    activeAudio.current?.pause();
+    activeAudio.current = null;
+    window.speechSynthesis?.cancel();
+    setPlayingMediaKey(null);
+  }
+
+  useEffect(
+    () => () => {
+      activeAudio.current?.pause();
+      activeAudio.current = null;
+      window.speechSynthesis?.cancel();
+    },
+    [child.id],
+  );
+
+  function toggleMediaPlayback(
+    mediaKey: string,
+    url: string | null,
+    fallbackText: string,
+  ) {
+    if (playingMediaKey === mediaKey) {
+      stopMediaPlayback();
+      return;
+    }
+    stopMediaPlayback();
+    setError("");
+    setPlayingMediaKey(mediaKey);
+    if (!url) {
+      if (!window.speechSynthesis) {
+        setPlayingMediaKey(null);
+        setError("当前浏览器不支持朗读");
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(fallbackText);
+      utterance.lang = "zh-CN";
+      utterance.rate = 0.82;
+      utterance.onend = () => setPlayingMediaKey(null);
+      utterance.onerror = () => {
+        setPlayingMediaKey(null);
+        setError("暂时无法播放朗读");
+      };
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
+    const audio = new Audio(url);
+    activeAudio.current = audio;
+    audio.onended = () => {
+      if (activeAudio.current === audio) activeAudio.current = null;
+      setPlayingMediaKey(null);
+    };
+    audio.onerror = () => {
+      if (activeAudio.current === audio) activeAudio.current = null;
+      setPlayingMediaKey(null);
+      setError("音频加载失败，请上传新的音频文件");
+    };
+    void audio.play().catch(() => {
+      if (activeAudio.current === audio) activeAudio.current = null;
+      setPlayingMediaKey(null);
+      setError("暂时无法播放音频");
+    });
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -1182,11 +1312,71 @@ function HanziLearning({ child }: { child: Child }) {
     }
   }
 
+  async function uploadMedia(
+    kind: HanziMediaKind,
+    file: File,
+    wordIndex?: number,
+  ) {
+    if (!editingCharacterId) {
+      setError("请先保存汉字，再上传图片或音频");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("单个媒体文件不能超过 5MB");
+      return;
+    }
+    const mediaKey = `${kind}-${wordIndex ?? ""}`;
+    setUploadingMediaKey(mediaKey);
+    setError("");
+    setLibraryMessage("");
+    stopMediaPlayback();
+    try {
+      const result = await parentApi.uploadHanziMedia(
+        child.id,
+        editingCharacterId,
+        kind,
+        file,
+        wordIndex,
+      );
+      setCharacters((current) =>
+        current.map((item) =>
+          item.id === result.character.id ? result.character : item,
+        ),
+      );
+      setCharacterForm((current) => ({
+        ...current,
+        imageKey: result.character.imageKey,
+        characterAudioUrl: result.character.characterAudioUrl ?? "",
+        sentenceAudioUrl: result.character.sentenceAudioUrl ?? "",
+        wordAudioUrls: [...result.character.wordAudioUrls],
+      }));
+      setLibraryMessage(
+        `“${result.character.character}”的${
+          kind === "image"
+            ? "图片"
+            : kind === "character-audio"
+              ? "字音"
+              : kind === "sentence-audio"
+                ? "例句音频"
+                : `词语“${result.character.words[wordIndex ?? 0]}”读音`
+        }已经替换`,
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "媒体上传失败");
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  }
+
   function searchCharacters(event: FormEvent) {
     event.preventDefault();
     setPage(1);
     setSearchQuery(searchInput.trim());
   }
+
+  const editingCharacter = editingCharacterId
+    ? characters.find((item) => item.id === editingCharacterId) ?? null
+    : null;
 
   return (
     <div className="admin-stack">
@@ -1220,10 +1410,97 @@ function HanziLearning({ child }: { child: Child }) {
             <label className="field-span">字形联想提示<input required maxLength={240} placeholder="例如：像水流向两边散开" value={characterForm.shapeHint} onChange={(event) => setCharacterForm({ ...characterForm, shapeHint: event.target.value })} /></label>
             <label className="field-span">统一例句<input required maxLength={300} placeholder="例如：小鱼在水里游来游去。" value={characterForm.sentence} onChange={(event) => setCharacterForm({ ...characterForm, sentence: event.target.value })} /><small>例句必须包含当前汉字，系统会自动标记听句挑战的填空位置。</small></label>
             <label className="field-span">词组<textarea required placeholder="使用顿号、逗号或换行分隔，例如：河水、水杯、雨水" value={characterForm.wordsText} onChange={(event) => setCharacterForm({ ...characterForm, wordsText: event.target.value })} /></label>
-            <label className="field-span">词语读音地址<textarea placeholder="可留空；每行对应一个词组" value={characterForm.wordAudioUrlsText} onChange={(event) => setCharacterForm({ ...characterForm, wordAudioUrlsText: event.target.value })} /></label>
-            <label className="field-span">图片地址或资源键<input required maxLength={2048} placeholder="COS/CDN 图片地址，暂无时使用 default-hanzi" value={characterForm.imageKey} onChange={(event) => setCharacterForm({ ...characterForm, imageKey: event.target.value })} /></label>
-            <label className="field-span">汉字读音地址<input maxLength={2048} placeholder="可留空，留空时使用浏览器朗读" value={characterForm.characterAudioUrl} onChange={(event) => setCharacterForm({ ...characterForm, characterAudioUrl: event.target.value })} /></label>
-            <label className="field-span">例句读音地址<input maxLength={2048} placeholder="可留空，留空时使用浏览器朗读" value={characterForm.sentenceAudioUrl} onChange={(event) => setCharacterForm({ ...characterForm, sentenceAudioUrl: event.target.value })} /></label>
+            <section className="field-span hanzi-media-editor" aria-label="图片和音频资源">
+              <div className="hanzi-media-editor__heading">
+                <div>
+                  <h3>图片与朗读资源</h3>
+                  <p>{editingCharacterId ? "上传后立即替换线上资源，文件地址由系统管理。" : "新增汉字保存后即可上传图片和音频。"}</p>
+                </div>
+                {uploadingMediaKey ? <span>正在上传…</span> : null}
+              </div>
+              <div className="hanzi-media-row hanzi-media-row--image">
+                <div className="hanzi-media-preview">
+                  {characterForm.imageKey !== "default-hanzi" ? (
+                    <img src={characterForm.imageKey} alt={`${characterForm.character || "汉字"}配图`} />
+                  ) : (
+                    <strong>{characterForm.character || "字"}</strong>
+                  )}
+                </div>
+                <div>
+                  <strong>汉字配图</strong>
+                  <small>支持 JPEG、PNG、WebP，最大 5MB</small>
+                </div>
+                <HanziUploadControl
+                  label={characterForm.imageKey === "default-hanzi" ? "上传图片" : "替换图片"}
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={!editingCharacterId || uploadingMediaKey !== null}
+                  onSelect={(file) => void uploadMedia("image", file)}
+                />
+              </div>
+              <div className="hanzi-media-row">
+                <div>
+                  <strong>汉字发音</strong>
+                  <small>{characterForm.characterAudioUrl ? "已上传专属音频" : "当前使用浏览器朗读"}</small>
+                </div>
+                <HanziAudioButton
+                  mediaKey="editor-character"
+                  label="试听字音"
+                  url={characterForm.characterAudioUrl || null}
+                  fallbackText={characterForm.character || ""}
+                  playingMediaKey={playingMediaKey}
+                  onToggle={toggleMediaPlayback}
+                />
+                <HanziUploadControl
+                  label={characterForm.characterAudioUrl ? "替换字音" : "上传字音"}
+                  accept="audio/mpeg,audio/mp4,audio/wav"
+                  disabled={!editingCharacterId || uploadingMediaKey !== null}
+                  onSelect={(file) => void uploadMedia("character-audio", file)}
+                />
+              </div>
+              <div className="hanzi-media-row">
+                <div>
+                  <strong>例句朗读</strong>
+                  <small>{characterForm.sentenceAudioUrl ? "已上传专属音频" : "当前使用浏览器朗读"}</small>
+                </div>
+                <HanziAudioButton
+                  mediaKey="editor-sentence"
+                  label="试听例句"
+                  url={characterForm.sentenceAudioUrl || null}
+                  fallbackText={characterForm.sentence}
+                  playingMediaKey={playingMediaKey}
+                  onToggle={toggleMediaPlayback}
+                />
+                <HanziUploadControl
+                  label={characterForm.sentenceAudioUrl ? "替换例句" : "上传例句"}
+                  accept="audio/mpeg,audio/mp4,audio/wav"
+                  disabled={!editingCharacterId || uploadingMediaKey !== null}
+                  onSelect={(file) => void uploadMedia("sentence-audio", file)}
+                />
+              </div>
+              {(editingCharacter?.words ?? [])
+                .map((word, index) => (
+                  <div className="hanzi-media-row" key={`${word}-${index}`}>
+                    <div>
+                      <strong>词语：{word}</strong>
+                      <small>{characterForm.wordAudioUrls[index] ? "已上传专属音频" : "当前使用浏览器朗读"}</small>
+                    </div>
+                    <HanziAudioButton
+                      mediaKey={`editor-word-${index}`}
+                      label="试听词语"
+                      url={characterForm.wordAudioUrls[index] || null}
+                      fallbackText={word}
+                      playingMediaKey={playingMediaKey}
+                      onToggle={toggleMediaPlayback}
+                    />
+                    <HanziUploadControl
+                      label={characterForm.wordAudioUrls[index] ? "替换词音" : "上传词音"}
+                      accept="audio/mpeg,audio/mp4,audio/wav"
+                      disabled={!editingCharacterId || uploadingMediaKey !== null}
+                      onSelect={(file) => void uploadMedia("word-audio", file, index)}
+                    />
+                  </div>
+                ))}
+            </section>
             <label>学习顺序<input type="number" min={0} max={1000000} value={characterForm.sortOrder} onChange={(event) => setCharacterForm({ ...characterForm, sortOrder: Number(event.target.value) })} /></label>
             <div className="form-actions field-span">
               {editingCharacterId ? <button type="button" className="ghost-button" onClick={() => { setEditingCharacterId(null); setCharacterForm(EMPTY_HANZI_CHARACTER); }}>取消编辑</button> : null}
@@ -1232,7 +1509,7 @@ function HanziLearning({ child }: { child: Child }) {
           </form>
         </Panel>
         <Panel title={`基础汉字库（${totalCharacters}${searchQuery ? " 条搜索结果" : " 个"}）`}>
-          <p className="admin-help">支持单独新增、编辑和删除。图片与正式读音建议填写对象存储或 CDN 地址；留空读音时继续使用浏览器朗读。</p>
+          <p className="admin-help">每个汉字都可以直接试听。点击“编辑与上传”可以预览图片，并上传新图片或音频替换现有资源。</p>
           <form className="hanzi-library-search" onSubmit={searchCharacters}>
             <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索汉字、拼音、含义或例句" />
             <button type="submit">搜索</button>
@@ -1243,7 +1520,13 @@ function HanziLearning({ child }: { child: Child }) {
             {characters.map((item) => (
               <article className="list-card" key={item.id}>
                 <div className="list-card__main">
-                  <div className="hanzi-admin-glyph">{item.character}</div>
+                  <div className="hanzi-admin-media">
+                    {item.imageKey !== "default-hanzi" ? (
+                      <img src={item.imageKey} alt={`${item.character}配图`} loading="lazy" />
+                    ) : (
+                      <div className="hanzi-admin-glyph">{item.character}</div>
+                    )}
+                  </div>
                   <div>
                     <h3>{item.character}（{item.internalPinyin}）· {item.meaning}</h3>
                     <p>{item.words.join("、")}</p>
@@ -1252,12 +1535,25 @@ function HanziLearning({ child }: { child: Child }) {
                 </div>
                 <div className="hanzi-resource-actions">
                   <div className="hanzi-resource-status">
-                    <span className={item.characterAudioUrl ? "status status--completed" : "status status--pending"}>{item.characterAudioUrl ? "字音已配置" : "字音：浏览器朗读"}</span>
-                    <span className={item.sentenceAudioUrl ? "status status--completed" : "status status--pending"}>{item.sentenceAudioUrl ? "句音已配置" : "句音：浏览器朗读"}</span>
-                    <span className={item.imageKey === "default-hanzi" ? "status status--pending" : "status status--completed"}>{item.imageKey === "default-hanzi" ? "默认图片" : "专属图片"}</span>
+                    <HanziAudioButton
+                      mediaKey={`list-character-${item.id}`}
+                      label="播放字音"
+                      url={item.characterAudioUrl}
+                      fallbackText={item.character}
+                      playingMediaKey={playingMediaKey}
+                      onToggle={toggleMediaPlayback}
+                    />
+                    <HanziAudioButton
+                      mediaKey={`list-sentence-${item.id}`}
+                      label="播放例句"
+                      url={item.sentenceAudioUrl}
+                      fallbackText={item.sentence.replace("__", item.character)}
+                      playingMediaKey={playingMediaKey}
+                      onToggle={toggleMediaPlayback}
+                    />
                   </div>
                   <div className="list-card__actions">
-                    <button type="button" onClick={() => { setEditingCharacterId(item.id); setCharacterForm(hanziFormFrom(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑</button>
+                    <button type="button" onClick={() => { stopMediaPlayback(); setEditingCharacterId(item.id); setCharacterForm(hanziFormFrom(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑与上传</button>
                     <button type="button" className="danger-text" disabled={libraryBusy} onClick={() => void removeCharacter(item)}>删除</button>
                   </div>
                 </div>

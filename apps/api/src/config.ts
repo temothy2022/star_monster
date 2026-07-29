@@ -15,6 +15,10 @@ const envSchema = z.object({
   ADMIN_APP_ORIGIN: z.string().url().default("http://127.0.0.1:5177"),
   AI_CONFIG_ENCRYPTION_KEY: z.string().min(32),
   AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(5000).max(120000).default(45000),
+  HANZI_ASSET_UPLOAD_DIR: z
+    .string()
+    .min(1)
+    .default("../../hanzi-assets/v1/uploads"),
 });
 
 export type AppConfig = z.infer<typeof envSchema>;

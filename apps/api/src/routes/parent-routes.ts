@@ -1,4 +1,5 @@
 import { PlanetKey, Prisma } from "@prisma/client";
+import { unlink } from "node:fs/promises";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -20,6 +21,10 @@ import {
 } from "../services/planet-service.js";
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
+import {
+  HANZI_MEDIA_BODY_LIMIT,
+  storeHanziMedia,
+} from "../services/hanzi-media-service.js";
 
 const taskCategory = z.enum([
   "READING",
@@ -361,6 +366,17 @@ const idParams = z.object({ id: z.string().min(1) });
 const childResourceParams = z.object({
   childId: z.string().min(1),
   id: z.string().min(1),
+});
+const hanziMediaParams = childResourceParams.extend({
+  kind: z.enum([
+    "image",
+    "character-audio",
+    "sentence-audio",
+    "word-audio",
+  ]),
+});
+const hanziMediaQuery = z.object({
+  wordIndex: z.coerce.number().int().min(0).max(9).optional(),
 });
 const statsQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -958,7 +974,9 @@ export async function registerParentRoutes(
         const character = await prisma.hanziCharacter.create({
           data: {
             ...input,
-            wordAudioUrls: input.wordAudioUrls.filter(Boolean),
+            wordAudioUrls: input.words.map(
+              (_, index) => input.wordAudioUrls[index] || "",
+            ),
             characterAudioUrl: input.characterAudioUrl || null,
             sentenceAudioUrl: input.sentenceAudioUrl || null,
           },
@@ -993,7 +1011,9 @@ export async function registerParentRoutes(
           where: { id },
           data: {
             ...input,
-            wordAudioUrls: input.wordAudioUrls.filter(Boolean),
+            wordAudioUrls: input.words.map(
+              (_, index) => input.wordAudioUrls[index] || "",
+            ),
             characterAudioUrl: input.characterAudioUrl || null,
             sentenceAudioUrl: input.sentenceAudioUrl || null,
           },
@@ -1005,6 +1025,96 @@ export async function registerParentRoutes(
           error.code === "P2002"
         ) {
           throw new HttpError(409, "HANZI_ALREADY_EXISTS", "这个汉字已经在基础字库中");
+        }
+        throw error;
+      }
+    },
+  );
+
+  app.put(
+    "/api/parent/children/:childId/hanzi/characters/:id/media/:kind",
+    { bodyLimit: HANZI_MEDIA_BODY_LIMIT },
+    async (request, reply) => {
+      const { childId, id, kind } = hanziMediaParams.parse(request.params);
+      const { wordIndex } = hanziMediaQuery.parse(request.query);
+      const { user, child } = await requireOwnedChild(
+        request,
+        reply,
+        config,
+        childId,
+      );
+      const existing = await prisma.hanziCharacter.findUnique({ where: { id } });
+      if (!existing || !existing.isEnabled) {
+        throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
+      }
+      if (
+        kind === "word-audio" &&
+        (wordIndex === undefined || wordIndex >= existing.words.length)
+      ) {
+        throw new HttpError(
+          400,
+          "HANZI_WORD_INDEX_INVALID",
+          "没有找到要替换读音的词语",
+        );
+      }
+      if (!Buffer.isBuffer(request.body)) {
+        throw new HttpError(
+          400,
+          "HANZI_MEDIA_INVALID_BODY",
+          "请选择要上传的媒体文件",
+        );
+      }
+
+      const stored = await storeHanziMedia({
+        uploadDir: config.HANZI_ASSET_UPLOAD_DIR,
+        characterId: existing.id,
+        kind,
+        wordIndex,
+        contentType: request.headers["content-type"] ?? "",
+        data: request.body,
+      });
+
+      try {
+        const character = await prisma.$transaction(async (tx) => {
+          const data: Prisma.HanziCharacterUpdateInput =
+            kind === "image"
+              ? { imageKey: stored.publicUrl }
+              : kind === "character-audio"
+                ? { characterAudioUrl: stored.publicUrl }
+                : kind === "sentence-audio"
+                  ? { sentenceAudioUrl: stored.publicUrl }
+                  : {
+                      wordAudioUrls: existing.words.map((_, index) =>
+                        index === wordIndex
+                          ? stored.publicUrl
+                          : existing.wordAudioUrls[index] || "",
+                      ),
+                    };
+          const updated = await tx.hanziCharacter.update({
+            where: { id },
+            data,
+          });
+          await writeAudit(tx, {
+            actorType: "USER",
+            actorId: user.id,
+            familyId: child.familyId,
+            action: "HANZI_MEDIA_REPLACED",
+            resourceType: "HanziCharacter",
+            resourceId: id,
+            metadata: {
+              character: existing.character,
+              kind,
+              wordIndex: wordIndex ?? null,
+              fileName: stored.fileName,
+            },
+            ipAddress: request.ip,
+          });
+          return updated;
+        });
+        return { character };
+      } catch (error) {
+        if (stored.created) {
+          await unlink(stored.filePath).catch(() => undefined);
         }
         throw error;
       }

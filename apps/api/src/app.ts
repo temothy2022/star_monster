@@ -14,7 +14,9 @@ import { registerSuperAdminRoutes } from "./routes/super-admin-routes.js";
 import { registerParentRoutes } from "./routes/parent-routes.js";
 import { registerParentAiRoutes } from "./routes/parent-ai-routes.js";
 import { registerClientTelemetryRoutes } from "./routes/client-telemetry-routes.js";
+import { registerHanziMediaRoutes } from "./routes/hanzi-media-routes.js";
 import { prisma } from "./lib/prisma.js";
+import { HANZI_MEDIA_BODY_LIMIT } from "./services/hanzi-media-service.js";
 
 export async function buildApp(config: AppConfig) {
   const app = Fastify({
@@ -68,6 +70,22 @@ export async function buildApp(config: AppConfig) {
       config.ADMIN_APP_ORIGIN,
     ],
   });
+  app.addContentTypeParser(
+    [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/mp4",
+      "audio/x-m4a",
+      "audio/m4a",
+      "audio/wav",
+      "audio/x-wav",
+    ],
+    { parseAs: "buffer", bodyLimit: HANZI_MEDIA_BODY_LIMIT },
+    (_request, body, done) => done(null, body),
+  );
 
   app.get("/api/health", async (_request, reply) => {
     try {
@@ -84,6 +102,7 @@ export async function buildApp(config: AppConfig) {
   await registerChildHanziRoutes(app, config);
   await registerChildPoemRoutes(app, config);
   await registerClientTelemetryRoutes(app, config);
+  await registerHanziMediaRoutes(app, config);
   await registerChildProgressRoutes(app, config);
   await registerSuperAdminRoutes(app, config);
   await registerParentRoutes(app, config);
@@ -116,7 +135,10 @@ export async function buildApp(config: AppConfig) {
       return reply.status(clientError.statusCode).send({
         error: {
           code: clientError.code ?? "BAD_REQUEST",
-          message: "请求格式不正确",
+          message:
+            clientError.code === "FST_ERR_CTP_BODY_TOO_LARGE"
+              ? "上传文件不能超过 5MB"
+              : "请求格式不正确",
         },
       });
     }
