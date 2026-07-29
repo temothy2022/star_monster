@@ -16,7 +16,7 @@ import {
   resumeAttempt,
   saveOnboarding,
 } from "./api/child-api";
-import type { TaskAttempt } from "./api/child-api";
+import type { TaskAttempt, TodayTaskExperience } from "./api/child-api";
 
 const loadUntimedTaskPages = () => import("./tasks/UntimedTaskPages");
 const loadTimedTaskPages = () => import("./tasks/TimedTaskPages");
@@ -300,6 +300,8 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(readRouteFromHash);
   const [nickname, setNickname] = useState("");
   const [activeAttempt, setActiveAttempt] = useState<TaskAttempt | null>(null);
+  const [taskExperienceCache, setTaskExperienceCache] =
+    useState<TodayTaskExperience | null>(null);
   const [optimisticallyAbandonedAttemptId, setOptimisticallyAbandonedAttemptId] =
     useState<string | null>(null);
   const [attemptRestoreError, setAttemptRestoreError] = useState("");
@@ -492,6 +494,8 @@ export function App() {
     return (
       <TaskExperience
         view={view}
+        initialExperience={taskExperienceCache}
+        onExperienceChange={setTaskExperienceCache}
         onNavigate={navigate}
         onStartAttempt={(attempt) => {
           if (attempt.id === optimisticallyAbandonedAttemptId) return;
@@ -515,6 +519,7 @@ export function App() {
     return (
       <ChildLoginPage
         onAuthenticated={({ onboardingCompleted, nickname: savedNickname, petType }) => {
+          setTaskExperienceCache(null);
           if (petType) selectPet(petType);
           if (savedNickname) setNickname(savedNickname);
           navigate(onboardingCompleted ? "tasks-partial" : "step-1");

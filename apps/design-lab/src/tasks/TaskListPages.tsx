@@ -376,14 +376,20 @@ export function TaskExperience({
   view,
   onStartAttempt,
   onNavigate,
+  initialExperience = null,
+  onExperienceChange,
 }: {
   view: TaskView;
   onStartAttempt?: (attempt: TaskAttempt) => void;
   onNavigate?: (route: ChildRoute) => void;
+  initialExperience?: TodayTaskExperience | null;
+  onExperienceChange?: (experience: TodayTaskExperience) => void;
 }) {
-  const [experience, setExperience] = useState<TodayTaskExperience | null>(null);
+  const [experience, setExperience] = useState<TodayTaskExperience | null>(
+    initialExperience,
+  );
   const [planetUnlock, setPlanetUnlock] = useState<ChildPlanet | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialExperience);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
@@ -393,9 +399,14 @@ export function TaskExperience({
     onStartAttemptRef.current = onStartAttempt;
   }, [onStartAttempt]);
 
+  function updateExperience(nextExperience: TodayTaskExperience) {
+    setExperience(nextExperience);
+    onExperienceChange?.(nextExperience);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setLoading(!experience);
     setApiError("");
     setPlanetUnlock(null);
 
@@ -418,7 +429,7 @@ export function TaskExperience({
           ? planetData.planets.find((planet) => planet.planet === nextPlanet) ?? null
           : null,
       );
-      setExperience(result);
+      updateExperience(result);
       if (result.active) onStartAttemptRef.current?.(result.active);
     })()
       .catch((reason: unknown) => {
@@ -442,7 +453,7 @@ export function TaskExperience({
     async () => {
       try {
         const result = await getTodayTasks();
-        setExperience(result);
+        updateExperience(result);
         if (result.active) onStartAttemptRef.current?.(result.active);
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
@@ -485,7 +496,7 @@ export function TaskExperience({
           reason.code === "TASK_ALREADY_COMPLETED" ||
           reason.code === "TASK_NOT_STARTABLE")
       ) {
-        setExperience(await getTodayTasks());
+        updateExperience(await getTodayTasks());
         return;
       }
       setApiError(reason instanceof Error ? reason.message : "任务暂时无法开始");

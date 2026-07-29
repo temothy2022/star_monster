@@ -648,6 +648,33 @@ body:has(.poem-page),
   }
 }
 
+@media (orientation: portrait) and (min-width: 561px) {
+  .poem-page--runtime {
+    overflow: hidden;
+  }
+
+  .poem-page--runtime .poem-page__main {
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .poem-page--runtime .poem-page__illustration-column {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .poem-page--runtime .poem-page__image-frame {
+    min-height: 0;
+    aspect-ratio: auto;
+    flex: 1 1 auto;
+  }
+
+  .poem-page--runtime .poem-page__recitation-column {
+    flex: 0 0 auto;
+  }
+}
+
 button,
 input,
 textarea,
