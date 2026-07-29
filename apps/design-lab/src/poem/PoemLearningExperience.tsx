@@ -14,7 +14,6 @@ import defaultPoemImage from "../assets/poem/spring-dawn.png";
 import { ChildDataState } from "../components/ChildDataState";
 import { LoadingDots } from "../components/LoadingDots";
 import { HanziTaskControls } from "../hanzi/HanziTaskControls";
-import { AbandonDialog } from "../tasks/UntimedTaskPages";
 import {
   getPoemAudioElement,
   preloadPoemAssets,
@@ -133,7 +132,6 @@ export function PoemLearningExperience({
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
-  const [confirmingExit, setConfirmingExit] = useState(false);
   const stopAudioRef = useRef<(() => void) | null>(null);
   const playbackRequestRef = useRef(0);
 
@@ -270,7 +268,7 @@ export function PoemLearningExperience({
             className="poem-page__back"
             type="button"
             aria-label="返回任务列表"
-            onClick={() => setConfirmingExit(true)}
+            onClick={onExit}
           >
             <img src={backIcon} alt="" aria-hidden="true" />
           </button>
@@ -280,12 +278,6 @@ export function PoemLearningExperience({
           error={Boolean(error)}
           message={error || "正在准备今天的古诗…"}
         />
-        {confirmingExit ? (
-          <AbandonDialog
-            onContinue={() => setConfirmingExit(false)}
-            onAbandon={onExit}
-          />
-        ) : null}
       </main>
     );
   }
@@ -301,7 +293,7 @@ export function PoemLearningExperience({
           className="poem-page__back"
           type="button"
           aria-label="返回任务列表"
-          onClick={() => setConfirmingExit(true)}
+          onClick={onExit}
         >
           <img src={backIcon} alt="" aria-hidden="true" />
         </button>
@@ -415,12 +407,6 @@ export function PoemLearningExperience({
           {error ? <p className="poem-runtime__error" role="alert">{error}</p> : null}
         </div>
       </section>
-      {confirmingExit ? (
-        <AbandonDialog
-          onContinue={() => setConfirmingExit(false)}
-          onAbandon={onExit}
-        />
-      ) : null}
     </main>
   );
 }
