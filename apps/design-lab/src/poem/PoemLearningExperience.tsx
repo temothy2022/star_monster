@@ -9,10 +9,16 @@ import {
   type PoemLearningSession,
 } from "../api/child-api";
 import speakerIcon from "../assets/hanzi/sound-speaker.svg";
+import backIcon from "../assets/icon-arrow-left.svg";
 import defaultPoemImage from "../assets/poem/spring-dawn.png";
 import { ChildDataState } from "../components/ChildDataState";
 import { LoadingDots } from "../components/LoadingDots";
 import { HanziTaskControls } from "../hanzi/HanziTaskControls";
+import { AbandonDialog } from "../tasks/UntimedTaskPages";
+import {
+  getPoemAudioElement,
+  preloadPoemAssets,
+} from "./poem-asset-cache";
 
 type Reward = {
   baseStars: number;
@@ -68,13 +74,30 @@ function speakPoem(
   onError?: () => void,
 ): () => void {
   if (poem.audioUrl) {
-    const audio = new Audio(poem.audioUrl);
-    audio.onended = () => onEnded?.();
-    audio.onerror = () => onError?.();
-    void audio.play().then(() => onStarted?.()).catch(() => onError?.());
+    const audio = getPoemAudioElement(poem.audioUrl);
+    let stopped = false;
+    audio.pause();
+    audio.currentTime = 0;
+    audio.onended = () => {
+      if (!stopped) onEnded?.();
+    };
+    audio.onerror = () => {
+      if (!stopped) onError?.();
+    };
+    void audio
+      .play()
+      .then(() => {
+        if (!stopped) onStarted?.();
+      })
+      .catch(() => {
+        if (!stopped) onError?.();
+      });
     return () => {
+      stopped = true;
+      audio.onended = null;
+      audio.onerror = null;
       audio.pause();
-      audio.src = "";
+      audio.currentTime = 0;
     };
   }
 
@@ -110,6 +133,7 @@ export function PoemLearningExperience({
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
+  const [confirmingExit, setConfirmingExit] = useState(false);
   const stopAudioRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -139,6 +163,24 @@ export function PoemLearningExperience({
     () => (poem ? poemClauses(poem.content) : []),
     [poem],
   );
+
+  useEffect(() => {
+    if (!session) return;
+    const controller = new AbortController();
+    const nearbyPoemIds = new Set(
+      session.poemIds.slice(session.currentIndex, session.currentIndex + 2),
+    );
+    const nearbyPoems = session.poems.filter((item) =>
+      nearbyPoemIds.has(item.id),
+    );
+    const timer = window.setTimeout(() => {
+      void preloadPoemAssets(nearbyPoems, controller.signal);
+    }, 50);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [session]);
 
   function playCurrent() {
     if (!poem || playing || busy) return;
@@ -211,10 +253,27 @@ export function PoemLearningExperience({
     return (
       <main className="poem-page poem-page--runtime">
         <HanziTaskControls onAbandon={onExit} experienceName="古诗学习" />
+        <header className="poem-page__header">
+          <button
+            className="poem-page__back"
+            type="button"
+            aria-label="返回任务列表"
+            onClick={() => setConfirmingExit(true)}
+          >
+            <img src={backIcon} alt="" aria-hidden="true" />
+          </button>
+          <h1>古诗学习</h1>
+        </header>
         <ChildDataState
           error={Boolean(error)}
           message={error || "正在准备今天的古诗…"}
         />
+        {confirmingExit ? (
+          <AbandonDialog
+            onContinue={() => setConfirmingExit(false)}
+            onAbandon={onExit}
+          />
+        ) : null}
       </main>
     );
   }
@@ -226,6 +285,14 @@ export function PoemLearningExperience({
     <main className={`poem-page poem-page--runtime ${isReview ? "poem-page--review" : ""}`}>
       <HanziTaskControls onAbandon={onExit} experienceName="古诗学习" />
       <header className="poem-page__header">
+        <button
+          className="poem-page__back"
+          type="button"
+          aria-label="返回任务列表"
+          onClick={() => setConfirmingExit(true)}
+        >
+          <img src={backIcon} alt="" aria-hidden="true" />
+        </button>
         <div className="poem-page__progress">
           {isReview ? `第 ${session.currentIndex + 1} / ${session.poemIds.length} 首` : "本周新诗"}
         </div>
@@ -255,9 +322,27 @@ export function PoemLearningExperience({
           </button>
           <div className="poem-runtime__text" aria-label={showOriginal || !isReview ? poem.content : "背诵提示"}>
             {clauses.map((clause, index) => (
-              <p key={`${clause}-${index}`}>
-                {isReview && !showOriginal ? reviewHint(clause) : clause}
-              </p>
+              <div className="poem-page__line" key={`${clause}-${index}`}>
+                {Array.from(
+                  isReview && !showOriginal ? reviewHint(clause) : clause,
+                ).map((character, characterIndex) =>
+                  END_PUNCTUATION.test(character) ? (
+                    <span
+                      className="poem-page__punctuation"
+                      key={`${character}-${characterIndex}`}
+                    >
+                      {character}
+                    </span>
+                  ) : (
+                    <span
+                      className="poem-page__character"
+                      key={`${character}-${characterIndex}`}
+                    >
+                      {character}
+                    </span>
+                  ),
+                )}
+              </div>
             ))}
           </div>
 
@@ -318,6 +403,12 @@ export function PoemLearningExperience({
           {error ? <p className="poem-runtime__error" role="alert">{error}</p> : null}
         </div>
       </section>
+      {confirmingExit ? (
+        <AbandonDialog
+          onContinue={() => setConfirmingExit(false)}
+          onAbandon={onExit}
+        />
+      ) : null}
     </main>
   );
 }

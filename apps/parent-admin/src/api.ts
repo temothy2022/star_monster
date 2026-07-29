@@ -24,7 +24,12 @@ export type Child = {
 export type TaskTemplate = {
   id: string;
   title: string;
-  experienceKind: "STANDARD" | "HANZI_LEARNING";
+  experienceKind:
+    | "STANDARD"
+    | "HANZI_LEARNING"
+    | "POEM_LEARNING"
+    | "POEM_REVIEW";
+  systemManaged: boolean;
   category: string;
   iconKey: string;
   mode: "UNTIMED" | "TIMED";

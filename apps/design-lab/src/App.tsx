@@ -5,6 +5,7 @@ import type { PageIndexRoute } from "./PageIndex";
 import { useMascot } from "./mascots";
 import { ChildLoginPage } from "./auth/ChildLoginPage";
 import { ChildDataState } from "./components/ChildDataState";
+import { PoemLearningExperience } from "./poem/PoemLearningExperience";
 import {
   ApiError,
   abandonAttempt,
@@ -143,11 +144,6 @@ const HanziLearningExperience = lazy(() =>
 const PoemRecitationPage = lazy(() =>
   import("./poem/PoemRecitationPage").then((module) => ({
     default: module.PoemRecitationPage,
-  })),
-);
-const PoemLearningExperience = lazy(() =>
-  import("./poem/PoemLearningExperience").then((module) => ({
-    default: module.PoemLearningExperience,
   })),
 );
 const HanziListenQuestion = lazy(() =>

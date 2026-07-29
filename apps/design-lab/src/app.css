@@ -336,22 +336,29 @@ body:has(.poem-page),
 .poem-runtime__text {
   display: grid;
   width: min(100%, 540px);
-  gap: 10px;
+  gap: 9px;
   align-content: center;
   min-height: 0;
   padding: 10px 8px;
   text-align: center;
 }
 
-.poem-runtime__text p {
-  margin: 0;
-  font-size: 25px;
-  font-weight: 700;
-  line-height: 1.55;
+.poem-runtime__text .poem-page__line {
+  justify-content: center;
+  gap: 7px;
 }
 
-.poem-page--review .poem-runtime__text p {
-  letter-spacing: 0;
+.poem-runtime__text .poem-page__character {
+  width: 46px;
+  height: 46px;
+  border-width: 1.5px;
+  font-size: 24px;
+}
+
+.poem-runtime__text .poem-page__punctuation {
+  width: 8px;
+  font-size: 24px;
+  line-height: 46px;
 }
 
 .poem-runtime__original {
@@ -459,9 +466,15 @@ body:has(.poem-page),
     padding: 4px;
   }
 
-  .poem-runtime__text p {
-    font-size: 20px;
-    line-height: 1.4;
+  .poem-runtime__text .poem-page__character {
+    width: 40px;
+    height: 40px;
+    font-size: 21px;
+  }
+
+  .poem-runtime__text .poem-page__punctuation {
+    font-size: 21px;
+    line-height: 40px;
   }
 
   .poem-page--runtime .poem-page__complete,
@@ -481,13 +494,110 @@ body:has(.poem-page),
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 900px), (orientation: portrait) {
+  .poem-page--runtime {
+    height: 100dvh;
+    min-height: 0;
+    gap: 14px;
+    overflow-y: auto;
+    padding: max(22px, env(safe-area-inset-top)) 24px
+      max(28px, env(safe-area-inset-bottom));
+  }
+
+  .poem-page--runtime .poem-page__header {
+    height: 52px;
+    flex-basis: 52px;
+    align-items: center;
+  }
+
+  .poem-page--runtime .poem-page__header h1 {
+    font-size: 28px;
+    line-height: 42px;
+  }
+
+  .poem-page--runtime .poem-page__back {
+    width: 46px;
+    height: 46px;
+  }
+
+  .poem-page--runtime .poem-page__progress {
+    position: absolute;
+    top: 58px;
+    left: 50%;
+    z-index: 1;
+    transform: translateX(-50%);
+  }
+
+  .poem-page--runtime .poem-page__main {
+    display: flex;
+    min-height: auto;
+    flex: 0 0 auto;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 48px;
+  }
+
+  .poem-page--runtime .poem-page__illustration-column {
+    display: flex;
+    min-height: 0;
+    flex: 0 0 auto;
+    align-items: center;
+  }
+
+  .poem-page--runtime .poem-page__image-frame {
+    order: 1;
+    width: min(100%, 420px);
+    aspect-ratio: 1;
+    flex: 0 0 auto;
+  }
+
+  .poem-page--runtime .poem-page__image-frame img {
+    object-fit: contain;
+  }
+
+  .poem-page--runtime .poem-page__poem-heading {
+    order: 2;
+    height: auto;
+    flex: 0 0 auto;
+    justify-content: center;
+    padding-top: 14px;
+  }
+
   .poem-page--runtime .poem-page__recitation-column {
-    min-height: 520px;
+    min-height: 0;
+    overflow: visible;
+    padding: 4px 0 16px;
+  }
+
+  .poem-runtime__text {
+    width: 100%;
+    padding-inline: 0;
+  }
+
+  .poem-page--runtime .poem-page__recitation-column {
+    min-height: 0;
   }
 
   .poem-runtime__text {
     max-height: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .poem-runtime__text .poem-page__line {
+    gap: 4px;
+  }
+
+  .poem-runtime__text .poem-page__character {
+    width: 35px;
+    height: 35px;
+    font-size: 20px;
+  }
+
+  .poem-runtime__text .poem-page__punctuation {
+    width: 5px;
+    font-size: 20px;
+    line-height: 35px;
   }
 }
 

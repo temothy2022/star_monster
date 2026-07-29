@@ -630,7 +630,7 @@ export async function registerParentRoutes(
     await requireOwnedChild(request, reply, config, id);
     return {
       templates: await prisma.taskTemplate.findMany({
-        where: { childId: id, archivedAt: null, systemManaged: false },
+        where: { childId: id, archivedAt: null },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       }),
     };

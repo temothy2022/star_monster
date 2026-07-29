@@ -659,7 +659,10 @@ const EMPTY_TASK: TaskForm = {
 function taskFormFrom(template: TaskTemplate): TaskForm {
   return {
     title: template.title,
-    experienceKind: template.experienceKind,
+    experienceKind:
+      template.experienceKind === "HANZI_LEARNING"
+        ? "HANZI_LEARNING"
+        : "STANDARD",
     category: template.category,
     mode: template.mode,
     durationMinutes: Math.round(((template.mode === "TIMED" ? template.timeLimitSeconds : template.suggestedSeconds) ?? 60) / 60),
@@ -714,6 +717,8 @@ function Tasks({ child }: { child: Child }) {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const systemTemplates = templates.filter((template) => template.systemManaged);
+  const editableTemplates = templates.filter((template) => !template.systemManaged);
 
   async function load() {
     const result = await parentApi.templates(child.id);
@@ -729,7 +734,10 @@ function Tasks({ child }: { child: Child }) {
       if (editingId) {
         await parentApi.updateTemplate(child.id, editingId, taskPayload(form));
       } else {
-        await parentApi.createTemplate(child.id, taskPayload(form, templates.length * 10));
+        await parentApi.createTemplate(
+          child.id,
+          taskPayload(form, editableTemplates.length * 10),
+        );
       }
       setForm(EMPTY_TASK);
       setEditingId(null);
@@ -746,7 +754,7 @@ function Tasks({ child }: { child: Child }) {
       ...item,
       sortOrder: order * 10,
     }));
-    setTemplates(normalized);
+    setTemplates([...systemTemplates, ...normalized]);
     setError("");
     try {
       await parentApi.reorderTemplates(
@@ -762,8 +770,8 @@ function Tasks({ child }: { child: Child }) {
 
   async function move(index: number, direction: -1 | 1) {
     const target = index + direction;
-    if (target < 0 || target >= templates.length) return;
-    const reordered = [...templates];
+    if (target < 0 || target >= editableTemplates.length) return;
+    const reordered = [...editableTemplates];
     [reordered[index], reordered[target]] = [reordered[target]!, reordered[index]!];
     await saveOrder(reordered);
   }
@@ -791,10 +799,10 @@ function Tasks({ child }: { child: Child }) {
 
   function reorderTask(sourceId: string | null, targetId: string | null) {
     if (!sourceId || sourceId === targetId) return;
-    const sourceIndex = templates.findIndex((item) => item.id === sourceId);
-    const targetIndex = templates.findIndex((item) => item.id === targetId);
+    const sourceIndex = editableTemplates.findIndex((item) => item.id === sourceId);
+    const targetIndex = editableTemplates.findIndex((item) => item.id === targetId);
     if (sourceIndex < 0 || targetIndex < 0) return;
-    const reordered = [...templates];
+    const reordered = [...editableTemplates];
     const [dragged] = reordered.splice(sourceIndex, 1);
     if (!dragged) return;
     reordered.splice(targetIndex, 0, dragged);
@@ -879,7 +887,33 @@ function Tasks({ child }: { child: Child }) {
       </Panel>
       <Panel title={`任务模板（${templates.length}）`}>
         <div className="admin-list">
-          {templates.map((template, index) => (
+          {systemTemplates.map((template) => (
+            <article className="list-card" key={template.id}>
+              <div className="list-card__main">
+                <div className={`category-dot category-dot--${template.category.toLowerCase()}`} />
+                <div>
+                  <h3>{template.title}</h3>
+                  <p>
+                    {template.experienceKind === "POEM_LEARNING"
+                      ? "古诗学习"
+                      : "古诗复习"}{" "}
+                    · 建议 {(template.suggestedSeconds ?? 0) / 60} 分钟 · +
+                    {template.baseStars}
+                  </p>
+                  <small>
+                    {template.scheduleKind === "DAILY"
+                      ? "每天"
+                      : `每周 ${template.weekdays.join("、")}`}{" "}
+                    · {template.isEnabled ? "已启用" : "已停用"}
+                  </small>
+                </div>
+              </div>
+              <div className="list-card__actions">
+                <span className="status status--arranged">请在古诗学习中配置</span>
+              </div>
+            </article>
+          ))}
+          {editableTemplates.map((template, index) => (
             <article
               className={`list-card list-card--draggable${draggingId === template.id ? " list-card--dragging" : ""}${dragOverId === template.id && draggingId !== template.id ? " list-card--drag-over" : ""}`}
               data-task-id={template.id}
@@ -909,7 +943,7 @@ function Tasks({ child }: { child: Child }) {
               >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
-                <button title="下移" disabled={index === templates.length - 1} onClick={() => void move(index, 1)}>↓</button>
+                <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>
                 <button onClick={() => { setEditingId(template.id); setForm(taskFormFrom(template)); }}>编辑</button>
                 <button onClick={() => void parentApi.updateTemplate(child.id, template.id, { isEnabled: !template.isEnabled }).then(load)}>{template.isEnabled ? "停用" : "启用"}</button>
                 <button className="danger-text" onClick={() => window.confirm("归档这个任务模板？历史任务不会删除。") && void parentApi.archiveTemplate(child.id, template.id).then(load)}>归档</button>
