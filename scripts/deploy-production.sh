@@ -52,6 +52,9 @@ echo "2/3 Checking SSH access..."
 echo "3/3 Uploading release and applying it on the server..."
 # Hanzi media is deployed separately and may be owned by root on the server.
 rsync -az --delete \
+  --filter 'P /apps/design-lab/dist/assets/***' \
+  --filter 'P /apps/parent-admin/dist/assets/***' \
+  --filter 'P /apps/super-admin/dist/assets/***' \
   --exclude '.git/' \
   --exclude '.pnpm-store/' \
   --exclude 'node_modules/' \

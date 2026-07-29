@@ -317,6 +317,8 @@ const PERFORMANCE_OPERATION_LABELS: Record<string, string> = {
   save_hanzi_review: "保存汉字复习",
   save_hanzi_character: "保存新字进度",
   save_hanzi_answer: "保存听句答案",
+  chunk_load_failed: "页面资源加载失败",
+  render_failed: "页面渲染失败",
 };
 
 const PERFORMANCE_DIAGNOSIS: Record<

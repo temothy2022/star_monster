@@ -682,6 +682,72 @@ select {
   font: inherit;
 }
 
+.app-error-page {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 32px;
+  background: #fff8e8;
+}
+
+.app-error-panel {
+  display: grid;
+  width: min(520px, 100%);
+  justify-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.app-error-panel__mark {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border: 3px solid #584239;
+  border-radius: 50%;
+  background: #ffcf5a;
+  color: #584239;
+  font-size: 44px;
+  font-weight: 800;
+}
+
+.app-error-panel h1 {
+  margin: 0;
+  color: #584239;
+  font-size: 32px;
+}
+
+.app-error-panel p {
+  margin: 0;
+  color: #765f54;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.app-error-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+}
+
+.app-error-panel__actions button {
+  min-width: 160px;
+  height: 56px;
+  padding: 0 24px;
+  border: 2px solid #584239;
+  border-radius: 8px;
+  background: #ff7a3d;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.app-error-panel__actions button:last-child {
+  background: #fff;
+  color: #584239;
+}
+
 .child-data-state {
   position: absolute;
   z-index: 2;

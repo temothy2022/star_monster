@@ -78,10 +78,18 @@ export function buildPerformanceDashboard(
     (metric) => metric.kind === "api" && metric.operation.startsWith("complete_"),
   );
   const diagnostics = records.filter(
-    (metric) => metric.kind === "route" || metric.kind === "startup",
+    (metric) =>
+      metric.kind === "route" ||
+      metric.kind === "startup" ||
+      metric.kind === "runtime",
   );
   const experienceEvents = [...navigation, ...completions, ...diagnostics];
-  const slowEvents = experienceEvents.filter((metric) => metric.totalMs >= SLOW_EVENT_MS);
+  const slowEvents = experienceEvents.filter(
+    (metric) =>
+      metric.totalMs >= SLOW_EVENT_MS ||
+      metric.status === 0 ||
+      (metric.status ?? 200) >= 400,
+  );
   const pageSlowCount = navigation.filter((metric) => metric.totalMs >= SLOW_EVENT_MS).length;
   const diagnosis = { server: 0, network: 0, frontend: 0, mixed: 0 };
 

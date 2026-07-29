@@ -58,10 +58,12 @@ sync_static() {
   target_real="$(realpath -m "$target_dir")"
   if [[ "$source_real" == "$target_real" ]]; then
     echo "Nginx serves $source_real directly; no extra copy needed."
+    sudo find "$target_real/assets" -type f -mtime +30 -delete
     return
   fi
   sudo install -d -m 755 "$target_real"
-  sudo rsync -a --delete "$source_real/" "$target_real/"
+  sudo rsync -a --delete --filter 'P /assets/***' "$source_real/" "$target_real/"
+  sudo find "$target_real/assets" -type f -mtime +30 -delete
 }
 
 sync_static "apps/design-lab/dist" "$CHILD_WEB_ROOT"

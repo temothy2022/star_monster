@@ -203,6 +203,29 @@ export function reportChildMediaDiagnostic(input: {
   });
 }
 
+export function reportChildRuntimeFailure(input: {
+  operation: "chunk_load_failed" | "render_failed";
+  path?: string;
+}) {
+  const metric = {
+    kind: "runtime",
+    operation: input.operation,
+    path: input.path ?? window.location.pathname,
+    status: 0,
+    totalMs: 0,
+    ...clientContext(),
+  };
+  void fetch("/api/child/telemetry/performance", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ metrics: [metric] }),
+    keepalive: true,
+  }).catch(() => {
+    sendPerformanceMetric(metric);
+  });
+}
+
 function resourceMetric(
   operation: string,
   entry: PerformanceResourceTiming | PerformanceNavigationTiming,

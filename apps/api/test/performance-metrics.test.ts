@@ -68,4 +68,38 @@ describe("performance metrics", () => {
     expect(result.summary.slowPageRate).toBe(50);
     expect(result.summary.pageOpenP95Ms).toBe(1_200);
   });
+
+  it("includes runtime failures in diagnostics even when their duration is zero", () => {
+    const runtimeFailure = metric({
+      id: "runtime-1",
+      kind: "runtime",
+      operation: "chunk_load_failed",
+      path: "/assets/TimedTaskPages-old.js",
+      status: 0,
+      totalMs: 0,
+      serverMs: null,
+      clientOverheadMs: null,
+      apiTotalMs: null,
+      nonApiMs: null,
+    });
+
+    const result = buildPerformanceDashboard(
+      [runtimeFailure],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.operations).toEqual([
+      expect.objectContaining({
+        operation: "chunk_load_failed",
+        samples: 1,
+      }),
+    ]);
+    expect(result.recentSlowEvents).toEqual([
+      expect.objectContaining({
+        operation: "chunk_load_failed",
+        status: 0,
+      }),
+    ]);
+  });
 });
