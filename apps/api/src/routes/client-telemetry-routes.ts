@@ -7,7 +7,7 @@ import { requireChild } from "../services/auth-service.js";
 const nullableDuration = z.number().finite().min(0).max(300_000).nullable().optional();
 
 const telemetrySchema = z.object({
-  kind: z.enum(["api", "navigation"]),
+  kind: z.enum(["api", "navigation", "route", "startup"]),
   operation: z.string().trim().min(1).max(80),
   path: z.string().trim().min(1).max(160),
   method: z.string().trim().min(1).max(12).optional(),

@@ -4,9 +4,49 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Star Monsters · Design Lab</title>
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        background: #fff8e8;
+      }
+
+      .initial-app-shell {
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        color: #65758b;
+        font: 600 18px/1.5 -apple-system, BlinkMacSystemFont, "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+      }
+
+      .initial-app-shell::before {
+        width: 34px;
+        height: 34px;
+        border: 4px solid rgba(255, 122, 61, 0.2);
+        border-top-color: #ff7a3d;
+        border-radius: 50%;
+        animation: initial-app-spin 800ms linear infinite;
+        content: "";
+      }
+
+      @keyframes initial-app-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="initial-app-shell" aria-label="正在打开星宠基地"></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

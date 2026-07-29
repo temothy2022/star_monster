@@ -77,7 +77,10 @@ export function buildPerformanceDashboard(
   const completions = records.filter(
     (metric) => metric.kind === "api" && metric.operation.startsWith("complete_"),
   );
-  const experienceEvents = [...navigation, ...completions];
+  const diagnostics = records.filter(
+    (metric) => metric.kind === "route" || metric.kind === "startup",
+  );
+  const experienceEvents = [...navigation, ...completions, ...diagnostics];
   const slowEvents = experienceEvents.filter((metric) => metric.totalMs >= SLOW_EVENT_MS);
   const pageSlowCount = navigation.filter((metric) => metric.totalMs >= SLOW_EVENT_MS).length;
   const diagnosis = { server: 0, network: 0, frontend: 0, mixed: 0 };

@@ -31,6 +31,7 @@
     "poem:generate-assets": "pnpm --filter @star-monsters/design-lab exec node ../../scripts/generate-poem-minimax-assets.mjs",
     "poem:deploy-assets": "bash scripts/deploy-poem-assets.sh",
     "poem:import-assets": "pnpm --filter @star-monsters/api exec tsx prisma/import-poem-assets.ts",
+    "performance:export": "pnpm --filter @star-monsters/api performance:export",
     "deploy:production": "bash scripts/deploy-production.sh"
   }
 }

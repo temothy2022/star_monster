@@ -18,6 +18,7 @@ import {
   getPoemAudioElement,
   preloadPoemAssets,
 } from "./poem-asset-cache";
+import { reportChildPageReady } from "../api/performance-telemetry";
 
 type Reward = {
   baseStars: number;
@@ -140,7 +141,13 @@ export function PoemLearningExperience({
     setError("");
     void startPoemLearningSession(attemptId)
       .then(({ session: nextSession }) => {
-        if (!cancelled) setSession(nextSession);
+        if (!cancelled) {
+          setSession(nextSession);
+          reportChildPageReady(
+            "poem-session",
+            "/api/child/poems/sessions/start",
+          );
+        }
       })
       .catch((reason) => {
         if (!cancelled) {

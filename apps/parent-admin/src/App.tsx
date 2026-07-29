@@ -300,6 +300,18 @@ const PERFORMANCE_OPERATION_LABELS: Record<string, string> = {
   complete_hanzi_task: "完成汉字学习",
   complete_poem_task: "完成古诗任务",
   complete_poem_learning: "提交古诗学习",
+  startup_html: "首次打开：HTML",
+  startup_main_css: "首次打开：主样式",
+  startup_main_js: "首次打开：主程序",
+  startup_first_contentful_paint: "首次打开：首屏出现",
+  startup_module_loaded: "首次打开：程序开始运行",
+  startup_tasks_ready: "首次打开：任务可操作",
+  start_task: "开始任务",
+  pause_task: "暂停任务",
+  resume_task: "继续任务",
+  abandon_task: "放弃任务",
+  start_hanzi_session: "打开汉字学习",
+  start_poem_session: "打开古诗学习",
 };
 
 const PERFORMANCE_DIAGNOSIS: Record<
@@ -313,6 +325,9 @@ const PERFORMANCE_DIAGNOSIS: Record<
 };
 
 function performanceOperationLabel(operation: string) {
+  if (operation.startsWith("render_")) {
+    return `页面呈现：${operation.slice(7).replaceAll("-", " ")}`;
+  }
   return PERFORMANCE_OPERATION_LABELS[operation] ?? operation.replaceAll("_", " ");
 }
 

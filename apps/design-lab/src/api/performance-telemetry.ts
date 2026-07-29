@@ -22,6 +22,8 @@ type NetworkInformation = {
 
 const navigationStartedAt = new Map<string, number>();
 const latestApiMetrics = new Map<string, ApiPerformanceMetric>();
+const moduleLoadedAt = now();
+let startupReported = false;
 
 const MAIN_READ_PATHS = new Set([
   "/api/child/tasks/today",
@@ -65,7 +67,13 @@ function operationFor(path: string) {
     "/api/child/planets": "load_planets",
     "/api/child/wishes": "load_wishes",
     "/api/child/footprints": "load_footprints",
+    "/api/child/tasks/:id/start": "start_task",
+    "/api/child/attempts/:id/pause": "pause_task",
+    "/api/child/attempts/:id/resume": "resume_task",
+    "/api/child/attempts/:id/abandon": "abandon_task",
     "/api/child/attempts/:id/complete": "complete_task",
+    "/api/child/hanzi/sessions/start": "start_hanzi_session",
+    "/api/child/poems/sessions/start": "start_poem_session",
     "/api/child/hanzi/sessions/:id/finish": "complete_hanzi_task",
     "/api/child/poems/sessions/:id/finish": "complete_poem_task",
     "/api/child/poems/sessions/:id/learn": "complete_poem_learning",
@@ -129,6 +137,30 @@ function sendPerformanceMetric(payload: Record<string, unknown>) {
   }).catch(() => undefined);
 }
 
+function resourceMetric(
+  operation: string,
+  entry: PerformanceResourceTiming | PerformanceNavigationTiming,
+) {
+  const startedAt = entry.requestStart || entry.startTime;
+  const responseStartedAt = entry.responseStart;
+  sendPerformanceMetric({
+    kind: "startup",
+    operation,
+    path: new URL(entry.name, window.location.href).pathname,
+    totalMs: roundDuration(entry.responseEnd - entry.startTime),
+    clientOverheadMs: roundDuration(entry.responseEnd - startedAt),
+    ttfbMs: roundDuration(
+      responseStartedAt > 0 ? responseStartedAt - startedAt : null,
+    ),
+    downloadMs: roundDuration(
+      entry.responseEnd > 0 && responseStartedAt > 0
+        ? entry.responseEnd - responseStartedAt
+        : null,
+    ),
+    transferSize: entry.transferSize || null,
+  });
+}
+
 function shouldReportApi(metric: ApiPerformanceMetric) {
   const isCompletion = metric.operation.startsWith("complete_");
   const isSlow = metric.totalMs >= 400;
@@ -185,6 +217,88 @@ export function recordApiPerformance(input: {
 
 export function markChildNavigation(route: string) {
   navigationStartedAt.set(route, now());
+}
+
+export function reportChildRouteRendered(route: string) {
+  const startedAt = navigationStartedAt.get(route);
+  if (startedAt === undefined) return;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      sendPerformanceMetric({
+        kind: "route",
+        operation: `render_${route}`,
+        path: window.location.hash || `#${route}`,
+        totalMs: roundDuration(Math.max(0, now() - startedAt)),
+      });
+    });
+  });
+}
+
+export function reportChildAppStartupReady(apiPath: string) {
+  if (startupReported || moduleLoadedAt > 30_000) return;
+  startupReported = true;
+
+  const navigation = performance.getEntriesByType(
+    "navigation",
+  )[0] as PerformanceNavigationTiming | undefined;
+  if (navigation) resourceMetric("startup_html", navigation);
+
+  const resources = performance.getEntriesByType(
+    "resource",
+  ) as PerformanceResourceTiming[];
+  const mainScript = resources.find(
+    (entry) =>
+      entry.initiatorType === "script" &&
+      /\/assets\/index-[^/]+\.js(?:$|\?)/.test(entry.name),
+  );
+  const mainStyles = resources.find(
+    (entry) =>
+      entry.initiatorType === "link" &&
+      /\/assets\/index-[^/]+\.css(?:$|\?)/.test(entry.name),
+  );
+  if (mainScript) resourceMetric("startup_main_js", mainScript);
+  if (mainStyles) resourceMetric("startup_main_css", mainStyles);
+
+  const firstContentfulPaint = performance
+    .getEntriesByType("paint")
+    .find((entry) => entry.name === "first-contentful-paint");
+  if (firstContentfulPaint) {
+    sendPerformanceMetric({
+      kind: "startup",
+      operation: "startup_first_contentful_paint",
+      path: "/",
+      totalMs: roundDuration(firstContentfulPaint.startTime),
+      nonApiMs: roundDuration(firstContentfulPaint.startTime),
+    });
+  }
+
+  sendPerformanceMetric({
+    kind: "startup",
+    operation: "startup_module_loaded",
+    path: "/",
+    totalMs: roundDuration(moduleLoadedAt),
+    nonApiMs: roundDuration(moduleLoadedAt),
+  });
+
+  const readyAt = now();
+  const apiMetric = latestApiMetrics.get(normalizeApiPath(apiPath));
+  sendPerformanceMetric({
+    kind: "startup",
+    operation: "startup_tasks_ready",
+    path: normalizeApiPath(apiPath),
+    requestId: apiMetric?.requestId ?? null,
+    totalMs: roundDuration(readyAt),
+    serverMs: roundDuration(apiMetric?.serverMs ?? null),
+    clientOverheadMs: roundDuration(apiMetric?.clientOverheadMs ?? null),
+    apiTotalMs: roundDuration(apiMetric?.totalMs ?? null),
+    nonApiMs: roundDuration(
+      apiMetric ? Math.max(0, readyAt - apiMetric.totalMs) : readyAt,
+    ),
+    ttfbMs: roundDuration(apiMetric?.ttfbMs ?? null),
+    downloadMs: roundDuration(apiMetric?.downloadMs ?? null),
+    transferSize: apiMetric?.transferSize ?? null,
+  });
 }
 
 export function reportChildPageReady(route: string, apiPath: string) {

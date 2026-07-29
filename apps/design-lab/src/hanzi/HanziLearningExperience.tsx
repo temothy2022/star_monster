@@ -20,6 +20,7 @@ import {
   preloadHanziSessionAssets,
 } from "./hanzi-asset-preloader";
 import { HanziTaskControls } from "./HanziTaskControls";
+import { reportChildPageReady } from "../api/performance-telemetry";
 
 type CompletionReward = {
   baseStars: number;
@@ -274,6 +275,10 @@ export function HanziLearningExperience({
       .then(({ session: loaded }) => {
         if (cancelled) return;
         setSession(loaded);
+        reportChildPageReady(
+          "hanzi-session",
+          "/api/child/hanzi/sessions/start",
+        );
         if (
           loaded.reviewIndex > 0 ||
           loaded.newIndex > 0 ||
