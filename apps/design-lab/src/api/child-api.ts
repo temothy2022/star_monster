@@ -1,5 +1,6 @@
 import type { PetType } from "../mascots";
 import type { PlanetKey } from "../planets/planet-data";
+import { recordApiPerformance } from "./performance-telemetry";
 
 export type ChildProfile = {
   id: string;
@@ -33,24 +34,56 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
-  const isJson = response.headers.get("content-type")?.includes("application/json");
-  if (!response.ok) {
-    const body = (isJson ? await response.json().catch(() => ({})) : {}) as ApiErrorBody;
-    throw new ApiError(
-      body.error?.message ?? "暂时无法连接星宠基地",
-      response.status,
-      body.error?.code,
-    );
+  const startedAt = globalThis.performance?.now() ?? Date.now();
+  let status = 0;
+  let requestId: string | null = null;
+  let serverMs: number | null = null;
+
+  try {
+    const response = await fetch(path, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+    status = response.status;
+    requestId = response.headers.get("x-request-id");
+    const serverTiming = response.headers.get("server-timing");
+    const serverDuration = serverTiming?.match(/(?:^|,)\s*app;dur=([\d.]+)/)?.[1];
+    serverMs = serverDuration ? Number(serverDuration) : null;
+
+    const isJson = response.headers
+      .get("content-type")
+      ?.includes("application/json");
+    if (!response.ok) {
+      const body = (
+        isJson ? await response.json().catch(() => ({})) : {}
+      ) as ApiErrorBody;
+      throw new ApiError(
+        body.error?.message ?? "暂时无法连接星宠基地",
+        response.status,
+        body.error?.code,
+      );
+    }
+    if (!isJson) {
+      throw new ApiError(
+        "星宠基地服务尚未启动，请稍后再试",
+        503,
+        "API_UNAVAILABLE",
+      );
+    }
+    return (await response.json()) as T;
+  } finally {
+    const finishedAt = globalThis.performance?.now() ?? Date.now();
+    recordApiPerformance({
+      path,
+      method: init?.method ?? "GET",
+      status,
+      requestId,
+      startedAt,
+      totalMs: Math.max(0, finishedAt - startedAt),
+      serverMs,
+    });
   }
-  if (!isJson) {
-    throw new ApiError("星宠基地服务尚未启动，请稍后再试", 503, "API_UNAVAILABLE");
-  }
-  return response.json() as Promise<T>;
 }
 
 export async function loginChild(code: string) {
@@ -112,7 +145,11 @@ export type DailyTask = {
     | "OTHER";
   iconKeySnapshot: string;
   modeSnapshot: "UNTIMED" | "TIMED";
-  experienceKindSnapshot: "STANDARD" | "HANZI_LEARNING";
+  experienceKindSnapshot:
+    | "STANDARD"
+    | "HANZI_LEARNING"
+    | "POEM_LEARNING"
+    | "POEM_REVIEW";
   suggestedSecondsSnapshot: number | null;
   timeLimitSecondsSnapshot: number | null;
   baseStarsSnapshot: number;
@@ -294,6 +331,91 @@ export async function finishHanziLearningSession(sessionId: string) {
     };
     alreadyCompleted: boolean;
   }>(`/api/child/hanzi/sessions/${sessionId}/finish`, { method: "POST" });
+}
+
+export type Poem = {
+  id: string;
+  title: string;
+  dynasty: string;
+  author: string;
+  grade: number;
+  semester: string;
+  content: string;
+  imageUrl: string | null;
+  audioUrl: string | null;
+};
+
+export type PoemLearningSession = {
+  id: string;
+  taskAttemptId: string;
+  kind: "LEARNING" | "REVIEW";
+  poemIds: string[];
+  currentIndex: number;
+  completedPoemIds: string[];
+  forgottenPoemIds: string[];
+  completedAt: string | null;
+  poems: Poem[];
+  summary: {
+    total: number;
+    completed: number;
+    forgotten: number;
+  };
+};
+
+export async function startPoemLearningSession(attemptId: string) {
+  return request<{ session: PoemLearningSession }>(
+    "/api/child/poems/sessions/start",
+    {
+      method: "POST",
+      body: JSON.stringify({ attemptId }),
+    },
+  );
+}
+
+export async function completePoemLearning(
+  sessionId: string,
+  poemId: string,
+) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/poems/sessions/${sessionId}/learn`, {
+    method: "POST",
+    body: JSON.stringify({ poemId }),
+  });
+}
+
+export async function submitPoemReview(
+  sessionId: string,
+  poemId: string,
+  result: "REMEMBERED" | "FORGOT",
+) {
+  return request<{ session: PoemLearningSession }>(
+    `/api/child/poems/sessions/${sessionId}/review`,
+    {
+      method: "POST",
+      body: JSON.stringify({ poemId, result }),
+    },
+  );
+}
+
+export async function finishPoemReview(sessionId: string) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/poems/sessions/${sessionId}/finish`, { method: "POST" });
 }
 
 export type ChildWish = {

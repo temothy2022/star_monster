@@ -2,6 +2,7 @@ import navTasks from "../assets/task-list/semantic/nav-tasks.png";
 import navMap from "../assets/task-list/semantic/nav-map.png";
 import navWish from "../assets/task-list/semantic/nav-wish.png";
 import navFootprints from "../assets/task-list/semantic/nav-trail.png";
+import { markChildNavigation } from "../api/performance-telemetry";
 
 export type ChildRoute =
   | "tasks-partial"
@@ -37,7 +38,11 @@ export function ChildBottomNav({
             ].filter(Boolean).join(" ")}
             type="button"
             aria-current={isActive ? "page" : undefined}
-            onClick={() => onNavigate?.(item.route)}
+            onClick={() => {
+              if (isActive) return;
+              markChildNavigation(item.route);
+              onNavigate?.(item.route);
+            }}
           >
             <img src={item.icon} alt="" />
             <span>{item.label}</span>

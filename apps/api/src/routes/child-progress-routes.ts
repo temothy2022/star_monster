@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { getFootprints } from "../services/footprint-service.js";
@@ -28,8 +29,26 @@ export async function registerChildProgressRoutes(
   config: AppConfig,
 ): Promise<void> {
   app.get("/api/child/wishes", async (request, reply) => {
+    const startedAt = performance.now();
     const { child } = await requireChild(request, reply, config);
-    return listChildWishes(child.id, config);
+    const authenticatedAt = performance.now();
+    const result = await listChildWishes(child.id, config);
+    const completedAt = performance.now();
+    if (completedAt - startedAt >= 200) {
+      request.log.warn(
+        {
+          event: "slow_child_read_detail",
+          requestId: request.id,
+          operation: "load_wishes",
+          childId: child.id,
+          totalMs: Math.round(completedAt - startedAt),
+          authMs: Math.round(authenticatedAt - startedAt),
+          queryMs: Math.round(completedAt - authenticatedAt),
+        },
+        "slow child wishes read",
+      );
+    }
+    return result;
   });
 
   app.post("/api/child/wishes/:id/redeem", async (request, reply) => {
@@ -46,8 +65,26 @@ export async function registerChildProgressRoutes(
   });
 
   app.get("/api/child/planets", async (request, reply) => {
+    const startedAt = performance.now();
     const { child } = await requireChild(request, reply, config);
-    return syncPlanetProgress(child.id);
+    const authenticatedAt = performance.now();
+    const result = await syncPlanetProgress(child.id);
+    const completedAt = performance.now();
+    if (completedAt - startedAt >= 200) {
+      request.log.warn(
+        {
+          event: "slow_child_read_detail",
+          requestId: request.id,
+          operation: "load_planets",
+          childId: child.id,
+          totalMs: Math.round(completedAt - startedAt),
+          authMs: Math.round(authenticatedAt - startedAt),
+          queryMs: Math.round(completedAt - authenticatedAt),
+        },
+        "slow child planets read",
+      );
+    }
+    return result;
   });
 
   app.post("/api/child/planets/:planet/celebrated", async (request, reply) => {

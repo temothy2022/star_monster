@@ -2,6 +2,7 @@ import {
   Prisma,
   type DailyTask,
   type TaskAttempt,
+  type TaskTemplate,
 } from "@prisma/client";
 import { performance } from "node:perf_hooks";
 import type { AppConfig } from "../config.js";
@@ -76,10 +77,10 @@ async function settlePreviousDay(
   });
 }
 
-export async function generateDailyTasks(
+async function eligibleTaskTemplates(
   childId: string,
   businessDate: Date,
-): Promise<void> {
+): Promise<TaskTemplate[]> {
   const templates = await prisma.taskTemplate.findMany({
     where: {
       childId,
@@ -91,6 +92,49 @@ export async function generateDailyTasks(
   const due = templates.filter((template) =>
     isScheduledForDate(template, businessDate),
   );
+  if (due.length === 0) return [];
+
+  const needsPoemLearning = due.some(
+    (template) => template.experienceKind === "POEM_LEARNING",
+  );
+  const needsPoemReview = due.some(
+    (template) => template.experienceKind === "POEM_REVIEW",
+  );
+  const [newPoem, dueReview] = await Promise.all([
+    needsPoemLearning
+      ? prisma.poem.findFirst({
+          where: {
+            isEnabled: true,
+            progress: { none: { childId } },
+          },
+          select: { id: true },
+        })
+      : null,
+    needsPoemReview
+      ? prisma.poemLearningProgress.findFirst({
+          where: {
+            childId,
+            status: "LEARNING",
+            nextReviewDate: { lte: businessDate },
+            poem: { isEnabled: true },
+          },
+          select: { id: true },
+        })
+      : null,
+  ]);
+
+  return due.filter((template) => {
+    if (template.experienceKind === "POEM_LEARNING") return Boolean(newPoem);
+    if (template.experienceKind === "POEM_REVIEW") return Boolean(dueReview);
+    return true;
+  });
+}
+
+export async function generateDailyTasks(
+  childId: string,
+  businessDate: Date,
+): Promise<void> {
+  const due = await eligibleTaskTemplates(childId, businessDate);
   if (due.length === 0) return;
 
   await prisma.dailyTask.createMany({
@@ -127,37 +171,19 @@ async function reconcileTodayTaskSnapshots(
   today: Date,
   now: Date,
 ): Promise<void> {
-  const [dailyTasks, templates] = await Promise.all([
+  const [dailyTasks, dueTemplates] = await Promise.all([
     prisma.dailyTask.findMany({
       where: { childId, taskDate: today, status: "PENDING" },
       select: { id: true, templateId: true },
     }),
-    prisma.taskTemplate.findMany({
-      where: { childId },
-      select: {
-        id: true,
-        isEnabled: true,
-        archivedAt: true,
-        scheduleKind: true,
-        weekdays: true,
-        oneTimeDate: true,
-      },
-    }),
+    eligibleTaskTemplates(childId, today),
   ]);
 
   if (dailyTasks.length === 0) return;
 
-  const templateById = new Map(templates.map((template) => [template.id, template]));
+  const dueTemplateIds = new Set(dueTemplates.map((template) => template.id));
   const staleIds = dailyTasks
-    .filter((dailyTask) => {
-      const template = templateById.get(dailyTask.templateId);
-      return (
-        !template ||
-        !template.isEnabled ||
-        template.archivedAt !== null ||
-        !isScheduledForDate(template, today)
-      );
-    })
+    .filter((dailyTask) => !dueTemplateIds.has(dailyTask.templateId))
     .map((dailyTask) => dailyTask.id);
 
   if (staleIds.length === 0) return;
@@ -575,6 +601,24 @@ export async function completeTask(
         409,
         "HANZI_SESSION_INCOMPLETE",
         "请先完成全部汉字学习内容",
+      );
+    }
+  }
+  if (
+    existing.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
+    existing.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
+  ) {
+    stageStartedAt = performance.now();
+    const poemSession = await prisma.poemLearningSession.findUnique({
+      where: { taskAttemptId: existing.id },
+      select: { completedAt: true },
+    });
+    mark("load-poem-session", stageStartedAt);
+    if (!poemSession?.completedAt) {
+      throw new HttpError(
+        409,
+        "POEM_SESSION_INCOMPLETE",
+        "请先完成全部古诗学习内容",
       );
     }
   }

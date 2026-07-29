@@ -19,6 +19,10 @@ import {
   type LedgerEntry,
   type PlanetKey,
   type PlanetSetting,
+  type PerformanceDashboard,
+  type PerformanceDiagnosis,
+  type PoemLearningSettings,
+  type PoemResource,
   type Redemption,
   type StaffUser,
   type TaskHistoryItem,
@@ -41,9 +45,11 @@ import venusPlanet from "../../design-lab/src/assets/planets/venus.webp";
 
 type Section =
   | "overview"
+  | "performance"
   | "history"
   | "tasks"
   | "hanzi"
+  | "poems"
   | "wishes"
   | "redemptions"
   | "stars"
@@ -53,9 +59,11 @@ type Section =
 
 const SECTION_LABELS: Record<Section, string> = {
   overview: "数据概览",
+  performance: "性能监控",
   history: "任务历史",
   tasks: "任务管理",
   hanzi: "汉字学习",
+  poems: "古诗学习",
   wishes: "星愿管理",
   redemptions: "兑换处理",
   stars: "星星流水",
@@ -131,6 +139,12 @@ function formatElapsed(seconds: number | null) {
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return remainder > 0 ? `${minutes} 分 ${remainder} 秒` : `${minutes} 分钟`;
+}
+
+function formatPerformanceMs(value: number | null) {
+  if (value === null) return "—";
+  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 10_000 ? 1 : 2)} 秒`;
+  return `${Math.round(value)} ms`;
 }
 
 function Panel({
@@ -273,6 +287,240 @@ function Overview({ child }: { child: Child }) {
           <div><dt>最近登录</dt><dd>{formatDate(child.lastLoginAt)}</dd></div>
         </dl>
       </Panel>
+    </div>
+  );
+}
+
+const PERFORMANCE_OPERATION_LABELS: Record<string, string> = {
+  "open_tasks-partial": "打开任务页",
+  open_map: "打开航图",
+  "open_wishes-requested": "打开星愿",
+  open_footprints: "打开足迹",
+  complete_task: "完成普通任务",
+  complete_hanzi_task: "完成汉字学习",
+  complete_poem_task: "完成古诗任务",
+  complete_poem_learning: "提交古诗学习",
+};
+
+const PERFORMANCE_DIAGNOSIS: Record<
+  PerformanceDiagnosis,
+  { label: string; detail: string }
+> = {
+  server: { label: "服务端", detail: "API 或数据库处理时间占主要部分" },
+  network: { label: "网络", detail: "设备到服务器的传输等待占主要部分" },
+  frontend: { label: "前端渲染", detail: "接口返回后页面资源或渲染耗时较高" },
+  mixed: { label: "混合原因", detail: "没有单一环节占据大部分时间" },
+};
+
+function performanceOperationLabel(operation: string) {
+  return PERFORMANCE_OPERATION_LABELS[operation] ?? operation.replaceAll("_", " ");
+}
+
+function PerformanceMonitoring({ child }: { child: Child }) {
+  const [days, setDays] = useState(7);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [data, setData] = useState<PerformanceDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    void parentApi.performance(child.id, days)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setError(reason instanceof Error ? reason.message : "性能数据读取失败");
+          setData(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [child.id, days, refreshKey]);
+
+  const summary = data?.summary;
+  const trendMaximum = Math.max(
+    1,
+    ...(data?.trend.map((item) => item.p95Ms ?? item.averageMs ?? 0) ?? []),
+  );
+  const hasData = (summary?.pageOpenCount ?? 0) + (summary?.completionCount ?? 0) > 0;
+
+  return (
+    <div className="admin-stack">
+      <div className="performance-toolbar">
+        <div>
+          <h2>孩子端性能监控</h2>
+          <p>用真实使用数据判断等待发生在服务端、网络，还是页面渲染。</p>
+        </div>
+        <div className="performance-toolbar__actions">
+          <div className="range-switch" aria-label="数据时间范围">
+            {[1, 7, 30].map((range) => (
+              <button
+                type="button"
+                className={days === range ? "active" : ""}
+                key={range}
+                onClick={() => setDays(range)}
+              >
+                {range === 1 ? "24 小时" : `${range} 天`}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="ghost-button" onClick={() => setRefreshKey((value) => value + 1)}>
+            刷新
+          </button>
+        </div>
+      </div>
+
+      {error && <Notice kind="error">{error}</Notice>}
+      {loading ? (
+        <div className="empty-state">正在汇总性能数据…</div>
+      ) : !data || !hasData ? (
+        <Panel title="等待采集数据">
+          <div className="performance-empty">
+            <strong>暂时还没有可分析的孩子端数据</strong>
+            <p>孩子打开任务、航图、星愿、足迹或完成任务后，这里会自动形成耗时趋势和原因判断。</p>
+          </div>
+        </Panel>
+      ) : (
+        <>
+          <div className="metric-grid performance-metrics">
+            <article>
+              <span>页面平均打开</span>
+              <strong>{formatPerformanceMs(summary?.pageOpenAverageMs ?? null)}</strong>
+              <small>{summary?.pageOpenCount ?? 0} 次真实打开</small>
+            </article>
+            <article>
+              <span>页面 P95</span>
+              <strong>{formatPerformanceMs(summary?.pageOpenP95Ms ?? null)}</strong>
+              <small>95% 的打开不超过此时间</small>
+            </article>
+            <article>
+              <span>慢页面比例</span>
+              <strong>{summary?.slowPageRate ?? 0}%</strong>
+              <small>超过 1 秒：{summary?.slowPageCount ?? 0} 次</small>
+            </article>
+            <article>
+              <span>完成任务平均等待</span>
+              <strong>{formatPerformanceMs(summary?.completionAverageMs ?? null)}</strong>
+              <small>{summary?.completionCount ?? 0} 次提交</small>
+            </article>
+          </div>
+
+          <Panel title="平均耗时构成">
+            <div className="performance-breakdown">
+              <div>
+                <span>服务端处理</span>
+                <strong>{formatPerformanceMs(summary?.serverAverageMs ?? null)}</strong>
+                <small>API 与数据库</small>
+              </div>
+              <div>
+                <span>网络等待</span>
+                <strong>{formatPerformanceMs(summary?.networkAverageMs ?? null)}</strong>
+                <small>设备到服务器</small>
+              </div>
+              <div>
+                <span>前端渲染</span>
+                <strong>{formatPerformanceMs(summary?.frontendAverageMs ?? null)}</strong>
+                <small>接口返回后到页面可用</small>
+              </div>
+              <div>
+                <span>任务提交 P95</span>
+                <strong>{formatPerformanceMs(summary?.completionP95Ms ?? null)}</strong>
+                <small>包含按钮到结果页等待</small>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel title="慢事件原因">
+            <div className="performance-diagnosis">
+              {(Object.keys(PERFORMANCE_DIAGNOSIS) as PerformanceDiagnosis[]).map((key) => (
+                <div className={`performance-diagnosis__item performance-diagnosis__item--${key}`} key={key}>
+                  <span>{PERFORMANCE_DIAGNOSIS[key].label}</span>
+                  <strong>{data.diagnosis[key]}</strong>
+                  <small>{PERFORMANCE_DIAGNOSIS[key].detail}</small>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          {!!data.trend.length && (
+            <Panel title="每日页面打开趋势">
+              <div className="performance-trend">
+                {data.trend.map((item) => (
+                  <div className="performance-trend__row" key={item.date}>
+                    <time>{item.date.slice(5)}</time>
+                    <div className="performance-trend__track">
+                      <span style={{ width: `${Math.max(3, ((item.averageMs ?? 0) / trendMaximum) * 100)}%` }} />
+                    </div>
+                    <strong>{formatPerformanceMs(item.averageMs)}</strong>
+                    <small>P95 {formatPerformanceMs(item.p95Ms)} · {item.samples} 次</small>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
+
+          <Panel title="功能耗时对比">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>操作</th><th>次数</th><th>平均</th><th>P95</th><th>慢事件</th><th>服务端</th><th>网络</th><th>前端</th></tr>
+                </thead>
+                <tbody>
+                  {data.operations.map((item) => (
+                    <tr key={item.operation}>
+                      <td><strong>{performanceOperationLabel(item.operation)}</strong></td>
+                      <td>{item.samples}</td>
+                      <td>{formatPerformanceMs(item.averageMs)}</td>
+                      <td>{formatPerformanceMs(item.p95Ms)}</td>
+                      <td>{item.slowCount}</td>
+                      <td>{formatPerformanceMs(item.serverAverageMs)}</td>
+                      <td>{formatPerformanceMs(item.networkAverageMs)}</td>
+                      <td>{formatPerformanceMs(item.frontendAverageMs)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+
+          <Panel title="最近慢事件">
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>时间</th><th>操作</th><th>总耗时</th><th>主要原因</th><th>服务端</th><th>网络</th><th>前端</th><th>请求编号</th></tr>
+                </thead>
+                <tbody>
+                  {data.recentSlowEvents.map((item) => (
+                    <tr key={item.id}>
+                      <td>{new Date(item.createdAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+                      <td>{performanceOperationLabel(item.operation)}</td>
+                      <td><strong>{formatPerformanceMs(item.totalMs)}</strong></td>
+                      <td><span className={`performance-cause performance-cause--${item.diagnosis}`}>{PERFORMANCE_DIAGNOSIS[item.diagnosis].label}</span></td>
+                      <td>{formatPerformanceMs(item.serverMs)}</td>
+                      <td>{formatPerformanceMs(item.clientOverheadMs)}</td>
+                      <td>{formatPerformanceMs(item.nonApiMs)}</td>
+                      <td className="performance-request-id" title={item.requestId ?? ""}>{item.requestId?.slice(0, 10) ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!data.recentSlowEvents.length && <div className="empty-state">当前范围内没有超过 1 秒的慢事件</div>}
+            </div>
+            <p className="performance-collected">
+              数据保留 30 天
+              {data.collectedFrom ? ` · 当前范围最早记录 ${formatDate(data.collectedFrom)}` : ""}
+            </p>
+          </Panel>
+        </>
+      )}
     </div>
   );
 }
@@ -980,6 +1228,228 @@ function HanziLearning({ child }: { child: Child }) {
   );
 }
 
+const DEFAULT_POEM_SETTINGS: PoemLearningSettings = {
+  enabled: false,
+  learningWeekdays: [2, 4],
+  learningTaskStars: 2,
+  reviewTaskStars: 2,
+};
+
+const POEM_WEEKDAYS = [
+  { value: 1, label: "周一" },
+  { value: 2, label: "周二" },
+  { value: 3, label: "周三" },
+  { value: 4, label: "周四" },
+  { value: 5, label: "周五" },
+  { value: 6, label: "周六" },
+  { value: 0, label: "周日" },
+];
+
+function PoemLearning({ child }: { child: Child }) {
+  const [settings, setSettings] = useState<PoemLearningSettings>(
+    DEFAULT_POEM_SETTINGS,
+  );
+  const [progress, setProgress] = useState<
+    Partial<Record<"LEARNING" | "MASTERED", number>>
+  >({});
+  const [poemCount, setPoemCount] = useState(0);
+  const [dueCount, setDueCount] = useState(0);
+  const [poems, setPoems] = useState<PoemResource[]>([]);
+  const [query, setQuery] = useState("");
+  const [grade, setGrade] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function loadSettings() {
+    const result = await parentApi.poemSettings(child.id);
+    setSettings(result.settings);
+    setProgress(result.progress);
+    setPoemCount(result.poemCount);
+    setDueCount(result.dueCount);
+  }
+
+  async function loadPoems(nextQuery = query, nextGrade = grade) {
+    const result = await parentApi.poems(child.id, {
+      q: nextQuery || undefined,
+      grade: nextGrade || undefined,
+    });
+    setPoems(result.poems);
+  }
+
+  useEffect(() => {
+    setError("");
+    void Promise.all([loadSettings(), loadPoems("", 0)]).catch((reason) =>
+      setError(reason instanceof Error ? reason.message : "古诗学习配置加载失败"),
+    );
+  }, [child.id]);
+
+  function toggleWeekday(value: number) {
+    const selected = settings.learningWeekdays.includes(value);
+    const learningWeekdays = selected
+      ? settings.learningWeekdays.filter((weekday) => weekday !== value)
+      : [...settings.learningWeekdays, value];
+    setSettings({ ...settings, learningWeekdays });
+  }
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await parentApi.updatePoemSettings(child.id, settings);
+      setSettings(result.settings);
+      setMessage("古诗学习设置已保存");
+      await loadSettings();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "古诗学习设置保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function search(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await loadPoems();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "古诗库读取失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-stack">
+      <Panel title="古诗学习设置">
+        <form className="admin-form poem-settings-form" onSubmit={save}>
+          <label className="checkbox field-span">
+            <input
+              type="checkbox"
+              checked={settings.enabled}
+              onChange={(event) =>
+                setSettings({ ...settings, enabled: event.target.checked })
+              }
+            />
+            开启古诗学习任务
+          </label>
+          <div className="field-span">
+            <span className="poem-settings-label">每周学习日（可多选）</span>
+            <div className="poem-weekday-picker">
+              {POEM_WEEKDAYS.map((weekday) => {
+                const selected = settings.learningWeekdays.includes(weekday.value);
+                return (
+                  <button
+                    type="button"
+                    key={weekday.value}
+                    className={selected ? "active" : ""}
+                    onClick={() => toggleWeekday(weekday.value)}
+                  >
+                    {weekday.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <label>
+            学习任务星星
+            <input
+              type="number"
+              min={1}
+              max={999}
+              value={settings.learningTaskStars}
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  learningTaskStars: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <label>
+            复习任务星星
+            <input
+              type="number"
+              min={1}
+              max={999}
+              value={settings.reviewTaskStars}
+              onChange={(event) =>
+                setSettings({
+                  ...settings,
+                  reviewTaskStars: Number(event.target.value),
+                })
+              }
+            />
+          </label>
+          <div className="field-span admin-help">
+            每个学习日自动安排 1 首新诗。复习按学习后第 2、4、7、15、30、60 天出现；同一天到期的古诗合并为一个复习任务。
+          </div>
+          <div className="form-actions field-span">
+            <button className="primary-button" disabled={busy}>
+              {busy ? "保存中…" : "保存设置"}
+            </button>
+          </div>
+        </form>
+        {message ? <Notice>{message}</Notice> : null}
+        {error ? <Notice kind="error">{error}</Notice> : null}
+      </Panel>
+
+      <div className="metric-grid">
+        <article><span>古诗总数</span><strong>{poemCount}</strong><small>按年级顺序学习</small></article>
+        <article><span>学习中</span><strong>{progress.LEARNING ?? 0}</strong><small>首古诗</small></article>
+        <article><span>已掌握</span><strong>{progress.MASTERED ?? 0}</strong><small>完成 6 次复习</small></article>
+        <article><span>当前到期</span><strong>{dueCount}</strong><small>首待复习</small></article>
+      </div>
+
+      <Panel title={`古诗库（${poems.length} 首）`}>
+        <form className="poem-library-toolbar" onSubmit={search}>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜索标题、作者或诗句"
+          />
+          <select value={grade} onChange={(event) => setGrade(Number(event.target.value))}>
+            <option value={0}>全部年级</option>
+            {[1, 2, 3, 4, 5, 6].map((value) => (
+              <option value={value} key={value}>{value} 年级</option>
+            ))}
+          </select>
+          <button className="ghost-button" disabled={busy}>查询</button>
+        </form>
+        <div className="table-wrap poem-library-table">
+          <table>
+            <thead><tr><th>年级</th><th>古诗</th><th>作者</th><th>学习状态</th><th>媒体</th></tr></thead>
+            <tbody>
+              {poems.map((poem) => (
+                <tr key={poem.id}>
+                  <td>{poem.grade} 年级{poem.semester}</td>
+                  <td><strong>《{poem.title}》</strong><small>{poem.content}</small></td>
+                  <td>{poem.dynasty} · {poem.author}</td>
+                  <td>
+                    <span className={`status status--${poem.progress?.status === "MASTERED" ? "completed" : poem.progress ? "pending" : "cancelled"}`}>
+                      {poem.progress?.status === "MASTERED"
+                        ? "已掌握"
+                        : poem.progress
+                          ? `复习 ${poem.progress.reviewStage}/6`
+                          : "未学习"}
+                    </span>
+                    {poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}
+                  </td>
+                  <td><small>{poem.imageUrl ? "专属配图" : "默认配图"} · {poem.audioUrl ? "专属音频" : "浏览器朗读"}</small></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!poems.length ? <div className="empty-state">没有找到符合条件的古诗</div> : null}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 type WishForm = {
   category: Wish["category"];
   title: string;
@@ -1501,7 +1971,7 @@ export function App() {
       <aside className="admin-sidebar">
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>
-        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "hanzi" ? "字" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "planets" ? "◎" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
+        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "performance" ? "◷" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "hanzi" ? "字" : key === "poems" ? "诗" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "planets" ? "◎" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
         <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div>
       </aside>
       <main className="admin-main">
@@ -1510,9 +1980,11 @@ export function App() {
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
             {section === "overview" && <Overview child={selectedChild} />}
+            {section === "performance" && <PerformanceMonitoring child={selectedChild} />}
             {section === "history" && <History child={selectedChild} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <HanziLearning child={selectedChild} />}
+            {section === "poems" && <PoemLearning child={selectedChild} />}
             {section === "wishes" && <Wishes child={selectedChild} />}
             {section === "redemptions" && <Redemptions child={selectedChild} />}
             {section === "stars" && <Stars child={selectedChild} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}

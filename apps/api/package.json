@@ -13,7 +13,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "poem:import": "tsx prisma/import-poems.ts",
+    "poem:import-assets": "tsx prisma/import-poem-assets.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

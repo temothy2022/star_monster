@@ -59,6 +59,9 @@ export async function registerChildTaskRoutes(
       });
       request.log.info(
         {
+          event: "child_task_complete_timing",
+          requestId: request.id,
+          outcome: "succeeded",
           childId: child.id,
           attemptId: id,
           alreadyCompleted: result.alreadyCompleted,
@@ -71,6 +74,9 @@ export async function registerChildTaskRoutes(
     } catch (error) {
       request.log.warn(
         {
+          event: "child_task_complete_timing",
+          requestId: request.id,
+          outcome: "failed",
           childId: child.id,
           attemptId: id,
           totalMs: Math.round(performance.now() - startedAt),

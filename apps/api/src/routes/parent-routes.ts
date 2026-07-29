@@ -5,9 +5,14 @@ import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
+import { buildPerformanceDashboard } from "../domain/performance-metrics.js";
 import { isScheduledForDate } from "../domain/task-rules.js";
 import { requireStaff } from "../services/auth-service.js";
-import { abandonTask, generateDailyTasks } from "../services/task-service.js";
+import {
+  abandonTask,
+  generateDailyTasks,
+  prepareDailyTasks,
+} from "../services/task-service.js";
 import {
   getPlanetSettings,
   PLANET_KEYS,
@@ -131,6 +136,28 @@ const hanziLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(30),
+});
+const poemSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    learningWeekdays: z
+      .array(z.number().int().min(0).max(6))
+      .max(7),
+    learningTaskStars: z.number().int().min(1).max(999),
+    reviewTaskStars: z.number().int().min(1).max(999),
+  })
+  .superRefine((input, context) => {
+    if (new Set(input.learningWeekdays).size !== input.learningWeekdays.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["learningWeekdays"],
+        message: "不能重复选择同一个古诗学习日",
+      });
+    }
+  });
+const poemLibraryQuery = z.object({
+  q: z.string().trim().max(80).default(""),
+  grade: z.coerce.number().int().min(1).max(6).optional(),
 });
 
 const taskTemplateShape = {
@@ -342,6 +369,9 @@ const statsQuery = z.object({
 const historyQuery = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),
 });
+const performanceQuery = z.object({
+  days: z.coerce.number().int().min(1).max(30).default(7),
+});
 
 async function requireOwnedChild(
   request: FastifyRequest,
@@ -406,6 +436,88 @@ function templateData(input: z.infer<typeof taskTemplateSchema>) {
       ? (input.minimumGapDays ?? null)
       : null,
   };
+}
+
+type PoemSettingsInput = z.infer<typeof poemSettingsSchema>;
+
+async function ensurePoemTaskTemplates(
+  tx: Prisma.TransactionClient,
+  childId: string,
+  settings: PoemSettingsInput,
+) {
+  const common = {
+    childId,
+    category: "CHINESE" as const,
+    iconKey: "chinese",
+    mode: "UNTIMED" as const,
+    suggestedSeconds: 600,
+    timeLimitSeconds: null,
+    earlyBonusEnabled: false,
+    earlyThresholdSeconds: null,
+    earlyBonusStars: null,
+    repeatableDaily: false,
+    archivedAt: null,
+    aiSchedulingEnabled: false,
+    targetSessionsPerWeek: null,
+    minimumGapDays: null,
+    systemManaged: true,
+    isEnabled: settings.enabled,
+  };
+
+  await Promise.all([
+    tx.taskTemplate.upsert({
+      where: { systemKey: `poem-learning:${childId}` },
+      create: {
+        ...common,
+        systemKey: `poem-learning:${childId}`,
+        title: "学习新古诗",
+        experienceKind: "POEM_LEARNING",
+        baseStars: settings.learningTaskStars,
+        scheduleKind: "SELECTED_WEEKDAYS",
+        weekdays: [...new Set(settings.learningWeekdays)].sort(),
+        oneTimeDate: null,
+        sortOrder: 5,
+        learningPracticeKind: "NEW_CONTENT",
+      },
+      update: {
+        ...common,
+        title: "学习新古诗",
+        experienceKind: "POEM_LEARNING",
+        baseStars: settings.learningTaskStars,
+        scheduleKind: "SELECTED_WEEKDAYS",
+        weekdays: [...new Set(settings.learningWeekdays)].sort(),
+        oneTimeDate: null,
+        sortOrder: 5,
+        learningPracticeKind: "NEW_CONTENT",
+      },
+    }),
+    tx.taskTemplate.upsert({
+      where: { systemKey: `poem-review:${childId}` },
+      create: {
+        ...common,
+        systemKey: `poem-review:${childId}`,
+        title: "复习古诗",
+        experienceKind: "POEM_REVIEW",
+        baseStars: settings.reviewTaskStars,
+        scheduleKind: "DAILY",
+        weekdays: [],
+        oneTimeDate: null,
+        sortOrder: 6,
+        learningPracticeKind: "REVIEW",
+      },
+      update: {
+        ...common,
+        title: "复习古诗",
+        experienceKind: "POEM_REVIEW",
+        baseStars: settings.reviewTaskStars,
+        scheduleKind: "DAILY",
+        weekdays: [],
+        oneTimeDate: null,
+        sortOrder: 6,
+        learningPracticeKind: "REVIEW",
+      },
+    }),
+  ]);
 }
 
 export async function registerParentRoutes(
@@ -518,7 +630,7 @@ export async function registerParentRoutes(
     await requireOwnedChild(request, reply, config, id);
     return {
       templates: await prisma.taskTemplate.findMany({
-        where: { childId: id, archivedAt: null },
+        where: { childId: id, archivedAt: null, systemManaged: false },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       }),
     };
@@ -546,7 +658,7 @@ export async function registerParentRoutes(
       await requireOwnedChild(request, reply, config, childId);
       const patch = taskTemplatePatchSchema.parse(request.body);
       const existing = await prisma.taskTemplate.findFirst({
-        where: { id, childId, archivedAt: null },
+        where: { id, childId, archivedAt: null, systemManaged: false },
       });
       if (!existing)
         throw new HttpError(404, "TASK_TEMPLATE_NOT_FOUND", "没有找到任务模板");
@@ -610,7 +722,7 @@ export async function registerParentRoutes(
         await abandonTask(childId, activeSlot.attempt.id);
       }
       const result = await prisma.taskTemplate.updateMany({
-        where: { id, childId, archivedAt: null },
+        where: { id, childId, archivedAt: null, systemManaged: false },
         data: { archivedAt: new Date(), isEnabled: false },
       });
       if (!result.count)
@@ -639,6 +751,7 @@ export async function registerParentRoutes(
         where: {
           childId,
           archivedAt: null,
+          systemManaged: false,
           id: { in: items.map((item) => item.id) },
         },
       });
@@ -664,6 +777,106 @@ export async function registerParentRoutes(
       return { ok: true };
     },
   );
+
+  app.get("/api/parent/children/:id/poems/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const settings = await prisma.poemLearningSettings.upsert({
+      where: { childId: id },
+      update: {},
+      create: { childId: id },
+    });
+    await prisma.$transaction((tx) =>
+      ensurePoemTaskTemplates(tx, id, settings),
+    );
+
+    const [progress, poemCount, dueCount] = await Promise.all([
+      prisma.poemLearningProgress.groupBy({
+        by: ["status"],
+        where: { childId: id },
+        _count: { _all: true },
+      }),
+      prisma.poem.count({ where: { isEnabled: true } }),
+      prisma.poemLearningProgress.count({
+        where: {
+          childId: id,
+          status: "LEARNING",
+          nextReviewDate: {
+            lte: businessDateAt(new Date(), config.APP_TIME_ZONE),
+          },
+          poem: { isEnabled: true },
+        },
+      }),
+    ]);
+
+    return {
+      settings,
+      progress: Object.fromEntries(
+        progress.map((item) => [item.status, item._count._all]),
+      ),
+      poemCount,
+      dueCount,
+    };
+  });
+
+  app.patch("/api/parent/children/:id/poems/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const input = poemSettingsSchema.parse(request.body);
+    const settings = await prisma.$transaction(async (tx) => {
+      const updated = await tx.poemLearningSettings.upsert({
+        where: { childId: id },
+        create: { childId: id, ...input },
+        update: input,
+      });
+      await ensurePoemTaskTemplates(tx, id, input);
+      return updated;
+    });
+    await prepareDailyTasks(id, config);
+    return { settings };
+  });
+
+  app.get("/api/parent/children/:id/poems", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const { q, grade } = poemLibraryQuery.parse(request.query);
+    const poems = await prisma.poem.findMany({
+      where: {
+        isEnabled: true,
+        ...(grade ? { grade } : {}),
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: "insensitive" } },
+                { author: { contains: q, mode: "insensitive" } },
+                { content: { contains: q, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        progress: {
+          where: { childId: id },
+          select: {
+            status: true,
+            reviewStage: true,
+            nextReviewDate: true,
+          },
+        },
+      },
+      orderBy: [
+        { grade: "asc" },
+        { sortOrder: "asc" },
+      ],
+    });
+
+    return {
+      poems: poems.map(({ progress, ...poem }) => ({
+        ...poem,
+        progress: progress[0] ?? null,
+      })),
+    };
+  });
 
   app.get("/api/parent/children/:id/hanzi/settings", async (request, reply) => {
     const { id } = idParams.parse(request.params);
@@ -1006,6 +1219,36 @@ export async function registerParentRoutes(
         take: 500,
       }),
     };
+  });
+
+  app.get("/api/parent/children/:id/performance", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const { days } = performanceQuery.parse(request.query);
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
+    const metrics = await prisma.childPerformanceMetric.findMany({
+      where: { childId: id, createdAt: { gte: from } },
+      orderBy: { createdAt: "desc" },
+      take: 10_000,
+      select: {
+        id: true,
+        kind: true,
+        operation: true,
+        path: true,
+        status: true,
+        requestId: true,
+        totalMs: true,
+        serverMs: true,
+        clientOverheadMs: true,
+        apiTotalMs: true,
+        nonApiMs: true,
+        effectiveType: true,
+        connectionRttMs: true,
+        downlinkMbps: true,
+        createdAt: true,
+      },
+    });
+    return buildPerformanceDashboard(metrics, days, config.APP_TIME_ZONE);
   });
 
   app.get("/api/parent/children/:id/stats", async (request, reply) => {

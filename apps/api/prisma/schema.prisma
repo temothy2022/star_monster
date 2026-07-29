@@ -46,6 +46,8 @@ enum TaskMode {
 enum TaskExperienceKind {
   STANDARD
   HANZI_LEARNING
+  POEM_LEARNING
+  POEM_REVIEW
 }
 
 enum ScheduleKind {
@@ -141,6 +143,16 @@ enum HanziSessionPhase {
   NEW_LEARNING
   CONSOLIDATION
   COMPLETED
+}
+
+enum PoemLearningStatus {
+  LEARNING
+  MASTERED
+}
+
+enum PoemSessionKind {
+  LEARNING
+  REVIEW
 }
 
 enum AiRecommendationKind {
@@ -239,6 +251,10 @@ model ChildProfile {
   hanziSettings      HanziLearningSettings?
   hanziProgress      HanziLearningProgress[]
   hanziSessions      HanziLearningSession[]
+  poemSettings       PoemLearningSettings?
+  poemProgress       PoemLearningProgress[]
+  poemSessions       PoemLearningSession[]
+  performanceMetrics ChildPerformanceMetric[]
 
   @@index([familyId, status])
 }
@@ -284,6 +300,8 @@ model TaskTemplate {
   learningPracticeKind  LearningPracticeKind @default(GENERAL)
   targetSessionsPerWeek Int?
   minimumGapDays        Int?
+  systemManaged         Boolean              @default(false)
+  systemKey             String?              @unique
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
@@ -473,6 +491,79 @@ model HanziLearningSession {
   @@index([childId, sessionDate])
 }
 
+model Poem {
+  id        String   @id @default(cuid())
+  title     String
+  dynasty   String
+  author    String
+  grade     Int
+  semester  String
+  content   String
+  imageUrl  String?
+  audioUrl  String?
+  sortOrder Int      @default(0)
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress PoemLearningProgress[]
+
+  @@unique([title, dynasty, author, grade, semester])
+  @@index([isEnabled, grade, semester, sortOrder])
+}
+
+model PoemLearningSettings {
+  id                String   @id @default(cuid())
+  childId           String   @unique
+  enabled           Boolean  @default(false)
+  learningWeekdays  Int[]    @default([2, 4])
+  learningTaskStars Int      @default(2)
+  reviewTaskStars   Int      @default(2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+model PoemLearningProgress {
+  id             String             @id @default(cuid())
+  childId        String
+  poemId         String
+  status         PoemLearningStatus @default(LEARNING)
+  learnedDate    DateTime           @db.Date
+  reviewStage    Int                @default(0)
+  nextReviewDate DateTime?          @db.Date
+  lastReviewedAt DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  poem  Poem         @relation(fields: [poemId], references: [id], onDelete: Restrict)
+
+  @@unique([childId, poemId])
+  @@index([childId, status, nextReviewDate])
+}
+
+model PoemLearningSession {
+  id                 String          @id @default(cuid())
+  childId            String
+  taskAttemptId      String          @unique
+  sessionDate        DateTime        @db.Date
+  kind               PoemSessionKind
+  poemIds            String[]        @default([])
+  currentIndex       Int             @default(0)
+  completedPoemIds   String[]        @default([])
+  forgottenPoemIds   String[]        @default([])
+  completedAt        DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+
+  @@index([childId, sessionDate])
+}
+
 model TaskAttempt {
   id                 String        @id @default(cuid())
   childId            String
@@ -495,6 +586,7 @@ model TaskAttempt {
   reward       StarLedger?
   activeSlot   ActiveTaskSlot?
   hanziSession HanziLearningSession?
+  poemSession  PoemLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])
   @@index([childId, status])
@@ -606,6 +698,37 @@ model ActiveWishRedemptionSlot {
 
   wishReward WishReward     @relation(fields: [wishRewardId], references: [id], onDelete: Cascade)
   redemption WishRedemption @relation(fields: [redemptionId], references: [id], onDelete: Cascade)
+}
+
+model ChildPerformanceMetric {
+  id               String   @id @default(cuid())
+  childId          String
+  kind             String
+  operation        String
+  path             String
+  method           String?
+  status           Int?
+  requestId        String?
+  totalMs          Float
+  serverMs         Float?
+  clientOverheadMs Float?
+  apiTotalMs       Float?
+  nonApiMs         Float?
+  ttfbMs           Float?
+  downloadMs       Float?
+  transferSize     Int?
+  route            String?
+  visibilityState  String?
+  online           Boolean?
+  effectiveType    String?
+  connectionRttMs  Float?
+  downlinkMbps     Float?
+  createdAt        DateTime @default(now())
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, createdAt])
+  @@index([childId, operation, createdAt])
 }
 
 model AuditLog {

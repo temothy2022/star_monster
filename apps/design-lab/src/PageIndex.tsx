@@ -28,7 +28,8 @@ export type PageIndexRoute =
   | "hanzi-listen-question"
   | "hanzi-listen-correct"
   | "hanzi-listen-wrong"
-  | "hanzi-result";
+  | "hanzi-result"
+  | "poem-recitation";
 
 type PageGroup = {
   title: string;
@@ -103,6 +104,12 @@ const groups: PageGroup[] = [
       { route: "hanzi-listen-question", name: "听句挑战 · 未作答", note: "播放句子并选择正确汉字" },
       { route: "hanzi-listen-wrong", name: "听句挑战 · 回答错误", note: "正确答案提示与继续按钮" },
       { route: "hanzi-result", name: "学习结果", note: "复习、新学、听句挑战统计" },
+    ],
+  },
+  {
+    title: "古诗学习",
+    pages: [
+      { route: "poem-recitation", name: "古诗背诵", note: "《春晓》诗句与朗读" },
     ],
   },
 ];

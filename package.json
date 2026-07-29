@@ -18,6 +18,7 @@
     "db:deploy": "pnpm --filter @star-monsters/api db:deploy",
     "db:push": "pnpm --filter @star-monsters/api db:push",
     "db:seed": "pnpm --filter @star-monsters/api db:seed",
+    "poem:import": "pnpm --filter @star-monsters/api poem:import",
     "assets:audit": "pnpm --filter @star-monsters/design-lab assets:audit",
     "assets:webp": "pnpm --filter @star-monsters/design-lab assets:webp",
     "hanzi:prepare": "node scripts/prepare-hanzi-assets-input.mjs",
@@ -27,6 +28,9 @@
     "hanzi:compress-images:check": "pnpm --filter @star-monsters/design-lab exec node ../../scripts/compress-hanzi-images.mjs --check",
     "hanzi:deploy-assets": "bash scripts/deploy-hanzi-assets.sh",
     "hanzi:import": "pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts",
+    "poem:generate-assets": "pnpm --filter @star-monsters/design-lab exec node ../../scripts/generate-poem-minimax-assets.mjs",
+    "poem:deploy-assets": "bash scripts/deploy-poem-assets.sh",
+    "poem:import-assets": "pnpm --filter @star-monsters/api exec tsx prisma/import-poem-assets.ts",
     "deploy:production": "bash scripts/deploy-production.sh"
   }
 }

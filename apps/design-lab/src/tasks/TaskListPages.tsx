@@ -37,6 +37,7 @@ import {
 } from "../api/child-api";
 import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
+import { reportChildPageReady } from "../api/performance-telemetry";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -451,6 +452,12 @@ export function TaskExperience({
     },
     { enabled: Boolean(experience) },
   );
+
+  useEffect(() => {
+    if (experience) {
+      reportChildPageReady("tasks-partial", "/api/child/tasks/today");
+    }
+  }, [experience]);
 
   const tasks = useMemo(
     () => experience?.tasks

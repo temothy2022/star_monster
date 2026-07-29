@@ -23,6 +23,7 @@ import {
   playCompletionSound,
   prepareCompletionSound,
 } from "../audio/completion-sound";
+import { LoadingDots } from "../components/LoadingDots";
 
 type TimedTaskProps = {
   onBack: () => void;
@@ -180,7 +181,9 @@ export function TimedTaskActive({
           </section>
 
           <button
-            className="timed-primary-button timed-primary-button--dark"
+            className={`timed-primary-button timed-primary-button--dark${
+              completing ? " child-submit-button--loading" : ""
+            }`}
             type="button"
             disabled={completing}
             aria-busy={completing}
@@ -193,8 +196,14 @@ export function TimedTaskActive({
                   }
             }
           >
-            <span>{paused ? "继续任务" : "继续答题"}</span>
-            <img src={startArrowIcon} alt="" />
+            {completing ? (
+              <LoadingDots label="正在完成" />
+            ) : (
+              <>
+                <span>{paused ? "继续任务" : "继续答题"}</span>
+                <img src={startArrowIcon} alt="" />
+              </>
+            )}
           </button>
         </div>
       </section>

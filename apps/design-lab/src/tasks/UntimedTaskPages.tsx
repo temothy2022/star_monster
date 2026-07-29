@@ -23,6 +23,7 @@ import {
   playCompletionSound,
   prepareCompletionSound,
 } from "../audio/completion-sound";
+import { LoadingDots } from "../components/LoadingDots";
 
 export type UntimedOverlay = "menu" | "abandon" | null;
 
@@ -180,6 +181,7 @@ export function UntimedTaskActive({
             <strong>奖励 {rewardStars} 颗星星</strong>
           </div>
           <button
+            className={completing ? "child-submit-button--loading" : undefined}
             type="button"
             disabled={completing}
             aria-busy={completing}
@@ -192,7 +194,13 @@ export function UntimedTaskActive({
                   }
             }
           >
-            {paused ? "继续任务" : `完成啦 +${rewardStars}★`}
+            {completing ? (
+              <LoadingDots label="正在完成" />
+            ) : paused ? (
+              "继续任务"
+            ) : (
+              `完成啦 +${rewardStars}★`
+            )}
           </button>
           {paused && <p>任务已暂停，准备好再继续</p>}
         </section>

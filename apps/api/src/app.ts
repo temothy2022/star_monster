@@ -8,16 +8,55 @@ import { registerAuthRoutes } from "./routes/auth-routes.js";
 import { registerChildProfileRoutes } from "./routes/child-profile-routes.js";
 import { registerChildTaskRoutes } from "./routes/child-task-routes.js";
 import { registerChildHanziRoutes } from "./routes/child-hanzi-routes.js";
+import { registerChildPoemRoutes } from "./routes/child-poem-routes.js";
 import { registerChildProgressRoutes } from "./routes/child-progress-routes.js";
 import { registerSuperAdminRoutes } from "./routes/super-admin-routes.js";
 import { registerParentRoutes } from "./routes/parent-routes.js";
 import { registerParentAiRoutes } from "./routes/parent-ai-routes.js";
+import { registerClientTelemetryRoutes } from "./routes/client-telemetry-routes.js";
 import { prisma } from "./lib/prisma.js";
 
 export async function buildApp(config: AppConfig) {
   const app = Fastify({
     logger: config.NODE_ENV !== "test",
     trustProxy: true,
+  });
+  const requestStartedAt = new WeakMap<object, bigint>();
+
+  app.addHook("onRequest", async (request) => {
+    requestStartedAt.set(request, process.hrtime.bigint());
+  });
+  app.addHook("onSend", async (request, reply, payload) => {
+    const startedAt = requestStartedAt.get(request);
+    if (startedAt) {
+      const durationMs =
+        Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+      reply.header("Server-Timing", `app;dur=${durationMs.toFixed(1)}`);
+      reply.header("X-Request-Id", request.id);
+    }
+    return payload;
+  });
+  app.addHook("onResponse", async (request, reply) => {
+    const startedAt = requestStartedAt.get(request);
+    if (!startedAt) return;
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    const route = request.routeOptions.url;
+    if (
+      durationMs >= 500 &&
+      route !== "/api/child/telemetry/performance"
+    ) {
+      request.log.warn(
+        {
+          event: "slow_api_request",
+          requestId: request.id,
+          method: request.method,
+          route,
+          status: reply.statusCode,
+          durationMs: Math.round(durationMs),
+        },
+        "slow api request",
+      );
+    }
   });
 
   await app.register(cookie, { secret: config.COOKIE_SECRET });
@@ -43,6 +82,8 @@ export async function buildApp(config: AppConfig) {
   await registerChildProfileRoutes(app, config);
   await registerChildTaskRoutes(app, config);
   await registerChildHanziRoutes(app, config);
+  await registerChildPoemRoutes(app, config);
+  await registerClientTelemetryRoutes(app, config);
   await registerChildProgressRoutes(app, config);
   await registerSuperAdminRoutes(app, config);
   await registerParentRoutes(app, config);

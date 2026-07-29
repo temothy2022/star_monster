@@ -3,7 +3,13 @@ import moreIcon from "../assets/untimed-task/more.svg";
 import cancelIcon from "../assets/untimed-task/cancel.svg";
 import { AbandonDialog } from "../tasks/UntimedTaskPages";
 
-export function HanziTaskControls({ onAbandon }: { onAbandon: () => void }) {
+export function HanziTaskControls({
+  onAbandon,
+  experienceName = "汉字学习",
+}: {
+  onAbandon: () => void;
+  experienceName?: string;
+}) {
   const [overlay, setOverlay] = useState<"menu" | "abandon" | null>(null);
 
   return (
@@ -26,7 +32,7 @@ export function HanziTaskControls({ onAbandon }: { onAbandon: () => void }) {
             className="untimed-more-menu hanzi-more-menu"
             role="dialog"
             aria-modal="true"
-            aria-label="汉字学习更多菜单"
+            aria-label={`${experienceName}更多菜单`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="untimed-more-menu__panel">

@@ -28,6 +28,7 @@ import {
   type FootprintResponse,
 } from "../api/child-api";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
+import { reportChildPageReady } from "../api/performance-telemetry";
 
 type RequestedWish = {
   id: string;
@@ -284,6 +285,12 @@ export function WishesRequested({
     },
   );
 
+  useEffect(() => {
+    if (wishData) {
+      reportChildPageReady("wishes-requested", "/api/child/wishes");
+    }
+  }, [wishData]);
+
   const displayedWishes: RequestedWish[] =
     wishData?.wishes.map((wish) => ({
       id: wish.id,
@@ -456,6 +463,12 @@ export function Footprints({
     },
     { enabled: Boolean(footprints) },
   );
+
+  useEffect(() => {
+    if (footprints) {
+      reportChildPageReady("footprints", "/api/child/footprints");
+    }
+  }, [footprints]);
 
   const displayedDays = footprints
     ? footprints.days.map((item) => ({

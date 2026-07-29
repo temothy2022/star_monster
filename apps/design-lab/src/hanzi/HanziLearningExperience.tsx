@@ -10,6 +10,7 @@ import {
   type HanziLearningSession,
 } from "../api/child-api";
 import { ChildDataState } from "../components/ChildDataState";
+import { LoadingDots } from "../components/LoadingDots";
 import backIcon from "../assets/icon-arrow-left.svg";
 import playIcon from "../assets/untimed-task/play.svg";
 import defaultHanziImage from "../assets/hanzi/test-generated-shui.jpeg";
@@ -933,11 +934,17 @@ export function HanziLearningExperience({
       {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
       <footer className="hanzi-result-footer">
         <p>这些汉字会在合适的时候再回来见你，见得越多，记得越牢。</p>
-        <button disabled={busy} type="button" onClick={() => void finish()}>
+        <button
+          className={busy ? "child-submit-button--loading" : undefined}
+          disabled={busy}
+          aria-busy={busy}
+          type="button"
+          onClick={() => void finish()}
+        >
           {busy
             ? pendingAnswerSaves > 0
-              ? "正在保存答题记录…"
-              : "正在完成…"
+              ? <LoadingDots label="正在保存" />
+              : <LoadingDots label="正在完成" />
             : "完成任务"}
         </button>
       </footer>

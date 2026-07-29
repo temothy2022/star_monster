@@ -140,6 +140,16 @@ const HanziLearningExperience = lazy(() =>
     default: module.HanziLearningExperience,
   })),
 );
+const PoemRecitationPage = lazy(() =>
+  import("./poem/PoemRecitationPage").then((module) => ({
+    default: module.PoemRecitationPage,
+  })),
+);
+const PoemLearningExperience = lazy(() =>
+  import("./poem/PoemLearningExperience").then((module) => ({
+    default: module.PoemLearningExperience,
+  })),
+);
 const HanziListenQuestion = lazy(() =>
   import("./hanzi/HanziLearningPages").then((module) => ({
     default: module.HanziListenQuestion,
@@ -199,7 +209,9 @@ type AppRoute =
   | "hanzi-listen-correct"
   | "hanzi-listen-wrong"
   | "hanzi-result"
-  | "hanzi-session";
+  | "hanzi-session"
+  | "poem-session"
+  | "poem-recitation";
 
 const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
   MERCURY: "planet-mercury",
@@ -259,6 +271,8 @@ function readRouteFromHash(): AppRoute {
     "hanzi-listen-wrong",
     "hanzi-result",
     "hanzi-session",
+    "poem-session",
+    "poem-recitation",
   ];
 
   return routes.includes(route) ? route : "login";
@@ -281,7 +295,8 @@ function isActiveTaskRoute(route: AppRoute) {
     route === "untimed-menu" ||
     route === "untimed-abandon" ||
     route === "timed-active" ||
-    route === "hanzi-session"
+    route === "hanzi-session" ||
+    route === "poem-session"
   );
 }
 
@@ -378,6 +393,9 @@ export function App() {
         const expectedRoute =
           active.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
             ? "hanzi-session"
+            : active.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
+                active.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
+              ? "poem-session"
             : active.dailyTask.modeSnapshot === "TIMED"
             ? "timed-active"
             : route === "untimed-menu" || route === "untimed-abandon"
@@ -436,6 +454,9 @@ export function App() {
           navigate(
             attempt.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
               ? "hanzi-session"
+              : attempt.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
+                  attempt.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
+                ? "poem-session"
               : attempt.dailyTask.modeSnapshot === "TIMED"
               ? "timed-active"
               : "untimed-active",
@@ -485,8 +506,40 @@ export function App() {
     );
   }
 
+  if (route === "poem-session") {
+    return (
+      <PoemLearningExperience
+        attemptId={activeAttempt!.id}
+        onExit={() => {
+          if (!activeAttempt) {
+            navigate("tasks-partial");
+            return;
+          }
+          void abandonAttempt(activeAttempt.id)
+            .then(() => {
+              setActiveAttempt(null);
+              navigate("tasks-partial");
+            })
+            .catch(handleAttemptActionError);
+        }}
+        onCompleted={(reward) => {
+          setLastCompletion({
+            taskTitle: activeAttempt!.dailyTask.titleSnapshot,
+            ...reward,
+          });
+          setActiveAttempt(null);
+          navigate("untimed-complete");
+        }}
+      />
+    );
+  }
+
   if (route === "pages") {
     return <PageIndex onNavigate={(nextRoute: PageIndexRoute) => navigate(nextRoute)} />;
+  }
+
+  if (route === "poem-recitation") {
+    return <PoemRecitationPage onNavigate={navigate} />;
   }
 
   if (route === "untimed-active" || route === "untimed-menu" || route === "untimed-abandon") {

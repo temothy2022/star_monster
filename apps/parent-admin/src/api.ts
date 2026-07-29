@@ -74,6 +74,95 @@ export type HanziSettingsResponse = {
   characterCount: number;
 };
 
+export type PoemLearningSettings = {
+  enabled: boolean;
+  learningWeekdays: number[];
+  learningTaskStars: number;
+  reviewTaskStars: number;
+};
+
+export type PoemResource = {
+  id: string;
+  title: string;
+  dynasty: string;
+  author: string;
+  grade: number;
+  semester: string;
+  content: string;
+  imageUrl: string | null;
+  audioUrl: string | null;
+  sortOrder: number;
+  progress: {
+    status: "LEARNING" | "MASTERED";
+    reviewStage: number;
+    nextReviewDate: string | null;
+  } | null;
+};
+
+export type PoemSettingsResponse = {
+  settings: PoemLearningSettings;
+  progress: Partial<Record<"LEARNING" | "MASTERED", number>>;
+  poemCount: number;
+  dueCount: number;
+};
+
+export type PerformanceDiagnosis = "server" | "network" | "frontend" | "mixed";
+
+export type PerformanceDashboard = {
+  days: number;
+  collectedFrom: string | null;
+  collectedTo: string | null;
+  summary: {
+    pageOpenCount: number;
+    slowPageCount: number;
+    slowPageRate: number;
+    pageOpenAverageMs: number | null;
+    pageOpenP95Ms: number | null;
+    serverAverageMs: number | null;
+    networkAverageMs: number | null;
+    frontendAverageMs: number | null;
+    completionAverageMs: number | null;
+    completionP95Ms: number | null;
+    completionCount: number;
+  };
+  diagnosis: Record<PerformanceDiagnosis, number>;
+  operations: Array<{
+    operation: string;
+    samples: number;
+    averageMs: number | null;
+    p95Ms: number | null;
+    slowCount: number;
+    serverAverageMs: number | null;
+    networkAverageMs: number | null;
+    frontendAverageMs: number | null;
+  }>;
+  trend: Array<{
+    date: string;
+    samples: number;
+    averageMs: number | null;
+    p95Ms: number | null;
+    slowCount: number;
+  }>;
+  recentSlowEvents: Array<{
+    id: string;
+    kind: string;
+    operation: string;
+    path: string;
+    status: number | null;
+    requestId: string | null;
+    totalMs: number;
+    serverMs: number | null;
+    clientOverheadMs: number | null;
+    apiTotalMs: number | null;
+    nonApiMs: number | null;
+    effectiveType: string | null;
+    connectionRttMs: number | null;
+    downlinkMbps: number | null;
+    createdAt: string;
+    diagnosis: PerformanceDiagnosis;
+  }>;
+};
+
 export type AiConfig = {
   provider: "DEEPSEEK";
   model: string;
@@ -390,6 +479,29 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/characters/${id}`,
       { method: "DELETE" },
     ),
+  poemSettings: (childId: string) =>
+    api<PoemSettingsResponse>(
+      `/api/parent/children/${childId}/poems/settings`,
+    ),
+  updatePoemSettings: (
+    childId: string,
+    data: PoemLearningSettings,
+  ) =>
+    api<{ settings: PoemLearningSettings }>(
+      `/api/parent/children/${childId}/poems/settings`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
+  poems: (
+    childId: string,
+    query: { q?: string; grade?: number } = {},
+  ) => {
+    const search = new URLSearchParams();
+    if (query.q) search.set("q", query.q);
+    if (query.grade) search.set("grade", String(query.grade));
+    return api<{ poems: PoemResource[] }>(
+      `/api/parent/children/${childId}/poems?${search.toString()}`,
+    );
+  },
   createTemplate: (childId: string, data: Record<string, unknown>) =>
     api<{ template: TaskTemplate }>(
       `/api/parent/children/${childId}/task-templates`,
@@ -486,6 +598,10 @@ export const parentApi = {
   taskHistory: (childId: string, days: number) =>
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
       `/api/parent/children/${childId}/task-history?days=${days}`,
+    ),
+  performance: (childId: string, days: number) =>
+    api<PerformanceDashboard>(
+      `/api/parent/children/${childId}/performance?days=${days}`,
     ),
   planets: (childId: string) =>
     api<PlanetSettingsResponse>(`/api/parent/children/${childId}/planets`),

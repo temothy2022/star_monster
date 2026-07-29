@@ -64,6 +64,7 @@ rsync -az --delete \
   --exclude 'work/' \
   --exclude 'outputs/' \
   --exclude 'hanzi-assets/' \
+  --exclude 'poem-assets/' \
   -e "$RSYNC_SSH" \
   "$PROJECT_ROOT/" "$REMOTE:$DEPLOY_PATH/"
 

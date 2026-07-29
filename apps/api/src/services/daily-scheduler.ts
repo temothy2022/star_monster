@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { prepareDailyTasks } from "./task-service.js";
 
 const MAINTENANCE_INTERVAL_MS = 60_000;
+const PERFORMANCE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 
 export function startDailyScheduler(
   config: AppConfig,
@@ -36,6 +37,13 @@ export function startDailyScheduler(
       await Promise.all([
         prisma.childSession.deleteMany({ where: { expiresAt: { lte: now } } }),
         prisma.userSession.deleteMany({ where: { expiresAt: { lte: now } } }),
+        prisma.childPerformanceMetric.deleteMany({
+          where: {
+            createdAt: {
+              lt: new Date(now.getTime() - PERFORMANCE_RETENTION_MS),
+            },
+          },
+        }),
       ]);
     } catch (error) {
       logger.error({ error }, "每日任务维护程序运行失败");
