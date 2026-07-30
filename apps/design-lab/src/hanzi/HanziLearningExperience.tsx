@@ -36,6 +36,15 @@ type CompletionReward = {
   totalStars: number;
 };
 
+type FlowTransitionAction =
+  | "start"
+  | "review-known"
+  | "review-unknown"
+  | "review-continue"
+  | "new-next"
+  | `answer:${string}`
+  | "question-continue";
+
 function mediaPath(url?: string | null) {
   if (!url) return undefined;
   try {
@@ -460,6 +469,8 @@ export function HanziLearningExperience({
   const [newStep, setNewStep] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [flowTransition, setFlowTransition] =
+    useState<FlowTransitionAction | null>(null);
   const [error, setError] = useState("");
   const [knownToast, setKnownToast] = useState(false);
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
@@ -475,6 +486,9 @@ export function HanziLearningExperience({
   const assetPreloadAbort = useRef<AbortController | null>(null);
   const preloadedSessionId = useRef<string | null>(null);
   const requestAbort = useRef(new AbortController());
+  const flowTransitionRef = useRef<FlowTransitionAction | null>(null);
+  const transitionFrameIds = useRef<number[]>([]);
+  const transitionTimer = useRef<number | null>(null);
   const [answerFeedback, setAnswerFeedback] = useState<{
     selectedId: string;
     targetId: string;
@@ -517,6 +531,12 @@ export function HanziLearningExperience({
       stopActiveSpeech();
       assetPreloadAbort.current?.abort();
       requestAbort.current.abort();
+      for (const frameId of transitionFrameIds.current) {
+        window.cancelAnimationFrame(frameId);
+      }
+      if (transitionTimer.current !== null) {
+        window.clearTimeout(transitionTimer.current);
+      }
     };
   }, [stopActiveSpeech]);
 
@@ -615,6 +635,49 @@ export function HanziLearningExperience({
   const allQuestionsAnswered =
     session.questionIndex >= session.questions.length;
 
+  function releaseFlowTransition() {
+    flowTransitionRef.current = null;
+    setFlowTransition(null);
+  }
+
+  function queueFlowTransition(
+    action: FlowTransitionAction,
+    beforeCommit: () => void,
+    commit: () => void,
+    holdMs = 0,
+  ) {
+    if (flowTransitionRef.current || busy) return;
+    flowTransitionRef.current = action;
+    setFlowTransition(action);
+
+    try {
+      // Keep media playback in the original click gesture for iPad Safari.
+      beforeCommit();
+    } catch (reason) {
+      releaseFlowTransition();
+      throw reason;
+    }
+
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(() => {
+        const finish = () => {
+          commit();
+          const releaseFrame = window.requestAnimationFrame(
+            releaseFlowTransition,
+          );
+          transitionFrameIds.current.push(releaseFrame);
+        };
+        if (holdMs > 0) {
+          transitionTimer.current = window.setTimeout(finish, holdMs);
+        } else {
+          finish();
+        }
+      });
+      transitionFrameIds.current.push(secondFrame);
+    });
+    transitionFrameIds.current.push(firstFrame);
+  }
+
   function playEntryForSession(nextSession: HanziLearningSession) {
     if (nextSession.phase === "NEW_LEARNING") {
       const character = characterById.get(
@@ -641,100 +704,151 @@ export function HanziLearningExperience({
   }
 
   function beginLearning() {
-    if (!assetProgress.ready) return;
-    setError("");
-    setStarted(true);
-    playEntryForSession(session!);
+    if (!assetProgress.ready || flowTransitionRef.current) return;
+    queueFlowTransition(
+      "start",
+      () => {
+        setError("");
+        playEntryForSession(session!);
+      },
+      () => setStarted(true),
+    );
   }
 
   function submitReview(known: boolean) {
-    if (!reviewCharacter || busy) return;
-    setError("");
+    if (!reviewCharacter || busy || flowTransitionRef.current) return;
     const nextSession = advanceReviewLocally(
       session!,
       reviewCharacter.id,
       known,
     );
     if (known) {
-      playEntryForSession(nextSession);
-      setKnownToast(true);
-      window.setTimeout(() => {
-        setKnownToast(false);
-        setFlipped(false);
-        setSession(nextSession);
-      }, 700);
+      queueFlowTransition(
+        "review-known",
+        () => {
+          setError("");
+          playEntryForSession(nextSession);
+          setKnownToast(true);
+        },
+        () => {
+          setKnownToast(false);
+          setFlipped(false);
+          setSession(nextSession);
+        },
+        700,
+      );
     } else {
-      setUnknownCharacter(reviewCharacter);
-      setPendingSession(nextSession);
-    }
-  }
-
-  function continueAfterUnknown() {
-    if (!pendingSession) return;
-    playEntryForSession(pendingSession);
-    setSession(pendingSession);
-    setPendingSession(null);
-    setUnknownCharacter(null);
-    setFlipped(false);
-  }
-
-  function nextNewStep() {
-    if (!newCharacter || busy) return;
-    if (newStep < 2) {
-      const nextStep = newStep + 1;
-      stopActiveSpeech();
-      setNewStep(nextStep);
-      if (nextStep === 1) {
-        playSpeech(newCharacter.character, newCharacter.characterAudioUrl);
-      } else {
-        playCharacterThenText(
-          newCharacter,
-          resolvedSentence(newCharacter),
-          newCharacter.sentenceAudioUrl,
-        );
-      }
-      return;
-    }
-    stopActiveSpeech();
-    setError("");
-    const optimisticSession = advanceNewCharacterLocally(session!);
-    playEntryForSession(optimisticSession);
-    setSession(optimisticSession);
-    setNewStep(0);
-  }
-
-  function selectAnswer(characterId: string) {
-    if (!question || answerFeedback) return;
-    stopActiveSpeech();
-    setError("");
-    const locallyCorrect = characterId === question.targetId;
-    const optimisticSession = advanceQuestionLocally(session!, locallyCorrect);
-    setAnswerFeedback({
-      selectedId: characterId,
-      targetId: question.targetId,
-      correct: locallyCorrect,
-      nextSession: optimisticSession,
-    });
-    setAnswerSelections((current) => ({
-      ...current,
-      [session!.questionIndex]: characterId,
-    }));
-    if (locallyCorrect && questionTarget) {
-      playSpeech(questionTarget.character, questionTarget.characterAudioUrl);
-    } else if (questionTarget) {
-      playSpeech(
-        resolvedSentence(questionTarget),
-        questionTarget.sentenceAudioUrl,
+      queueFlowTransition(
+        "review-unknown",
+        () => setError(""),
+        () => {
+          setUnknownCharacter(reviewCharacter);
+          setPendingSession(nextSession);
+        },
       );
     }
   }
 
+  function continueAfterUnknown() {
+    if (!pendingSession || flowTransitionRef.current) return;
+    queueFlowTransition(
+      "review-continue",
+      () => playEntryForSession(pendingSession),
+      () => {
+        setSession(pendingSession);
+        setPendingSession(null);
+        setUnknownCharacter(null);
+        setFlipped(false);
+      },
+    );
+  }
+
+  function nextNewStep() {
+    if (!newCharacter || busy || flowTransitionRef.current) return;
+    if (newStep < 2) {
+      const nextStep = newStep + 1;
+      queueFlowTransition(
+        "new-next",
+        () => {
+          stopActiveSpeech();
+          if (nextStep === 1) {
+            playSpeech(newCharacter.character, newCharacter.characterAudioUrl);
+          } else {
+            playCharacterThenText(
+              newCharacter,
+              resolvedSentence(newCharacter),
+              newCharacter.sentenceAudioUrl,
+            );
+          }
+        },
+        () => setNewStep(nextStep),
+      );
+      return;
+    }
+    const optimisticSession = advanceNewCharacterLocally(session!);
+    queueFlowTransition(
+      "new-next",
+      () => {
+        stopActiveSpeech();
+        setError("");
+        playEntryForSession(optimisticSession);
+      },
+      () => {
+        setSession(optimisticSession);
+        setNewStep(0);
+      },
+    );
+  }
+
+  function selectAnswer(characterId: string) {
+    if (!question || answerFeedback || flowTransitionRef.current) return;
+    const locallyCorrect = characterId === question.targetId;
+    const optimisticSession = advanceQuestionLocally(session!, locallyCorrect);
+    queueFlowTransition(
+      `answer:${characterId}`,
+      () => {
+        stopActiveSpeech();
+        setError("");
+        if (locallyCorrect && questionTarget) {
+          playSpeech(
+            questionTarget.character,
+            questionTarget.characterAudioUrl,
+          );
+        } else if (questionTarget) {
+          playSpeech(
+            resolvedSentence(questionTarget),
+            questionTarget.sentenceAudioUrl,
+          );
+        }
+      },
+      () => {
+        setAnswerFeedback({
+          selectedId: characterId,
+          targetId: question.targetId,
+          correct: locallyCorrect,
+          nextSession: optimisticSession,
+        });
+        setAnswerSelections((current) => ({
+          ...current,
+          [session!.questionIndex]: characterId,
+        }));
+      },
+    );
+  }
+
   function continueQuestion() {
-    if (!answerFeedback) return;
-    stopActiveSpeech();
-    playEntryForSession(answerFeedback.nextSession);
-    setSession(answerFeedback.nextSession);
-    setAnswerFeedback(null);
+    if (!answerFeedback || flowTransitionRef.current) return;
+    queueFlowTransition(
+      "question-continue",
+      () => {
+        stopActiveSpeech();
+        playEntryForSession(answerFeedback.nextSession);
+      },
+      () => {
+        setSession(answerFeedback.nextSession);
+        setAnswerFeedback(null);
+      },
+    );
   }
 
   function returnToOverview(nextSession: HanziLearningSession = session!) {
@@ -749,6 +863,7 @@ export function HanziLearningExperience({
   }
 
   function goBackOneStep() {
+    if (flowTransitionRef.current || busy) return;
     if (unknownCharacter) {
       returnToOverview(pendingSession ?? session!);
       return;
@@ -778,7 +893,7 @@ export function HanziLearningExperience({
   }
 
   async function finish() {
-    if (busy) return;
+    if (busy || flowTransitionRef.current) return;
     stopActiveSpeech();
     setBusy(true);
     setError("");
@@ -907,18 +1022,28 @@ export function HanziLearningExperience({
         </section>
         <footer className="hanzi-bottom-action">
           <button
-            disabled={!assetProgress.ready}
+            className={
+              flowTransition === "start"
+                ? "child-submit-button--loading"
+                : undefined
+            }
+            disabled={!assetProgress.ready || Boolean(flowTransition)}
+            aria-busy={flowTransition === "start"}
             type="button"
             onClick={beginLearning}
           >
-            {assetProgress.ready
+            {flowTransition === "start" ? (
+              <LoadingDots label="正在进入" />
+            ) : assetProgress.ready
               ? session.reviewIndex > 0 ||
                 session.newIndex > 0 ||
                 session.questionIndex > 0
                 ? "继续学习"
                 : "开始学习"
               : `正在准备 ${assetPercent}%`}
-            {assetProgress.ready ? <span aria-hidden="true">→</span> : null}
+            {assetProgress.ready && flowTransition !== "start" ? (
+              <span aria-hidden="true">→</span>
+            ) : null}
           </button>
         </footer>
       </main>
@@ -941,6 +1066,7 @@ export function HanziLearningExperience({
           <CharacterBox character={unknownCharacter.character} compact />
           <button
             className="hanzi-coach-audio"
+            disabled={Boolean(flowTransition)}
             type="button"
             onClick={() => playSpeech(unknownCharacter.character, unknownCharacter.characterAudioUrl)}
           >
@@ -948,7 +1074,23 @@ export function HanziLearningExperience({
           </button>
         </section>
         <footer className="hanzi-bottom-action">
-          <button type="button" onClick={continueAfterUnknown}>认识了</button>
+          <button
+            className={
+              flowTransition === "review-continue"
+                ? "child-submit-button--loading"
+                : undefined
+            }
+            disabled={Boolean(flowTransition)}
+            aria-busy={flowTransition === "review-continue"}
+            type="button"
+            onClick={continueAfterUnknown}
+          >
+            {flowTransition === "review-continue" ? (
+              <LoadingDots label="正在继续" />
+            ) : (
+              "认识了"
+            )}
+          </button>
         </footer>
       </main>
     );
@@ -967,8 +1109,10 @@ export function HanziLearningExperience({
         <section className="hanzi-review-canvas">
           <button
             className={`hanzi-review-card${flipped ? " hanzi-review-card--flipped" : ""}`}
+            disabled={Boolean(flowTransition)}
             type="button"
             onClick={() => {
+              if (flowTransitionRef.current) return;
               setFlipped((current) => !current);
               if (!flipped) playSpeech(reviewCharacter.character, reviewCharacter.characterAudioUrl);
             }}
@@ -996,8 +1140,40 @@ export function HanziLearningExperience({
             </span>
           </button>
           <div className="hanzi-review-actions">
-            <button disabled={busy} type="button" onClick={() => void submitReview(false)}>还不认识</button>
-            <button disabled={busy} type="button" onClick={() => void submitReview(true)}>认识</button>
+            <button
+              className={
+                flowTransition === "review-unknown"
+                  ? "child-submit-button--loading"
+                  : undefined
+              }
+              disabled={busy || Boolean(flowTransition)}
+              aria-busy={flowTransition === "review-unknown"}
+              type="button"
+              onClick={() => submitReview(false)}
+            >
+              {flowTransition === "review-unknown" ? (
+                <LoadingDots label="正在切换" />
+              ) : (
+                "还不认识"
+              )}
+            </button>
+            <button
+              className={
+                flowTransition === "review-known"
+                  ? "child-submit-button--loading"
+                  : undefined
+              }
+              disabled={busy || Boolean(flowTransition)}
+              aria-busy={flowTransition === "review-known"}
+              type="button"
+              onClick={() => submitReview(true)}
+            >
+              {flowTransition === "review-known" ? (
+                <LoadingDots label="正在切换" />
+              ) : (
+                "认识"
+              )}
+            </button>
           </div>
         </section>
         {knownToast ? (
@@ -1056,13 +1232,13 @@ export function HanziLearningExperience({
           <section className="hanzi-sound-card hanzi-runtime-new-card">
             <div className="hanzi-sound-character">
               <CharacterBox character={newCharacter.character} />
-              <button className="hanzi-audio-orb" type="button" onClick={() => playSpeech(newCharacter.character, newCharacter.characterAudioUrl)} aria-label={`播放${newCharacter.character}的读音`}>
+              <button className="hanzi-audio-orb" disabled={Boolean(flowTransition)} type="button" onClick={() => playSpeech(newCharacter.character, newCharacter.characterAudioUrl)} aria-label={`播放${newCharacter.character}的读音`}>
                 <img src={meaningSpeakerIcon} alt="" />
               </button>
             </div>
             <div className="hanzi-sound-vocabulary" aria-label={`${newCharacter.character}的词语`}>
               {newCharacter.words.slice(0, 3).map((word, index) => (
-                <button type="button" key={word} onClick={() => playSpeech(word, newCharacter.wordAudioUrls[index])} aria-label={`播放词语${word}`}>
+                <button disabled={Boolean(flowTransition)} type="button" key={word} onClick={() => playSpeech(word, newCharacter.wordAudioUrls[index])} aria-label={`播放词语${word}`}>
                   <span>{word}</span><img src={meaningSpeakerIcon} alt="" aria-hidden="true" />
                 </button>
               ))}
@@ -1084,6 +1260,7 @@ export function HanziLearningExperience({
                 <div className="hanzi-meaning-panel__character"><strong>{newCharacter.character}</strong><span>{newCharacter.meaning}</span></div>
                 <button
                   className="hanzi-meaning-sentence"
+                  disabled={Boolean(flowTransition)}
                   type="button"
                   onClick={() => playSpeech(resolvedSentence(newCharacter), newCharacter.sentenceAudioUrl)}
                   aria-label="播放例句"
@@ -1097,13 +1274,27 @@ export function HanziLearningExperience({
         )}
         {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
         <footer className="hanzi-new-word-footer">
-          <button disabled={busy} type="button" onClick={() => void nextNewStep()}>
-            {newStep === 2
+          <button
+            className={
+              flowTransition === "new-next"
+                ? "child-submit-button--loading"
+                : undefined
+            }
+            disabled={busy || Boolean(flowTransition)}
+            aria-busy={flowTransition === "new-next"}
+            type="button"
+            onClick={nextNewStep}
+          >
+            {flowTransition === "new-next" ? (
+              <LoadingDots label="正在切换" />
+            ) : newStep === 2
               ? session.newIndex + 1 >= session.newCharacterIds.length
                 ? "学完啦，去挑战"
                 : "下一个字"
               : "下一步"}
-            <span aria-hidden="true">→</span>
+            {flowTransition !== "new-next" ? (
+              <span aria-hidden="true">→</span>
+            ) : null}
           </button>
         </footer>
       </main>
@@ -1132,6 +1323,7 @@ export function HanziLearningExperience({
             <header className="hanzi-listen-title">
               <button
                 className="hanzi-listen-play"
+                disabled={Boolean(flowTransition)}
                 type="button"
                 aria-label="播放句子"
                 onClick={() => playSpeech(resolvedSentence(questionTarget), questionTarget.sentenceAudioUrl)}
@@ -1150,14 +1342,27 @@ export function HanziLearningExperience({
             {question.optionIds.map((id) => {
               const option = characterById.get(id);
               if (!option) return null;
+              const optionLoading = flowTransition === `answer:${id}`;
               return (
                 <button
-                  className={`${answerFeedback?.selectedId === id ? "hanzi-listen-option--selected" : ""}${answerFeedback?.targetId === id ? " hanzi-listen-option--correct" : ""}`}
-                  disabled={Boolean(answerFeedback)}
+                  className={`${answerFeedback?.selectedId === id ? "hanzi-listen-option--selected" : ""}${answerFeedback?.targetId === id ? " hanzi-listen-option--correct" : ""}${optionLoading ? " child-submit-button--loading hanzi-listen-option--loading" : ""}`}
+                  disabled={Boolean(answerFeedback) || Boolean(flowTransition)}
+                  aria-busy={optionLoading}
+                  aria-label={
+                    optionLoading
+                      ? `正在选择${option.character}`
+                      : `选择${option.character}`
+                  }
                   key={id}
                   type="button"
-                  onClick={() => void selectAnswer(id)}
-                >{option.character}</button>
+                  onClick={() => selectAnswer(id)}
+                >
+                  {optionLoading ? (
+                    <LoadingDots label="" />
+                  ) : (
+                    option.character
+                  )}
+                </button>
               );
             })}
           </div>
@@ -1167,11 +1372,21 @@ export function HanziLearningExperience({
         </section>
         {answerFeedback ? (
           <button
-            className="hanzi-listen-next"
+            className={`hanzi-listen-next${
+              flowTransition === "question-continue"
+                ? " child-submit-button--loading"
+                : ""
+            }`}
+            disabled={Boolean(flowTransition)}
+            aria-busy={flowTransition === "question-continue"}
             type="button"
             onClick={continueQuestion}
           >
-            继续 <span>→</span>
+            {flowTransition === "question-continue" ? (
+              <LoadingDots label="正在继续" />
+            ) : (
+              <>继续 <span>→</span></>
+            )}
           </button>
         ) : null}
         {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
@@ -1222,7 +1437,7 @@ export function HanziLearningExperience({
         <p>这些汉字会在合适的时候再回来见你，见得越多，记得越牢。</p>
         <button
           className={busy ? "child-submit-button--loading" : undefined}
-          disabled={busy}
+          disabled={busy || Boolean(flowTransition)}
           aria-busy={busy}
           type="button"
           onClick={() => void finish()}

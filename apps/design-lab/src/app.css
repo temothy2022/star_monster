@@ -4561,6 +4561,14 @@ select {
   background: #dff8e6;
 }
 
+.hanzi-listen-options .hanzi-listen-option--loading .child-loading-indicator {
+  min-width: 0;
+}
+
+.hanzi-listen-options .hanzi-listen-option--loading .child-loading-indicator > span:first-child {
+  display: none;
+}
+
 .hanzi-page--listen-correct .hanzi-feedback-toast--listen {
   position: static;
   z-index: 4;
