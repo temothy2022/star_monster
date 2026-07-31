@@ -60,19 +60,74 @@ type Section =
   | "settings";
 
 const SECTION_LABELS: Record<Section, string> = {
-  overview: "数据概览",
-  performance: "性能监控",
-  history: "任务历史",
-  tasks: "任务管理",
+  overview: "成长总览",
+  performance: "性能诊断",
+  history: "任务记录",
+  tasks: "任务配置",
   hanzi: "汉字学习",
   poems: "古诗学习",
   wishes: "星愿管理",
   redemptions: "兑换处理",
   stars: "星星流水",
-  planets: "航图设置",
-  ai: "AI 育儿助手",
-  settings: "孩子设置",
+  planets: "航图规则",
+  ai: "AI 助手",
+  settings: "孩子与设备",
 };
+
+type NavItem = {
+  key: Section;
+  label: string;
+  icon: string;
+};
+
+const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
+  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: "⌂" }] },
+  {
+    label: "任务中心",
+    items: [
+      { key: "tasks", label: "任务配置", icon: "✓" },
+      { key: "history", label: "任务记录", icon: "≡" },
+    ],
+  },
+  {
+    label: "学习内容",
+    items: [
+      { key: "hanzi", label: "汉字学习", icon: "字" },
+      { key: "poems", label: "古诗学习", icon: "诗" },
+    ],
+  },
+  {
+    label: "奖励中心",
+    items: [
+      { key: "wishes", label: "星愿管理", icon: "☆" },
+      { key: "redemptions", label: "兑换处理", icon: "↔" },
+      { key: "stars", label: "星星流水", icon: "★" },
+      { key: "planets", label: "航图规则", icon: "◎" },
+    ],
+  },
+  {
+    label: "智能与设置",
+    items: [
+      { key: "ai", label: "AI 助手", icon: "✦" },
+      { key: "performance", label: "性能诊断", icon: "◷" },
+      { key: "settings", label: "孩子与设备", icon: "⚙" },
+    ],
+  },
+];
+
+const PRIMARY_MOBILE_NAV: NavItem[] = [
+  { key: "overview", label: "总览", icon: "⌂" },
+  { key: "tasks", label: "任务", icon: "✓" },
+  { key: "wishes", label: "奖励", icon: "☆" },
+  { key: "ai", label: "AI 助手", icon: "✦" },
+];
+
+const REWARD_SECTIONS: Section[] = ["wishes", "redemptions", "stars", "planets"];
+
+function sectionFromLocation(): Section {
+  const candidate = window.location.hash.replace(/^#/, "") as Section;
+  return (Object.keys(SECTION_LABELS) as Section[]).includes(candidate) ? candidate : "overview";
+}
 
 const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
   TASK_REWARD: "任务奖励",
@@ -2471,12 +2526,63 @@ function Settings({ child, onChanged }: { child: Child; onChanged: () => void })
   );
 }
 
+function RewardsHub({
+  child,
+  activeSection,
+  onSelect,
+  onChanged,
+}: {
+  child: Child;
+  activeSection: Section;
+  onSelect: (section: Section) => void;
+  onChanged: () => void;
+}) {
+  const tabs: NavItem[] = NAV_GROUPS.find((group) => group.label === "奖励中心")?.items ?? [];
+
+  return (
+    <div className="admin-stack rewards-hub">
+      <div className="workspace-intro">
+        <div>
+          <span className="workspace-intro__eyebrow">奖励中心</span>
+          <h2>把星星、星愿和航图放在一起管理</h2>
+          <p>先看孩子当前可用星星，再处理兑换请求或调整奖励规则。</p>
+        </div>
+        <div className="workspace-intro__balance">
+          <span>当前可用</span>
+          <strong>★ {child.starBalance}</strong>
+          <small>累计获得 {child.lifetimeStarsEarned} 颗</small>
+        </div>
+      </div>
+      <div className="workspace-tabs" role="tablist" aria-label="奖励中心功能">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeSection === tab.key}
+            className={activeSection === tab.key ? "active" : ""}
+            onClick={() => onSelect(tab.key)}
+          >
+            <span aria-hidden="true">{tab.icon}</span>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      {activeSection === "wishes" && <Wishes child={child} />}
+      {activeSection === "redemptions" && <Redemptions child={child} />}
+      {activeSection === "stars" && <Stars child={child} onChanged={onChanged} />}
+      {activeSection === "planets" && <Planets child={child} onChanged={onChanged} />}
+    </div>
+  );
+}
+
 export function App() {
   const [user, setUser] = useState<StaffUser | null | undefined>(undefined);
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string>("");
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<Section>(() => sectionFromLocation());
   const [error, setError] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   async function loadChildren(preferredId?: string) {
     const result = await parentApi.children();
@@ -2497,6 +2603,12 @@ export function App() {
         return loadChildren();
       })
       .catch(() => setUser(null));
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => setSection(sectionFromLocation());
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   useEffect(() => {
@@ -2528,6 +2640,16 @@ export function App() {
     [children, selectedChildId],
   );
 
+  const selectSection = (nextSection: Section) => {
+    setSection(nextSection);
+    setMobileMenuOpen(false);
+    const nextHash = `#${nextSection}`;
+    if (window.location.hash !== nextHash) window.location.hash = nextHash;
+  };
+
+  const activeGroup = NAV_GROUPS.find((group) => group.items.some((item) => item.key === section));
+  const mobilePrimarySection = REWARD_SECTIONS.includes(section) ? "wishes" : section;
+
   if (user === undefined) return <main className="admin-loading">正在进入家长端…</main>;
   if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); void loadChildren(); }} />;
 
@@ -2536,11 +2658,35 @@ export function App() {
       <aside className="admin-sidebar">
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>
-        <nav>{(Object.keys(SECTION_LABELS) as Section[]).map((key) => <button key={key} className={section === key ? "active" : ""} onClick={() => setSection(key)}><span>{key === "overview" ? "⌂" : key === "performance" ? "◷" : key === "history" ? "≡" : key === "tasks" ? "✓" : key === "hanzi" ? "字" : key === "poems" ? "诗" : key === "wishes" ? "☆" : key === "redemptions" ? "↔" : key === "stars" ? "★" : key === "planets" ? "◎" : key === "ai" ? "✦" : "⚙"}</span>{SECTION_LABELS[key]}</button>)}</nav>
+        <nav className="admin-sidebar__nav">
+          {NAV_GROUPS.map((group) => (
+            <div className="admin-nav-group" key={group.label}>
+              <span className="admin-nav-group__label">{group.label}</span>
+              {group.items.map((item) => (
+                <button key={item.key} className={section === item.key ? "active" : ""} onClick={() => selectSection(item.key)}>
+                  <span aria-hidden="true">{item.icon}</span>{item.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
         <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div>
       </aside>
       <main className="admin-main">
-        <header className="admin-topbar"><div><p>家长管理平台 / {SECTION_LABELS[section]}</p><h1>{selectedChild?.nickname ?? "孩子档案"}</h1></div>{selectedChild && <div className="topbar-balance"><span>当前星星</span><strong>★ {selectedChild.starBalance}</strong></div>}</header>
+        <header className="admin-topbar">
+          <button className="mobile-menu-button" type="button" aria-label="打开管理菜单" onClick={() => setMobileMenuOpen(true)}>☰</button>
+          <div className="admin-topbar__title">
+            <p>{activeGroup?.label ?? "家长管理平台"} / {SECTION_LABELS[section]}</p>
+            <h1>{selectedChild?.nickname ?? "孩子档案"}</h1>
+            <label className="mobile-child-switcher">
+              <span>当前孩子</span>
+              <select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>
+                {children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}
+              </select>
+            </label>
+          </div>
+          {selectedChild && <div className="topbar-balance"><span>当前星星</span><strong>★ {selectedChild.starBalance}</strong></div>}
+        </header>
         <div className="admin-content">
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
@@ -2550,15 +2696,45 @@ export function App() {
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <HanziLearning child={selectedChild} />}
             {section === "poems" && <PoemLearning child={selectedChild} />}
-            {section === "wishes" && <Wishes child={selectedChild} />}
-            {section === "redemptions" && <Redemptions child={selectedChild} />}
-            {section === "stars" && <Stars child={selectedChild} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
-            {section === "planets" && <Planets child={selectedChild} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
+            {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
             {section === "settings" && <Settings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
           </>}
         </div>
       </main>
+      <nav className="admin-mobile-nav" aria-label="主要管理入口">
+        {PRIMARY_MOBILE_NAV.map((item) => (
+          <button key={item.key} type="button" className={mobilePrimarySection === item.key ? "active" : ""} onClick={() => selectSection(item.key)}>
+            <span aria-hidden="true">{item.icon}</span>{item.label}
+          </button>
+        ))}
+        <button type="button" className={mobileMenuOpen ? "active" : ""} onClick={() => setMobileMenuOpen((open) => !open)}>
+          <span aria-hidden="true">☰</span>更多
+        </button>
+      </nav>
+      {mobileMenuOpen && (
+        <div className="mobile-menu-layer" role="presentation" onClick={() => setMobileMenuOpen(false)}>
+          <section className="mobile-menu-drawer" role="dialog" aria-modal="true" aria-label="全部管理功能" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div><strong>全部管理</strong><span>选择一个工作区</span></div>
+              <button type="button" aria-label="关闭菜单" onClick={() => setMobileMenuOpen(false)}>×</button>
+            </header>
+            {NAV_GROUPS.slice(1).map((group) => (
+              <div className="mobile-menu-group" key={group.label}>
+                <h2>{group.label}</h2>
+                <div>
+                  {group.items.map((item) => (
+                    <button type="button" className={section === item.key ? "active" : ""} key={item.key} onClick={() => selectSection(item.key)}>
+                      <span aria-hidden="true">{item.icon}</span><strong>{item.label}</strong><small>进入管理</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button type="button" className="mobile-menu-logout" onClick={() => void staffApi.logout().then(() => setUser(null))}>退出家长账号</button>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

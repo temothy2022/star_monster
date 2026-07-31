@@ -680,16 +680,8 @@ export function HanziLearningExperience({
 
   function playEntryForSession(nextSession: HanziLearningSession) {
     if (nextSession.phase === "NEW_LEARNING") {
-      const character = characterById.get(
-        nextSession.newCharacterIds[nextSession.newIndex] ?? "",
-      );
-      if (character) {
-        playCharacterThenText(
-          character,
-          resolvedSentence(character),
-          character.sentenceAudioUrl,
-        );
-      }
+      // The first new-character screen should stay quiet. The child can
+      // explicitly play the character, words, or sentence from the controls.
       return;
     }
     if (nextSession.phase === "CONSOLIDATION") {
