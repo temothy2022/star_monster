@@ -5016,6 +5016,452 @@ select {
   height: 63px;
 }
 
+/* 星愿和足迹的最终手机覆盖。必须放在动态页面基础样式之后。 */
+@media (max-width: 600px) {
+  html:has(.wishes-page),
+  body:has(.wishes-page),
+  #root:has(.wishes-page),
+  html:has(.footprints-page),
+  body:has(.footprints-page),
+  #root:has(.footprints-page) {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
+  }
+
+  .wishes-page .requested-wishes-frame {
+    display: flex;
+    width: 100%;
+    height: 100dvh;
+    flex-direction: column;
+    border-radius: 0;
+  }
+
+  .wishes-page .requested-wishes-header {
+    display: flex;
+    height: auto;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-start;
+    padding: max(12px, env(safe-area-inset-top)) 12px 12px;
+  }
+
+  .wishes-page .requested-wishes-balance {
+    height: 50px;
+    padding: 0 13px;
+    border-width: 2px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+  }
+
+  .wishes-page .requested-wishes-balance img {
+    width: 23px;
+    height: 22px;
+  }
+
+  .wishes-page .requested-wishes-balance strong {
+    font-size: 17px;
+    line-height: 22px;
+  }
+
+  .wishes-page .requested-wishes-message {
+    display: none;
+  }
+
+  .wishes-page .requested-wishes-grid {
+    position: static;
+    display: grid;
+    min-height: 0;
+    flex: 1 1 auto;
+    grid-auto-rows: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px;
+    padding: 4px 12px calc(84px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-snap-type: none;
+  }
+
+  .wishes-page .requested-wishes-grid > .child-data-empty {
+    grid-column: 1 / -1;
+  }
+
+  .wishes-page .requested-wish-card {
+    display: flex;
+    height: auto;
+    min-height: 194px;
+    flex-direction: column;
+    gap: 7px;
+    padding: 8px;
+    border-width: 2px;
+    border-radius: 17px;
+    box-shadow: 0 5px 10px rgba(37, 59, 89, 0.09);
+    scroll-snap-align: none;
+  }
+
+  .wishes-page .requested-wish-card__image {
+    width: 100%;
+    height: 76px;
+    min-height: 76px;
+    flex-basis: auto;
+    border-width: 2px;
+    border-radius: 12px;
+  }
+
+  .wishes-page .requested-wish-card__body {
+    gap: 8px;
+  }
+
+  .wishes-page .requested-wish-card__body h2 {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 16px;
+    line-height: 21px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .wishes-page .requested-wish-card__body p {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .wishes-page .requested-wish-card__rule {
+    margin-top: 0;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .wishes-page .requested-wish-card__button,
+  .wishes-page .requested-wish-card__redeemed {
+    height: 39px;
+    min-height: 39px;
+    flex-basis: 39px;
+  }
+
+  .wishes-page .requested-wish-card__button {
+    gap: 5px;
+    border-width: 2px;
+    border-radius: 12px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .wishes-page .requested-wish-card__button img {
+    width: 17px;
+    height: 17px;
+  }
+
+  .wishes-page .requested-wish-card__redeemed > span {
+    border-width: 2px;
+    border-radius: 12px;
+  }
+
+  .wishes-page .requested-wish-card__redeemed strong {
+    top: 0;
+    height: 39px;
+    max-width: calc(100% - 8px);
+    gap: 5px;
+    padding: 0 13px;
+    border-width: 2px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 17px;
+    transform: translateX(-50%) rotate(-3deg);
+  }
+
+  .wishes-page .requested-wish-card__redeemed strong img {
+    width: 16px;
+    height: 16px;
+  }
+
+  .footprints-page .footprints-main {
+    height: calc(100dvh - 70px - env(safe-area-inset-bottom));
+    padding: max(10px, env(safe-area-inset-top)) 10px 8px;
+  }
+
+  .footprints-page .footprints-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .footprints-page .footprints-mascot {
+    display: none;
+  }
+
+  .footprints-page .footprints-interactive {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: 9px;
+  }
+
+  .footprints-page .footprints-days {
+    height: 78px;
+    flex: 0 0 78px;
+    gap: 5px;
+  }
+
+  .footprints-page .footprints-day,
+  .footprints-page .footprints-day--selected {
+    height: 74px;
+    min-height: 74px;
+    margin-top: 0;
+    border-width: 2px;
+    border-radius: 14px;
+    box-shadow: 0 4px 8px rgba(37, 59, 89, 0.09);
+  }
+
+  .footprints-page .footprints-day--selected {
+    height: 78px;
+    min-height: 78px;
+    transform: translateY(-2px);
+  }
+
+  .footprints-page .footprints-day > span {
+    min-height: 20px;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .footprints-page .footprints-day > strong {
+    gap: 2px;
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .footprints-page .footprints-day > strong img {
+    width: 14px;
+    height: 14px;
+  }
+
+  .footprints-page .footprints-detail {
+    min-height: 0;
+    padding: 13px;
+    border-width: 2px;
+    border-radius: 20px;
+  }
+
+  .footprints-page .footprints-detail h2 {
+    height: 40px;
+    flex-basis: 40px;
+    gap: 9px;
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  .footprints-page .footprints-detail h2 img {
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+  }
+
+  .footprints-page .footprints-task-list {
+    gap: 8px;
+    padding-right: 0;
+  }
+
+  .footprints-page .footprints-task {
+    min-height: 62px;
+    flex-basis: 62px;
+    gap: 8px;
+    padding: 8px 9px;
+    border-width: 2px;
+    border-radius: 16px;
+  }
+
+  .footprints-page .footprints-task__icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .footprints-page .footprints-task__icon img {
+    width: 18px;
+    max-height: 18px;
+  }
+
+  .footprints-page .footprints-task__title p {
+    font-size: 15px;
+    line-height: 21px;
+  }
+
+  .footprints-page .footprints-task__reward {
+    height: 38px;
+    gap: 4px;
+    padding: 0 10px;
+    border-width: 2px;
+  }
+
+  .footprints-page .footprints-task__reward strong {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .footprints-page .footprints-task__reward img {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+@media (max-width: 380px) {
+  .wishes-page .requested-wishes-header {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .wishes-page .requested-wishes-balance {
+    padding: 0 10px;
+  }
+
+  .wishes-page .requested-wishes-balance strong {
+    font-size: 15px;
+  }
+
+  .wishes-page .requested-wishes-grid {
+    grid-template-columns: 1fr;
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .wishes-page .requested-wish-card {
+    min-height: 178px;
+  }
+
+  .wishes-page .requested-wish-card__image {
+    height: 68px;
+    min-height: 68px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
+  .wishes-page .requested-wishes-header {
+    height: 64px;
+    flex-basis: 64px;
+    padding: 7px max(14px, env(safe-area-inset-right)) 7px
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .wishes-page .requested-wishes-balance {
+    height: 46px;
+    padding: 0 14px;
+    box-shadow: 0 3px 0 var(--progress-ink);
+  }
+
+  .wishes-page .requested-wishes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    padding: 4px max(14px, env(safe-area-inset-right))
+      calc(68px + env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .wishes-page .requested-wish-card {
+    min-height: 142px;
+    gap: 5px;
+  }
+
+  .wishes-page .requested-wish-card__image {
+    height: 52px;
+    min-height: 52px;
+  }
+
+  .wishes-page .requested-wish-card__body h2 {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .wishes-page .requested-wish-card__body p {
+    margin-top: 2px;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .wishes-page .requested-wish-card__rule {
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .wishes-page .requested-wish-card__button,
+  .wishes-page .requested-wish-card__redeemed,
+  .wishes-page .requested-wish-card__redeemed strong {
+    height: 38px;
+    min-height: 38px;
+    flex-basis: 38px;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .footprints-page .footprints-main {
+    height: calc(100dvh - 60px - env(safe-area-inset-bottom));
+    padding: 7px max(12px, env(safe-area-inset-right)) 7px
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .footprints-page .footprints-interactive {
+    gap: 7px;
+  }
+
+  .footprints-page .footprints-days {
+    height: 68px;
+    flex-basis: 68px;
+    gap: 5px;
+  }
+
+  .footprints-page .footprints-day,
+  .footprints-page .footprints-day--selected {
+    height: 65px;
+    min-height: 65px;
+    border-radius: 13px;
+  }
+
+  .footprints-page .footprints-detail {
+    padding: 10px;
+    border-radius: 17px;
+  }
+
+  .footprints-page .footprints-detail h2 {
+    height: 32px;
+    flex-basis: 32px;
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .footprints-page .footprints-task-list {
+    gap: 6px;
+  }
+
+  .footprints-page .footprints-task {
+    min-height: 52px;
+    flex-basis: 52px;
+    padding: 6px 8px;
+    border-radius: 14px;
+  }
+
+  .footprints-page .footprints-task__icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .footprints-page .footprints-task__title p {
+    font-size: 14px;
+    line-height: 19px;
+  }
+
+  .footprints-page .footprints-task__reward {
+    height: 34px;
+    padding: 0 9px;
+  }
+}
+
 .footprints-task-empty {
   display: grid;
   min-height: 120px;
