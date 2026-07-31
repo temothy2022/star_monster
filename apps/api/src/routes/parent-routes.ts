@@ -21,23 +21,13 @@ import {
 } from "../services/planet-service.js";
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
+import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 import {
   HANZI_MEDIA_BODY_LIMIT,
   storeHanziMedia,
 } from "../services/hanzi-media-service.js";
 
-const taskCategory = z.enum([
-  "READING",
-  "MATH",
-  "EXERCISE",
-  "CHORES",
-  "ORGANIZING",
-  "MUSIC",
-  "CHINESE",
-  "ENGLISH",
-  "PE",
-  "OTHER",
-]);
+const taskCategory = z.enum(TASK_CATEGORIES);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
 const taskExperienceKind = z.enum(["STANDARD", "HANZI_LEARNING"]);
 const scheduleKind = z.enum([
@@ -53,17 +43,13 @@ const learningPracticeKind = z.enum([
   "MIXED",
 ]);
 const petType = z.enum(["DOUYA", "PAOPAO", "TUANTUAN", "MILU", "SHANSHAN"]);
-const wishCategory = z.enum(["SPORTS", "GAMES", "TELEVISION", "TOYS"]);
+const wishCategory = z.enum(WISH_CATEGORIES);
 const presetIcon = z.enum([
-  "reading",
   "math",
   "exercise",
   "chores",
-  "organizing",
-  "music",
   "chinese",
   "english",
-  "pe",
   "other",
 ]);
 const planetSettingsSchema = z

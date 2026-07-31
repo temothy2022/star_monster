@@ -423,9 +423,12 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .list-card p { margin: 5px 0; color: #59657a; font-size: 13px; }
 .list-card small { color: #8b94a4; }
 .category-dot { width: 10px; height: 42px; flex: 0 0 10px; border-radius: 999px; background: #55ae9e; }
-.category-dot--exercise, .category-dot--pe { background: #f47a3f; }
+.category-dot--exercise, .category-dot--pe { background: #f36f6a; }
 .category-dot--math { background: #6f8dd8; }
 .category-dot--english { background: #a781ce; }
+.category-dot--chinese, .category-dot--reading { background: #d65a72; }
+.category-dot--chores, .category-dot--organizing { background: #e9a23b; }
+.category-dot--other, .category-dot--music { background: #9ca3af; }
 .list-card__actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .list-card__actions button, .wish-admin-card button, .table-actions button { min-height: 32px; padding: 0 10px; border-color: #d4d9e1; font-size: 12px; }
 .empty-state { padding: 42px 20px; color: #8a93a3; text-align: center; }

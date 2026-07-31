@@ -11,41 +11,29 @@ export const evidencePrincipleSchema = z.enum([
 ]);
 
 const taskCategorySchema = z.enum([
-  "READING",
   "MATH",
   "EXERCISE",
   "CHORES",
-  "ORGANIZING",
-  "MUSIC",
   "CHINESE",
   "ENGLISH",
-  "PE",
   "OTHER",
 ]);
 
 const iconKeySchema = z.enum([
-  "reading",
   "math",
   "exercise",
   "chores",
-  "organizing",
-  "music",
   "chinese",
   "english",
-  "pe",
   "other",
 ]);
 
 const categoryIconPairs = {
-  READING: "reading",
   MATH: "math",
   EXERCISE: "exercise",
   CHORES: "chores",
-  ORGANIZING: "organizing",
-  MUSIC: "music",
   CHINESE: "chinese",
   ENGLISH: "english",
-  PE: "pe",
   OTHER: "other",
 } as const;
 

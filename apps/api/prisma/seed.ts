@@ -90,8 +90,8 @@ async function main() {
       {
         childId,
         title: "体育锻炼",
-        category: "PE",
-        iconKey: "pe",
+        category: "EXERCISE",
+        iconKey: "exercise",
         mode: "UNTIMED",
         suggestedSeconds: 1200,
         baseStars: 3,
@@ -117,9 +117,9 @@ async function main() {
       },
       {
         childId,
-        category: "GAMES",
+        category: "TELEVISION",
         title: "玩一局游戏",
-        imageKey: "games",
+        imageKey: "television",
         costStars: 15,
         redemptionType: "RECURRING",
         recurrenceKind: "WEEKLY",

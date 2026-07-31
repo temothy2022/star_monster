@@ -68,15 +68,15 @@ const TASK_ICONS: Record<TaskIconName, string> = {
 // the persisted task category rather than its icon or timed/untimed state, so
 // the same task always has the same visual cue everywhere it is shown.
 const TASK_ACCENT_COLORS: Record<DailyTask["categorySnapshot"], string> = {
-  READING: "#4CA8E8",
+  READING: "#D65A72",
   MATH: "#7F83D4",
   EXERCISE: "#F36F6A",
   CHORES: "#E9A23B",
-  ORGANIZING: "#59B98C",
-  MUSIC: "#B178D3",
+  ORGANIZING: "#E9A23B",
+  MUSIC: "#9CA3AF",
   CHINESE: "#D65A72",
   ENGLISH: "#45B7C6",
-  PE: "#FF7A3D",
+  PE: "#F36F6A",
   OTHER: "#9CA3AF",
 };
 

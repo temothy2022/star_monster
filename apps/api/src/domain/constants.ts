@@ -1,40 +1,31 @@
 export const APP_TIME_ZONE = process.env.APP_TIME_ZONE ?? "Asia/Shanghai";
 
 export const TASK_CATEGORIES = [
-  "READING",
   "MATH",
   "EXERCISE",
   "CHORES",
-  "ORGANIZING",
-  "MUSIC",
   "CHINESE",
   "ENGLISH",
-  "PE",
   "OTHER",
 ] as const;
 
 export type TaskCategoryValue = (typeof TASK_CATEGORIES)[number];
 
 export const TASK_CATEGORY_LABELS: Record<TaskCategoryValue, string> = {
-  READING: "阅读",
   MATH: "数学",
   EXERCISE: "运动",
-  CHORES: "家务",
-  ORGANIZING: "整理",
-  MUSIC: "音乐",
+  CHORES: "生活习惯",
   CHINESE: "语文",
   ENGLISH: "英语",
-  PE: "体育",
-  OTHER: "其他",
+  OTHER: "综合任务",
 };
 
-export const WISH_CATEGORIES = ["SPORTS", "GAMES", "TELEVISION", "TOYS"] as const;
+export const WISH_CATEGORIES = ["SPORTS", "TELEVISION", "TOYS"] as const;
 
 export const WISH_CATEGORY_LABELS = {
-  SPORTS: "运动",
-  GAMES: "游戏",
-  TELEVISION: "电视",
-  TOYS: "玩具",
+  SPORTS: "活动体验",
+  TELEVISION: "娱乐时间",
+  TOYS: "物品消费",
 } as const;
 
 export const CHILD_LOGIN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

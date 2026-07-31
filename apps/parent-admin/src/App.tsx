@@ -160,16 +160,12 @@ const WISH_IMAGES: Record<Wish["category"], string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  READING: "阅读",
   MATH: "数学",
   EXERCISE: "运动",
-  CHORES: "家务",
-  ORGANIZING: "整理",
-  MUSIC: "音乐",
+  CHORES: "生活习惯",
   CHINESE: "语文",
   ENGLISH: "英语",
-  PE: "体育",
-  OTHER: "其他",
+  OTHER: "综合任务",
 };
 
 const PET_LABELS: Record<string, string> = {
@@ -2133,7 +2129,7 @@ function Wishes({ child }: { child: Child }) {
     <div className="admin-two-column">
       <Panel title={editingId ? "编辑星愿" : "添加星愿"}>
         <form className="admin-form" onSubmit={submit}>
-          <label>固定分类<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as Wish["category"] })}><option value="SPORTS">运动</option><option value="GAMES">游戏</option><option value="TELEVISION">电视</option><option value="TOYS">玩具</option></select></label>
+          <label>分类<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as Wish["category"] })}><option value="SPORTS">活动体验</option><option value="TELEVISION">娱乐时间</option><option value="TOYS">物品消费</option></select></label>
           <label>兑换星数<input type="number" min={1} required value={form.costStars} onChange={(event) => setForm({ ...form, costStars: Number(event.target.value) })} /></label>
           <label className="field-span">星愿名称<input required maxLength={80} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
           <label>兑换类型

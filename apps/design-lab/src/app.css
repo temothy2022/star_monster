@@ -5086,12 +5086,10 @@ select {
   }
 
   .requested-wishes-header {
-    display: grid;
+    display: flex;
     height: auto;
     flex: 0 0 auto;
-    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 9px;
     padding: max(12px, env(safe-area-inset-top)) 12px 12px;
   }
 
@@ -5114,23 +5112,7 @@ select {
   }
 
   .requested-wishes-message {
-    min-width: 0;
-    height: 50px;
-    justify-content: center;
-    padding: 5px 9px;
-    border-width: 2px;
-    border-radius: 13px;
-    font-size: 14px;
-    line-height: 19px;
-    text-align: center;
-    white-space: normal;
-  }
-
-  .requested-wishes-message::before {
-    left: -7px;
-    width: 11px;
-    height: 11px;
-    border-width: 0 0 2px 2px;
+    display: none;
   }
 
   .requested-wishes-grid {
@@ -5140,7 +5122,7 @@ select {
     flex: 1 1 auto;
     grid-auto-flow: row;
     grid-auto-rows: auto;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 11px;
     padding: 4px 12px calc(84px + env(safe-area-inset-bottom));
     overflow-x: hidden;
@@ -5150,12 +5132,12 @@ select {
   }
 
   .requested-wish-card {
-    display: grid;
+    display: flex;
     height: auto;
-    min-height: 150px;
-    grid-template-columns: 116px minmax(0, 1fr);
-    gap: 11px;
-    padding: 10px;
+    min-height: 194px;
+    flex-direction: column;
+    gap: 7px;
+    padding: 8px;
     border-width: 2px;
     border-radius: 17px;
     box-shadow: 0 5px 10px rgba(37, 59, 89, 0.09);
@@ -5163,9 +5145,9 @@ select {
   }
 
   .requested-wish-card__image {
-    width: 116px;
-    height: 100%;
-    min-height: 126px;
+    width: 100%;
+    height: 76px;
+    min-height: 76px;
     flex-basis: auto;
     border-width: 2px;
     border-radius: 12px;
@@ -5178,16 +5160,16 @@ select {
   .requested-wish-card__body h2 {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 18px;
-    line-height: 23px;
+    font-size: 16px;
+    line-height: 21px;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
 
   .requested-wish-card__body p {
     margin-top: 4px;
-    font-size: 14px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 18px;
   }
 
   .requested-wish-card__rule {
@@ -5198,9 +5180,9 @@ select {
 
   .requested-wish-card__button,
   .requested-wish-card__redeemed {
-    height: 44px;
-    min-height: 44px;
-    flex-basis: 44px;
+    height: 39px;
+    min-height: 39px;
+    flex-basis: 39px;
   }
 
   .requested-wish-card__button {
@@ -5208,8 +5190,8 @@ select {
     border-width: 2px;
     border-radius: 12px;
     box-shadow: 0 4px 0 var(--progress-ink);
-    font-size: 15px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 17px;
   }
 
   .requested-wish-card__button img {
@@ -5224,14 +5206,14 @@ select {
 
   .requested-wish-card__redeemed strong {
     top: 0;
-    height: 44px;
+    height: 39px;
     max-width: calc(100% - 8px);
     gap: 5px;
     padding: 0 13px;
     border-width: 2px;
     border-radius: 10px;
-    font-size: 15px;
-    line-height: 20px;
+    font-size: 13px;
+    line-height: 17px;
     transform: translateX(-50%) rotate(-3deg);
   }
 
@@ -5311,55 +5293,15 @@ select {
     height: 100%;
     min-height: 0;
     flex-direction: column;
-    gap: 10px;
+    gap: 0;
   }
 
   .footprints-mascot {
-    display: flex;
-    width: 100%;
-    height: 104px;
-    min-height: 104px;
-    flex: 0 0 104px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    padding: 0 3px;
-  }
-
-  .footprints-mascot > img {
-    width: 102px;
-    height: 102px;
-    flex: 0 0 102px;
-  }
-
-  .footprints-speech {
-    width: auto;
-    min-width: 0;
-    min-height: 82px;
-    flex: 1 1 auto;
-    margin-top: 0;
-    padding: 12px 10px;
-    border-width: 2px;
-    border-radius: 18px;
-  }
-
-  .footprints-speech > span {
-    top: 50%;
-    left: -10px;
-    width: 18px;
-    height: 18px;
-    border-width: 2px 0 0 2px;
-    transform: translateY(-50%) rotate(-45deg);
-  }
-
-  .footprints-speech p {
-    font-size: 16px;
-    line-height: 24px;
-    white-space: normal;
+    display: none;
   }
 
   .footprints-interactive {
+    width: 100%;
     min-height: 0;
     flex: 1 1 auto;
     gap: 9px;
@@ -5506,8 +5448,7 @@ select {
   }
 
   .requested-wishes-message {
-    font-size: 12px;
-    line-height: 17px;
+    display: none;
   }
 
   .requested-wishes-grid {
@@ -5516,11 +5457,12 @@ select {
   }
 
   .requested-wish-card {
-    grid-template-columns: 104px minmax(0, 1fr);
+    min-height: 178px;
   }
 
   .requested-wish-card__image {
-    width: 104px;
+    height: 68px;
+    min-height: 68px;
   }
 
   .footprints-main {
@@ -5529,14 +5471,11 @@ select {
   }
 
   .footprints-mascot > img {
-    width: 90px;
-    height: 90px;
-    flex-basis: 90px;
+    display: none;
   }
 
   .footprints-speech p {
-    font-size: 14px;
-    line-height: 21px;
+    display: none;
   }
 
   .footprints-days {
@@ -5581,18 +5520,15 @@ select {
   }
 
   .requested-wishes-header {
-    display: grid;
+    display: flex;
     height: 64px;
     flex: 0 0 64px;
-    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 10px;
     padding: 7px max(14px, env(safe-area-inset-right)) 7px
       max(14px, env(safe-area-inset-left));
   }
 
-  .requested-wishes-balance,
-  .requested-wishes-message {
+  .requested-wishes-balance {
     height: 46px;
     border-width: 2px;
   }
@@ -5607,16 +5543,8 @@ select {
     height: 21px;
   }
 
-  .requested-wishes-balance strong,
   .requested-wishes-message {
-    font-size: 16px;
-    line-height: 20px;
-  }
-
-  .requested-wishes-message {
-    justify-content: center;
-    padding: 4px 12px;
-    text-align: center;
+    display: none;
   }
 
   .requested-wishes-grid {
@@ -5634,11 +5562,11 @@ select {
   }
 
   .requested-wish-card {
-    display: grid;
+    display: flex;
     height: auto;
-    min-height: 126px;
-    grid-template-columns: 104px minmax(0, 1fr);
-    gap: 9px;
+    min-height: 142px;
+    flex-direction: column;
+    gap: 5px;
     padding: 8px;
     border-width: 2px;
     border-radius: 15px;
@@ -5646,9 +5574,9 @@ select {
   }
 
   .requested-wish-card__image {
-    width: 104px;
-    height: 100%;
-    min-height: 108px;
+    width: 100%;
+    height: 52px;
+    min-height: 52px;
     flex-basis: auto;
     border-width: 2px;
     border-radius: 10px;
@@ -5740,45 +5668,16 @@ select {
   }
 
   .footprints-layout {
-    flex-direction: row;
-    gap: 10px;
+    flex-direction: column;
+    gap: 0;
   }
 
   .footprints-mascot {
-    width: 150px;
-    flex: 0 0 150px;
-    flex-direction: column;
-    padding-bottom: 0;
-  }
-
-  .footprints-mascot > img {
-    width: 126px;
-    height: 126px;
-  }
-
-  .footprints-speech {
-    min-height: 72px;
-    margin-top: 5px;
-    padding: 9px;
-    border-radius: 16px;
-  }
-
-  .footprints-speech p {
-    font-size: 14px;
-    line-height: 20px;
-    white-space: normal;
-  }
-
-  .footprints-speech > span {
-    top: -10px;
-    left: 50%;
-    width: 18px;
-    height: 18px;
-    border-width: 2px 0 0 2px;
-    transform: translateX(-50%) rotate(45deg);
+    display: none;
   }
 
   .footprints-interactive {
+    width: 100%;
     gap: 7px;
   }
 

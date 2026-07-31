@@ -78,4 +78,17 @@ describe("AI 任务草案字段一致性", () => {
       expect(paths).toContain("proposal.aiSchedulingEnabled");
     }
   });
+
+  it("拒绝已经合并的旧任务分类", () => {
+    const result = taskAdviceResponseSchema.safeParse({
+      ...validAdvice,
+      proposal: {
+        ...validAdvice.proposal,
+        category: "READING",
+        iconKey: "reading",
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
 });

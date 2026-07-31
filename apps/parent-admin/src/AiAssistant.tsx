@@ -21,16 +21,12 @@ import {
 
 const DAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const CATEGORY_LABELS: Record<string, string> = {
-  READING: "阅读",
   MATH: "数学",
   EXERCISE: "运动",
-  CHORES: "家务",
-  ORGANIZING: "整理",
-  MUSIC: "音乐",
+  CHORES: "生活习惯",
   CHINESE: "语文",
   ENGLISH: "英语",
-  PE: "体育",
-  OTHER: "其他",
+  OTHER: "综合任务",
 };
 const PRACTICE_LABELS: Record<string, string> = {
   GENERAL: "一般任务",
