@@ -34,5 +34,7 @@ if [[ ! -d "$LOCAL_ASSET_DIR" ]]; then
 fi
 
 "${SSH[@]}" "$REMOTE" "sudo install -d -m 755 '$REMOTE_ASSET_DIR' && sudo chown '$DEPLOY_USER' '$REMOTE_ASSET_DIR'"
-rsync -az --delete -e "$RSYNC_SSH" "$LOCAL_ASSET_DIR/" "$REMOTE:$REMOTE_ASSET_DIR/"
+# Files generated from the parent admin live here and are not part of the
+# offline poem asset set.
+rsync -az --delete --exclude 'uploads/' -e "$RSYNC_SSH" "$LOCAL_ASSET_DIR/" "$REMOTE:$REMOTE_ASSET_DIR/"
 echo "Uploaded poem assets to $REMOTE:$REMOTE_ASSET_DIR"
