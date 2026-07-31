@@ -5016,6 +5016,844 @@ select {
   height: 63px;
 }
 
+.footprints-task-empty {
+  display: grid;
+  min-height: 120px;
+  flex: 1 1 auto;
+  place-items: center;
+  padding: 20px;
+  border: 2px dashed #dfc0b4;
+  border-radius: 20px;
+  color: var(--progress-muted);
+  background: #fff8f2;
+  font-size: 17px;
+  text-align: center;
+}
+
+/* 星愿与足迹的手机布局。iPad 和桌面继续使用上方原始布局。 */
+@media (max-width: 600px) {
+  html:has(.wishes-page),
+  body:has(.wishes-page),
+  #root:has(.wishes-page),
+  html:has(.footprints-page),
+  body:has(.footprints-page),
+  #root:has(.footprints-page) {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
+  }
+
+  .wishes-page,
+  .footprints-page {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .wishes-page .child-bottom-nav,
+  .footprints-page .child-bottom-nav {
+    bottom: 0;
+    width: calc(100% - 16px);
+    height: calc(70px + env(safe-area-inset-bottom));
+    padding: 4px 8px env(safe-area-inset-bottom);
+    border-width: 2px 2px 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .wishes-page .child-bottom-nav__item,
+  .footprints-page .child-bottom-nav__item {
+    width: auto;
+    height: 56px;
+    flex: 1 1 25%;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .wishes-page .child-bottom-nav__item img,
+  .footprints-page .child-bottom-nav__item img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .requested-wishes-frame {
+    display: flex;
+    width: 100%;
+    height: 100dvh;
+    flex-direction: column;
+    border-radius: 0;
+  }
+
+  .requested-wishes-header {
+    display: grid;
+    height: auto;
+    flex: 0 0 auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: max(12px, env(safe-area-inset-top)) 12px 12px;
+  }
+
+  .requested-wishes-balance {
+    height: 50px;
+    gap: 7px;
+    padding: 0 13px;
+    border-width: 2px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+  }
+
+  .requested-wishes-balance img {
+    width: 23px;
+    height: 22px;
+  }
+
+  .requested-wishes-balance strong {
+    font-size: 17px;
+    line-height: 22px;
+  }
+
+  .requested-wishes-message {
+    min-width: 0;
+    height: 50px;
+    justify-content: center;
+    padding: 5px 9px;
+    border-width: 2px;
+    border-radius: 13px;
+    font-size: 14px;
+    line-height: 19px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .requested-wishes-message::before {
+    left: -7px;
+    width: 11px;
+    height: 11px;
+    border-width: 0 0 2px 2px;
+  }
+
+  .requested-wishes-grid {
+    position: static;
+    display: grid;
+    min-height: 0;
+    flex: 1 1 auto;
+    grid-auto-flow: row;
+    grid-auto-rows: auto;
+    grid-template-columns: 1fr;
+    gap: 11px;
+    padding: 4px 12px calc(84px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    scroll-snap-type: none;
+  }
+
+  .requested-wish-card {
+    display: grid;
+    height: auto;
+    min-height: 150px;
+    grid-template-columns: 116px minmax(0, 1fr);
+    gap: 11px;
+    padding: 10px;
+    border-width: 2px;
+    border-radius: 17px;
+    box-shadow: 0 5px 10px rgba(37, 59, 89, 0.09);
+    scroll-snap-align: none;
+  }
+
+  .requested-wish-card__image {
+    width: 116px;
+    height: 100%;
+    min-height: 126px;
+    flex-basis: auto;
+    border-width: 2px;
+    border-radius: 12px;
+  }
+
+  .requested-wish-card__body {
+    gap: 8px;
+  }
+
+  .requested-wish-card__body h2 {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 18px;
+    line-height: 23px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .requested-wish-card__body p {
+    margin-top: 4px;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .requested-wish-card__rule {
+    margin-top: 0;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .requested-wish-card__button,
+  .requested-wish-card__redeemed {
+    height: 44px;
+    min-height: 44px;
+    flex-basis: 44px;
+  }
+
+  .requested-wish-card__button {
+    gap: 5px;
+    border-width: 2px;
+    border-radius: 12px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  .requested-wish-card__button img {
+    width: 17px;
+    height: 17px;
+  }
+
+  .requested-wish-card__redeemed > span {
+    border-width: 2px;
+    border-radius: 12px;
+  }
+
+  .requested-wish-card__redeemed strong {
+    top: 0;
+    height: 44px;
+    max-width: calc(100% - 8px);
+    gap: 5px;
+    padding: 0 13px;
+    border-width: 2px;
+    border-radius: 10px;
+    font-size: 15px;
+    line-height: 20px;
+    transform: translateX(-50%) rotate(-3deg);
+  }
+
+  .requested-wish-card__redeemed strong img {
+    width: 16px;
+    height: 16px;
+  }
+
+  .wish-confirm-sheet {
+    height: auto;
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top)));
+    overflow-y: auto;
+    border-top-width: 3px;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .wish-confirm-sheet__content {
+    width: calc(100% - 28px);
+    height: auto;
+    padding: 24px 0 calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .wish-confirm-sheet__icon {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+    border-width: 2px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+  }
+
+  .wish-confirm-sheet__icon img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .wish-confirm-sheet h2 {
+    margin-top: 18px;
+    font-size: 20px;
+    line-height: 28px;
+    text-align: center;
+  }
+
+  .wish-confirm-sheet p {
+    margin-top: 8px;
+    font-size: 15px;
+    line-height: 22px;
+    text-align: center;
+  }
+
+  .wish-confirm-sheet__actions {
+    width: 100%;
+    margin-top: 22px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .wish-confirm-sheet__actions button {
+    height: 52px;
+    border-radius: 14px;
+    font-size: 17px;
+    line-height: 22px;
+  }
+
+  .wish-confirm-sheet__actions button:last-child {
+    border-width: 2px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+  }
+
+  .footprints-main {
+    height: calc(100dvh - 70px - env(safe-area-inset-bottom));
+    padding: max(10px, env(safe-area-inset-top)) 10px 8px;
+  }
+
+  .footprints-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footprints-mascot {
+    display: flex;
+    width: 100%;
+    height: 104px;
+    min-height: 104px;
+    flex: 0 0 104px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 3px;
+  }
+
+  .footprints-mascot > img {
+    width: 102px;
+    height: 102px;
+    flex: 0 0 102px;
+  }
+
+  .footprints-speech {
+    width: auto;
+    min-width: 0;
+    min-height: 82px;
+    flex: 1 1 auto;
+    margin-top: 0;
+    padding: 12px 10px;
+    border-width: 2px;
+    border-radius: 18px;
+  }
+
+  .footprints-speech > span {
+    top: 50%;
+    left: -10px;
+    width: 18px;
+    height: 18px;
+    border-width: 2px 0 0 2px;
+    transform: translateY(-50%) rotate(-45deg);
+  }
+
+  .footprints-speech p {
+    font-size: 16px;
+    line-height: 24px;
+    white-space: normal;
+  }
+
+  .footprints-interactive {
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: 9px;
+  }
+
+  .footprints-days {
+    height: 78px;
+    flex: 0 0 78px;
+    gap: 5px;
+  }
+
+  .footprints-day,
+  .footprints-day--selected {
+    width: auto;
+    height: 74px;
+    min-height: 74px;
+    margin-top: 0;
+    border-width: 2px;
+    border-radius: 14px;
+    box-shadow: 0 4px 8px rgba(37, 59, 89, 0.09);
+  }
+
+  .footprints-day--selected {
+    height: 78px;
+    min-height: 78px;
+    transform: translateY(-2px);
+  }
+
+  .footprints-day > span {
+    min-height: 20px;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .footprints-day > strong {
+    gap: 2px;
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .footprints-day > strong img {
+    width: 14px;
+    height: 14px;
+  }
+
+  .footprints-detail {
+    min-height: 0;
+    padding: 13px;
+    border-width: 2px;
+    border-radius: 20px;
+  }
+
+  .footprints-detail__pattern {
+    width: 260px;
+    height: 260px;
+  }
+
+  .footprints-detail h2 {
+    height: 40px;
+    flex-basis: 40px;
+    gap: 9px;
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  .footprints-detail h2 img {
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+  }
+
+  .footprints-task-list {
+    gap: 8px;
+    padding-right: 0;
+  }
+
+  .footprints-task {
+    min-height: 62px;
+    flex-basis: 62px;
+    gap: 8px;
+    padding: 8px 9px;
+    border-width: 2px;
+    border-radius: 16px;
+  }
+
+  .footprints-task__title {
+    gap: 8px;
+  }
+
+  .footprints-task__icon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .footprints-task__icon img {
+    width: 18px;
+    max-height: 18px;
+  }
+
+  .footprints-task__title p {
+    font-size: 15px;
+    line-height: 21px;
+  }
+
+  .footprints-task__reward {
+    height: 38px;
+    gap: 4px;
+    padding: 0 10px;
+    border-width: 2px;
+  }
+
+  .footprints-task__reward strong {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .footprints-task__reward img {
+    width: 15px;
+    height: 15px;
+  }
+
+  .footprints-task-empty {
+    min-height: 90px;
+    padding: 16px;
+    border-radius: 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 380px) {
+  .requested-wishes-header {
+    gap: 7px;
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .requested-wishes-balance {
+    padding: 0 10px;
+  }
+
+  .requested-wishes-balance strong {
+    font-size: 15px;
+  }
+
+  .requested-wishes-message {
+    font-size: 12px;
+    line-height: 17px;
+  }
+
+  .requested-wishes-grid {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .requested-wish-card {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .requested-wish-card__image {
+    width: 104px;
+  }
+
+  .footprints-main {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .footprints-mascot > img {
+    width: 90px;
+    height: 90px;
+    flex-basis: 90px;
+  }
+
+  .footprints-speech p {
+    font-size: 14px;
+    line-height: 21px;
+  }
+
+  .footprints-days {
+    gap: 3px;
+  }
+
+  .footprints-day > span {
+    font-size: 10px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 950px) {
+  .wishes-page .child-bottom-nav,
+  .footprints-page .child-bottom-nav {
+    bottom: 0;
+    width: calc(100% - 20px);
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding: 2px max(12px, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+      max(12px, env(safe-area-inset-left));
+    border-width: 2px 2px 0;
+  }
+
+  .wishes-page .child-bottom-nav__item,
+  .footprints-page .child-bottom-nav__item {
+    width: auto;
+    height: 52px;
+    flex: 1 1 25%;
+    font-size: 11px;
+    line-height: 14px;
+  }
+
+  .wishes-page .child-bottom-nav__item img,
+  .footprints-page .child-bottom-nav__item img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .requested-wishes-frame {
+    display: flex;
+    height: 100dvh;
+    flex-direction: column;
+  }
+
+  .requested-wishes-header {
+    display: grid;
+    height: 64px;
+    flex: 0 0 64px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 7px max(14px, env(safe-area-inset-right)) 7px
+      max(14px, env(safe-area-inset-left));
+  }
+
+  .requested-wishes-balance,
+  .requested-wishes-message {
+    height: 46px;
+    border-width: 2px;
+  }
+
+  .requested-wishes-balance {
+    padding: 0 14px;
+    box-shadow: 0 3px 0 var(--progress-ink);
+  }
+
+  .requested-wishes-balance img {
+    width: 22px;
+    height: 21px;
+  }
+
+  .requested-wishes-balance strong,
+  .requested-wishes-message {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .requested-wishes-message {
+    justify-content: center;
+    padding: 4px 12px;
+    text-align: center;
+  }
+
+  .requested-wishes-grid {
+    position: static;
+    min-height: 0;
+    flex: 1 1 auto;
+    grid-auto-rows: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+    padding: 4px max(14px, env(safe-area-inset-right))
+      calc(68px + env(safe-area-inset-bottom))
+      max(14px, env(safe-area-inset-left));
+    overflow-y: auto;
+    scroll-snap-type: none;
+  }
+
+  .requested-wish-card {
+    display: grid;
+    height: auto;
+    min-height: 126px;
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 9px;
+    padding: 8px;
+    border-width: 2px;
+    border-radius: 15px;
+    scroll-snap-align: none;
+  }
+
+  .requested-wish-card__image {
+    width: 104px;
+    height: 100%;
+    min-height: 108px;
+    flex-basis: auto;
+    border-width: 2px;
+    border-radius: 10px;
+  }
+
+  .requested-wish-card__body h2 {
+    font-size: 16px;
+    line-height: 20px;
+  }
+
+  .requested-wish-card__body p {
+    margin-top: 2px;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .requested-wish-card__rule {
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .requested-wish-card__button,
+  .requested-wish-card__redeemed,
+  .requested-wish-card__redeemed strong {
+    height: 38px;
+    min-height: 38px;
+    flex-basis: 38px;
+    border-width: 2px;
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .requested-wish-card__redeemed strong {
+    top: 0;
+    padding: 0 11px;
+    transform: translateX(-50%) rotate(-2deg);
+  }
+
+  .wish-confirm-sheet {
+    height: auto;
+    max-height: calc(100dvh - 8px);
+  }
+
+  .wish-confirm-sheet__content {
+    width: min(620px, calc(100% - 40px));
+    height: auto;
+    padding: 14px 0 calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .wish-confirm-sheet__icon {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+  }
+
+  .wish-confirm-sheet__icon img {
+    width: 25px;
+    height: 25px;
+  }
+
+  .wish-confirm-sheet h2 {
+    margin-top: 10px;
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .wish-confirm-sheet p {
+    margin-top: 3px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .wish-confirm-sheet__actions {
+    margin-top: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .wish-confirm-sheet__actions button {
+    height: 44px;
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  .footprints-main {
+    height: calc(100dvh - 60px - env(safe-area-inset-bottom));
+    padding: 7px max(12px, env(safe-area-inset-right)) 7px
+      max(12px, env(safe-area-inset-left));
+  }
+
+  .footprints-layout {
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .footprints-mascot {
+    width: 150px;
+    flex: 0 0 150px;
+    flex-direction: column;
+    padding-bottom: 0;
+  }
+
+  .footprints-mascot > img {
+    width: 126px;
+    height: 126px;
+  }
+
+  .footprints-speech {
+    min-height: 72px;
+    margin-top: 5px;
+    padding: 9px;
+    border-radius: 16px;
+  }
+
+  .footprints-speech p {
+    font-size: 14px;
+    line-height: 20px;
+    white-space: normal;
+  }
+
+  .footprints-speech > span {
+    top: -10px;
+    left: 50%;
+    width: 18px;
+    height: 18px;
+    border-width: 2px 0 0 2px;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .footprints-interactive {
+    gap: 7px;
+  }
+
+  .footprints-days {
+    height: 68px;
+    flex-basis: 68px;
+    gap: 5px;
+  }
+
+  .footprints-day,
+  .footprints-day--selected {
+    height: 65px;
+    min-height: 65px;
+    margin-top: 0;
+    border-radius: 13px;
+  }
+
+  .footprints-day > span {
+    min-height: 17px;
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .footprints-day > strong {
+    font-size: 15px;
+    line-height: 18px;
+  }
+
+  .footprints-detail {
+    padding: 10px;
+    border-radius: 17px;
+  }
+
+  .footprints-detail h2 {
+    height: 32px;
+    flex-basis: 32px;
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .footprints-detail h2 img {
+    width: 19px;
+    height: 19px;
+    margin-top: 0;
+  }
+
+  .footprints-task-list {
+    gap: 6px;
+    padding-right: 0;
+  }
+
+  .footprints-task {
+    min-height: 52px;
+    flex-basis: 52px;
+    padding: 6px 8px;
+    border-radius: 14px;
+  }
+
+  .footprints-task__icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .footprints-task__title p {
+    font-size: 14px;
+    line-height: 19px;
+  }
+
+  .footprints-task__reward {
+    height: 34px;
+    padding: 0 9px;
+  }
+}
+
 /* 航图：复用全局底部导航，页面主体独立滚动。 */
 html:has(.planet-map-page),
 body:has(.planet-map-page),

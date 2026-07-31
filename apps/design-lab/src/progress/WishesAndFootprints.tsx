@@ -611,6 +611,11 @@ export function Footprints({
                     </div>
                   </article>
                 ))}
+                {displayedTasks.length === 0 && (
+                  <div className="footprints-task-empty">
+                    这一天还没有完成任务
+                  </div>
+                )}
               </div>
             </section>
           </div>
