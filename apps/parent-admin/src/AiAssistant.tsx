@@ -11,6 +11,7 @@ import {
   type AiConfig,
   type AiSchedule,
   type Child,
+  type MinimaxConfig,
   type RewardAudit,
   type SchedulePreference,
   type TaskAdvice,
@@ -294,6 +295,134 @@ function AiConfiguration() {
       </form>
       <p className="ai-privacy-note">
         调用时不会发送孩子登录码、设备、IP 或家庭名称。你在任务描述中输入的文字会发送给 DeepSeek 进行分析但不会保存在本站建议记录中，请不要填写真实姓名、学校、地址等身份信息。
+      </p>
+    </Card>
+  );
+}
+
+function MinimaxConfiguration() {
+  const [config, setConfig] = useState<MinimaxConfig | null>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [busy, setBusy] = useState<"save" | "test" | null>(null);
+  const [message, setMessage] = useState<{
+    kind: "error" | "success";
+    text: string;
+  } | null>(null);
+
+  useEffect(() => {
+    void parentApi
+      .minimaxConfig()
+      .then(({ config: loaded }) => {
+        setConfig(loaded);
+        setEnabled(loaded.enabled || !loaded.configured);
+      })
+      .catch((reason) =>
+        setMessage({
+          kind: "error",
+          text:
+            reason instanceof Error
+              ? reason.message
+              : "读取 MiniMax 配置失败",
+        }),
+      );
+  }, []);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setBusy("save");
+    setMessage(null);
+    try {
+      const result = await parentApi.saveMinimaxConfig({
+        ...(apiKey ? { apiKey } : {}),
+        enabled,
+      });
+      setConfig(result.config);
+      setApiKey("");
+      setMessage({
+        kind: "success",
+        text: "MiniMax 密钥已加密保存，可以在汉字库和古诗库中自动生成资源。",
+      });
+    } catch (reason) {
+      setMessage({
+        kind: "error",
+        text: reason instanceof Error ? reason.message : "保存失败",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function test() {
+    setBusy("test");
+    setMessage(null);
+    try {
+      const result = await parentApi.testMinimaxConfig();
+      setMessage({ kind: "success", text: result.message });
+    } catch (reason) {
+      setMessage({
+        kind: "error",
+        text: reason instanceof Error ? reason.message : "连接测试失败",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card
+      title="MiniMax 媒体生成"
+      subtitle="用于自动生成汉字、古诗的配图和朗读。密钥加密保存在服务端，页面和日志不会回显完整内容。"
+    >
+      <form className="admin-form" onSubmit={save}>
+        <label className="field-span">
+          {config?.configured
+            ? `替换密钥（当前末四位 ${config.apiKeyLastFour}）`
+            : "MiniMax API Key"}
+          <input
+            type="password"
+            autoComplete="off"
+            value={apiKey}
+            required={!config?.configured}
+            onChange={(event) => setApiKey(event.target.value)}
+            placeholder={config?.configured ? "留空则保留当前密钥" : "sk-api-..."}
+          />
+        </label>
+        <label className="checkbox field-span">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => setEnabled(event.target.checked)}
+          />
+          启用图片与音频自动生成
+        </label>
+        {message && (
+          <div className="field-span">
+            <Message kind={message.kind}>{message.text}</Message>
+          </div>
+        )}
+        <div className="form-actions field-span">
+          <BusyButton
+            type="button"
+            className="ghost-button"
+            busy={busy === "test"}
+            busyText="连接中…"
+            disabled={!config?.configured}
+            onClick={() => void test()}
+          >
+            测试连接
+          </BusyButton>
+          <BusyButton
+            className="primary-button"
+            busy={busy === "save"}
+            busyText="保存中…"
+          >
+            保存配置
+          </BusyButton>
+        </div>
+      </form>
+      <p className="ai-privacy-note">
+        点击自动生成会把对应汉字或古诗内容发送给 MiniMax，并产生调用费用。系统会锁定正在生成的按钮、限制调用频率，并保存操作审计记录。
       </p>
     </Card>
   );
@@ -721,6 +850,7 @@ export function AiAssistant({ child }: { child: Child }) {
         <div className="ai-hero__mark">✦</div>
       </div>
       <AiConfiguration />
+      <MinimaxConfiguration />
       <TaskAdvisor child={child} />
       <RewardAuditor child={child} />
       <SmartScheduler child={child} />

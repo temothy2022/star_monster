@@ -1370,6 +1370,56 @@ function HanziLearning({ child }: { child: Child }) {
     }
   }
 
+  async function generateMedia(
+    kind: HanziMediaKind,
+    wordIndex?: number,
+  ) {
+    if (!editingCharacterId) {
+      setError("请先保存汉字，再自动生成图片或音频");
+      return;
+    }
+    const mediaKey = `${kind}-${wordIndex ?? ""}`;
+    setUploadingMediaKey(mediaKey);
+    setError("");
+    setLibraryMessage("");
+    stopMediaPlayback();
+    try {
+      const result = await parentApi.generateHanziMedia(
+        child.id,
+        editingCharacterId,
+        kind,
+        wordIndex,
+      );
+      setCharacters((current) =>
+        current.map((item) =>
+          item.id === result.character.id ? result.character : item,
+        ),
+      );
+      setCharacterForm((current) => ({
+        ...current,
+        imageKey: result.character.imageKey,
+        characterAudioUrl: result.character.characterAudioUrl ?? "",
+        sentenceAudioUrl: result.character.sentenceAudioUrl ?? "",
+        wordAudioUrls: [...result.character.wordAudioUrls],
+      }));
+      setLibraryMessage(
+        `“${result.character.character}”的${
+          kind === "image"
+            ? "图片"
+            : kind === "character-audio"
+              ? "字音"
+              : kind === "sentence-audio"
+                ? "例句音频"
+                : `词语“${result.character.words[wordIndex ?? 0]}”读音`
+        }已由 MiniMax 生成并替换`,
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "自动生成失败");
+    } finally {
+      setUploadingMediaKey(null);
+    }
+  }
+
   function searchCharacters(event: FormEvent) {
     event.preventDefault();
     setPage(1);
@@ -1416,9 +1466,9 @@ function HanziLearning({ child }: { child: Child }) {
               <div className="hanzi-media-editor__heading">
                 <div>
                   <h3>图片与朗读资源</h3>
-                  <p>{editingCharacterId ? "上传后立即替换线上资源，文件地址由系统管理。" : "新增汉字保存后即可上传图片和音频。"}</p>
+                  <p>{editingCharacterId ? "可使用 MiniMax 自动生成，也可上传文件替换；完成后立即更新线上资源。" : "新增汉字保存后即可生成或上传图片和音频。"}</p>
                 </div>
-                {uploadingMediaKey ? <span>正在上传…</span> : null}
+                {uploadingMediaKey ? <span>正在处理，请不要关闭页面…</span> : null}
               </div>
               <div className="hanzi-media-row hanzi-media-row--image">
                 <div className="hanzi-media-preview">
@@ -1432,12 +1482,22 @@ function HanziLearning({ child }: { child: Child }) {
                   <strong>汉字配图</strong>
                   <small>支持 JPEG、PNG、WebP，最大 5MB</small>
                 </div>
-                <HanziUploadControl
-                  label={characterForm.imageKey === "default-hanzi" ? "上传图片" : "替换图片"}
-                  accept="image/jpeg,image/png,image/webp"
-                  disabled={!editingCharacterId || uploadingMediaKey !== null}
-                  onSelect={(file) => void uploadMedia("image", file)}
-                />
+                <div className="hanzi-media-actions">
+                  <button
+                    type="button"
+                    className="minimax-generate-button"
+                    disabled={!editingCharacterId || uploadingMediaKey !== null}
+                    onClick={() => void generateMedia("image")}
+                  >
+                    {uploadingMediaKey === "image-" ? "生成中…" : "自动生成"}
+                  </button>
+                  <HanziUploadControl
+                    label={characterForm.imageKey === "default-hanzi" ? "上传图片" : "替换图片"}
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={!editingCharacterId || uploadingMediaKey !== null}
+                    onSelect={(file) => void uploadMedia("image", file)}
+                  />
+                </div>
               </div>
               <div className="hanzi-media-row">
                 <div>
@@ -1452,12 +1512,22 @@ function HanziLearning({ child }: { child: Child }) {
                   playingMediaKey={playingMediaKey}
                   onToggle={toggleMediaPlayback}
                 />
-                <HanziUploadControl
-                  label={characterForm.characterAudioUrl ? "替换字音" : "上传字音"}
-                  accept="audio/mpeg,audio/mp4,audio/wav"
-                  disabled={!editingCharacterId || uploadingMediaKey !== null}
-                  onSelect={(file) => void uploadMedia("character-audio", file)}
-                />
+                <div className="hanzi-media-actions">
+                  <button
+                    type="button"
+                    className="minimax-generate-button"
+                    disabled={!editingCharacterId || uploadingMediaKey !== null}
+                    onClick={() => void generateMedia("character-audio")}
+                  >
+                    {uploadingMediaKey === "character-audio-" ? "生成中…" : "自动生成"}
+                  </button>
+                  <HanziUploadControl
+                    label={characterForm.characterAudioUrl ? "替换字音" : "上传字音"}
+                    accept="audio/mpeg,audio/mp4,audio/wav"
+                    disabled={!editingCharacterId || uploadingMediaKey !== null}
+                    onSelect={(file) => void uploadMedia("character-audio", file)}
+                  />
+                </div>
               </div>
               <div className="hanzi-media-row">
                 <div>
@@ -1472,12 +1542,22 @@ function HanziLearning({ child }: { child: Child }) {
                   playingMediaKey={playingMediaKey}
                   onToggle={toggleMediaPlayback}
                 />
-                <HanziUploadControl
-                  label={characterForm.sentenceAudioUrl ? "替换例句" : "上传例句"}
-                  accept="audio/mpeg,audio/mp4,audio/wav"
-                  disabled={!editingCharacterId || uploadingMediaKey !== null}
-                  onSelect={(file) => void uploadMedia("sentence-audio", file)}
-                />
+                <div className="hanzi-media-actions">
+                  <button
+                    type="button"
+                    className="minimax-generate-button"
+                    disabled={!editingCharacterId || uploadingMediaKey !== null}
+                    onClick={() => void generateMedia("sentence-audio")}
+                  >
+                    {uploadingMediaKey === "sentence-audio-" ? "生成中…" : "自动生成"}
+                  </button>
+                  <HanziUploadControl
+                    label={characterForm.sentenceAudioUrl ? "替换例句" : "上传例句"}
+                    accept="audio/mpeg,audio/mp4,audio/wav"
+                    disabled={!editingCharacterId || uploadingMediaKey !== null}
+                    onSelect={(file) => void uploadMedia("sentence-audio", file)}
+                  />
+                </div>
               </div>
               {(editingCharacter?.words ?? [])
                 .map((word, index) => (
@@ -1494,12 +1574,22 @@ function HanziLearning({ child }: { child: Child }) {
                       playingMediaKey={playingMediaKey}
                       onToggle={toggleMediaPlayback}
                     />
-                    <HanziUploadControl
-                      label={characterForm.wordAudioUrls[index] ? "替换词音" : "上传词音"}
-                      accept="audio/mpeg,audio/mp4,audio/wav"
-                      disabled={!editingCharacterId || uploadingMediaKey !== null}
-                      onSelect={(file) => void uploadMedia("word-audio", file, index)}
-                    />
+                    <div className="hanzi-media-actions">
+                      <button
+                        type="button"
+                        className="minimax-generate-button"
+                        disabled={!editingCharacterId || uploadingMediaKey !== null}
+                        onClick={() => void generateMedia("word-audio", index)}
+                      >
+                        {uploadingMediaKey === `word-audio-${index}` ? "生成中…" : "自动生成"}
+                      </button>
+                      <HanziUploadControl
+                        label={characterForm.wordAudioUrls[index] ? "替换词音" : "上传词音"}
+                        accept="audio/mpeg,audio/mp4,audio/wav"
+                        disabled={!editingCharacterId || uploadingMediaKey !== null}
+                        onSelect={(file) => void uploadMedia("word-audio", file, index)}
+                      />
+                    </div>
                   </div>
                 ))}
             </section>
@@ -1511,7 +1601,7 @@ function HanziLearning({ child }: { child: Child }) {
           </form>
         </Panel>
         <Panel title={`基础汉字库（${totalCharacters}${searchQuery ? " 条搜索结果" : " 个"}）`}>
-          <p className="admin-help">每个汉字都可以直接试听。点击“编辑与上传”可以预览图片，并上传新图片或音频替换现有资源。</p>
+          <p className="admin-help">每个汉字都可以直接试听。进入资源编辑后，可以使用 MiniMax 自动生成，也可以上传文件替换。</p>
           <form className="hanzi-library-search" onSubmit={searchCharacters}>
             <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索汉字、拼音、含义或例句" />
             <button type="submit">搜索</button>
@@ -1555,7 +1645,7 @@ function HanziLearning({ child }: { child: Child }) {
                     />
                   </div>
                   <div className="list-card__actions">
-                    <button type="button" onClick={() => { stopMediaPlayback(); setEditingCharacterId(item.id); setCharacterForm(hanziFormFrom(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑与上传</button>
+                    <button type="button" onClick={() => { stopMediaPlayback(); setEditingCharacterId(item.id); setCharacterForm(hanziFormFrom(item)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>编辑资源</button>
                     <button type="button" className="danger-text" disabled={libraryBusy} onClick={() => void removeCharacter(item)}>删除</button>
                   </div>
                 </div>
@@ -1608,8 +1698,13 @@ function PoemLearning({ child }: { child: Child }) {
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [generatingMediaKey, setGeneratingMediaKey] = useState<string | null>(
+    null,
+  );
+  const [playingPoemId, setPlayingPoemId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const activePoemAudio = useRef<HTMLAudioElement | null>(null);
 
   async function loadSettings() {
     const result = await parentApi.poemSettings(child.id);
@@ -1633,6 +1728,14 @@ function PoemLearning({ child }: { child: Child }) {
       setError(reason instanceof Error ? reason.message : "古诗学习配置加载失败"),
     );
   }, [child.id]);
+
+  useEffect(
+    () => () => {
+      activePoemAudio.current?.pause();
+      activePoemAudio.current = null;
+    },
+    [child.id],
+  );
 
   function toggleWeekday(value: number) {
     const selected = settings.learningWeekdays.includes(value);
@@ -1669,6 +1772,66 @@ function PoemLearning({ child }: { child: Child }) {
       setError(reason instanceof Error ? reason.message : "古诗库读取失败");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function togglePoemAudio(poem: PoemResource) {
+    if (!poem.audioUrl) return;
+    if (playingPoemId === poem.id) {
+      activePoemAudio.current?.pause();
+      activePoemAudio.current = null;
+      setPlayingPoemId(null);
+      return;
+    }
+    activePoemAudio.current?.pause();
+    const audio = new Audio(poem.audioUrl);
+    activePoemAudio.current = audio;
+    setPlayingPoemId(poem.id);
+    audio.onended = () => {
+      if (activePoemAudio.current === audio) activePoemAudio.current = null;
+      setPlayingPoemId(null);
+    };
+    audio.onerror = () => {
+      if (activePoemAudio.current === audio) activePoemAudio.current = null;
+      setPlayingPoemId(null);
+      setError("古诗朗读加载失败，请重新生成或稍后再试");
+    };
+    void audio.play().catch(() => {
+      if (activePoemAudio.current === audio) activePoemAudio.current = null;
+      setPlayingPoemId(null);
+      setError("暂时无法播放古诗朗读");
+    });
+  }
+
+  async function generatePoemMedia(
+    poem: PoemResource,
+    kind: "image" | "audio",
+  ) {
+    const mediaKey = `${poem.id}-${kind}`;
+    setGeneratingMediaKey(mediaKey);
+    setError("");
+    setMessage("");
+    activePoemAudio.current?.pause();
+    activePoemAudio.current = null;
+    setPlayingPoemId(null);
+    try {
+      const result = await parentApi.generatePoemMedia(
+        child.id,
+        poem.id,
+        kind,
+      );
+      setPoems((current) =>
+        current.map((item) =>
+          item.id === poem.id ? { ...item, ...result.poem } : item,
+        ),
+      );
+      setMessage(
+        `《${poem.title}》的${kind === "image" ? "配图" : "朗读"}已由 MiniMax 生成并替换`,
+      );
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "自动生成失败");
+    } finally {
+      setGeneratingMediaKey(null);
     }
   }
 
@@ -1769,6 +1932,7 @@ function PoemLearning({ child }: { child: Child }) {
           </select>
           <button className="ghost-button" disabled={busy}>查询</button>
         </form>
+        {message ? <Notice>{message}</Notice> : null}
         <div className="table-wrap poem-library-table">
           <table>
             <thead><tr><th>年级</th><th>古诗</th><th>作者</th><th>学习状态</th><th>媒体</th></tr></thead>
@@ -1788,7 +1952,53 @@ function PoemLearning({ child }: { child: Child }) {
                     </span>
                     {poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}
                   </td>
-                  <td><small>{poem.imageUrl ? "专属配图" : "默认配图"} · {poem.audioUrl ? "专属音频" : "浏览器朗读"}</small></td>
+                  <td>
+                    <div className="poem-media-cell">
+                      {poem.imageUrl ? (
+                        <img
+                          src={poem.imageUrl}
+                          alt={`《${poem.title}》配图`}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="poem-media-placeholder">暂无配图</div>
+                      )}
+                      <div className="poem-media-actions">
+                        <button
+                          type="button"
+                          className="minimax-generate-button"
+                          disabled={generatingMediaKey !== null}
+                          onClick={() => void generatePoemMedia(poem, "image")}
+                        >
+                          {generatingMediaKey === `${poem.id}-image`
+                            ? "配图生成中…"
+                            : poem.imageUrl
+                              ? "重新生成配图"
+                              : "生成配图"}
+                        </button>
+                        <button
+                          type="button"
+                          className="minimax-generate-button"
+                          disabled={generatingMediaKey !== null}
+                          onClick={() => void generatePoemMedia(poem, "audio")}
+                        >
+                          {generatingMediaKey === `${poem.id}-audio`
+                            ? "朗读生成中…"
+                            : poem.audioUrl
+                              ? "重新生成朗读"
+                              : "生成朗读"}
+                        </button>
+                        <button
+                          type="button"
+                          className="hanzi-audio-button"
+                          disabled={!poem.audioUrl || generatingMediaKey !== null}
+                          onClick={() => togglePoemAudio(poem)}
+                        >
+                          {playingPoemId === poem.id ? "停止" : "试听朗读"}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

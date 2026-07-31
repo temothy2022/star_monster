@@ -18,7 +18,9 @@ const config: AppConfig = {
   ADMIN_APP_ORIGIN: "http://127.0.0.1:5177",
   AI_CONFIG_ENCRYPTION_KEY: "e".repeat(32),
   AI_REQUEST_TIMEOUT_MS: 5000,
+  MINIMAX_REQUEST_TIMEOUT_MS: 120000,
   HANZI_ASSET_UPLOAD_DIR: "../../hanzi-assets/v1/uploads",
+  POEM_ASSET_UPLOAD_DIR: "../../poem-assets/v1/uploads",
 };
 
 const outputSchema = z.object({

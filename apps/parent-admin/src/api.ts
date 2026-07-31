@@ -183,6 +183,14 @@ export type AiConfig = {
   configured: boolean;
 };
 
+export type MinimaxConfig = {
+  provider: "MINIMAX";
+  apiKeyLastFour: string | null;
+  enabled: boolean;
+  updatedAt: string | null;
+  configured: boolean;
+};
+
 export type TaskAdvice = {
   summary: string;
   confidence: "LOW" | "MEDIUM" | "HIGH";
@@ -521,6 +529,22 @@ export const parentApi = {
       },
     );
   },
+  generateHanziMedia: (
+    childId: string,
+    id: string,
+    kind: HanziMediaKind,
+    wordIndex?: number,
+  ) => {
+    const search = new URLSearchParams();
+    if (wordIndex !== undefined) {
+      search.set("wordIndex", String(wordIndex));
+    }
+    const suffix = search.size ? `?${search.toString()}` : "";
+    return api<{ character: HanziCharacterResource }>(
+      `/api/parent/children/${childId}/hanzi/characters/${id}/generate/${kind}${suffix}`,
+      { method: "POST" },
+    );
+  },
   deleteHanziCharacter: (childId: string, id: string) =>
     api<{ ok: true }>(
       `/api/parent/children/${childId}/hanzi/characters/${id}`,
@@ -549,6 +573,15 @@ export const parentApi = {
       `/api/parent/children/${childId}/poems?${search.toString()}`,
     );
   },
+  generatePoemMedia: (
+    childId: string,
+    id: string,
+    kind: "image" | "audio",
+  ) =>
+    api<{ poem: Omit<PoemResource, "progress"> }>(
+      `/api/parent/children/${childId}/poems/${id}/generate/${kind}`,
+      { method: "POST" },
+    ),
   createTemplate: (childId: string, data: Record<string, unknown>) =>
     api<{ template: TaskTemplate }>(
       `/api/parent/children/${childId}/task-templates`,
@@ -681,6 +714,17 @@ export const parentApi = {
       "/api/parent/ai/config/test",
       { method: "POST" },
     ),
+  minimaxConfig: () =>
+    api<{ config: MinimaxConfig }>("/api/parent/minimax/config"),
+  saveMinimaxConfig: (data: { apiKey?: string; enabled: boolean }) =>
+    api<{ config: MinimaxConfig }>("/api/parent/minimax/config", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  testMinimaxConfig: () =>
+    api<{ ok: true; message: string }>("/api/parent/minimax/config/test", {
+      method: "POST",
+    }),
   taskAdvice: (
     childId: string,
     data: { description: string; desiredOutcome?: string; constraints?: string },

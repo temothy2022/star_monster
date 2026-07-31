@@ -177,6 +177,7 @@ model Family {
   users             User[]
   children          ChildProfile[]
   aiConfig          FamilyAiConfig?
+  minimaxConfig     FamilyMinimaxConfig?
   aiRecommendations AiRecommendation[]
 
   @@index([status])
@@ -317,6 +318,22 @@ model FamilyAiConfig {
   familyId        String   @unique
   provider        String   @default("DEEPSEEK")
   model           String   @default("deepseek-v4-flash")
+  encryptedApiKey String
+  encryptionIv    String
+  encryptionTag   String
+  apiKeyLastFour  String
+  enabled         Boolean  @default(true)
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+}
+
+model FamilyMinimaxConfig {
+  id              String   @id @default(cuid())
+  familyId        String   @unique
+  provider        String   @default("MINIMAX")
   encryptedApiKey String
   encryptionIv    String
   encryptionTag   String
