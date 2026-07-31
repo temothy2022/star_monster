@@ -159,6 +159,7 @@ export type DailyTask = {
   earlyBonusStarsSnapshot: number | null;
   repeatableDailySnapshot: boolean;
   completionDurationSeconds: number | null;
+  completedAttemptCount?: number;
   attempts?: Array<{
     baseStarsAwarded: number;
     bonusStarsAwarded: number;

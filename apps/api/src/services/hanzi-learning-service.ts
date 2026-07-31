@@ -83,8 +83,8 @@ function questionsFromJson(value: Prisma.JsonValue): ConsolidationQuestion[] {
 }
 
 function buildQuestions(
-  targets: HanziCharacter[],
-  pool: HanziCharacter[],
+  targets: Array<Pick<HanziCharacter, "id">>,
+  pool: Array<Pick<HanziCharacter, "id" | "sortOrder">>,
   count: number,
 ): ConsolidationQuestion[] {
   if (!targets.length || !pool.length) return [];
@@ -229,31 +229,33 @@ export async function startHanziSession(
     prisma.hanziCharacter.findMany({
       where: { isEnabled: true },
       orderBy: { sortOrder: "asc" },
+      select: { id: true, sortOrder: true },
     }),
   ]);
-  const newCharacters = selectDailyHanziCharacters(
+  const poolById = new Map(pool.map((character) => [character.id, character]));
+  const newCharacterIds = selectDailyHanziCharacters(
     unlearnedCharacterIds,
     normalizedSettings.newCharactersPerDay,
     `${childId}:${today.toISOString().slice(0, 10)}`,
   )
-    .map(({ id }) => pool.find((character) => character.id === id))
-    .filter((character): character is HanziCharacter => Boolean(character));
+    .map(({ id }) => id)
+    .filter((id) => poolById.has(id));
   if (!pool.length) {
     throw new HttpError(409, "HANZI_LIBRARY_EMPTY", "汉字词库还没有可学习的内容");
   }
 
-  const reviewCharacters = dueProgress.map((item) => (item as { character: HanziCharacter }).character);
-  const targets = unique([
+  const reviewCharacters = dueProgress.map((item) => item.character);
+  const targetIds = unique([
     ...reviewCharacters.map((item) => item.id),
-    ...newCharacters.map((item) => item.id),
-  ])
-    .map((id) => pool.find((item) => item.id === id))
-    .filter((item): item is HanziCharacter => Boolean(item));
-  const questionTargets = targets.length ? targets : pool.slice(0, 1);
+    ...newCharacterIds,
+  ]).filter((id) => poolById.has(id));
+  const questionTargets = targetIds.length
+    ? targetIds.map((id) => poolById.get(id)!)
+    : pool.slice(0, 1);
   const questions = buildQuestions(questionTargets, pool, normalizedSettings.consolidationQuestionCount);
   const phase = reviewCharacters.length
     ? "REVIEW"
-    : newCharacters.length
+    : newCharacterIds.length
       ? "NEW_LEARNING"
       : "CONSOLIDATION";
 
@@ -269,7 +271,7 @@ export async function startHanziSession(
         sessionDate: today,
         phase,
         reviewCharacterIds: reviewCharacters.map((item) => item.id),
-        newCharacterIds: newCharacters.map((item) => item.id),
+        newCharacterIds,
         consolidationQuestions: questions,
       },
     ],

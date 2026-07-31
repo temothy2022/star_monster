@@ -26,6 +26,8 @@
     "hanzi:generate": "node scripts/generate-hanzi-minimax-sample.mjs",
     "hanzi:compress-images": "pnpm --filter @star-monsters/design-lab exec node ../../scripts/compress-hanzi-images.mjs",
     "hanzi:compress-images:check": "pnpm --filter @star-monsters/design-lab exec node ../../scripts/compress-hanzi-images.mjs --check",
+    "assets:compress-audio": "node scripts/compress-audio-assets.mjs",
+    "assets:fingerprint-media": "node scripts/fingerprint-media-assets.mjs",
     "hanzi:deploy-assets": "bash scripts/deploy-hanzi-assets.sh",
     "hanzi:import": "pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts",
     "poem:generate-assets": "pnpm --filter @star-monsters/design-lab exec node ../../scripts/generate-poem-minimax-assets.mjs",

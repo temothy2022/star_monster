@@ -1,7 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { access } from "node:fs/promises";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
+import { HttpError } from "../lib/http-error.js";
 import {
   contentTypeForPoemMedia,
   resolvePoemMediaFile,
@@ -23,11 +25,17 @@ export async function registerPoemMediaRoutes(
         config.POEM_ASSET_UPLOAD_DIR,
         fileName,
       );
-      const data = await readFile(filePath);
+      await access(filePath).catch(() => {
+        throw new HttpError(
+          404,
+          "POEM_MEDIA_NOT_FOUND",
+          "没有找到这个媒体文件",
+        );
+      });
       return reply
-        .header("Content-Type", contentTypeForPoemMedia(fileName))
+        .type(contentTypeForPoemMedia(fileName))
         .header("Cache-Control", "public, max-age=2592000, immutable")
-        .send(data);
+        .send(createReadStream(filePath));
     },
   );
 }

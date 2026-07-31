@@ -82,9 +82,9 @@ git log -5 --oneline
 | API 健康检查 | `http://127.0.0.1:8787/api/health` |
 
 - 三个 Vite 服务均监听 `0.0.0.0`，用于局域网 iPad 访问。
-- 生产域名：`timi.duckpte.com`；HTTPS 已启用并由 Certbot 管理，自动续期状态
+- 生产域名：`timothy.run`；HTTPS 已启用并由 Certbot 管理，自动续期状态
   `[待确认]`。
-- 生产服务器公网 IP 曾为 `124.156.187.215`，SSH 用户为 `ubuntu`。
+- 生产服务器公网 IP 为 `43.136.134.234`，SSH 用户为 `ubuntu`。
 - 生产项目目录：`/opt/star-monsters`。
 - API systemd 服务：`star-monsters-api.service`，监听 `127.0.0.1:8787`。
 - Nginx 静态目录：
@@ -245,7 +245,7 @@ git log -5 --oneline
   `/opt/star-monsters/hanzi-assets/v1`，并已通过
   `apps/api/prisma/import-hanzi-assets.ts` 导入生产数据库。
 - 生产静态资源公网前缀为
-  `https://timi.duckpte.com/hanzi-assets/v1`。
+  `https://timothy.run/hanzi-assets/v1`。
 - 汉字会话会在进入任务概览后，以 3 个后台并发预加载当天所需图片和音频；
   当前内容优先，音频使用受控 LRU 媒体缓存复用。
 - 听句选字的正确答案已随会话一次性下发，点击后由前端立即判断并展示反馈；
@@ -673,11 +673,11 @@ pnpm deploy:production
 - 生产媒体目录：`/opt/star-monsters/hanzi-assets/v1`。
 - 生产 API：systemd 服务 `star-monsters-api.service`，监听
   `127.0.0.1:8787`，由 Nginx 代理。
-- 生产域名：`https://timi.duckpte.com`。
-- 生产孩子端：`https://timi.duckpte.com/`
-- 生产家长管理平台：`https://timi.duckpte.com/parent/`
-- 生产超级后台：`https://timi.duckpte.com/super/`
-- 生产 API 健康检查：`https://timi.duckpte.com/api/health`
+- 生产域名：`https://timothy.run`。
+- 生产孩子端：`https://timothy.run/`
+- 生产家长管理平台：`https://timothy.run/parent/`
+- 生产超级后台：`https://timothy.run/super/`
+- 生产 API 健康检查：`https://timothy.run/api/health`
 - 代码发布和汉字媒体发布是两条独立流水线，不能混为一条。
 
 ### 9.2 新 Mac/首次本地启动
@@ -807,7 +807,7 @@ pnpm --filter @star-monsters/super-admin typecheck
 本机私有配置文件 `.deploy.env` 必须存在且被 Git 忽略。当前生产连接参数为：
 
 ```dotenv
-DEPLOY_HOST=124.156.187.215
+DEPLOY_HOST=43.136.134.234
 DEPLOY_USER=ubuntu
 DEPLOY_PORT=22
 DEPLOY_IDENTITY_FILE=/Users/qing/.ssh/star_monsters_deploy
@@ -822,7 +822,7 @@ DEPLOY_PATH=/opt/star-monsters
 ```bash
 ssh -o BatchMode=yes -o IdentitiesOnly=yes \
   -i /Users/qing/.ssh/star_monsters_deploy \
-  ubuntu@124.156.187.215 'echo SSH_READY'
+  ubuntu@43.136.134.234 'echo SSH_READY'
 ```
 
 如果出现 `Connection closed`，先关闭或绕过本机代理再试；如果出现
@@ -871,10 +871,10 @@ pnpm deploy:production
 发布后验证：
 
 ```bash
-curl -sS https://timi.duckpte.com/api/health
+curl -sS https://timothy.run/api/health
 
 ssh -i /Users/qing/.ssh/star_monsters_deploy \
-  ubuntu@124.156.187.215 \
+  ubuntu@43.136.134.234 \
   'cat /opt/star-monsters/.release-version; systemctl is-active star-monsters-api.service'
 ```
 
@@ -883,7 +883,7 @@ ssh -i /Users/qing/.ssh/star_monsters_deploy \
 生产故障排查：
 
 ```bash
-ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@124.156.187.215
+ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@43.136.134.234
 
 sudo systemctl status star-monsters-api.service --no-pager
 sudo journalctl -u star-monsters-api.service -n 100 --no-pager
@@ -930,10 +930,10 @@ pnpm hanzi:deploy-assets
 资源上传后，把 manifest 导入生产数据库：
 
 ```bash
-ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@124.156.187.215 \
+ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@43.136.134.234 \
   'cd /opt/star-monsters && corepack pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts \
   --manifest /opt/star-monsters/hanzi-assets/v1/manifest.json \
-  --public-base-url https://timi.duckpte.com/hanzi-assets/v1'
+  --public-base-url https://timothy.run/hanzi-assets/v1'
 ```
 
 成功结果应包含 `"entries": 698` 和 `"importedCount": 698`（全量不变时）。
@@ -943,7 +943,7 @@ ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@124.156.187.215 \
 ```bash
 pnpm hanzi:import -- \
   --manifest outputs/hanzi-assets/manifest.json \
-  --public-base-url https://timi.duckpte.com/hanzi-assets/v1
+  --public-base-url https://timothy.run/hanzi-assets/v1
 ```
 
 代码发布 `pnpm deploy:production` 不会上传、覆盖或删除汉字媒体；媒体上传

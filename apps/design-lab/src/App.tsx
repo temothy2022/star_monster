@@ -5,7 +5,6 @@ import type { PageIndexRoute } from "./PageIndex";
 import { useMascot } from "./mascots";
 import { ChildLoginPage } from "./auth/ChildLoginPage";
 import { ChildDataState } from "./components/ChildDataState";
-import { PoemLearningExperience } from "./poem/PoemLearningExperience";
 import {
   markChildNavigation,
   reportChildRouteRendered,
@@ -48,6 +47,11 @@ const OnboardingStep4 = lazy(() =>
 const TaskExperience = lazy(() =>
   import("./tasks/TaskListPages").then((module) => ({
     default: module.TaskExperience,
+  })),
+);
+const PoemLearningExperience = lazy(() =>
+  import("./poem/PoemLearningExperience").then((module) => ({
+    default: module.PoemLearningExperience,
   })),
 );
 const UntimedTaskActive = lazy(() =>

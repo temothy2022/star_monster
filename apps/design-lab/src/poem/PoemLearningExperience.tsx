@@ -10,7 +10,7 @@ import {
 } from "../api/child-api";
 import speakerIcon from "../assets/hanzi/sound-speaker.svg";
 import backIcon from "../assets/icon-arrow-left.svg";
-import defaultPoemImage from "../assets/poem/spring-dawn.png";
+import defaultPoemImage from "../assets/poem/spring-dawn.webp";
 import { ChildDataState } from "../components/ChildDataState";
 import { LoadingDots } from "../components/LoadingDots";
 import { HanziTaskControls } from "../hanzi/HanziTaskControls";
@@ -317,7 +317,11 @@ export function PoemLearningExperience({
             <span>{poem.dynasty}代 · {poem.author}</span>
           </div>
           <div className="poem-page__image-frame">
-            <img src={poem.imageUrl || defaultPoemImage} alt={`${poem.title}配图`} />
+            <img
+              src={poem.imageUrl || defaultPoemImage}
+              alt={`${poem.title}配图`}
+              decoding="async"
+            />
           </div>
         </div>
 

@@ -4,7 +4,7 @@ import type {
 } from "../api/child-api";
 
 const MAX_BACKGROUND_REQUESTS = 4;
-const MAX_AUDIO_CACHE_ENTRIES = 180;
+const MAX_AUDIO_CACHE_ENTRIES = 64;
 const audioCache = new Map<string, HTMLAudioElement>();
 const audioObjectUrls = new Map<string, string>();
 
@@ -105,7 +105,6 @@ function characterAudioUrls(character: HanziCharacter): string[] {
   return [
     character.characterAudioUrl,
     character.sentenceAudioUrl,
-    ...character.wordAudioUrls,
   ].filter(
     (url): url is string =>
       typeof url === "string" && url.trim().length > 0,
@@ -118,14 +117,13 @@ export function collectHanziSessionAssetUrls(
   const characterById = new Map(
     session.characters.map((character) => [character.id, character]),
   );
-  const reviewCharacterIds = [
-    session.reviewCharacterIds[session.reviewIndex],
-    ...session.reviewCharacterIds,
-  ].filter((id): id is string => Boolean(id));
-  const newCharacterIds = [
-    session.newCharacterIds[session.newIndex],
-    ...session.newCharacterIds,
-  ].filter((id): id is string => Boolean(id));
+  const nearbyIds = (ids: string[], index: number) =>
+    [ids[index], ids[index + 1]].filter((id): id is string => Boolean(id));
+  const reviewCharacterIds = nearbyIds(
+    session.reviewCharacterIds,
+    session.reviewIndex,
+  );
+  const newCharacterIds = nearbyIds(session.newCharacterIds, session.newIndex);
   const seenUrls = new Set<string>();
   const urls: string[] = [];
   const addUrl = (url?: string | null) => {
@@ -151,7 +149,10 @@ export function collectHanziSessionAssetUrls(
     if (!character) continue;
     for (const url of characterAudioUrls(character)) addUrl(url);
   }
-  for (const question of session.questions) {
+  for (const question of session.questions.slice(
+    session.questionIndex,
+    session.questionIndex + 2,
+  )) {
     addUrl(characterById.get(question.targetId)?.sentenceAudioUrl);
   }
 

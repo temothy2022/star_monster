@@ -18,7 +18,7 @@ const dryRun = Boolean(args["dry-run"]);
 const allowMissingMedia = Boolean(args["allow-missing-media"]);
 
 if (!manifestFile) {
-  console.error("Missing --manifest. Example: pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts --manifest outputs/hanzi-assets/manifest.json --public-base-url https://timi.duckpte.com/hanzi-assets/v1");
+  console.error("Missing --manifest. Example: pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts --manifest outputs/hanzi-assets/manifest.json --public-base-url https://timothy.run/hanzi-assets/v1");
   process.exit(1);
 }
 

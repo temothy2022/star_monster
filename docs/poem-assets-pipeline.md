@@ -7,7 +7,7 @@
 ```bash
 cd "/Users/qing/Documents/Codex/2026-07-22/ni"
 export MINIMAX_API_KEY="你的 MiniMax Key"
-export POEM_ASSET_PUBLIC_BASE_URL="https://timi.duckpte.com/poem-assets/v1"
+export POEM_ASSET_PUBLIC_BASE_URL="https://timothy.run/poem-assets/v1"
 ```
 
 建议先看计划，不会调用 MiniMax：
@@ -115,10 +115,10 @@ pnpm poem:import-assets -- \
 生产导入：
 
 ```bash
-ssh ubuntu@124.156.187.215 \
+ssh ubuntu@43.136.134.234 \
   'cd /opt/star-monsters && corepack pnpm --filter @star-monsters/api exec tsx prisma/import-poem-assets.ts \
   --manifest /opt/star-monsters/poem-assets/v1/manifest.json \
-  --public-base-url https://timi.duckpte.com/poem-assets/v1'
+  --public-base-url https://timothy.run/poem-assets/v1'
 ```
 
 导入后，孩子端古诗学习会优先使用 `Poem.imageUrl` 和 `Poem.audioUrl`；没有媒体的诗仍会回退到默认图和浏览器朗读。

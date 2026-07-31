@@ -1473,7 +1473,11 @@ function HanziLearning({ child }: { child: Child }) {
               <div className="hanzi-media-row hanzi-media-row--image">
                 <div className="hanzi-media-preview">
                   {characterForm.imageKey !== "default-hanzi" ? (
-                    <img src={characterForm.imageKey} alt={`${characterForm.character || "汉字"}配图`} />
+                    <img
+                      src={characterForm.imageKey}
+                      alt={`${characterForm.character || "汉字"}配图`}
+                      decoding="async"
+                    />
                   ) : (
                     <strong>{characterForm.character || "字"}</strong>
                   )}
@@ -1959,6 +1963,7 @@ function PoemLearning({ child }: { child: Child }) {
                           src={poem.imageUrl}
                           alt={`《${poem.title}》配图`}
                           loading="lazy"
+                          decoding="async"
                         />
                       ) : (
                         <div className="poem-media-placeholder">暂无配图</div>

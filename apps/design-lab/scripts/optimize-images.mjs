@@ -4,7 +4,7 @@ import sharp from "sharp";
 
 const root = path.resolve("src/assets");
 const checkOnly = process.argv.includes("--check");
-const rasterExtensions = new Set([".png", ".jpg", ".jpeg"]);
+const rasterExtensions = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 const MAX_SINGLE_FILE_BYTES = 1_500_000;
 const MAX_TOTAL_RASTER_BYTES = 24_000_000;
 
@@ -40,7 +40,7 @@ async function optimize(file) {
     limit !== null &&
     Math.max(metadata.width ?? 0, metadata.height ?? 0) > limit;
 
-  if (checkOnly || (extension !== ".png" && !shouldResize)) {
+  if (checkOnly) {
     return {
       relative,
       before: before.size,
@@ -67,6 +67,12 @@ async function optimize(file) {
       compressionLevel: 9,
       adaptiveFiltering: true,
       effort: 10,
+    });
+  } else if (extension === ".webp") {
+    pipeline = pipeline.webp({
+      quality: 82,
+      effort: 6,
+      smartSubsample: true,
     });
   } else {
     pipeline = pipeline.jpeg({

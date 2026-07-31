@@ -18,7 +18,7 @@ import racerYaya from "../assets/timed-task/racer-3.jpeg";
 import racerBobo from "../assets/timed-task/timeout-extra.jpeg";
 import { useMascot } from "../mascots";
 import moreIcon from "../assets/untimed-task/more.svg";
-import { AbandonDialog, MoreMenu, type UntimedOverlay } from "./UntimedTaskPages";
+import { AbandonDialog, MoreMenu, type UntimedOverlay } from "./TaskOverlays";
 import {
   playCompletionSound,
   prepareCompletionSound,

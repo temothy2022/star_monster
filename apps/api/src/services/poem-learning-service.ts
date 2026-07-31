@@ -54,7 +54,20 @@ async function requireOwnedSession(childId: string, sessionId: string) {
 
 async function serializeSession(session: PoemLearningSession) {
   const poems = session.poemIds.length
-    ? await prisma.poem.findMany({ where: { id: { in: session.poemIds } } })
+    ? await prisma.poem.findMany({
+        where: { id: { in: session.poemIds } },
+        select: {
+          id: true,
+          title: true,
+          dynasty: true,
+          author: true,
+          grade: true,
+          semester: true,
+          content: true,
+          imageUrl: true,
+          audioUrl: true,
+        },
+      })
     : [];
   const byId = new Map(poems.map((poem) => [poem.id, poem]));
 
@@ -114,7 +127,13 @@ export async function startPoemSession(
         nextReviewDate: { lte: today },
         poem: { isEnabled: true },
       },
-      include: { poem: true },
+      select: {
+        id: true,
+        poemId: true,
+        reviewStage: true,
+        learnedDate: true,
+        poem: { select: { grade: true, sortOrder: true } },
+      },
       orderBy: [{ nextReviewDate: "asc" }, { createdAt: "asc" }],
     });
     due.sort(

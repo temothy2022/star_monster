@@ -18,7 +18,7 @@ const dryRun = Boolean(args["dry-run"]);
 const allowMissingMedia = Boolean(args["allow-missing-media"]);
 
 if (!manifestFile) {
-  console.error("Missing --manifest. Example: pnpm poem:import-assets -- --manifest outputs/poem-assets/manifest.json --public-base-url https://timi.duckpte.com/poem-assets/v1");
+  console.error("Missing --manifest. Example: pnpm poem:import-assets -- --manifest outputs/poem-assets/manifest.json --public-base-url https://timothy.run/poem-assets/v1");
   process.exit(1);
 }
 

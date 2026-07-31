@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import backIcon from "../assets/icon-arrow-left.svg";
 import speakerIcon from "../assets/hanzi/sound-speaker.svg";
-import poemImage from "../assets/poem/spring-dawn.png";
+import poemImage from "../assets/poem/spring-dawn.webp";
 
 type Navigate = (route: "pages") => void;
 
@@ -51,7 +51,7 @@ export function PoemRecitationPage({ onNavigate }: { onNavigate: Navigate }) {
             <span>唐代 · 孟浩然</span>
           </div>
           <div className="poem-page__image-frame">
-            <img src={poemImage} alt="春晓插画" />
+            <img src={poemImage} alt="春晓插画" decoding="async" />
           </div>
         </div>
 

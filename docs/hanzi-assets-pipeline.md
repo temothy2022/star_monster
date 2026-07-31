@@ -42,7 +42,7 @@ pnpm hanzi:generate -- \
 ```bash
 cd "/Users/qing/Documents/Codex/2026-07-22/ni"
 export MINIMAX_API_KEY="你的 MiniMax 密钥"
-export HANZI_ASSET_PUBLIC_BASE_URL="https://timi.duckpte.com/hanzi-assets/v1"
+export HANZI_ASSET_PUBLIC_BASE_URL="https://timothy.run/hanzi-assets/v1"
 
 pnpm hanzi:generate -- \
   --input work/hanzi-assets-input.json \
@@ -150,7 +150,7 @@ with palette compression when useful. To test only a small batch, add
 ## 4. Configure Nginx once
 
 On the server, add this `location` inside the existing `server { ... }` block
-for `timi.duckpte.com`:
+for `timothy.run`:
 
 ```nginx
 location ^~ /hanzi-assets/ {
@@ -199,15 +199,15 @@ Local database:
 cd "/Users/qing/Documents/Codex/2026-07-22/ni"
 pnpm hanzi:import -- \
   --manifest outputs/hanzi-assets/manifest.json \
-  --public-base-url https://timi.duckpte.com/hanzi-assets/v1
+  --public-base-url https://timothy.run/hanzi-assets/v1
 ```
 
 Production database, after `pnpm deploy:production` has uploaded the importer:
 
 ```bash
-ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@124.156.187.215
+ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@43.136.134.234
 cd /opt/star-monsters
 corepack pnpm --filter @star-monsters/api exec tsx prisma/import-hanzi-assets.ts \
   --manifest /opt/star-monsters/hanzi-assets/v1/manifest.json \
-  --public-base-url https://timi.duckpte.com/hanzi-assets/v1
+  --public-base-url https://timothy.run/hanzi-assets/v1
 ```

@@ -553,6 +553,7 @@ export function Footprints({
                   : mascot.images.neutral
               }
               alt={`星宠${mascot.name}`}
+              decoding="async"
             />
             <div
               className="footprints-speech"

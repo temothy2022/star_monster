@@ -95,7 +95,7 @@ pnpm deploy:production
 
 首次配置：
 
-1. 在本机复制 `.deploy.env.example` 为 `.deploy.env`，填写服务器公网 IP（或 `timi.duckpte.com`）、SSH 用户和服务器项目目录；不要填写密码。
+1. 在本机复制 `.deploy.env.example` 为 `.deploy.env`，填写服务器公网 IP（或 `timothy.run`）、SSH 用户和服务器项目目录；不要填写密码。
 2. 用 SSH 密钥登录服务器。若还没有密钥，可执行 `ssh-keygen -t ed25519`，再执行 `ssh-copy-id ubuntu@你的服务器IP`；腾讯云默认用户通常为 `ubuntu`。
 3. 在服务器执行一次以下命令，填写现有 Nginx 的三个静态目录（和首次部署时的目录保持一致）：
 

@@ -133,9 +133,9 @@ async function eligibleTaskTemplates(
 export async function generateDailyTasks(
   childId: string,
   businessDate: Date,
-): Promise<void> {
+): Promise<TaskTemplate[]> {
   const due = await eligibleTaskTemplates(childId, businessDate);
-  if (due.length === 0) return;
+  if (due.length === 0) return due;
 
   await prisma.dailyTask.createMany({
     skipDuplicates: true,
@@ -158,6 +158,7 @@ export async function generateDailyTasks(
       repeatableDailySnapshot: template.repeatableDaily,
     })),
   });
+  return due;
 }
 
 /**
@@ -170,14 +171,12 @@ async function reconcileTodayTaskSnapshots(
   childId: string,
   today: Date,
   now: Date,
+  dueTemplates: TaskTemplate[],
 ): Promise<void> {
-  const [dailyTasks, dueTemplates] = await Promise.all([
-    prisma.dailyTask.findMany({
-      where: { childId, taskDate: today, status: "PENDING" },
-      select: { id: true, templateId: true },
-    }),
-    eligibleTaskTemplates(childId, today),
-  ]);
+  const dailyTasks = await prisma.dailyTask.findMany({
+    where: { childId, taskDate: today, status: "PENDING" },
+    select: { id: true, templateId: true },
+  });
 
   if (dailyTasks.length === 0) return;
 
@@ -242,8 +241,8 @@ export async function prepareDailyTasks(
 ): Promise<{ timedOutAttemptId: string | null }> {
   const today = businessDateAt(now, config.APP_TIME_ZONE);
   await settlePreviousDay(childId, today, now);
-  await generateDailyTasks(childId, today);
-  await reconcileTodayTaskSnapshots(childId, today, now);
+  const dueTemplates = await generateDailyTasks(childId, today);
+  await reconcileTodayTaskSnapshots(childId, today, now, dueTemplates);
   const timedOutAttempt = await settleTimedOutAttempt(childId, now);
   return { timedOutAttemptId: timedOutAttempt?.id ?? null };
 }
@@ -260,15 +259,51 @@ export async function getTodayTaskExperience(
   const streakLookback = new Date(today);
   streakLookback.setUTCDate(streakLookback.getUTCDate() - 400);
 
-  const [child, tasks, activeSlot, scoredDays, dailyGoalBonus] = await Promise.all([
-    prisma.childProfile.findUniqueOrThrow({ where: { id: childId } }),
+  const [child, tasks, activeSlot, scoredDays, dailyGoalBonus, completedStars] = await Promise.all([
+    prisma.childProfile.findUniqueOrThrow({
+      where: { id: childId },
+      select: { dailyStarGoal: true, starBalance: true },
+    }),
     prisma.dailyTask.findMany({
       where: { childId, taskDate: today, status: { not: "EXPIRED" } },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      include: {
+      select: {
+        id: true,
+        childId: true,
+        templateId: true,
+        taskDate: true,
+        status: true,
+        sortOrder: true,
+        titleSnapshot: true,
+        categorySnapshot: true,
+        iconKeySnapshot: true,
+        modeSnapshot: true,
+        experienceKindSnapshot: true,
+        suggestedSecondsSnapshot: true,
+        timeLimitSecondsSnapshot: true,
+        baseStarsSnapshot: true,
+        earlyBonusEnabledSnapshot: true,
+        earlyThresholdSecsSnapshot: true,
+        earlyBonusStarsSnapshot: true,
+        repeatableDailySnapshot: true,
+        completedAt: true,
+        completionDurationSeconds: true,
+        expiredAt: true,
+        createdAt: true,
+        updatedAt: true,
         attempts: {
           where: { status: "COMPLETED" },
           orderBy: { endedAt: "desc" },
+          take: 1,
+          select: {
+            baseStarsAwarded: true,
+            bonusStarsAwarded: true,
+          },
+        },
+        _count: {
+          select: {
+            attempts: { where: { status: "COMPLETED" } },
+          },
         },
       },
     }),
@@ -297,19 +332,25 @@ export async function getTodayTaskExperience(
       where: { idempotencyKey: `daily-goal:${childId}:${todayKey}` },
       select: { amount: true },
     }),
+    prisma.taskAttempt.aggregate({
+      where: {
+        childId,
+        status: "COMPLETED",
+        dailyTask: { taskDate: today },
+      },
+      _sum: { baseStarsAwarded: true, bonusStarsAwarded: true },
+    }),
   ]);
 
-  const taskStarsEarnedToday = tasks.reduce((sum, task) => {
-    return sum + task.attempts.reduce(
-      (attemptSum, completedAttempt) =>
-        attemptSum +
-        completedAttempt.baseStarsAwarded +
-        completedAttempt.bonusStarsAwarded,
-      0,
-    );
-  }, 0);
+  const taskStarsEarnedToday =
+    (completedStars._sum.baseStarsAwarded ?? 0) +
+    (completedStars._sum.bonusStarsAwarded ?? 0);
   const dailyGoalBonusStars = dailyGoalBonus?.amount ?? 0;
   const earnedToday = taskStarsEarnedToday + dailyGoalBonusStars;
+  const serializedTasks = tasks.map(({ _count, ...task }) => ({
+    ...task,
+    completedAttemptCount: _count.attempts,
+  }));
 
   const activeAttempt = activeSlot?.attempt;
   const activeRemaining =
@@ -331,7 +372,7 @@ export async function getTodayTaskExperience(
     ),
     dailyStarGoal: child.dailyStarGoal,
     starBalance: child.starBalance,
-    tasks,
+    tasks: serializedTasks,
     active: activeAttempt
       ? {
           ...activeAttempt,

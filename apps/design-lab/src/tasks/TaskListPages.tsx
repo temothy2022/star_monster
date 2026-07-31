@@ -370,7 +370,7 @@ function taskItemFromApi(task: DailyTask): TaskItem {
     mode: task.modeSnapshot,
     repeatableDaily: task.repeatableDailySnapshot,
     repeatCompletionCount: task.repeatableDailySnapshot
-      ? (task.attempts?.length ?? 0)
+      ? (task.completedAttemptCount ?? 0)
       : 0,
   };
 }
@@ -473,7 +473,7 @@ export function TaskExperience({
         }
       }
     },
-    { enabled: Boolean(experience) },
+    { enabled: Boolean(experience), intervalMs: 10_000 },
   );
 
   useEffect(() => {

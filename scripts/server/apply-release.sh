@@ -19,6 +19,7 @@ source "$SERVER_CONFIG"
 API_SERVICE="${API_SERVICE:-star-monsters-api.service}"
 HANZI_UPLOAD_DIR="${HANZI_UPLOAD_DIR:-/opt/star-monsters/hanzi-assets/v1/uploads}"
 POEM_UPLOAD_DIR="${POEM_UPLOAD_DIR:-/opt/star-monsters/poem-assets/v1/uploads}"
+NGINX_PERFORMANCE_CONF="${NGINX_PERFORMANCE_CONF:-/etc/nginx/conf.d/star-monsters-performance.conf}"
 
 cd "$PROJECT_ROOT"
 
@@ -71,5 +72,14 @@ sync_static() {
 sync_static "apps/design-lab/dist" "$CHILD_WEB_ROOT"
 sync_static "apps/parent-admin/dist" "$PARENT_WEB_ROOT"
 sync_static "apps/super-admin/dist" "$SUPER_WEB_ROOT"
+
+# Keep compression, immutable asset caching, and proxy timeouts aligned with
+# the release instead of relying on a one-time manual server change.
+if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.conf ]]; then
+  sudo install -m 644 scripts/server/nginx-performance.conf "$NGINX_PERFORMANCE_CONF"
+  sudo nginx -t
+  sudo systemctl reload nginx
+fi
+
 sudo systemctl restart "$API_SERVICE"
 sudo systemctl is-active --quiet "$API_SERVICE"
