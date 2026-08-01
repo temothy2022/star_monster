@@ -325,9 +325,37 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
 
 function Overview({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [stats, setStats] = useState<Awaited<ReturnType<typeof parentApi.stats>> | null>(null);
+  const [learningOverview, setLearningOverview] = useState<{
+    hanzi: Awaited<ReturnType<typeof parentApi.hanziSettings>>;
+    clock: Awaited<ReturnType<typeof parentApi.clockSettings>>;
+    poems: Awaited<ReturnType<typeof parentApi.poemSettings>>;
+  } | null>(null);
+  const [learningError, setLearningError] = useState("");
+  const [learningRefreshKey, setLearningRefreshKey] = useState(0);
   useEffect(() => {
     void parentApi.stats(child.id).then(setStats).catch(() => setStats(null));
   }, [child.id]);
+  useEffect(() => {
+    let cancelled = false;
+    setLearningOverview(null);
+    setLearningError("");
+    void Promise.all([
+      parentApi.hanziSettings(child.id),
+      parentApi.clockSettings(child.id),
+      parentApi.poemSettings(child.id),
+    ])
+      .then(([hanzi, clock, poems]) => {
+        if (!cancelled) setLearningOverview({ hanzi, clock, poems });
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setLearningError(reason instanceof Error ? reason.message : "学习状态读取失败");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [child.id, learningRefreshKey]);
 
   const completed = stats?.taskInstances.completed ?? 0;
   const expired = stats?.tasks.EXPIRED ?? 0;
@@ -335,6 +363,11 @@ function Overview({ child, onChanged }: { child: Child; onChanged: () => void })
   const completionRate = total ? Math.round((completed / total) * 100) : 0;
   const timeout = stats?.attempts.find((item) => item.status === "TIMED_OUT")?.count ?? 0;
   const abandoned = stats?.attempts.find((item) => item.status === "ABANDONED")?.count ?? 0;
+  const handleChildChanged = () => {
+    onChanged();
+    setLearningRefreshKey((value) => value + 1);
+  };
+  const percent = (value: number | null) => value === null ? "—" : `${Math.round(value * 100)}%`;
 
   return (
     <div className="admin-stack">
@@ -352,7 +385,36 @@ function Overview({ child, onChanged }: { child: Child; onChanged: () => void })
           <div><span>主动放弃</span><strong>{abandoned}</strong></div>
         </div>
       </Panel>
-      <ChildProfileSettings child={child} onChanged={onChanged} />
+      <Panel title="学习状态概览">
+        {learningOverview ? (
+          <div className="learning-overview-grid">
+            <article className="learning-overview-card">
+              <div className="learning-overview-card__header"><strong>汉字学习</strong><span>当前字库 {learningOverview.hanzi.characterCount} 字</span></div>
+              <div className="learning-overview-card__metrics">
+                <div><span>学习中</span><strong>{learningOverview.hanzi.progress.LEARNING ?? 0}</strong><small>个汉字</small></div>
+                <div><span>已掌握</span><strong>{learningOverview.hanzi.progress.MASTERED ?? 0}</strong><small>个汉字</small></div>
+              </div>
+            </article>
+            <article className="learning-overview-card">
+              <div className="learning-overview-card__header"><strong>古诗学习</strong><span>{learningOverview.poems.settings.enabled ? "任务已开启" : "任务未开启"}</span></div>
+              <div className="learning-overview-card__metrics">
+                <div><span>学习中</span><strong>{learningOverview.poems.progress.LEARNING ?? 0}</strong><small>首古诗</small></div>
+                <div><span>已掌握</span><strong>{learningOverview.poems.progress.MASTERED ?? 0}</strong><small>首古诗</small></div>
+                <div><span>待复习</span><strong>{learningOverview.poems.dueCount}</strong><small>首古诗</small></div>
+              </div>
+            </article>
+            <article className="learning-overview-card">
+              <div className="learning-overview-card__header"><strong>时钟学习</strong><span>{learningOverview.clock.stats.mastery.label}</span></div>
+              <div className="learning-overview-card__metrics">
+                <div><span>总体正确率</span><strong>{percent(learningOverview.clock.stats.accuracy)}</strong><small>{learningOverview.clock.stats.totalQuestions} 道题</small></div>
+                <div><span>近 30 天</span><strong>{percent(learningOverview.clock.stats.recentAccuracy)}</strong><small>近期正确率</small></div>
+                <div><span>完整练习</span><strong>{learningOverview.clock.stats.completedSessions}</strong><small>次任务</small></div>
+              </div>
+            </article>
+          </div>
+        ) : <div className="empty-state">{learningError || "正在读取学习状态…"}</div>}
+      </Panel>
+      <ChildProfileSettings child={child} onChanged={handleChildChanged} />
     </div>
   );
 }
@@ -1270,13 +1332,6 @@ function HanziLearning({ child }: { child: Child }) {
             </form>
           )}
         </Panel>
-        <Panel title="学习概览">
-          <div className="metric-grid">
-            <article><span>学习中</span><strong>{progress.LEARNING ?? 0}</strong><small>个汉字</small></article>
-            <article><span>已掌握</span><strong>{progress.MASTERED ?? 0}</strong><small>个汉字</small></article>
-            <article><span>当前字库</span><strong>{characterCount}</strong><small>个汉字</small></article>
-          </div>
-        </Panel>
       </div>
       <div className="admin-two-column hanzi-library-layout">
         <Panel title={editingCharacterId ? "编辑汉字" : "新增汉字"}>
@@ -1738,13 +1793,6 @@ function PoemLearning({ child }: { child: Child }) {
         {message ? <Notice>{message}</Notice> : null}
         {error ? <Notice kind="error">{error}</Notice> : null}
       </Panel>
-
-      <div className="metric-grid">
-        <article><span>古诗总数</span><strong>{poemCount}</strong><small>按年级顺序学习</small></article>
-        <article><span>学习中</span><strong>{progress.LEARNING ?? 0}</strong><small>首古诗</small></article>
-        <article><span>已掌握</span><strong>{progress.MASTERED ?? 0}</strong><small>完成 6 次复习</small></article>
-        <article><span>当前到期</span><strong>{dueCount}</strong><small>首待复习</small></article>
-      </div>
 
       <Panel title={`古诗库（${poems.length} 首）`}>
         <form className="poem-library-toolbar" onSubmit={search}>

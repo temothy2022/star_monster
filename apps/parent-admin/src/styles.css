@@ -190,6 +190,15 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .metric-grid article:nth-child(2) strong { color: #3e9f8d; }
 .metric-grid article:nth-child(3) strong { color: #f06d3d; }
 .metric-grid small, .muted { color: #8b94a4; }
+.learning-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.learning-overview-card { min-width: 0; padding: 18px; border: 1px solid #e0e5eb; border-radius: 14px; background: #f8fafc; }
+.learning-overview-card__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.learning-overview-card__header strong { font-size: 18px; }
+.learning-overview-card__header span { color: #7d8796; font-size: 12px; white-space: nowrap; }
+.learning-overview-card__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.learning-overview-card__metrics div { min-width: 0; }
+.learning-overview-card__metrics span, .learning-overview-card__metrics small { display: block; color: #7d8796; font-size: 12px; }
+.learning-overview-card__metrics strong { display: block; margin: 5px 0 2px; color: #34495e; font-size: 25px; font-variant-numeric: tabular-nums; }
 .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .summary-row div { padding: 16px; border-radius: 13px; background: #f7f8fa; }
 .summary-row span { display: block; color: #7b8597; font-size: 13px; }
@@ -1259,6 +1268,7 @@ td { font-size: 13px; }
     grid-template-columns: minmax(120px, 1fr) auto auto;
   }
   .poem-weekday-picker { grid-template-columns: repeat(4, minmax(58px, 1fr)); }
+  .learning-overview-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 580px) {
@@ -1272,6 +1282,7 @@ td { font-size: 13px; }
   .admin-topbar h1 { font-size: 21px; }
   .mobile-menu-button { margin-right: 9px; }
   .metric-grid, .detail-list, .admin-form, .wish-admin-grid { grid-template-columns: 1fr; }
+  .learning-overview-card__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .clock-settings-choice { grid-template-columns: 1fr; }
   .clock-mastery { align-items: flex-start; flex-direction: column; }
   .device-card { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; padding: 13px; }

@@ -86,9 +86,9 @@ body:has(.clock-learning-page),
   touch-action: none;
 }
 .clock-hand:disabled { opacity: 1; cursor: default; }
-.clock-hand span { display: block; width: 8px; height: 100%; margin: 0 auto; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
-.clock-hand--minute span { width: 6px; background: #2688a3; }
-.clock-hand--second span { width: 3px; background: #ef5c52; box-shadow: none; }
+.clock-hand span { display: block; width: 8px; height: 60%; margin: 40% auto 0; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
+.clock-hand--minute span { width: 6px; height: 78%; margin-top: 22%; background: #2688a3; }
+.clock-hand--second span { width: 3px; height: 88%; margin-top: 12%; background: #ef5c52; box-shadow: none; }
 .clock-face--compact .clock-hand { width: 28px; left: calc(50% - 14px); }
 .clock-face--compact .clock-hand span { width: 5px; }
 .clock-face--compact .clock-hand--minute span { width: 4px; }
