@@ -6,6 +6,9 @@ import {
   loginStaff,
   logoutChild,
   logoutStaff,
+  logoutPortal,
+  requireAdmin,
+  requireParent,
   requireChild,
   requireStaff,
 } from "../services/auth-service.js";
@@ -95,6 +98,28 @@ export async function registerAuthRoutes(
     };
   });
 
+  app.post("/api/parent/auth/login", async (request, reply) => {
+    enforceRateLimit({
+      key: `parent-login:${request.ip}`,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    const input = staffLoginSchema.parse(request.body);
+    const user = await loginStaff(input.username, input.password, request, reply, config, "parent");
+    return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
+  });
+
+  app.post("/api/admin/auth/login", async (request, reply) => {
+    enforceRateLimit({
+      key: `admin-login:${request.ip}`,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    const input = staffLoginSchema.parse(request.body);
+    const user = await loginStaff(input.username, input.password, request, reply, config, "admin");
+    return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
+  });
+
   app.post("/api/staff/auth/logout", async (request, reply) => {
     await logoutStaff(request, reply);
     return { ok: true };
@@ -111,5 +136,25 @@ export async function registerAuthRoutes(
         familyId: user.familyId,
       },
     };
+  });
+
+  app.post("/api/parent/auth/logout", async (request, reply) => {
+    await logoutPortal(request, reply, "parent");
+    return { ok: true };
+  });
+
+  app.post("/api/admin/auth/logout", async (request, reply) => {
+    await logoutPortal(request, reply, "admin");
+    return { ok: true };
+  });
+
+  app.get("/api/parent/me", async (request, reply) => {
+    const { user } = await requireParent(request, reply, config);
+    return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
+  });
+
+  app.get("/api/admin/me", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
   });
 }

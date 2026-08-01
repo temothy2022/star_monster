@@ -1,5 +1,4 @@
 import { PlanetKey, Prisma } from "@prisma/client";
-import { unlink } from "node:fs/promises";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -7,7 +6,7 @@ import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
 import { isScheduledForDate } from "../domain/task-rules.js";
-import { requireStaff } from "../services/auth-service.js";
+import { requireParent } from "../services/auth-service.js";
 import {
   abandonTask,
   generateDailyTasks,
@@ -21,10 +20,6 @@ import {
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
 import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
-import {
-  HANZI_MEDIA_BODY_LIMIT,
-  storeHanziMedia,
-} from "../services/hanzi-media-service.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
@@ -96,32 +91,6 @@ const hanziSettingsSchema = z.object({
   reviewDailyLimit: z.number().int().min(1).max(50),
   consolidationQuestionCount: z.number().int().min(1).max(10),
 });
-const hanziCharacterShape = {
-  character: z.string().trim().min(1).max(2),
-  internalPinyin: z.string().trim().min(1).max(50),
-  meaning: z.string().trim().min(1).max(120),
-  shapeHint: z.string().trim().min(1).max(240),
-  sentence: z.string().trim().min(3).max(300),
-  words: z.array(z.string().trim().min(1).max(30)).min(1).max(10),
-  wordAudioUrls: z.array(z.string().trim().max(2048)).max(10).default([]),
-  imageKey: z.string().trim().min(1).max(2048).default("default-hanzi"),
-  characterAudioUrl: z.string().trim().max(2048).nullable().optional(),
-  sentenceAudioUrl: z.string().trim().max(2048).nullable().optional(),
-  sortOrder: z.number().int().min(0).max(1_000_000).default(0),
-  isEnabled: z.boolean().default(true),
-};
-const hanziCharacterSchema = z
-  .object(hanziCharacterShape)
-  .superRefine((input, context) => {
-    if (!input.sentence.includes("__")) {
-      context.addIssue({
-        code: "custom",
-        path: ["sentence"],
-        message: "例句必须用 __ 标记汉字所在的位置",
-      });
-    }
-  });
-const hanziCharacterPatchSchema = z.object(hanziCharacterShape).partial();
 const hanziLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
   page: z.coerce.number().int().min(1).default(1),
@@ -352,17 +321,6 @@ const childResourceParams = z.object({
   childId: z.string().min(1),
   id: z.string().min(1),
 });
-const hanziMediaParams = childResourceParams.extend({
-  kind: z.enum([
-    "image",
-    "character-audio",
-    "sentence-audio",
-    "word-audio",
-  ]),
-});
-const hanziMediaQuery = z.object({
-  wordIndex: z.coerce.number().int().min(0).max(9).optional(),
-});
 const statsQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -377,7 +335,7 @@ async function requireOwnedChild(
   config: AppConfig,
   childId: string,
 ) {
-  const { user } = await requireStaff(request, reply, config, ["PARENT"]);
+  const { user } = await requireParent(request, reply, config);
   const child = await prisma.childProfile.findFirst({
     where: { id: childId, familyId: user.familyId ?? "__none__" },
   });
@@ -523,7 +481,7 @@ export async function registerParentRoutes(
   config: AppConfig,
 ): Promise<void> {
   app.get("/api/parent/children", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["PARENT"]);
+  const { user } = await requireParent(request, reply, config);
     return {
       children: await prisma.childProfile.findMany({
         where: { familyId: user.familyId ?? "__none__" },
@@ -943,189 +901,6 @@ export async function registerParentRoutes(
         prisma.hanziCharacter.count({ where }),
       ]);
       return { characters, total, page, pageSize };
-    },
-  );
-
-  app.post(
-    "/api/parent/children/:id/hanzi/characters",
-    async (request, reply) => {
-      const { id } = idParams.parse(request.params);
-      await requireOwnedChild(request, reply, config, id);
-      const input = hanziCharacterSchema.parse(request.body);
-      try {
-        const character = await prisma.hanziCharacter.create({
-          data: {
-            ...input,
-            wordAudioUrls: input.words.map(
-              (_, index) => input.wordAudioUrls[index] || "",
-            ),
-            characterAudioUrl: input.characterAudioUrl || null,
-            sentenceAudioUrl: input.sentenceAudioUrl || null,
-          },
-        });
-        reply.status(201);
-        return { character };
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
-          throw new HttpError(409, "HANZI_ALREADY_EXISTS", "这个汉字已经在基础字库中");
-        }
-        throw error;
-      }
-    },
-  );
-
-  app.patch(
-    "/api/parent/children/:childId/hanzi/characters/:id",
-    async (request, reply) => {
-      const { childId, id } = childResourceParams.parse(request.params);
-      await requireOwnedChild(request, reply, config, childId);
-      const patch = hanziCharacterPatchSchema.parse(request.body);
-      const existing = await prisma.hanziCharacter.findUnique({ where: { id } });
-      if (!existing || !existing.isEnabled) {
-        throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
-      }
-      const input = hanziCharacterSchema.parse({ ...existing, ...patch });
-      try {
-        const character = await prisma.hanziCharacter.update({
-          where: { id },
-          data: {
-            ...input,
-            wordAudioUrls: input.words.map(
-              (_, index) => input.wordAudioUrls[index] || "",
-            ),
-            characterAudioUrl: input.characterAudioUrl || null,
-            sentenceAudioUrl: input.sentenceAudioUrl || null,
-          },
-        });
-        return { character };
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
-          throw new HttpError(409, "HANZI_ALREADY_EXISTS", "这个汉字已经在基础字库中");
-        }
-        throw error;
-      }
-    },
-  );
-
-  app.put(
-    "/api/parent/children/:childId/hanzi/characters/:id/media/:kind",
-    { bodyLimit: HANZI_MEDIA_BODY_LIMIT },
-    async (request, reply) => {
-      const { childId, id, kind } = hanziMediaParams.parse(request.params);
-      const { wordIndex } = hanziMediaQuery.parse(request.query);
-      const { user, child } = await requireOwnedChild(
-        request,
-        reply,
-        config,
-        childId,
-      );
-      const existing = await prisma.hanziCharacter.findUnique({ where: { id } });
-      if (!existing || !existing.isEnabled) {
-        throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
-      }
-      if (
-        kind === "word-audio" &&
-        (wordIndex === undefined || wordIndex >= existing.words.length)
-      ) {
-        throw new HttpError(
-          400,
-          "HANZI_WORD_INDEX_INVALID",
-          "没有找到要替换读音的词语",
-        );
-      }
-      if (!Buffer.isBuffer(request.body)) {
-        throw new HttpError(
-          400,
-          "HANZI_MEDIA_INVALID_BODY",
-          "请选择要上传的媒体文件",
-        );
-      }
-
-      const stored = await storeHanziMedia({
-        uploadDir: config.HANZI_ASSET_UPLOAD_DIR,
-        characterId: existing.id,
-        kind,
-        wordIndex,
-        contentType: request.headers["content-type"] ?? "",
-        data: request.body,
-      });
-
-      try {
-        const character = await prisma.$transaction(async (tx) => {
-          const data: Prisma.HanziCharacterUpdateInput =
-            kind === "image"
-              ? { imageKey: stored.publicUrl }
-              : kind === "character-audio"
-                ? { characterAudioUrl: stored.publicUrl }
-                : kind === "sentence-audio"
-                  ? { sentenceAudioUrl: stored.publicUrl }
-                  : {
-                      wordAudioUrls: existing.words.map((_, index) =>
-                        index === wordIndex
-                          ? stored.publicUrl
-                          : existing.wordAudioUrls[index] || "",
-                      ),
-                    };
-          const updated = await tx.hanziCharacter.update({
-            where: { id },
-            data,
-          });
-          await writeAudit(tx, {
-            actorType: "USER",
-            actorId: user.id,
-            familyId: child.familyId,
-            action: "HANZI_MEDIA_REPLACED",
-            resourceType: "HanziCharacter",
-            resourceId: id,
-            metadata: {
-              character: existing.character,
-              kind,
-              wordIndex: wordIndex ?? null,
-              fileName: stored.fileName,
-            },
-            ipAddress: request.ip,
-          });
-          return updated;
-        });
-        return { character };
-      } catch (error) {
-        if (stored.created) {
-          await unlink(stored.filePath).catch(() => undefined);
-        }
-        throw error;
-      }
-    },
-  );
-
-  app.delete(
-    "/api/parent/children/:childId/hanzi/characters/:id",
-    async (request, reply) => {
-      const { childId, id } = childResourceParams.parse(request.params);
-      await requireOwnedChild(request, reply, config, childId);
-      const enabledCount = await prisma.hanziCharacter.count({
-        where: { isEnabled: true },
-      });
-      if (enabledCount <= 3) {
-        throw new HttpError(
-          409,
-          "HANZI_LIBRARY_MINIMUM",
-          "基础字库至少需要保留 3 个汉字，才能生成听句挑战选项",
-        );
-      }
-      const result = await prisma.hanziCharacter.updateMany({
-        where: { id, isEnabled: true },
-        data: { isEnabled: false },
-      });
-      if (!result.count) {
-        throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
-      }
-      return { ok: true };
     },
   );
 

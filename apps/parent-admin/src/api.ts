@@ -362,7 +362,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const isJson = response.headers.get("content-type")?.includes("application/json");
   if (!response.ok) {
     const body = isJson ? await response.json().catch(() => ({})) : {};
-    if (response.status === 401 && path !== "/api/staff/auth/login") {
+    if (response.status === 401 && path !== "/api/parent/auth/login") {
       window.dispatchEvent(new Event(PARENT_SESSION_EXPIRED_EVENT));
     }
     throw new ApiError(
@@ -378,13 +378,13 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const staffApi = {
-  me: () => api<{ user: StaffUser }>("/api/staff/me"),
+  me: () => api<{ user: StaffUser }>("/api/parent/me"),
   login: (username: string, password: string) =>
-    api<{ user: StaffUser }>("/api/staff/auth/login", {
+    api<{ user: StaffUser }>("/api/parent/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
-  logout: () => api<{ ok: true }>("/api/staff/auth/logout", { method: "POST" }),
+  logout: () => api<{ ok: true }>("/api/parent/auth/logout", { method: "POST" }),
 };
 
 export const parentApi = {

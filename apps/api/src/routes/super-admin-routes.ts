@@ -11,7 +11,7 @@ import {
   createFamilyWithParent,
   regenerateChildLoginCode,
 } from "../services/account-service.js";
-import { requireStaff } from "../services/auth-service.js";
+import { requireAdmin } from "../services/auth-service.js";
 import { writeAudit } from "../services/audit-service.js";
 
 const familySchema = z.object({
@@ -68,7 +68,7 @@ export async function registerSuperAdminRoutes(
   config: AppConfig,
 ): Promise<void> {
   app.get("/api/admin/families", async (request, reply) => {
-    await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    await requireAdmin(request, reply, config);
     return {
       families: await prisma.family.findMany({
         orderBy: { createdAt: "desc" },
@@ -99,7 +99,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.post("/api/admin/families", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { user } = await requireAdmin(request, reply, config);
     const input = familySchema.parse(request.body);
     const result = await prisma.$transaction(
       async (tx) => {
@@ -129,7 +129,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.post("/api/admin/families/:id/children", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { user } = await requireAdmin(request, reply, config);
     const { id: familyId } = idParams.parse(request.params);
     const input = childSchema.parse(request.body);
     const family = await prisma.family.findUnique({ where: { id: familyId } });
@@ -157,9 +157,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.post("/api/admin/families/:id/parents", async (request, reply) => {
-    const { user: actor } = await requireStaff(request, reply, config, [
-      "SUPER_ADMIN",
-    ]);
+    const { user: actor } = await requireAdmin(request, reply, config);
     const { id: familyId } = idParams.parse(request.params);
     const input = parentSchema.parse(request.body);
     const family = await prisma.family.findUnique({ where: { id: familyId } });
@@ -194,9 +192,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.patch("/api/admin/families/:id", async (request, reply) => {
-    const { user: actor } = await requireStaff(request, reply, config, [
-      "SUPER_ADMIN",
-    ]);
+    const { user: actor } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const input = familyUpdateSchema.parse(request.body);
     const family = await prisma.$transaction(async (tx) => {
@@ -228,9 +224,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.patch("/api/admin/users/:id", async (request, reply) => {
-    const { user: actor } = await requireStaff(request, reply, config, [
-      "SUPER_ADMIN",
-    ]);
+    const { user: actor } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const input = userUpdateSchema.parse(request.body);
     const target = await prisma.user.findUnique({ where: { id } });
@@ -256,7 +250,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.post("/api/admin/children/:id/regenerate-code", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { user } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const child = await prisma.childProfile.findUnique({ where: { id } });
     if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
@@ -282,7 +276,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.patch("/api/admin/children/:id/status", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { user } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const input = accountStatusSchema.parse(request.body);
     const child = await prisma.$transaction(async (tx) => {
@@ -309,7 +303,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.patch("/api/admin/children/:id", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { user } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const input = childUpdateSchema.parse(request.body);
     const existing = await prisma.childProfile.findUnique({ where: { id } });
@@ -335,7 +329,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.post("/api/admin/children/:id/logout-all", async (request, reply) => {
-    const { user } = await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { user } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const child = await prisma.childProfile.findUnique({ where: { id } });
     if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
@@ -356,9 +350,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.post("/api/admin/users/:id/reset-password", async (request, reply) => {
-    const { user: actor } = await requireStaff(request, reply, config, [
-      "SUPER_ADMIN",
-    ]);
+    const { user: actor } = await requireAdmin(request, reply, config);
     const { id } = idParams.parse(request.params);
     const input = resetPasswordSchema.parse(request.body);
     const target = await prisma.user.findUnique({ where: { id } });
@@ -384,7 +376,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.get("/api/admin/metrics", async (request, reply) => {
-    await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    await requireAdmin(request, reply, config);
     const now = new Date();
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -479,7 +471,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.get("/api/admin/performance", async (request, reply) => {
-    await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    await requireAdmin(request, reply, config);
     const { days } = performanceQuery.parse(request.query);
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
     const metrics = await prisma.childPerformanceMetric.findMany({
@@ -523,7 +515,7 @@ export async function registerSuperAdminRoutes(
   });
 
   app.get("/api/admin/audit-logs", async (request, reply) => {
-    await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    await requireAdmin(request, reply, config);
     const query = z
       .object({
         cursor: z.string().optional(),

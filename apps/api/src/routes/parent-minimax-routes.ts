@@ -8,7 +8,7 @@ import { prisma } from "../lib/prisma.js";
 import { enforceRateLimit } from "../lib/rate-limit.js";
 import { decryptSecret, encryptSecret } from "../lib/secret-encryption.js";
 import { writeAudit } from "../services/audit-service.js";
-import { requireStaff } from "../services/auth-service.js";
+import { requireAdmin } from "../services/auth-service.js";
 import {
   generateMiniMaxImage,
   generateMiniMaxSpeech,
@@ -24,7 +24,6 @@ const minimaxConfigSchema = z.object({
   enabled: z.boolean().default(true),
 });
 const hanziGenerateParams = z.object({
-  childId: z.string().min(1),
   id: z.string().min(1),
   kind: z.enum([
     "image",
@@ -37,47 +36,28 @@ const hanziGenerateQuery = z.object({
   wordIndex: z.coerce.number().int().min(0).max(9).optional(),
 });
 const poemGenerateParams = z.object({
-  childId: z.string().min(1),
   id: z.string().min(1),
   kind: z.enum(["image", "audio"]),
 });
 const generationLocks = new Set<string>();
 
-async function familyUser(
+async function adminUser(
   request: FastifyRequest,
   reply: FastifyReply,
   config: AppConfig,
 ) {
-  const { user } = await requireStaff(request, reply, config, ["PARENT"]);
-  if (!user.familyId) {
-    throw new HttpError(403, "FAMILY_REQUIRED", "家长账号尚未绑定家庭");
-  }
-  return { user, familyId: user.familyId };
+  return requireAdmin(request, reply, config);
 }
 
-async function ownedChild(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  config: AppConfig,
-  childId: string,
-) {
-  const { user, familyId } = await familyUser(request, reply, config);
-  const child = await prisma.childProfile.findFirst({
-    where: { id: childId, familyId },
-  });
-  if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
-  return { user, child, familyId };
-}
-
-async function minimaxCredentials(familyId: string, config: AppConfig) {
-  const stored = await prisma.familyMinimaxConfig.findUnique({
-    where: { familyId },
+async function minimaxCredentials(config: AppConfig) {
+  const stored = await prisma.systemMinimaxConfig.findUnique({
+    where: { id: "default" },
   });
   if (!stored || !stored.enabled) {
     throw new HttpError(
       409,
       "MINIMAX_NOT_CONFIGURED",
-      "请先在 AI 育儿助手中保存并启用 MiniMax 密钥",
+      "请先在超级后台保存并启用 MiniMax 密钥",
     );
   }
   return {
@@ -93,13 +73,12 @@ async function minimaxCredentials(familyId: string, config: AppConfig) {
 }
 
 function enforceMiniMaxLimit(
-  familyId: string,
   userId: string,
   action: string,
   limit = 30,
 ) {
   enforceRateLimit({
-    key: `minimax:${familyId}:${userId}:${action}`,
+    key: `minimax:system:${userId}:${action}`,
     limit,
     windowMs: 60 * 60 * 1000,
     code: "MINIMAX_RATE_LIMITED",
@@ -123,14 +102,14 @@ async function withGenerationLock<T>(key: string, work: () => Promise<T>) {
   }
 }
 
-export async function registerParentMinimaxRoutes(
+export async function registerAdminMinimaxRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ) {
-  app.get("/api/parent/minimax/config", async (request, reply) => {
-    const { familyId } = await familyUser(request, reply, config);
-    const stored = await prisma.familyMinimaxConfig.findUnique({
-      where: { familyId },
+  app.get("/api/admin/minimax/config", async (request, reply) => {
+    await adminUser(request, reply, config);
+    const stored = await prisma.systemMinimaxConfig.findUnique({
+      where: { id: "default" },
       select: {
         provider: true,
         apiKeyLastFour: true,
@@ -151,11 +130,11 @@ export async function registerParentMinimaxRoutes(
     };
   });
 
-  app.put("/api/parent/minimax/config", async (request, reply) => {
-    const { user, familyId } = await familyUser(request, reply, config);
+  app.put("/api/admin/minimax/config", async (request, reply) => {
+    const { user } = await adminUser(request, reply, config);
     const input = minimaxConfigSchema.parse(request.body);
-    const existing = await prisma.familyMinimaxConfig.findUnique({
-      where: { familyId },
+    const existing = await prisma.systemMinimaxConfig.findUnique({
+      where: { id: "default" },
     });
     if (!existing && !input.apiKey) {
       throw new HttpError(
@@ -168,10 +147,10 @@ export async function registerParentMinimaxRoutes(
       ? encryptSecret(input.apiKey, config.AI_CONFIG_ENCRYPTION_KEY)
       : null;
     const stored = await prisma.$transaction(async (tx) => {
-      const saved = await tx.familyMinimaxConfig.upsert({
-        where: { familyId },
+      const saved = await tx.systemMinimaxConfig.upsert({
+        where: { id: "default" },
         create: {
-          familyId,
+          id: "default",
           enabled: input.enabled,
           encryptedApiKey: encrypted!.ciphertext,
           encryptionIv: encrypted!.iv,
@@ -195,9 +174,8 @@ export async function registerParentMinimaxRoutes(
       await writeAudit(tx, {
         actorType: "USER",
         actorId: user.id,
-        familyId,
         action: "MINIMAX_CONFIG_UPDATE",
-        resourceType: "FamilyMinimaxConfig",
+        resourceType: "SystemMinimaxConfig",
         resourceId: saved.id,
         metadata: {
           enabled: input.enabled,
@@ -218,10 +196,10 @@ export async function registerParentMinimaxRoutes(
     };
   });
 
-  app.post("/api/parent/minimax/config/test", async (request, reply) => {
-    const { user, familyId } = await familyUser(request, reply, config);
-    enforceMiniMaxLimit(familyId, user.id, "connection", 5);
-    const { apiKey } = await minimaxCredentials(familyId, config);
+  app.post("/api/admin/minimax/config/test", async (request, reply) => {
+    const { user } = await adminUser(request, reply, config);
+    enforceMiniMaxLimit(user.id, "connection", 5);
+    const { apiKey } = await minimaxCredentials(config);
     await generateMiniMaxSpeech({
       apiKey,
       text: "连接成功",
@@ -231,16 +209,11 @@ export async function registerParentMinimaxRoutes(
   });
 
   app.post(
-    "/api/parent/children/:childId/hanzi/characters/:id/generate/:kind",
+    "/api/admin/hanzi/characters/:id/generate/:kind",
     async (request, reply) => {
-      const { childId, id, kind } = hanziGenerateParams.parse(request.params);
+      const { id, kind } = hanziGenerateParams.parse(request.params);
       const { wordIndex } = hanziGenerateQuery.parse(request.query);
-      const { user, child, familyId } = await ownedChild(
-        request,
-        reply,
-        config,
-        childId,
-      );
+      const { user } = await adminUser(request, reply, config);
       const existing = await prisma.hanziCharacter.findUnique({ where: { id } });
       if (!existing || !existing.isEnabled) {
         throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
@@ -255,8 +228,8 @@ export async function registerParentMinimaxRoutes(
           "没有找到要生成读音的词语",
         );
       }
-      enforceMiniMaxLimit(familyId, user.id, "hanzi-media");
-      const credentials = await minimaxCredentials(familyId, config);
+      enforceMiniMaxLimit(user.id, "hanzi-media");
+      const credentials = await minimaxCredentials(config);
       const lockKey = `hanzi:${id}:${kind}:${wordIndex ?? ""}`;
       return withGenerationLock(lockKey, async () => {
         const sentence = existing.sentence.replaceAll("__", existing.character);
@@ -312,7 +285,6 @@ export async function registerParentMinimaxRoutes(
             await writeAudit(tx, {
               actorType: "USER",
               actorId: user.id,
-              familyId: child.familyId,
               action: "HANZI_MEDIA_GENERATED",
               resourceType: "HanziCharacter",
               resourceId: id,
@@ -337,21 +309,16 @@ export async function registerParentMinimaxRoutes(
   );
 
   app.post(
-    "/api/parent/children/:childId/poems/:id/generate/:kind",
+    "/api/admin/poems/:id/generate/:kind",
     async (request, reply) => {
-      const { childId, id, kind } = poemGenerateParams.parse(request.params);
-      const { user, child, familyId } = await ownedChild(
-        request,
-        reply,
-        config,
-        childId,
-      );
+      const { id, kind } = poemGenerateParams.parse(request.params);
+      const { user } = await adminUser(request, reply, config);
       const existing = await prisma.poem.findUnique({ where: { id } });
       if (!existing || !existing.isEnabled) {
         throw new HttpError(404, "POEM_NOT_FOUND", "没有找到这首古诗");
       }
-      enforceMiniMaxLimit(familyId, user.id, "poem-media");
-      const credentials = await minimaxCredentials(familyId, config);
+      enforceMiniMaxLimit(user.id, "poem-media");
+      const credentials = await minimaxCredentials(config);
       return withGenerationLock(`poem:${id}:${kind}`, async () => {
         const generated =
           kind === "image"
@@ -383,7 +350,6 @@ export async function registerParentMinimaxRoutes(
             await writeAudit(tx, {
               actorType: "USER",
               actorId: user.id,
-              familyId: child.familyId,
               action: "POEM_MEDIA_GENERATED",
               resourceType: "Poem",
               resourceId: id,

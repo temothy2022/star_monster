@@ -846,7 +846,6 @@ export function AiAssistant({ child }: { child: Child }) {
         <div className="ai-hero__mark">✦</div>
       </div>
       <AiConfiguration />
-      <MinimaxConfiguration />
       <TaskAdvisor child={child} />
       <RewardAuditor child={child} />
       <SmartScheduler child={child} />

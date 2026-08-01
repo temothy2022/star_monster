@@ -30,6 +30,7 @@ import {
   type Wish,
 } from "./api";
 import { AiAssistant } from "./AiAssistant";
+import { ParentHanziLearning, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "../../design-lab/src/assets/reward-categories/sports.webp";
 import gamesReward from "../../design-lab/src/assets/reward-categories/games.webp";
 import televisionReward from "../../design-lab/src/assets/reward-categories/television.webp";
@@ -2502,8 +2503,8 @@ export function App() {
             {section === "overview" && <Overview child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
-            {section === "hanzi" && <HanziLearning child={selectedChild} />}
-            {section === "poems" && <PoemLearning child={selectedChild} />}
+            {section === "hanzi" && <ParentHanziLearning child={selectedChild} />}
+            {section === "poems" && <ParentPoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
             {section === "settings" && <Settings child={selectedChild} />}

@@ -19,6 +19,10 @@ import { prisma } from "../lib/prisma.js";
 
 export const CHILD_COOKIE = "sm_child_session";
 export const STAFF_COOKIE = "sm_staff_session";
+export const PARENT_COOKIE = "sm_parent_session";
+export const ADMIN_COOKIE = "sm_admin_session";
+
+export type StaffPortal = "parent" | "admin" | "legacy";
 
 type RequestMetadata = {
   userAgent?: string;
@@ -46,9 +50,9 @@ function metadataFromRequest(request: FastifyRequest): RequestMetadata {
   };
 }
 
-function cookieOptions(config: AppConfig, days: number) {
+function cookieOptions(config: AppConfig, days: number, path = "/") {
   return {
-    path: "/",
+    path,
     httpOnly: true,
     secure: config.NODE_ENV === "production",
     sameSite: "lax" as const,
@@ -110,6 +114,7 @@ export async function loginStaff(
   request: FastifyRequest,
   reply: FastifyReply,
   config: AppConfig,
+  portal: StaffPortal = "legacy",
 ): Promise<User> {
   const username = usernameInput.trim().toLowerCase();
   const user = await prisma.user.findUnique({
@@ -123,6 +128,12 @@ export async function loginStaff(
     !(await verifySecret(password, user.passwordHash))
   ) {
     throw new HttpError(401, "INVALID_CREDENTIALS", "用户名或密码不正确");
+  }
+  if (portal === "parent" && user.role !== "PARENT") {
+    throw new HttpError(403, "PORTAL_ROLE_MISMATCH", "这个账号不能登录家长管理平台");
+  }
+  if (portal === "admin" && user.role !== "SUPER_ADMIN") {
+    throw new HttpError(403, "PORTAL_ROLE_MISMATCH", "这个账号不能登录超级管理后台");
   }
 
   const rawToken = generateOpaqueToken();
@@ -142,11 +153,9 @@ export async function loginStaff(
     }),
   ]);
 
-  reply.setCookie(
-    STAFF_COOKIE,
-    rawToken,
-    cookieOptions(config, config.STAFF_SESSION_DAYS),
-  );
+  const cookieName = portal === "parent" ? PARENT_COOKIE : portal === "admin" ? ADMIN_COOKIE : STAFF_COOKIE;
+  const cookiePath = portal === "parent" ? "/api/parent" : portal === "admin" ? "/api/admin" : "/";
+  reply.setCookie(cookieName, rawToken, cookieOptions(config, config.STAFF_SESSION_DAYS, cookiePath));
   return user;
 }
 
@@ -228,6 +237,70 @@ export async function requireStaff(
   return { user: session.user, session };
 }
 
+async function requirePortal(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  config: AppConfig,
+  portal: Exclude<StaffPortal, "legacy">,
+): Promise<AuthenticatedUser> {
+  const cookieName = portal === "parent" ? PARENT_COOKIE : ADMIN_COOKIE;
+  const cookiePath = portal === "parent" ? "/api/parent" : "/api/admin";
+  const rawToken = request.cookies[cookieName] ?? request.cookies[STAFF_COOKIE];
+  if (!rawToken) {
+    throw new HttpError(401, "STAFF_AUTH_REQUIRED", "请先登录");
+  }
+
+  const session = await prisma.userSession.findUnique({
+    where: { tokenHash: hashToken(rawToken) },
+    include: { user: { include: { family: { select: { status: true } } } } },
+  });
+  if (
+    !session ||
+    session.expiresAt <= new Date() ||
+    session.user.status !== "ACTIVE" ||
+    (session.user.role === "PARENT" && session.user.family?.status !== "ACTIVE")
+  ) {
+    reply.clearCookie(cookieName, { path: cookiePath });
+    throw new HttpError(401, "STAFF_SESSION_EXPIRED", "登录已过期，请重新登录");
+  }
+
+  const expectedRole = portal === "parent" ? "PARENT" : "SUPER_ADMIN";
+  if (session.user.role !== expectedRole) {
+    reply.clearCookie(cookieName, { path: cookiePath });
+    throw new HttpError(403, "FORBIDDEN", "没有访问权限");
+  }
+
+  const expiresAt = futureDate(config.STAFF_SESSION_DAYS);
+  await prisma.userSession.update({
+    where: { id: session.id },
+    data: { lastSeenAt: new Date(), expiresAt },
+  });
+  reply.setCookie(cookieName, rawToken, {
+    ...cookieOptions(config, config.STAFF_SESSION_DAYS, cookiePath),
+    expires: expiresAt,
+  });
+  if (!request.cookies[cookieName] && request.cookies[STAFF_COOKIE]) {
+    reply.clearCookie(STAFF_COOKIE, { path: "/" });
+  }
+  return { user: session.user, session };
+}
+
+export function requireParent(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  config: AppConfig,
+) {
+  return requirePortal(request, reply, config, "parent");
+}
+
+export function requireAdmin(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  config: AppConfig,
+) {
+  return requirePortal(request, reply, config, "admin");
+}
+
 export async function logoutChild(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -251,5 +324,27 @@ export async function logoutStaff(
       where: { tokenHash: hashToken(rawToken) },
     });
   }
+  reply.clearCookie(STAFF_COOKIE, { path: "/" });
+}
+
+export async function logoutPortal(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  portal: Exclude<StaffPortal, "legacy">,
+): Promise<void> {
+  const cookieName = portal === "parent" ? PARENT_COOKIE : ADMIN_COOKIE;
+  const cookiePath = portal === "parent" ? "/api/parent" : "/api/admin";
+  const rawToken = request.cookies[cookieName];
+  const legacyToken = request.cookies[STAFF_COOKIE];
+  if (rawToken || legacyToken) {
+    await prisma.userSession.deleteMany({
+      where: {
+        tokenHash: {
+          in: [rawToken, legacyToken].filter((value): value is string => Boolean(value)).map(hashToken),
+        },
+      },
+    });
+  }
+  reply.clearCookie(cookieName, { path: cookiePath });
   reply.clearCookie(STAFF_COOKIE, { path: "/" });
 }

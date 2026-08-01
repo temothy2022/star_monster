@@ -11,9 +11,10 @@ import { registerChildHanziRoutes } from "./routes/child-hanzi-routes.js";
 import { registerChildPoemRoutes } from "./routes/child-poem-routes.js";
 import { registerChildProgressRoutes } from "./routes/child-progress-routes.js";
 import { registerSuperAdminRoutes } from "./routes/super-admin-routes.js";
+import { registerAdminLearningResourceRoutes } from "./routes/admin-learning-resource-routes.js";
 import { registerParentRoutes } from "./routes/parent-routes.js";
 import { registerParentAiRoutes } from "./routes/parent-ai-routes.js";
-import { registerParentMinimaxRoutes } from "./routes/parent-minimax-routes.js";
+import { registerAdminMinimaxRoutes } from "./routes/parent-minimax-routes.js";
 import { registerClientTelemetryRoutes } from "./routes/client-telemetry-routes.js";
 import { registerHanziMediaRoutes } from "./routes/hanzi-media-routes.js";
 import { registerPoemMediaRoutes } from "./routes/poem-media-routes.js";
@@ -108,9 +109,10 @@ export async function buildApp(config: AppConfig) {
   await registerPoemMediaRoutes(app, config);
   await registerChildProgressRoutes(app, config);
   await registerSuperAdminRoutes(app, config);
+  await registerAdminLearningResourceRoutes(app, config);
   await registerParentRoutes(app, config);
   await registerParentAiRoutes(app, config);
-  await registerParentMinimaxRoutes(app, config);
+  await registerAdminMinimaxRoutes(app, config);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

@@ -19,7 +19,7 @@ import { prisma } from "../lib/prisma.js";
 import { enforceRateLimit } from "../lib/rate-limit.js";
 import { decryptSecret, encryptSecret } from "../lib/secret-encryption.js";
 import { writeAudit } from "../services/audit-service.js";
-import { requireStaff } from "../services/auth-service.js";
+import { requireParent } from "../services/auth-service.js";
 import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-service.js";
 import { validateSchedulePlan } from "../services/schedule-validation.js";
 import { generateDailyTasks } from "../services/task-service.js";
@@ -72,7 +72,7 @@ async function ownedChild(
   config: AppConfig,
   childId: string,
 ) {
-  const { user } = await requireStaff(request, reply, config, ["PARENT"]);
+  const { user } = await requireParent(request, reply, config);
   if (!user.familyId) {
     throw new HttpError(403, "FAMILY_REQUIRED", "家长账号尚未绑定家庭");
   }
@@ -88,7 +88,7 @@ async function familyUser(
   reply: FastifyReply,
   config: AppConfig,
 ) {
-  const { user } = await requireStaff(request, reply, config, ["PARENT"]);
+  const { user } = await requireParent(request, reply, config);
   if (!user.familyId) {
     throw new HttpError(403, "FAMILY_REQUIRED", "家长账号尚未绑定家庭");
   }

@@ -346,6 +346,19 @@ model FamilyMinimaxConfig {
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 }
 
+model SystemMinimaxConfig {
+  id              String   @id @default("default")
+  provider        String   @default("MINIMAX")
+  encryptedApiKey String
+  encryptionIv    String
+  encryptionTag   String
+  apiKeyLastFour  String
+  enabled         Boolean  @default(true)
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model ChildSchedulePreference {
   id                    String   @id @default(cuid())
   childId               String   @unique
