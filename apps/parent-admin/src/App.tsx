@@ -67,7 +67,7 @@ const SECTION_LABELS: Record<Section, string> = {
   stars: "星星流水",
   planets: "航图规则",
   ai: "AI 助手",
-  settings: "孩子与设备",
+  settings: "登录设备",
 };
 
 type NavItem = {
@@ -105,7 +105,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     label: "智能与设置",
     items: [
       { key: "ai", label: "AI 助手", icon: "✦" },
-      { key: "settings", label: "孩子与设备", icon: "⚙" },
+      { key: "settings", label: "登录设备", icon: "⚙" },
     ],
   },
 ];
@@ -173,6 +173,32 @@ const PET_LABELS: Record<string, string> = {
 
 function formatDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleString("zh-CN") : "暂无";
+}
+
+function getDeviceLabel(device: Device) {
+  const explicitName = device.deviceName?.trim();
+  if (explicitName && !["网页浏览器", "浏览器"].includes(explicitName)) {
+    return explicitName;
+  }
+  const userAgent = device.userAgent ?? "";
+  if (/iPad/i.test(userAgent)) return "iPad";
+  if (/iPhone/i.test(userAgent)) return "iPhone";
+  if (/Android/i.test(userAgent)) return "Android 设备";
+  if (/Macintosh|Mac OS X/i.test(userAgent)) return "Mac 电脑";
+  if (/Windows/i.test(userAgent)) return "Windows 电脑";
+  return "网页浏览器";
+}
+
+function getBrowserLabel(userAgent: string | null) {
+  const value = userAgent ?? "";
+  if (/MicroMessenger/i.test(value)) return "微信内置浏览器";
+  if (/EdgA|EdgiOS|Edg\//i.test(value)) return "Microsoft Edge";
+  if (/SamsungBrowser/i.test(value)) return "Samsung Internet";
+  if (/OPR\//i.test(value)) return "Opera";
+  if (/CriOS|Chrome\//i.test(value)) return "Google Chrome";
+  if (/FxiOS|Firefox\//i.test(value)) return "Firefox";
+  if (/Safari\//i.test(value) && !/Chrome|CriOS/i.test(value)) return "Safari";
+  return "未知浏览器";
 }
 
 function formatTimeHM(value: string | null | undefined) {
@@ -292,7 +318,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
   );
 }
 
-function Overview({ child }: { child: Child }) {
+function Overview({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [stats, setStats] = useState<Awaited<ReturnType<typeof parentApi.stats>> | null>(null);
   useEffect(() => {
     void parentApi.stats(child.id).then(setStats).catch(() => setStats(null));
@@ -321,14 +347,7 @@ function Overview({ child }: { child: Child }) {
           <div><span>主动放弃</span><strong>{abandoned}</strong></div>
         </div>
       </Panel>
-      <Panel title="孩子档案">
-        <dl className="detail-list">
-          <div><dt>昵称</dt><dd>{child.nickname ?? "尚未设置"}</dd></div>
-          <div><dt>星宠</dt><dd>{child.petType ? PET_LABELS[child.petType] : "尚未选择"}</dd></div>
-          <div><dt>首次引导</dt><dd>{child.onboardingCompletedAt ? "已完成" : "未完成"}</dd></div>
-          <div><dt>最近登录</dt><dd>{formatDate(child.lastLoginAt)}</dd></div>
-        </dl>
-      </Panel>
+      <ChildProfileSettings child={child} onChanged={onChanged} />
     </div>
   );
 }
@@ -2168,13 +2187,12 @@ function Planets({
   );
 }
 
-function Settings({ child, onChanged }: { child: Child; onChanged: () => void }) {
+function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [nickname, setNickname] = useState(child.nickname ?? "");
   const [dailyStarGoal, setDailyStarGoal] = useState(child.dailyStarGoal);
   const [dailyGoalBonusEnabled, setDailyGoalBonusEnabled] = useState(child.dailyGoalBonusEnabled);
   const [dailyGoalBonusStars, setDailyGoalBonusStars] = useState(child.dailyGoalBonusStars || 1);
   const [pet, setPet] = useState(child.petType ?? "TUANTUAN");
-  const [devices, setDevices] = useState<Device[]>([]);
   const [message, setMessage] = useState("");
   useEffect(() => {
     setNickname(child.nickname ?? "");
@@ -2182,7 +2200,6 @@ function Settings({ child, onChanged }: { child: Child; onChanged: () => void })
     setDailyGoalBonusEnabled(child.dailyGoalBonusEnabled);
     setDailyGoalBonusStars(child.dailyGoalBonusStars || 1);
     setPet(child.petType ?? "TUANTUAN");
-    void parentApi.devices(child.id).then((result) => setDevices(result.devices));
   }, [child.id]);
 
   async function save(event: FormEvent) {
@@ -2199,57 +2216,110 @@ function Settings({ child, onChanged }: { child: Child; onChanged: () => void })
   }
 
   return (
-    <div className="admin-two-column">
-      <Panel title="孩子档案">
-        <form className="admin-form" onSubmit={save}>
-          <label>
-            昵称
-            <input minLength={2} maxLength={9} required value={nickname} onChange={(event) => setNickname(event.target.value)} />
-          </label>
-          <label>
-            每日星星目标
-            <input type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} />
-          </label>
-          <label>
-            星宠
-            <select value={pet} onChange={(event) => setPet(event.target.value)}>
-              {Object.entries(PET_LABELS).map(([value,label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label>
-            达标后额外奖励
-            <input
-              type="number"
-              min={1}
-              max={999}
-              disabled={!dailyGoalBonusEnabled}
-              value={dailyGoalBonusStars}
-              onChange={(event) => setDailyGoalBonusStars(Number(event.target.value))}
-            />
-          </label>
-          <label className="checkbox field-span">
-            <input
-              type="checkbox"
-              checked={dailyGoalBonusEnabled}
-              onChange={(event) => setDailyGoalBonusEnabled(event.target.checked)}
-            />
-            启用每日目标达成奖（每天最多发放一次）
-          </label>
-          <p className="field-span form-help">
-            当孩子当天通过任务获得的星星达到 {dailyStarGoal || 0} 颗时，自动额外奖励 {dailyGoalBonusStars || 0} 颗星。
-          </p>
-          <div className="form-actions"><button className="primary-button">保存档案</button></div>
-        </form>
-        {message && <Notice kind="success">{message}</Notice>}
-        <div className="danger-zone">
-          <h3>重置首次引导</h3>
-          <p>孩子下次进入时会重新经历选择伙伴和产品介绍。</p>
-          <button className="ghost-button" onClick={() => window.confirm("确定重置首次引导？") && void parentApi.updateChild(child.id, { resetOnboarding: true }).then(() => { setMessage("首次引导已重置"); onChanged(); })}>重置引导</button>
-        </div>
-      </Panel>
-      <Panel title={`登录设备（${devices.length}）`} actions={<button className="danger-button" onClick={() => window.confirm("确定让这个孩子的所有设备退出登录？") && void parentApi.logoutAll(child.id).then(() => setDevices([]))}>全部退出</button>}>
-        <div className="admin-list">
-          {devices.map((device) => <article className="device-card" key={device.id}><strong>{device.deviceName ?? "未知设备"}</strong><p>{device.userAgent ?? "无浏览器信息"}</p><small>{device.ipAddress ?? "未知 IP"} · 最近活动 {formatDate(device.lastSeenAt)}</small></article>)}
+    <Panel title="孩子档案">
+      <form className="admin-form" onSubmit={save}>
+        <label>
+          昵称
+          <input minLength={2} maxLength={9} required value={nickname} onChange={(event) => setNickname(event.target.value)} />
+        </label>
+        <label>
+          每日星星目标
+          <input type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} />
+        </label>
+        <label>
+          星宠
+          <select value={pet} onChange={(event) => setPet(event.target.value)}>
+            {Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </label>
+        <label>
+          达标后额外奖励
+          <input
+            type="number"
+            min={1}
+            max={999}
+            disabled={!dailyGoalBonusEnabled}
+            value={dailyGoalBonusStars}
+            onChange={(event) => setDailyGoalBonusStars(Number(event.target.value))}
+          />
+        </label>
+        <label className="checkbox field-span">
+          <input
+            type="checkbox"
+            checked={dailyGoalBonusEnabled}
+            onChange={(event) => setDailyGoalBonusEnabled(event.target.checked)}
+          />
+          启用每日目标达成奖（每天最多发放一次）
+        </label>
+        <p className="field-span form-help">
+          当孩子当天通过任务获得的星星达到 {dailyStarGoal || 0} 颗时，自动额外奖励 {dailyGoalBonusStars || 0} 颗星。
+        </p>
+        <div className="form-actions"><button className="primary-button">保存档案</button></div>
+      </form>
+      {message && <Notice kind="success">{message}</Notice>}
+      <div className="danger-zone">
+        <h3>重置首次引导</h3>
+        <p>孩子下次进入时会重新经历选择伙伴和产品介绍。</p>
+        <button className="ghost-button" onClick={() => window.confirm("确定重置首次引导？") && void parentApi.updateChild(child.id, { resetOnboarding: true }).then(() => { setMessage("首次引导已重置"); onChanged(); })}>重置引导</button>
+      </div>
+    </Panel>
+  );
+}
+
+function Settings({ child }: { child: Child }) {
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setError("");
+    void parentApi.devices(child.id)
+      .then((result) => {
+        if (!cancelled) setDevices(result.devices);
+      })
+      .catch((reason) => {
+        if (!cancelled) setError(reason instanceof Error ? reason.message : "登录设备读取失败");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [child.id]);
+
+  async function logoutAll() {
+    if (!window.confirm("确定让这个孩子的所有设备退出登录？")) return;
+    try {
+      await parentApi.logoutAll(child.id);
+      setDevices([]);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "退出设备失败");
+    }
+  }
+
+  return (
+    <div className="admin-stack">
+      <Panel title={`登录设备（${devices.length}）`} actions={<button className="danger-button" type="button" onClick={() => void logoutAll()}>全部退出</button>}>
+        {error && <Notice kind="error">{error}</Notice>}
+        <div className="device-list">
+          {devices.map((device) => {
+            const deviceLabel = getDeviceLabel(device);
+            const browserLabel = getBrowserLabel(device.userAgent);
+            return (
+              <article className="device-card" key={device.id}>
+                <div className="device-card__icon" aria-hidden="true">▣</div>
+                <div className="device-card__body">
+                  <div className="device-card__heading">
+                    <strong title={deviceLabel}>{deviceLabel}</strong>
+                    <span className="device-card__status">已登录</span>
+                  </div>
+                  <div className="device-card__meta">
+                    <div><span>设备</span><strong title={deviceLabel}>{deviceLabel}</strong></div>
+                    <div><span>最近活动</span><strong>{formatDate(device.lastSeenAt)}</strong></div>
+                    <div><span>浏览器</span><strong title={browserLabel}>{browserLabel}</strong></div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
           {!devices.length && <div className="empty-state">没有已登录设备</div>}
         </div>
       </Panel>
@@ -2429,14 +2499,14 @@ export function App() {
         <div className="admin-content">
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
-            {section === "overview" && <Overview child={selectedChild} />}
+            {section === "overview" && <Overview child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <HanziLearning child={selectedChild} />}
             {section === "poems" && <PoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
-            {section === "settings" && <Settings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
+            {section === "settings" && <Settings child={selectedChild} />}
           </>}
         </div>
       </main>
