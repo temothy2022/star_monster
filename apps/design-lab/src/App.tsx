@@ -54,6 +54,11 @@ const PoemLearningExperience = lazy(() =>
     default: module.PoemLearningExperience,
   })),
 );
+const ClockLearningExperience = lazy(() =>
+  import("./clock/ClockLearningExperience").then((module) => ({
+    default: module.ClockLearningExperience,
+  })),
+);
 const UntimedTaskActive = lazy(() =>
   loadUntimedTaskPages().then((module) => ({
     default: module.UntimedTaskActive,
@@ -214,6 +219,7 @@ type AppRoute =
   | "hanzi-listen-wrong"
   | "hanzi-result"
   | "hanzi-session"
+  | "clock-session"
   | "poem-session"
   | "poem-recitation";
 
@@ -275,6 +281,7 @@ function readRouteFromHash(): AppRoute {
     "hanzi-listen-wrong",
     "hanzi-result",
     "hanzi-session",
+    "clock-session",
     "poem-session",
     "poem-recitation",
   ];
@@ -300,6 +307,7 @@ function isActiveTaskRoute(route: AppRoute) {
     route === "untimed-abandon" ||
     route === "timed-active" ||
     route === "hanzi-session" ||
+    route === "clock-session" ||
     route === "poem-session"
   );
 }
@@ -308,6 +316,7 @@ function childPageTitle(route: AppRoute) {
   if (route.startsWith("tasks-")) return "任务列表";
   if (route.startsWith("planet-") || route === "map") return "航图";
   if (route.startsWith("hanzi-")) return "汉字学习";
+  if (route === "clock-session") return "时钟学习";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
 
@@ -487,6 +496,8 @@ export function App() {
         const expectedRoute =
           active.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
             ? "hanzi-session"
+            : active.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING"
+              ? "clock-session"
             : active.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
                 active.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
               ? "poem-session"
@@ -551,6 +562,8 @@ export function App() {
           navigate(
             attempt.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
               ? "hanzi-session"
+              : attempt.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING"
+                ? "clock-session"
               : attempt.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
                   attempt.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
                 ? "poem-session"
@@ -579,6 +592,23 @@ export function App() {
   if (route === "hanzi-session") {
     return (
       <HanziLearningExperience
+        attemptId={activeAttempt!.id}
+        onExit={leaveLearningAttempt}
+        onCompleted={(reward) => {
+          setLastCompletion({
+            taskTitle: activeAttempt!.dailyTask.titleSnapshot,
+            ...reward,
+          });
+          setActiveAttempt(null);
+          navigate("untimed-complete");
+        }}
+      />
+    );
+  }
+
+  if (route === "clock-session") {
+    return (
+      <ClockLearningExperience
         attemptId={activeAttempt!.id}
         onExit={leaveLearningAttempt}
         onCompleted={(reward) => {

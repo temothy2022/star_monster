@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import {
   parentApi,
   type Child,
+  type ClockLearningSettings,
+  type ClockLearningStats,
   type HanziCharacterResource,
   type HanziLearningSettings,
   type PoemLearningSettings,
@@ -156,6 +158,94 @@ export function ParentHanziLearning({ child }: { child: Child }) {
       </div>
       {total > pageSize ? <div className="hanzi-library-pagination"><button type="button" disabled={page <= 1 || busy} onClick={() => setPage((value) => value - 1)}>上一页</button><span>第 {page} / {Math.ceil(total / pageSize)} 页</span><button type="button" disabled={page >= Math.ceil(total / pageSize) || busy} onClick={() => setPage((value) => value + 1)}>下一页</button></div> : null}
     </Panel>
+  </div>;
+}
+
+const DEFAULT_CLOCK_SETTINGS: ClockLearningSettings = {
+  questionsPerDay: 5,
+  minuteStep: 5,
+};
+
+const EMPTY_CLOCK_STATS: ClockLearningStats = {
+  completedSessions: 0,
+  totalQuestions: 0,
+  correctAnswers: 0,
+  accuracy: null,
+  recentAccuracy: null,
+  mastery: { level: "NO_DATA", label: "暂无数据" },
+};
+
+function percent(value: number | null) {
+  return value === null ? "—" : `${Math.round(value * 100)}%`;
+}
+
+export function ParentClockLearning({ child }: { child: Child }) {
+  const [settings, setSettings] = useState(DEFAULT_CLOCK_SETTINGS);
+  const [stats, setStats] = useState(EMPTY_CLOCK_STATS);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load() {
+    const result = await parentApi.clockSettings(child.id);
+    setSettings(result.settings);
+    setStats(result.stats);
+  }
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    void load()
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "时钟学习设置加载失败"))
+      .finally(() => setLoading(false));
+  }, [child.id]);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await parentApi.updateClockSettings(child.id, settings);
+      setSettings(result.settings);
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "时钟学习设置保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const accuracy = stats.accuracy ?? 0;
+  return <div className="admin-stack">
+    <div className="admin-two-column">
+      <Panel title="时钟学习设置">
+        {loading ? <div className="empty-state">正在读取设置…</div> : <form className="admin-form" onSubmit={save}>
+          <label>每日题量<input type="number" min={1} max={20} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
+          <div className="field-span">
+            <span className="poem-settings-label">题目难度</span>
+            <div className="clock-settings-choice" role="radiogroup" aria-label="时钟题目难度">
+              <button type="button" role="radio" aria-checked={settings.minuteStep === 5} className={settings.minuteStep === 5 ? "active" : ""} onClick={() => setSettings({ ...settings, minuteStep: 5 })}><strong>5 分钟一级</strong><small>分针只出现 00、05、10…</small></button>
+              <button type="button" role="radio" aria-checked={settings.minuteStep === 1} className={settings.minuteStep === 1 ? "active" : ""} onClick={() => setSettings({ ...settings, minuteStep: 1 })}><strong>精确到 1 分钟</strong><small>分针可以指向任意分钟</small></button>
+            </div>
+          </div>
+          <div className="field-span admin-help">请在“任务配置”中新建“时钟学习任务”，这里的参数会用于孩子每次进入任务时出题。</div>
+          <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
+        </form>}
+        {error ? <Notice error>{error}</Notice> : null}
+      </Panel>
+      <Panel title="掌握程度">
+        <div className="clock-mastery">
+          <div className="clock-mastery__ring" style={{ background: `conic-gradient(#ff8a3d ${accuracy * 360}deg, #f1e8dd 0deg)` }}><span>{percent(stats.accuracy)}</span></div>
+          <div><strong>{stats.mastery.label}</strong><p>根据全部已完成题目的正确率评估</p></div>
+        </div>
+      </Panel>
+    </div>
+    <div className="metric-grid">
+      <article><span>累计练习</span><strong>{stats.completedSessions}</strong><small>次完整任务</small></article>
+      <article><span>累计答题</span><strong>{stats.totalQuestions}</strong><small>共答对 {stats.correctAnswers} 题</small></article>
+      <article><span>总体正确率</span><strong>{percent(stats.accuracy)}</strong><small>全部历史记录</small></article>
+      <article><span>近 30 天正确率</span><strong>{percent(stats.recentAccuracy)}</strong><small>观察近期变化</small></article>
+    </div>
   </div>;
 }
 

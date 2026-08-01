@@ -55,7 +55,7 @@ export function normalizeApiPath(path: string) {
       "/api/child/tasks/:id/start",
     )
     .replace(
-      /^\/api\/child\/(hanzi|poems)\/sessions\/[^/]+\/([^/]+)$/,
+      /^\/api\/child\/(hanzi|poems|clock)\/sessions\/[^/]+\/([^/]+)$/,
       "/api/child/$1/sessions/:id/$2",
     )
     .replace(
@@ -77,6 +77,7 @@ function operationFor(path: string) {
     "/api/child/attempts/:id/complete": "complete_task",
     "/api/child/hanzi/sessions/start": "start_hanzi_session",
     "/api/child/poems/sessions/start": "start_poem_session",
+    "/api/child/clock/sessions/start": "start_clock_session",
     "/api/child/hanzi/sessions/:id/review": "save_hanzi_review",
     "/api/child/hanzi/sessions/:id/learn": "save_hanzi_character",
     "/api/child/hanzi/sessions/:id/answer": "save_hanzi_answer",
@@ -84,6 +85,8 @@ function operationFor(path: string) {
     "/api/child/hanzi/sessions/:id/finalize": "complete_hanzi_task",
     "/api/child/poems/sessions/:id/finish": "complete_poem_task",
     "/api/child/poems/sessions/:id/learn": "complete_poem_learning",
+    "/api/child/clock/sessions/:id/answer": "save_clock_answer",
+    "/api/child/clock/sessions/:id/finish": "complete_clock_task",
   };
   return operations[path] ?? "child_api_request";
 }

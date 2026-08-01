@@ -12,6 +12,7 @@ import {
   dailyGoalBonusAmount,
   dailyTaskStatusAfterCompletion,
   isScheduledForDate,
+  lifetimeStarsAfterTaskRefund,
   remainingSeconds,
   taskReward,
 } from "../domain/task-rules.js";
@@ -28,6 +29,41 @@ type CompleteTaskOptions = {
 
 function isUniqueConstraint(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+async function findActiveDailyGoalBonus(
+  client: Prisma.TransactionClient | typeof prisma,
+  childId: string,
+  businessDateKey: string,
+) {
+  const bonusLedgers = await client.starLedger.findMany({
+    where: {
+      childId,
+      type: "DAILY_GOAL_BONUS",
+      idempotencyKey: { startsWith: `daily-goal:${childId}:${businessDateKey}` },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { amount: true, referenceId: true },
+  });
+  const referenceIds = bonusLedgers.flatMap((ledger) =>
+    ledger.referenceId ? [ledger.referenceId] : [],
+  );
+  if (referenceIds.length === 0) return null;
+
+  const refundLedgers = await client.starLedger.findMany({
+    where: {
+      childId,
+      type: "TASK_REWARD_REVERSAL",
+      referenceId: { in: referenceIds },
+    },
+    select: { referenceId: true },
+  });
+  const refundedAttemptIds = new Set(
+    refundLedgers.flatMap((ledger) => ledger.referenceId ? [ledger.referenceId] : []),
+  );
+  return bonusLedgers.find(
+    (ledger) => ledger.referenceId && !refundedAttemptIds.has(ledger.referenceId),
+  ) ?? null;
 }
 
 async function settlePreviousDay(
@@ -259,7 +295,7 @@ export async function getTodayTaskExperience(
   const streakLookback = new Date(today);
   streakLookback.setUTCDate(streakLookback.getUTCDate() - 400);
 
-  const [child, tasks, activeSlot, scoredDays, dailyGoalBonus, completedStars] = await Promise.all([
+  const [child, tasks, activeSlot, scoredDays, completedStars] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { dailyStarGoal: true, starBalance: true },
@@ -328,10 +364,6 @@ export async function getTodayTaskExperience(
       select: { taskDate: true },
       distinct: ["taskDate"],
     }),
-    prisma.starLedger.findUnique({
-      where: { idempotencyKey: `daily-goal:${childId}:${todayKey}` },
-      select: { amount: true },
-    }),
     prisma.taskAttempt.aggregate({
       where: {
         childId,
@@ -345,6 +377,7 @@ export async function getTodayTaskExperience(
   const taskStarsEarnedToday =
     (completedStars._sum.baseStarsAwarded ?? 0) +
     (completedStars._sum.bonusStarsAwarded ?? 0);
+  const dailyGoalBonus = await findActiveDailyGoalBonus(prisma, childId, todayKey);
   const dailyGoalBonusStars = dailyGoalBonus?.amount ?? 0;
   const earnedToday = taskStarsEarnedToday + dailyGoalBonusStars;
   const serializedTasks = tasks.map(({ _count, ...task }) => ({
@@ -645,6 +678,24 @@ export async function completeTask(
       );
     }
   }
+  if (existing.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING") {
+    stageStartedAt = performance.now();
+    const clockSession = await prisma.clockLearningSession.findUnique({
+      where: { taskAttemptId: existing.id },
+      select: { completedAt: true, currentIndex: true, totalQuestions: true },
+    });
+    mark("load-clock-session", stageStartedAt);
+    if (
+      !clockSession?.completedAt ||
+      clockSession.currentIndex < clockSession.totalQuestions
+    ) {
+      throw new HttpError(
+        409,
+        "CLOCK_SESSION_INCOMPLETE",
+        "请先完成全部时钟题目",
+      );
+    }
+  }
   if (
     existing.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
     existing.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
@@ -785,11 +836,11 @@ export async function completeTask(
 
       if (childSettings.dailyGoalBonusEnabled) {
         transactionStageStartedAt = performance.now();
-        const existingGoalBonus = await tx.starLedger.findUnique({
-          where: {
-            idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}`,
-          },
-        });
+        const existingGoalBonus = await findActiveDailyGoalBonus(
+          tx,
+          childId,
+          dailyGoalKey,
+        );
         mark("transaction-load-daily-goal-ledger", transactionStageStartedAt);
         const bonusToAward = dailyGoalBonusAmount({
           enabled: childSettings.dailyGoalBonusEnabled,
@@ -820,7 +871,7 @@ export async function completeTask(
               balanceAfter: childAfterGoalBonus.starBalance,
               reason: `达成每日 ${childSettings.dailyStarGoal} 颗星目标`,
               referenceId: attempt.id,
-              idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}`,
+              idempotencyKey: `daily-goal:${childId}:${dailyGoalKey}:${attempt.id}`,
             },
           });
           mark("transaction-create-daily-goal-ledger", transactionStageStartedAt);
@@ -909,7 +960,7 @@ export async function rollbackCompletedTask(
       const reversedStars = taskRewardStars + dailyGoalBonusStars;
       const child = await tx.childProfile.findUniqueOrThrow({
         where: { id: childId },
-        select: { starBalance: true },
+        select: { starBalance: true, lifetimeStarsEarned: true },
       });
       if (child.starBalance < reversedStars) {
         throw new HttpError(
@@ -921,8 +972,14 @@ export async function rollbackCompletedTask(
 
       const updatedChild = await tx.childProfile.update({
         where: { id: childId },
-        data: { starBalance: { decrement: reversedStars } },
-        select: { starBalance: true },
+        data: {
+          starBalance: { decrement: reversedStars },
+          lifetimeStarsEarned: lifetimeStarsAfterTaskRefund(
+            child.lifetimeStarsEarned,
+            reversedStars,
+          ),
+        },
+        select: { starBalance: true, lifetimeStarsEarned: true },
       });
       await tx.starLedger.create({
         data: {
@@ -962,6 +1019,7 @@ export async function rollbackCompletedTask(
         dailyGoalBonusStars,
         reversedStars,
         balanceAfter: updatedChild.starBalance,
+        lifetimeStarsEarnedAfter: updatedChild.lifetimeStarsEarned,
       };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

@@ -150,6 +150,7 @@ export type DailyTask = {
   experienceKindSnapshot:
     | "STANDARD"
     | "HANZI_LEARNING"
+    | "CLOCK_LEARNING"
     | "POEM_LEARNING"
     | "POEM_REVIEW";
   suggestedSecondsSnapshot: number | null;
@@ -168,7 +169,7 @@ export type DailyTask = {
 
 export type TaskAttempt = {
   id: string;
-  status: "RUNNING" | "PAUSED" | "COMPLETED" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
+  status: "RUNNING" | "PAUSED" | "COMPLETED" | "ROLLED_BACK" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
   elapsedSeconds: number | null;
   remainingSeconds: number | null;
   dailyTask: DailyTask;
@@ -379,6 +380,68 @@ export async function finalizeHanziLearningSession(
     body: JSON.stringify(input),
     signal,
   });
+}
+
+export type ClockQuestion = {
+  type: "SET_CLOCK" | "READ_CLOCK";
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+export type ClockAnswer = {
+  questionIndex: number;
+  hour: number;
+  minute: number;
+  second: number;
+  correct: boolean;
+  answeredAt: string;
+};
+
+export type ClockLearningSession = {
+  id: string;
+  taskAttemptId: string;
+  minuteStep: 1 | 5;
+  questions: ClockQuestion[];
+  answers: ClockAnswer[];
+  currentIndex: number;
+  correctCount: number;
+  totalQuestions: number;
+  completedAt: string | null;
+};
+
+export async function startClockLearningSession(attemptId: string) {
+  return request<{ session: ClockLearningSession }>(
+    "/api/child/clock/sessions/start",
+    { method: "POST", body: JSON.stringify({ attemptId }) },
+  );
+}
+
+export async function submitClockAnswer(
+  sessionId: string,
+  input: { questionIndex: number; hour: number; minute: number; second: number },
+) {
+  return request<{
+    session: ClockLearningSession;
+    answer: ClockAnswer;
+    question: ClockQuestion;
+  }>(`/api/child/clock/sessions/${sessionId}/answer`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function finishClockLearningSession(sessionId: string) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/clock/sessions/${sessionId}/finish`, { method: "POST" });
 }
 
 export type Poem = {

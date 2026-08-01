@@ -27,6 +27,7 @@ export type TaskTemplate = {
   experienceKind:
     | "STANDARD"
     | "HANZI_LEARNING"
+    | "CLOCK_LEARNING"
     | "POEM_LEARNING"
     | "POEM_REVIEW";
   systemManaged: boolean;
@@ -55,6 +56,23 @@ export type HanziLearningSettings = {
   newCharactersPerDay: number;
   reviewDailyLimit: number;
   consolidationQuestionCount: number;
+};
+
+export type ClockLearningSettings = {
+  questionsPerDay: number;
+  minuteStep: 1 | 5;
+};
+
+export type ClockLearningStats = {
+  completedSessions: number;
+  totalQuestions: number;
+  correctAnswers: number;
+  accuracy: number | null;
+  recentAccuracy: number | null;
+  mastery: {
+    level: "NO_DATA" | "NEEDS_PRACTICE" | "DEVELOPING" | "PROFICIENT" | "MASTERED";
+    label: string;
+  };
 };
 
 export type HanziCharacterResource = {
@@ -418,6 +436,15 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/settings`,
       { method: "PATCH", body: JSON.stringify(data) },
     ),
+  clockSettings: (childId: string) =>
+    api<{ settings: ClockLearningSettings; stats: ClockLearningStats }>(
+      `/api/parent/children/${childId}/clock/settings`,
+    ),
+  updateClockSettings: (childId: string, data: ClockLearningSettings) =>
+    api<{ settings: ClockLearningSettings }>(
+      `/api/parent/children/${childId}/clock/settings`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
   hanziCharacters: (
     childId: string,
     query: { q?: string; page?: number; pageSize?: number } = {},
@@ -623,7 +650,7 @@ export const parentApi = {
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
       `/api/parent/children/${childId}/task-history?days=${days}`,
     ),
-  rollbackTask: (childId: string, taskId: string) =>
+  refundTask: (childId: string, taskId: string) =>
     api<{
       ok: true;
       dailyTaskId: string;
@@ -633,6 +660,7 @@ export const parentApi = {
       dailyGoalBonusStars: number;
       reversedStars: number;
       balanceAfter: number;
+      lifetimeStarsEarnedAfter: number;
     }>(`/api/parent/children/${childId}/task-history/${taskId}/rollback`, {
       method: "POST",
     }),

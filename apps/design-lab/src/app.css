@@ -2,6 +2,178 @@
   box-sizing: border-box;
 }
 
+html:has(.clock-learning-page),
+body:has(.clock-learning-page),
+#root:has(.clock-learning-page) {
+  width: 100%;
+  min-height: 100%;
+  overflow: hidden;
+}
+
+.clock-learning-page {
+  --clock-ink: #5b463c;
+  --clock-orange: #ff7a3d;
+  --clock-yellow: #ffd45a;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100dvh;
+  padding: 26px 42px 30px;
+  overflow: hidden;
+  position: relative;
+  color: var(--clock-ink);
+  background: #eef8ff;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.clock-learning-header {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  position: relative;
+  z-index: 2;
+}
+.clock-learning-header span { color: #71849a; font-size: 16px; font-weight: 700; }
+.clock-learning-header h1 { margin: 5px 0 0; letter-spacing: 0; font-size: 30px; line-height: 1.15; }
+.clock-learning-progress { width: min(260px, 30%); height: 16px; overflow: hidden; position: relative; border: 3px solid #fff; border-radius: 9px; background: #dce8ef; box-shadow: 0 2px 8px rgb(72 91 110 / 12%); }
+.clock-learning-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--clock-orange); transition: width 220ms ease; }
+.clock-learning-progress strong { position: absolute; right: 8px; top: -27px; font-size: 14px; }
+.clock-learning-workspace {
+  display: grid;
+  width: min(1120px, 100%);
+  height: calc(100dvh - 142px);
+  min-height: 500px;
+  margin: 8px auto 0;
+  grid-template-columns: minmax(390px, 1.05fr) minmax(320px, .95fr);
+  align-items: center;
+  gap: 54px;
+  position: relative;
+  z-index: 1;
+}
+.clock-learning-clock-column { display: grid; place-items: center; gap: 16px; }
+.clock-face {
+  width: min(56vh, 450px);
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 14px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 14px 32px rgb(74 108 130 / 20%), inset 0 0 0 5px #bfe2ee;
+  position: relative;
+  background: #fffdf6;
+  touch-action: none;
+  user-select: none;
+}
+.clock-face--compact { width: 190px; border-width: 8px; }
+.clock-face__inner { position: absolute; inset: 5%; border: 2px solid #e6eef0; border-radius: 50%; }
+.clock-face__tick { width: 2px; height: 5%; position: absolute; top: 4.5%; left: calc(50% - 1px); transform-origin: 50% 910%; background: #a4b4b9; }
+.clock-face__tick--hour { width: 4px; height: 7%; left: calc(50% - 2px); transform-origin: 50% 650%; border-radius: 2px; background: #5f7378; }
+.clock-face__number { position: absolute; transform: translate(-50%, -50%); font-size: 25px; font-weight: 800; color: #5d6768; }
+.clock-face--compact .clock-face__number { font-size: 15px; }
+.clock-hand {
+  width: 44px;
+  height: 50%;
+  padding: 0;
+  border: 0;
+  position: absolute;
+  top: 0;
+  left: calc(50% - 22px);
+  transform-origin: 50% 100%;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+}
+.clock-hand:disabled { opacity: 1; cursor: default; }
+.clock-hand span { display: block; width: 8px; height: 58%; margin: 42% auto 0; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
+.clock-hand--minute span { width: 6px; height: 76%; margin-top: 24%; background: #2688a3; }
+.clock-hand--second span { width: 3px; height: 84%; margin-top: 16%; background: #ef5c52; box-shadow: none; }
+.clock-face--compact .clock-hand { width: 28px; left: calc(50% - 14px); }
+.clock-face--compact .clock-hand span { width: 5px; }
+.clock-face--compact .clock-hand--minute span { width: 4px; }
+.clock-face--compact .clock-hand--second span { width: 2px; }
+.clock-face__pin { width: 22px; height: 22px; position: absolute; top: calc(50% - 11px); left: calc(50% - 11px); z-index: 8; border: 5px solid #fff; border-radius: 50%; background: var(--clock-orange); box-shadow: 0 2px 6px rgb(0 0 0 / 18%); }
+.clock-face--compact .clock-face__pin { width: 14px; height: 14px; top: calc(50% - 7px); left: calc(50% - 7px); border-width: 3px; }
+.clock-digital-time { display: flex; align-items: baseline; gap: 12px; padding: 10px 22px; border: 3px solid #fff; border-radius: 8px; background: #dff3f8; box-shadow: 0 4px 12px rgb(72 91 110 / 10%); font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.clock-digital-time small { color: #71849a; font-size: 15px; }
+.clock-digital-time--muted { background: #f5f0e7; }
+.clock-learning-prompt,
+.clock-feedback,
+.clock-result {
+  box-sizing: border-box;
+  padding: 32px;
+  border: 5px solid #fff;
+  border-radius: 24px;
+  background: #fff9e8;
+  box-shadow: 0 12px 28px rgb(74 108 130 / 15%);
+}
+.clock-learning-badge,
+.clock-feedback > span { display: inline-flex; min-height: 31px; align-items: center; padding: 0 13px; border-radius: 16px; color: #8b5c17; background: #ffe9a7; font-size: 15px; font-weight: 800; }
+.clock-learning-prompt h2,
+.clock-feedback h2 { margin: 18px 0 10px; letter-spacing: 0; font-size: 29px; line-height: 1.35; }
+.clock-learning-prompt p { margin: 0 0 26px; color: #73808a; font-size: 18px; line-height: 1.7; }
+.clock-primary-button { display: inline-flex; min-width: 190px; min-height: 58px; align-items: center; justify-content: center; padding: 0 24px; border: 0; border-radius: 16px; color: #fff; background: var(--clock-orange); box-shadow: 0 6px 0 #d65728; font-size: 20px; font-weight: 800; cursor: pointer; }
+.clock-primary-button:active { transform: translateY(3px); box-shadow: 0 3px 0 #d65728; }
+.clock-primary-button:disabled { opacity: .58; cursor: wait; }
+.clock-answer-steppers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 22px 0 28px; }
+.clock-stepper { display: grid; gap: 7px; }
+.clock-stepper > span { color: #71849a; font-size: 14px; font-weight: 700; }
+.clock-stepper > div { display: grid; grid-template-columns: 42px 1fr 42px; min-height: 58px; align-items: center; overflow: hidden; border: 2px solid #d9e4e7; border-radius: 14px; background: #fff; }
+.clock-stepper button { height: 100%; border: 0; color: #4e6e79; background: #eaf5f7; font-size: 25px; font-weight: 800; }
+.clock-stepper strong { text-align: center; font-size: 25px; font-variant-numeric: tabular-nums; }
+.clock-feedback--correct { background: #e8f8e7; }
+.clock-feedback--wrong { background: #fff1e9; }
+.clock-feedback__correct { display: flex; align-items: center; gap: 22px; margin: 22px 0; }
+.clock-feedback__correct strong { color: #df5e2e; font-size: 30px; font-variant-numeric: tabular-nums; }
+.clock-result { width: min(580px, calc(100% - 36px)); margin: min(14vh, 120px) auto 0; position: relative; z-index: 1; text-align: center; }
+.clock-result__medal { display: grid; width: 92px; height: 92px; margin: -78px auto 16px; place-items: center; border: 8px solid #fff; border-radius: 50%; color: #fff; background: var(--clock-orange); box-shadow: 0 8px 18px rgb(74 108 130 / 18%); font-size: 44px; }
+.clock-result h2 { margin: 0; font-size: 34px; }
+.clock-result p { margin: 12px 0 24px; color: #71849a; font-size: 18px; }
+.clock-result__bar { height: 16px; overflow: hidden; margin: 0 0 30px; border-radius: 8px; background: #eadfcf; }
+.clock-result__bar span { display: block; height: 100%; border-radius: inherit; background: #65bd76; }
+.clock-learning-error { margin-top: 15px; color: #bd392f; font-size: 15px; font-weight: 700; }
+.clock-learning-loading { display: grid; min-height: calc(100dvh - 60px); place-items: center; position: relative; z-index: 1; font-size: 20px; font-weight: 800; }
+.clock-learning-question-count { position: absolute; right: 22px; bottom: 18px; z-index: 1; color: #8aa0aa; font-size: 13px; font-weight: 700; }
+.clock-learning-page .hanzi-more-button { top: 28px; right: 30px; z-index: 12; }
+
+@media (orientation: portrait) and (max-width: 1024px) {
+  .clock-learning-page { padding: 22px 28px 26px; }
+  .clock-learning-header { padding-right: 64px; }
+  .clock-learning-workspace { height: calc(100dvh - 120px); min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(300px, 1fr) auto; gap: 18px; align-content: center; }
+  .clock-face { width: min(43vh, 430px); }
+  .clock-learning-prompt, .clock-feedback { width: min(680px, 100%); margin: 0 auto; padding: 22px 28px; }
+  .clock-learning-prompt h2, .clock-feedback h2 { margin-top: 12px; font-size: 25px; }
+  .clock-learning-prompt p { margin-bottom: 18px; }
+  .clock-learning-workspace--feedback { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1fr; }
+  .clock-learning-workspace--feedback .clock-face { width: min(40vw, 360px); }
+}
+
+@media (max-height: 720px) and (orientation: landscape) {
+  .clock-learning-page { padding-top: 14px; padding-bottom: 18px; }
+  .clock-learning-header { min-height: 58px; }
+  .clock-learning-header h1 { font-size: 24px; }
+  .clock-learning-workspace { height: calc(100dvh - 84px); min-height: 390px; gap: 34px; }
+  .clock-face { width: min(63vh, 370px); }
+  .clock-learning-prompt, .clock-feedback { padding: 24px; }
+  .clock-learning-prompt h2, .clock-feedback h2 { font-size: 24px; }
+  .clock-learning-prompt p { margin-bottom: 18px; font-size: 16px; }
+}
+
+@media (max-width: 640px) {
+  .clock-learning-page { overflow-y: auto; padding: 16px 14px 24px; }
+  .clock-learning-header { padding-right: 52px; }
+  .clock-learning-header h1 { font-size: 23px; }
+  .clock-learning-progress { width: 110px; }
+  .clock-learning-workspace { height: auto; min-height: calc(100dvh - 96px); grid-template-rows: auto auto; gap: 18px; padding: 18px 0; }
+  .clock-face { width: min(82vw, 350px); border-width: 9px; }
+  .clock-face__number { font-size: 19px; }
+  .clock-learning-prompt, .clock-feedback { padding: 20px; border-width: 4px; border-radius: 18px; }
+  .clock-learning-prompt h2, .clock-feedback h2 { font-size: 22px; }
+  .clock-answer-steppers { grid-template-columns: 1fr; }
+  .clock-primary-button { width: 100%; }
+  .clock-learning-workspace--feedback { grid-template-columns: 1fr; }
+  .clock-feedback__correct { flex-direction: column; align-items: flex-start; }
+  .clock-face--compact { width: 170px; }
+}
+
 html,
 body,
 #root {

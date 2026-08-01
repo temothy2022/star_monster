@@ -46,6 +46,7 @@ enum TaskMode {
 enum TaskExperienceKind {
   STANDARD
   HANZI_LEARNING
+  CLOCK_LEARNING
   POEM_LEARNING
   POEM_REVIEW
 }
@@ -254,6 +255,8 @@ model ChildProfile {
   hanziSettings      HanziLearningSettings?
   hanziProgress      HanziLearningProgress[]
   hanziSessions      HanziLearningSession[]
+  clockSettings      ClockLearningSettings?
+  clockSessions      ClockLearningSession[]
   poemSettings       PoemLearningSettings?
   poemProgress       PoemLearningProgress[]
   poemSessions       PoemLearningSession[]
@@ -523,6 +526,39 @@ model HanziLearningSession {
   @@index([childId, sessionDate])
 }
 
+model ClockLearningSettings {
+  id              String   @id @default(cuid())
+  childId         String   @unique
+  questionsPerDay Int      @default(5)
+  minuteStep      Int      @default(5)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+model ClockLearningSession {
+  id             String   @id @default(cuid())
+  childId        String
+  taskAttemptId  String   @unique
+  sessionDate    DateTime @db.Date
+  minuteStep     Int
+  questions      Json
+  answers        Json
+  currentIndex   Int      @default(0)
+  correctCount   Int      @default(0)
+  totalQuestions Int
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+
+  @@index([childId, completedAt])
+  @@index([childId, sessionDate])
+}
+
 model Poem {
   id        String   @id @default(cuid())
   title     String
@@ -618,6 +654,7 @@ model TaskAttempt {
   reward       StarLedger?
   activeSlot   ActiveTaskSlot?
   hanziSession HanziLearningSession?
+  clockSession ClockLearningSession?
   poemSession  PoemLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])

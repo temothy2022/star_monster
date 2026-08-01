@@ -1042,6 +1042,53 @@ td { font-size: 13px; }
   scrollbar-color: #cbd2dc transparent;
 }
 
+.clock-settings-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.clock-settings-choice button {
+  display: grid;
+  gap: 4px;
+  min-height: 76px;
+  padding: 14px;
+  border: 1px solid #dce1e7;
+  border-radius: 10px;
+  color: #4d5666;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.clock-settings-choice button.active {
+  border-color: #f47a3f;
+  box-shadow: 0 0 0 2px rgb(244 122 63 / 12%);
+  color: #9f4218;
+  background: #fff4ec;
+}
+.clock-settings-choice small { color: #7d8796; font-weight: 500; }
+.clock-mastery { display: flex; align-items: center; gap: 22px; min-height: 180px; }
+.clock-mastery__ring {
+  display: grid;
+  width: 132px;
+  height: 132px;
+  flex: 0 0 132px;
+  place-items: center;
+  border-radius: 50%;
+  position: relative;
+}
+.clock-mastery__ring::after {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #fff;
+  content: "";
+}
+.clock-mastery__ring span { position: relative; z-index: 1; font-size: 25px; font-weight: 800; }
+.clock-mastery strong { font-size: 22px; }
+.clock-mastery p { margin: 7px 0 0; color: #7d8796; }
+
 @media (max-width: 1180px) {
   .admin-two-column { grid-template-columns: 1fr; }
   .hanzi-library-layout { grid-template-columns: 1fr; }
@@ -1225,6 +1272,8 @@ td { font-size: 13px; }
   .admin-topbar h1 { font-size: 21px; }
   .mobile-menu-button { margin-right: 9px; }
   .metric-grid, .detail-list, .admin-form, .wish-admin-grid { grid-template-columns: 1fr; }
+  .clock-settings-choice { grid-template-columns: 1fr; }
+  .clock-mastery { align-items: flex-start; flex-direction: column; }
   .device-card { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; padding: 13px; }
   .device-card__icon { width: 36px; height: 36px; font-size: 17px; }
   .device-card__heading { align-items: flex-start; flex-direction: column; gap: 6px; }
