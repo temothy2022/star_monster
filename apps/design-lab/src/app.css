@@ -5030,6 +5030,102 @@ select {
   height: 63px;
 }
 
+/* 手机端统一主导航位置和尺寸，避免任务/航图继承桌面端的 14px 底部间距。 */
+@media (max-width: 600px) {
+  .child-bottom-nav {
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    height: calc(70px + env(safe-area-inset-bottom));
+    padding: 4px 8px env(safe-area-inset-bottom);
+    border-width: 2px 2px 0;
+    border-radius: 16px 16px 0 0;
+    transform: none;
+  }
+
+  .child-bottom-nav__item {
+    width: auto;
+    height: 56px;
+    flex: 1 1 25%;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .child-bottom-nav__item img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .wish-confirm-sheet {
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    height: auto;
+    max-height: min(78dvh, 520px);
+    overflow-y: auto;
+    border-top-width: 3px;
+    border-radius: 24px 24px 0 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wish-confirm-sheet__content {
+    width: min(100%, calc(100% - 32px));
+    height: auto;
+    min-height: 0;
+    padding: 26px 0 calc(22px + env(safe-area-inset-bottom));
+  }
+
+  .wish-confirm-sheet__icon {
+    width: 60px;
+    height: 60px;
+    flex-basis: 60px;
+    border-width: 2px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+  }
+
+  .wish-confirm-sheet__icon img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .wish-confirm-sheet h2 {
+    max-width: 100%;
+    margin-top: 18px;
+    font-size: 20px;
+    line-height: 28px;
+    text-align: center;
+  }
+
+  .wish-confirm-sheet p {
+    margin-top: 10px;
+    font-size: 15px;
+    line-height: 22px;
+    text-align: center;
+  }
+
+  .wish-confirm-sheet .wish-confirm-error {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  .wish-confirm-sheet__actions {
+    width: 100%;
+    margin-top: 22px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .wish-confirm-sheet__actions button {
+    height: 52px;
+    border-radius: 16px;
+    font-size: 17px;
+    line-height: 24px;
+  }
+}
+
 /* 星愿和足迹的最终手机覆盖。必须放在动态页面基础样式之后。 */
 @media (max-width: 600px) {
   html:has(.wishes-page),
