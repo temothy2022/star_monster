@@ -400,9 +400,12 @@ export function WishesRequested({
             <div className="wish-confirm-sheet__content">
               <div className="wish-confirm-sheet__icon"><img src={confirmStar} alt="" /></div>
               <h2 id="wish-confirm-title">
-                使用 {selectedWish.display.cost} 颗星申请{selectedWish.display.title}？
+                <span className="wish-confirm-sheet__title--desktop">
+                  使用 {selectedWish.display.cost} 颗星申请{selectedWish.display.title}？
+                </span>
+                <span className="wish-confirm-sheet__title--mobile">是否确认兑换？</span>
               </h2>
-              <p>太阳系航程不会后退。</p>
+              <p className="wish-confirm-sheet__hint">太阳系航程不会后退。</p>
               {error && <p className="wish-confirm-error" role="alert">{error}</p>}
               <div className="wish-confirm-sheet__actions">
                 <button type="button" disabled={submitting} onClick={() => setSelectedWish(null)}>取消</button>

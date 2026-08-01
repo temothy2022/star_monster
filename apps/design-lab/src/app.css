@@ -10135,6 +10135,10 @@ body:has(.footprints-page),
   line-height: 39px;
 }
 
+.wish-confirm-sheet__title--mobile {
+  display: none;
+}
+
 .wish-confirm-sheet p {
   margin: 16px 0 0;
   color: var(--progress-muted);
@@ -10674,4 +10678,81 @@ body:has(.footprints-page),
 .untimed-complete-card__stars img {
   width: 66px;
   height: 63px;
+}
+
+/* 手机端兑换确认只保留核心信息，避免长标题把弹框撑坏。 */
+@media (max-width: 600px) {
+  .wish-confirm-sheet {
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    height: auto;
+    max-height: min(78dvh, 520px);
+    overflow-y: auto;
+    border-top-width: 3px;
+    border-radius: 24px 24px 0 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .wish-confirm-sheet__content {
+    width: min(100%, calc(100% - 32px));
+    height: auto;
+    min-height: 0;
+    padding: 26px 0 calc(22px + env(safe-area-inset-bottom));
+  }
+
+  .wish-confirm-sheet__icon {
+    width: 60px;
+    height: 60px;
+    flex-basis: 60px;
+    border-width: 2px;
+    box-shadow: 0 4px 0 var(--progress-ink);
+  }
+
+  .wish-confirm-sheet__icon img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .wish-confirm-sheet h2 {
+    max-width: 100%;
+    margin-top: 18px;
+    font-size: 20px;
+    line-height: 28px;
+    text-align: center;
+  }
+
+  .wish-confirm-sheet__title--desktop {
+    display: none;
+  }
+
+  .wish-confirm-sheet__title--mobile {
+    display: inline;
+  }
+
+  .wish-confirm-sheet__hint {
+    display: none;
+  }
+
+  .wish-confirm-sheet .wish-confirm-error {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: center;
+  }
+
+  .wish-confirm-sheet__actions {
+    width: 100%;
+    margin-top: 22px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .wish-confirm-sheet__actions button {
+    height: 52px;
+    border-radius: 16px;
+    font-size: 17px;
+    line-height: 24px;
+  }
 }
