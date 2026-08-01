@@ -6,7 +6,6 @@ import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
-import { buildPerformanceDashboard } from "../domain/performance-metrics.js";
 import { isScheduledForDate } from "../domain/task-rules.js";
 import { requireStaff } from "../services/auth-service.js";
 import {
@@ -370,9 +369,6 @@ const statsQuery = z.object({
 });
 const historyQuery = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),
-});
-const performanceQuery = z.object({
-  days: z.coerce.number().int().min(1).max(30).default(7),
 });
 
 async function requireOwnedChild(
@@ -1315,36 +1311,6 @@ export async function registerParentRoutes(
         take: 500,
       }),
     };
-  });
-
-  app.get("/api/parent/children/:id/performance", async (request, reply) => {
-    const { id } = idParams.parse(request.params);
-    await requireOwnedChild(request, reply, config, id);
-    const { days } = performanceQuery.parse(request.query);
-    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
-    const metrics = await prisma.childPerformanceMetric.findMany({
-      where: { childId: id, createdAt: { gte: from } },
-      orderBy: { createdAt: "desc" },
-      take: 10_000,
-      select: {
-        id: true,
-        kind: true,
-        operation: true,
-        path: true,
-        status: true,
-        requestId: true,
-        totalMs: true,
-        serverMs: true,
-        clientOverheadMs: true,
-        apiTotalMs: true,
-        nonApiMs: true,
-        effectiveType: true,
-        connectionRttMs: true,
-        downlinkMbps: true,
-        createdAt: true,
-      },
-    });
-    return buildPerformanceDashboard(metrics, days, config.APP_TIME_ZONE);
   });
 
   app.get("/api/parent/children/:id/stats", async (request, reply) => {

@@ -117,63 +117,6 @@ export type PoemSettingsResponse = {
   dueCount: number;
 };
 
-export type PerformanceDiagnosis = "server" | "network" | "frontend" | "mixed";
-
-export type PerformanceDashboard = {
-  days: number;
-  collectedFrom: string | null;
-  collectedTo: string | null;
-  summary: {
-    pageOpenCount: number;
-    slowPageCount: number;
-    slowPageRate: number;
-    pageOpenAverageMs: number | null;
-    pageOpenP95Ms: number | null;
-    serverAverageMs: number | null;
-    networkAverageMs: number | null;
-    frontendAverageMs: number | null;
-    completionAverageMs: number | null;
-    completionP95Ms: number | null;
-    completionCount: number;
-  };
-  diagnosis: Record<PerformanceDiagnosis, number>;
-  operations: Array<{
-    operation: string;
-    samples: number;
-    averageMs: number | null;
-    p95Ms: number | null;
-    slowCount: number;
-    serverAverageMs: number | null;
-    networkAverageMs: number | null;
-    frontendAverageMs: number | null;
-  }>;
-  trend: Array<{
-    date: string;
-    samples: number;
-    averageMs: number | null;
-    p95Ms: number | null;
-    slowCount: number;
-  }>;
-  recentSlowEvents: Array<{
-    id: string;
-    kind: string;
-    operation: string;
-    path: string;
-    status: number | null;
-    requestId: string | null;
-    totalMs: number;
-    serverMs: number | null;
-    clientOverheadMs: number | null;
-    apiTotalMs: number | null;
-    nonApiMs: number | null;
-    effectiveType: string | null;
-    connectionRttMs: number | null;
-    downlinkMbps: number | null;
-    createdAt: string;
-    diagnosis: PerformanceDiagnosis;
-  }>;
-};
-
 export type AiConfig = {
   provider: "DEEPSEEK";
   model: string;
@@ -678,10 +621,6 @@ export const parentApi = {
   taskHistory: (childId: string, days: number) =>
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
       `/api/parent/children/${childId}/task-history?days=${days}`,
-    ),
-  performance: (childId: string, days: number) =>
-    api<PerformanceDashboard>(
-      `/api/parent/children/${childId}/performance?days=${days}`,
     ),
   planets: (childId: string) =>
     api<PlanetSettingsResponse>(`/api/parent/children/${childId}/planets`),

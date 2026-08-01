@@ -1,5 +1,8 @@
 export type PerformanceMetricRecord = {
   id: string;
+  childId?: string;
+  childNickname?: string | null;
+  familyName?: string | null;
   kind: string;
   operation: string;
   path: string;
@@ -114,6 +117,9 @@ export function buildPerformanceDashboard(
 
   return {
     days,
+    childCount: new Set(
+      records.map((metric) => metric.childId).filter((childId): childId is string => Boolean(childId)),
+    ).size,
     collectedFrom: records.at(-1)?.createdAt ?? null,
     collectedTo: records[0]?.createdAt ?? null,
     summary: {

@@ -44,6 +44,67 @@ export type Metrics = {
   redemptions: Record<string, number>;
 };
 
+export type PerformanceDiagnosis = "server" | "network" | "frontend" | "mixed";
+
+export type PerformanceDashboard = {
+  days: number;
+  childCount: number;
+  collectedFrom: string | null;
+  collectedTo: string | null;
+  summary: {
+    pageOpenCount: number;
+    slowPageCount: number;
+    slowPageRate: number;
+    pageOpenAverageMs: number | null;
+    pageOpenP95Ms: number | null;
+    serverAverageMs: number | null;
+    networkAverageMs: number | null;
+    frontendAverageMs: number | null;
+    completionAverageMs: number | null;
+    completionP95Ms: number | null;
+    completionCount: number;
+  };
+  diagnosis: Record<PerformanceDiagnosis, number>;
+  operations: Array<{
+    operation: string;
+    samples: number;
+    averageMs: number | null;
+    p95Ms: number | null;
+    slowCount: number;
+    serverAverageMs: number | null;
+    networkAverageMs: number | null;
+    frontendAverageMs: number | null;
+  }>;
+  trend: Array<{
+    date: string;
+    samples: number;
+    averageMs: number | null;
+    p95Ms: number | null;
+    slowCount: number;
+  }>;
+  recentSlowEvents: Array<{
+    id: string;
+    childId?: string;
+    childNickname?: string | null;
+    familyName?: string | null;
+    kind: string;
+    operation: string;
+    path: string;
+    status: number | null;
+    requestId: string | null;
+    totalMs: number;
+    serverMs: number | null;
+    clientOverheadMs: number | null;
+    apiTotalMs: number | null;
+    nonApiMs: number | null;
+    effectiveType: string | null;
+    connectionRttMs: number | null;
+    downlinkMbps: number | null;
+    createdAt: string;
+    diagnosis: PerformanceDiagnosis;
+  }>;
+};
+
 export type AuditLog = {
   id: string;
   actorType: "CHILD" | "USER" | "SYSTEM";
@@ -151,6 +212,8 @@ export const adminApi = {
       { method: "POST" },
     ),
   metrics: () => api<Metrics>("/api/admin/metrics"),
+  performance: (days: number) =>
+    api<PerformanceDashboard>(`/api/admin/performance?days=${days}`),
   auditLogs: (cursor?: string) =>
     api<{ logs: AuditLog[]; nextCursor: string | null }>(
       `/api/admin/audit-logs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,

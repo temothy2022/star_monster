@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
+import { buildPerformanceDashboard } from "../domain/performance-metrics.js";
 import { hashSecret } from "../lib/crypto.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
@@ -58,6 +59,9 @@ const resetPasswordSchema = z.object({
 });
 
 const idParams = z.object({ id: z.string().min(1) });
+const performanceQuery = z.object({
+  days: z.coerce.number().int().min(1).max(30).default(7),
+});
 
 export async function registerSuperAdminRoutes(
   app: FastifyInstance,
@@ -472,6 +476,50 @@ export async function registerSuperAdminRoutes(
         redemptionCounts.map((row) => [row.status, row._count._all]),
       ),
     };
+  });
+
+  app.get("/api/admin/performance", async (request, reply) => {
+    await requireStaff(request, reply, config, ["SUPER_ADMIN"]);
+    const { days } = performanceQuery.parse(request.query);
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
+    const metrics = await prisma.childPerformanceMetric.findMany({
+      where: { createdAt: { gte: from } },
+      orderBy: { createdAt: "desc" },
+      take: 50_000,
+      select: {
+        id: true,
+        childId: true,
+        kind: true,
+        operation: true,
+        path: true,
+        status: true,
+        requestId: true,
+        totalMs: true,
+        serverMs: true,
+        clientOverheadMs: true,
+        apiTotalMs: true,
+        nonApiMs: true,
+        effectiveType: true,
+        connectionRttMs: true,
+        downlinkMbps: true,
+        createdAt: true,
+        child: {
+          select: {
+            nickname: true,
+            family: { select: { name: true } },
+          },
+        },
+      },
+    });
+    return buildPerformanceDashboard(
+      metrics.map(({ child, ...metric }) => ({
+        ...metric,
+        childNickname: child.nickname,
+        familyName: child.family.name,
+      })),
+      days,
+      config.APP_TIME_ZONE,
+    );
   });
 
   app.get("/api/admin/audit-logs", async (request, reply) => {
