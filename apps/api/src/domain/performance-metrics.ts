@@ -29,6 +29,19 @@ function average(values: Array<number | null | undefined>) {
   return Math.round((present.reduce((sum, value) => sum + value, 0) / present.length) * 10) / 10;
 }
 
+function isLegacyAbsoluteStartupMetric(metric: PerformanceMetricRecord) {
+  return (
+    metric.kind === "startup" &&
+    metric.operation === "startup_tasks_ready" &&
+    metric.totalMs >= 30_000 &&
+    (metric.apiTotalMs === null || (metric.apiTotalMs ?? 0) < 5_000) &&
+    (metric.serverMs === null || (metric.serverMs ?? 0) < 1_000) &&
+    (metric.clientOverheadMs === null ||
+      (metric.clientOverheadMs ?? 0) < 1_000) &&
+    (metric.nonApiMs ?? 0) >= metric.totalMs * 0.9
+  );
+}
+
 export function percentile(values: number[], percentileValue: number) {
   if (!values.length) return null;
   const sorted = [...values].sort((left, right) => left - right);
@@ -76,11 +89,14 @@ export function buildPerformanceDashboard(
   days: number,
   timeZone: string,
 ) {
-  const navigation = records.filter((metric) => metric.kind === "navigation");
-  const completions = records.filter(
+  const usableRecords = records.filter(
+    (metric) => !isLegacyAbsoluteStartupMetric(metric),
+  );
+  const navigation = usableRecords.filter((metric) => metric.kind === "navigation");
+  const completions = usableRecords.filter(
     (metric) => metric.kind === "api" && metric.operation.startsWith("complete_"),
   );
-  const diagnostics = records.filter(
+  const diagnostics = usableRecords.filter(
     (metric) =>
       metric.kind === "route" ||
       metric.kind === "startup" ||

@@ -379,20 +379,24 @@ export function reportChildAppStartupReady(apiPath: string) {
     nonApiMs: roundDuration(moduleLoadedAt),
   });
 
-  const readyAt = now();
   const apiMetric = latestApiMetrics.get(normalizeApiPath(apiPath));
+  const readyAt = now();
+  const readinessTotalMs = apiMetric
+    ? Math.max(0, readyAt - apiMetric.startedAt)
+    : Math.max(0, readyAt - moduleLoadedAt);
+  const readinessNonApiMs = apiMetric
+    ? Math.max(0, readinessTotalMs - apiMetric.totalMs)
+    : readinessTotalMs;
   sendPerformanceMetric({
     kind: "startup",
     operation: "startup_tasks_ready",
     path: normalizeApiPath(apiPath),
     requestId: apiMetric?.requestId ?? null,
-    totalMs: roundDuration(readyAt),
+    totalMs: roundDuration(readinessTotalMs),
     serverMs: roundDuration(apiMetric?.serverMs ?? null),
     clientOverheadMs: roundDuration(apiMetric?.clientOverheadMs ?? null),
     apiTotalMs: roundDuration(apiMetric?.totalMs ?? null),
-    nonApiMs: roundDuration(
-      apiMetric ? Math.max(0, readyAt - apiMetric.totalMs) : readyAt,
-    ),
+    nonApiMs: roundDuration(readinessNonApiMs),
     ttfbMs: roundDuration(apiMetric?.ttfbMs ?? null),
     downloadMs: roundDuration(apiMetric?.downloadMs ?? null),
     transferSize: apiMetric?.transferSize ?? null,

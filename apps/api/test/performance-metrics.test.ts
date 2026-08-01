@@ -102,4 +102,27 @@ describe("performance metrics", () => {
       }),
     ]);
   });
+
+  it("ignores legacy absolute startup readiness durations", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "legacy-startup",
+          kind: "startup",
+          operation: "startup_tasks_ready",
+          path: "/api/child/tasks/today",
+          totalMs: 108_796,
+          apiTotalMs: 16,
+          serverMs: 16,
+          clientOverheadMs: 9,
+          nonApiMs: 108_770,
+        }),
+      ],
+      30,
+      "Asia/Shanghai",
+    );
+
+    expect(result.operations).toEqual([]);
+    expect(result.recentSlowEvents).toEqual([]);
+  });
 });
