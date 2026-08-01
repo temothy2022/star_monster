@@ -2315,6 +2315,14 @@ export function App() {
   const [error, setError] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    document.title = user === null
+      ? "星宠-家长登录"
+      : user === undefined
+        ? "星宠-家长管理"
+        : `星宠-${SECTION_LABELS[section]}`;
+  }, [section, user]);
+
   async function loadChildren(preferredId?: string) {
     const result = await parentApi.children();
     setChildren(result.children);

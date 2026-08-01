@@ -304,6 +304,33 @@ function isActiveTaskRoute(route: AppRoute) {
   );
 }
 
+function childPageTitle(route: AppRoute) {
+  if (route.startsWith("tasks-")) return "任务列表";
+  if (route.startsWith("planet-") || route === "map") return "航图";
+  if (route.startsWith("hanzi-")) return "汉字学习";
+  if (route === "poem-session") return "古诗学习";
+  if (route === "poem-recitation") return "古诗朗读";
+
+  const titles: Partial<Record<AppRoute, string>> = {
+    login: "孩子登录",
+    pages: "页面清单",
+    "step-1": "新手引导",
+    "step-2": "新手引导",
+    "step-3": "新手引导",
+    "step-4": "新手引导",
+    "untimed-active": "任务进行中",
+    "untimed-menu": "任务进行中",
+    "untimed-abandon": "任务进行中",
+    "untimed-complete": "任务完成",
+    "timed-active": "限时任务",
+    "timed-complete": "限时任务完成",
+    "timed-timeout": "限时任务超时",
+    "wishes-requested": "星愿",
+    footprints: "足迹",
+  };
+  return titles[route] ?? "孩子端";
+}
+
 export function App() {
   const [route, setRoute] = useState<AppRoute>(readRouteFromHash);
   const [nickname, setNickname] = useState("");
@@ -321,6 +348,10 @@ export function App() {
   } | null>(null);
   const [isCompletingAttempt, setIsCompletingAttempt] = useState(false);
   const { mascot, selectedPet, selectPet } = useMascot();
+
+  useEffect(() => {
+    document.title = `星宠-${childPageTitle(route)}`;
+  }, [route]);
 
   useEffect(() => {
     if (!window.location.hash) {
