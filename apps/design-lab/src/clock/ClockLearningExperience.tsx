@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   finishClockLearningSession,
   startClockLearningSession,
@@ -119,6 +126,13 @@ function ClockFace({
   }
 
   function handEvents(kind: HandKind) {
+    function releasePointer(event: ReactPointerEvent<HTMLButtonElement>) {
+      event.preventDefault();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    }
+
     return {
       onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
         if (!interactive) return;
@@ -130,6 +144,14 @@ function ClockFace({
         if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
         event.preventDefault();
         updateHand(kind, event.clientX, event.clientY);
+      },
+      onPointerUp: releasePointer,
+      onPointerCancel: releasePointer,
+      onContextMenu(event: ReactMouseEvent<HTMLButtonElement>) {
+        event.preventDefault();
+      },
+      onDragStart(event: ReactDragEvent<HTMLButtonElement>) {
+        event.preventDefault();
       },
     };
   }
@@ -145,9 +167,9 @@ function ClockFace({
       const angle = value * 30 * Math.PI / 180;
       return <span key={value} className="clock-face__number" style={{ left: `${50 + Math.sin(angle) * 32}%`, top: `${50 - Math.cos(angle) * 32}%` }}>{value}</span>;
     })}
-    <button type="button" aria-label="拨动时针" className="clock-hand clock-hand--hour" style={{ transform: `rotate(${hourAngle}deg)` }} disabled={!interactive} {...handEvents("hour")}><span /></button>
-    <button type="button" aria-label="拨动分针" className="clock-hand clock-hand--minute" style={{ transform: `rotate(${minuteAngle}deg)` }} disabled={!interactive} {...handEvents("minute")}><span /></button>
-    <button type="button" aria-label="拨动秒针" className="clock-hand clock-hand--second" style={{ transform: `rotate(${secondAngle}deg)` }} disabled={!interactive} {...handEvents("second")}><span /></button>
+    <button type="button" draggable={false} aria-label="拨动时针" className="clock-hand clock-hand--hour" style={{ transform: `rotate(${hourAngle}deg)` }} disabled={!interactive} {...handEvents("hour")}><span /></button>
+    <button type="button" draggable={false} aria-label="拨动分针" className="clock-hand clock-hand--minute" style={{ transform: `rotate(${minuteAngle}deg)` }} disabled={!interactive} {...handEvents("minute")}><span /></button>
+    <button type="button" draggable={false} aria-label="拨动秒针" className="clock-hand clock-hand--second" style={{ transform: `rotate(${secondAngle}deg)` }} disabled={!interactive} {...handEvents("second")}><span /></button>
     <span className="clock-face__pin" />
   </div>;
 }

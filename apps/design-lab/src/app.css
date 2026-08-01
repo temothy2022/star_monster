@@ -64,8 +64,12 @@ body:has(.clock-learning-page),
   position: relative;
   background: #fffdf6;
   touch-action: none;
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
+.clock-face, .clock-face * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 .clock-face--compact { width: 190px; border-width: 8px; }
 .clock-face__inner { position: absolute; inset: 5%; border: 2px solid #e6eef0; border-radius: 50%; }
 .clock-face__tick { width: 2px; height: 4%; position: absolute; top: 4%; left: calc(50% - 1px); transform-origin: 50% 1150%; background: #a4b4b9; }
@@ -81,12 +85,18 @@ body:has(.clock-learning-page),
   bottom: 50%;
   left: calc(50% - 22px);
   transform-origin: 50% 100%;
+  -webkit-appearance: none;
+  appearance: none;
   background: transparent;
   cursor: grab;
   touch-action: none;
+  -webkit-user-drag: none;
+  outline: none;
 }
+.clock-hand:focus, .clock-hand:focus-visible { outline: none; }
+.clock-hand:active { cursor: grabbing; }
 .clock-hand:disabled { opacity: 1; cursor: default; }
-.clock-hand span { display: block; width: 8px; height: calc(100% + 5px); margin: 0 auto -5px; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
+.clock-hand span { display: block; width: 8px; height: calc(100% + 5px); margin: 0 auto -5px; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: none; pointer-events: none; }
 .clock-hand--hour { --clock-hand-length: 28%; z-index: 4; }
 .clock-hand--minute { --clock-hand-length: 37%; z-index: 5; }
 .clock-hand--minute span { width: 6px; background: #2688a3; }
