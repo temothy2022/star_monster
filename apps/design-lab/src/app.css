@@ -30,6 +30,7 @@ body:has(.clock-learning-page),
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  padding-left: 64px;
   position: relative;
   z-index: 2;
 }
@@ -38,6 +39,8 @@ body:has(.clock-learning-page),
 .clock-learning-progress { width: min(260px, 30%); height: 16px; overflow: hidden; position: relative; border: 3px solid #fff; border-radius: 9px; background: #dce8ef; box-shadow: 0 2px 8px rgb(72 91 110 / 12%); }
 .clock-learning-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--clock-orange); transition: width 220ms ease; }
 .clock-learning-progress strong { position: absolute; right: 8px; top: -27px; font-size: 14px; }
+.clock-back-button { display: grid; width: 56px; height: 56px; padding: 0; place-items: center; position: absolute; top: max(22px, env(safe-area-inset-top)); left: max(24px, env(safe-area-inset-left)); z-index: 12; border: 2px solid var(--clock-ink); border-radius: 24px; background: #fff9e8; box-shadow: 0 4px 0 rgb(37 59 89 / 12%); cursor: pointer; }
+.clock-back-button img { display: block; width: 24px; height: 24px; object-fit: contain; }
 .clock-learning-workspace {
   display: grid;
   width: min(1120px, 100%);
@@ -65,8 +68,8 @@ body:has(.clock-learning-page),
 }
 .clock-face--compact { width: 190px; border-width: 8px; }
 .clock-face__inner { position: absolute; inset: 5%; border: 2px solid #e6eef0; border-radius: 50%; }
-.clock-face__tick { width: 2px; height: 5%; position: absolute; top: 4.5%; left: calc(50% - 1px); transform-origin: 50% 910%; background: #a4b4b9; }
-.clock-face__tick--hour { width: 4px; height: 7%; left: calc(50% - 2px); transform-origin: 50% 650%; border-radius: 2px; background: #5f7378; }
+.clock-face__tick { width: 2px; height: 4%; position: absolute; top: 4%; left: calc(50% - 1px); transform-origin: 50% 1150%; background: #a4b4b9; }
+.clock-face__tick--hour { width: 4px; height: 5.5%; left: calc(50% - 2px); transform-origin: 50% 836%; border-radius: 2px; background: #5f7378; }
 .clock-face__number { position: absolute; transform: translate(-50%, -50%); font-size: 25px; font-weight: 800; color: #5d6768; }
 .clock-face--compact .clock-face__number { font-size: 15px; }
 .clock-hand {
@@ -83,14 +86,14 @@ body:has(.clock-learning-page),
   touch-action: none;
 }
 .clock-hand:disabled { opacity: 1; cursor: default; }
-.clock-hand span { display: block; width: 8px; height: 58%; margin: 42% auto 0; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
-.clock-hand--minute span { width: 6px; height: 76%; margin-top: 24%; background: #2688a3; }
-.clock-hand--second span { width: 3px; height: 84%; margin-top: 16%; background: #ef5c52; box-shadow: none; }
+.clock-hand span { display: block; width: 8px; height: 100%; margin: 0 auto; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
+.clock-hand--minute span { width: 6px; background: #2688a3; }
+.clock-hand--second span { width: 3px; background: #ef5c52; box-shadow: none; }
 .clock-face--compact .clock-hand { width: 28px; left: calc(50% - 14px); }
 .clock-face--compact .clock-hand span { width: 5px; }
 .clock-face--compact .clock-hand--minute span { width: 4px; }
 .clock-face--compact .clock-hand--second span { width: 2px; }
-.clock-face__pin { width: 22px; height: 22px; position: absolute; top: calc(50% - 11px); left: calc(50% - 11px); z-index: 8; border: 5px solid #fff; border-radius: 50%; background: var(--clock-orange); box-shadow: 0 2px 6px rgb(0 0 0 / 18%); }
+.clock-face__pin { width: 20px; height: 20px; position: absolute; top: calc(50% - 10px); left: calc(50% - 10px); z-index: 8; border: 3px solid #fff; border-radius: 50%; background: var(--clock-orange); box-shadow: 0 2px 6px rgb(0 0 0 / 18%); }
 .clock-face--compact .clock-face__pin { width: 14px; height: 14px; top: calc(50% - 7px); left: calc(50% - 7px); border-width: 3px; }
 .clock-digital-time { display: flex; align-items: baseline; gap: 12px; padding: 10px 22px; border: 3px solid #fff; border-radius: 8px; background: #dff3f8; box-shadow: 0 4px 12px rgb(72 91 110 / 10%); font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .clock-digital-time small { color: #71849a; font-size: 15px; }
@@ -132,11 +135,10 @@ body:has(.clock-learning-page),
 .clock-learning-error { margin-top: 15px; color: #bd392f; font-size: 15px; font-weight: 700; }
 .clock-learning-loading { display: grid; min-height: calc(100dvh - 60px); place-items: center; position: relative; z-index: 1; font-size: 20px; font-weight: 800; }
 .clock-learning-question-count { position: absolute; right: 22px; bottom: 18px; z-index: 1; color: #8aa0aa; font-size: 13px; font-weight: 700; }
-.clock-learning-page .hanzi-more-button { top: 28px; right: 30px; z-index: 12; }
 
 @media (orientation: portrait) and (max-width: 1024px) {
   .clock-learning-page { padding: 22px 28px 26px; }
-  .clock-learning-header { padding-right: 64px; }
+  .clock-learning-header { padding: 0 64px; }
   .clock-learning-workspace { height: calc(100dvh - 120px); min-height: 0; grid-template-columns: 1fr; grid-template-rows: minmax(300px, 1fr) auto; gap: 18px; align-content: center; }
   .clock-face { width: min(43vh, 430px); }
   .clock-learning-prompt, .clock-feedback { width: min(680px, 100%); margin: 0 auto; padding: 22px 28px; }
@@ -159,7 +161,7 @@ body:has(.clock-learning-page),
 
 @media (max-width: 640px) {
   .clock-learning-page { overflow-y: auto; padding: 16px 14px 24px; }
-  .clock-learning-header { padding-right: 52px; }
+  .clock-learning-header { padding: 0 52px; }
   .clock-learning-header h1 { font-size: 23px; }
   .clock-learning-progress { width: 110px; }
   .clock-learning-workspace { height: auto; min-height: calc(100dvh - 96px); grid-template-rows: auto auto; gap: 18px; padding: 18px 0; }

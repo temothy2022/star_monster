@@ -7,7 +7,7 @@ import {
   type ClockLearningSession,
   type ClockQuestion,
 } from "../api/child-api";
-import { HanziTaskControls } from "../hanzi/HanziTaskControls";
+import backIcon from "../assets/icon-arrow-left.svg";
 
 type ClockTime = { hour: number; minute: number; second: number };
 type HandKind = "hour" | "minute" | "second";
@@ -87,7 +87,7 @@ function ClockFace({
     {Array.from({ length: 12 }, (_, index) => {
       const value = index + 1;
       const angle = value * 30 * Math.PI / 180;
-      return <span key={value} className="clock-face__number" style={{ left: `${50 + Math.sin(angle) * 38}%`, top: `${50 - Math.cos(angle) * 38}%` }}>{value}</span>;
+      return <span key={value} className="clock-face__number" style={{ left: `${50 + Math.sin(angle) * 32}%`, top: `${50 - Math.cos(angle) * 32}%` }}>{value}</span>;
     })}
     <button type="button" aria-label="拨动时针" className="clock-hand clock-hand--hour" style={{ transform: `rotate(${hourAngle}deg)` }} disabled={!interactive} {...handEvents("hour")}><span /></button>
     <button type="button" aria-label="拨动分针" className="clock-hand clock-hand--minute" style={{ transform: `rotate(${minuteAngle}deg)` }} disabled={!interactive} {...handEvents("minute")}><span /></button>
@@ -181,7 +181,9 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
       ? session.currentIndex
       : Math.min(session.currentIndex + 1, session.totalQuestions);
   return <main className="clock-learning-page">
-    <HanziTaskControls onAbandon={onExit} experienceName="时钟学习" />
+    <button className="clock-back-button" type="button" onClick={onExit} aria-label="返回任务列表">
+      <img src={backIcon} alt="" aria-hidden="true" />
+    </button>
     <header className="clock-learning-header">
       <div><span>时间小课堂</span><h1>{stage === "PRACTICE" ? "拨一拨，认识时间" : stage === "RESULT" ? "今天的练习完成啦" : `第 ${Math.min(session.currentIndex + 1, session.totalQuestions)} 题`}</h1></div>
       {stage !== "PRACTICE" && stage !== "RESULT" ? <div className="clock-learning-progress"><span style={{ width: `${session.currentIndex / session.totalQuestions * 100}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div> : null}
@@ -193,7 +195,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
     </section> : null}
 
     {stage === "QUESTION" && question ? <section className="clock-learning-workspace">
-      <div className="clock-learning-clock-column"><ClockFace time={question.type === "READ_CLOCK" ? question : time} minuteStep={session.minuteStep} interactive={question.type === "SET_CLOCK"} onChange={setTime} />{question.type === "SET_CLOCK" ? <div className="clock-digital-time clock-digital-time--muted">{formatTime(time)}</div> : null}</div>
+      <div className="clock-learning-clock-column"><ClockFace time={question.type === "READ_CLOCK" ? question : time} minuteStep={session.minuteStep} interactive={question.type === "SET_CLOCK"} onChange={setTime} /></div>
       <div className="clock-learning-prompt"><span className="clock-learning-badge">{question.type === "SET_CLOCK" ? "拨钟题" : "认读题"}</span><h2>{question.type === "SET_CLOCK" ? `请拨到 ${formatTime(question)}` : "这个钟面是几点？"}</h2>{question.type === "READ_CLOCK" ? <div className="clock-answer-steppers"><TimeStepper label="时" value={time.hour} min={1} max={12} step={1} onChange={(hour) => setTime({ ...time, hour })} /><TimeStepper label="分" value={time.minute} min={0} max={59} step={session.minuteStep} onChange={(minute) => setTime({ ...time, minute })} /></div> : <p>拖动时针和分针，完成后提交答案。</p>}<button type="button" className="clock-primary-button" disabled={busy} onClick={() => void submit()}>{busy ? "判断中…" : "确定"}</button>{error ? <div className="clock-learning-error">{error}</div> : null}</div>
     </section> : null}
 
