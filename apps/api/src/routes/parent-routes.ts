@@ -11,6 +11,7 @@ import {
   abandonTask,
   generateDailyTasks,
   prepareDailyTasks,
+  rollbackCompletedTask,
 } from "../services/task-service.js";
 import {
   getPlanetSettings,
@@ -327,6 +328,10 @@ const statsQuery = z.object({
 });
 const historyQuery = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),
+});
+const historyTaskParams = z.object({
+  id: z.string().min(1),
+  taskId: z.string().min(1),
 });
 
 async function requireOwnedChild(
@@ -1192,6 +1197,26 @@ export async function registerParentRoutes(
     });
     return { from, to: today, days, tasks };
   });
+
+  app.post(
+    "/api/parent/children/:id/task-history/:taskId/rollback",
+    async (request, reply) => {
+      const { id: childId, taskId } = historyTaskParams.parse(request.params);
+      const { user, child } = await requireOwnedChild(request, reply, config, childId);
+      const result = await rollbackCompletedTask(childId, taskId);
+      await writeAudit(prisma, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId: child.familyId,
+        action: "TASK_REWARD_ROLLBACK",
+        resourceType: "DailyTask",
+        resourceId: taskId,
+        metadata: result,
+        ipAddress: request.ip,
+      });
+      return { ok: true, ...result };
+    },
+  );
 
   app.get("/api/parent/children/:id/planets", async (request, reply) => {
     const { id } = idParams.parse(request.params);

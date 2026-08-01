@@ -127,6 +127,7 @@ function sectionFromLocation(): Section {
 
 const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
   TASK_REWARD: "任务奖励",
+  TASK_REWARD_REVERSAL: "任务奖励回退",
   DAILY_GOAL_BONUS: "每日达标奖",
   PLANET_BONUS: "星球点亮奖",
   WISH_SPEND: "兑换支出",
@@ -353,11 +354,12 @@ function Overview({ child, onChanged }: { child: Child; onChanged: () => void })
   );
 }
 
-function History({ child }: { child: Child }) {
+function History({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [days, setDays] = useState(30);
   const [tasks, setTasks] = useState<TaskHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -394,6 +396,9 @@ function History({ child }: { child: Child }) {
     if (task.repeatableDailySnapshot && completedAttempts > 0) {
       return `已完成 ${completedAttempts} 次（可重复）`;
     }
+    if (task.attempts.some((attempt) => attempt.status === "ROLLED_BACK")) {
+      return "已回退，待完成";
+    }
     if (task.status === "COMPLETED") return "已完成";
     if (task.status === "EXPIRED") return "未完成";
     if (task.status === "PAUSED") return "已暂停";
@@ -421,7 +426,7 @@ function History({ child }: { child: Child }) {
         {loading ? <div className="empty-state">正在读取任务历史…</div> : (
           <div className="table-wrap">
             <table>
-              <thead><tr><th>日期</th><th>完成时间</th><th>任务</th><th>分类 / 类型</th><th>结果</th><th>尝试</th><th>完成用时 / 总执行</th><th>奖励</th></tr></thead>
+              <thead><tr><th>日期</th><th>完成时间</th><th>任务</th><th>分类 / 类型</th><th>结果</th><th>尝试</th><th>完成用时 / 总执行</th><th>奖励</th><th>操作</th></tr></thead>
               <tbody>{tasks.map((task) => {
                 const taskElapsed = task.attempts.reduce((sum, attempt) => sum + (attempt.elapsedSeconds ?? 0), 0);
                 const taskStars = task.attempts.reduce((sum, attempt) => sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded, 0);
@@ -429,9 +434,11 @@ function History({ child }: { child: Child }) {
                   ? " · 有超时"
                   : task.attempts.some((attempt) => attempt.status === "ABANDONED")
                     ? " · 有放弃"
+                    : task.attempts.some((attempt) => attempt.status === "ROLLED_BACK")
+                      ? " · 已回退"
                     : "";
                 const hasCompletion = task.attempts.some((attempt) => attempt.status === "COMPLETED");
-                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td>{task.completedAt ? formatTimeHM(task.completedAt) : "—"}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td><td><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td></tr>;
+                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td>{task.completedAt ? formatTimeHM(task.completedAt) : "—"}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td><td><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td><td>{hasCompletion ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定回退“${task.titleSnapshot}”吗？已发放的任务奖励会退回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.rollbackTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days)).then((result) => { setTasks(result.tasks); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务回退失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "回退中…" : "回退完成"}</button> : "—"}</td></tr>;
               })}</tbody>
             </table>
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
@@ -2501,7 +2508,7 @@ export function App() {
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
             {section === "overview" && <Overview child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
-            {section === "history" && <History child={selectedChild} />}
+            {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <ParentHanziLearning child={selectedChild} />}
             {section === "poems" && <ParentPoemLearning child={selectedChild} />}

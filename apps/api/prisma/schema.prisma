@@ -69,6 +69,7 @@ enum AttemptStatus {
   RUNNING
   PAUSED
   COMPLETED
+  ROLLED_BACK
   TIMED_OUT
   ABANDONED
   DAY_ENDED
@@ -102,6 +103,7 @@ enum WishRecurrenceKind {
 
 enum StarLedgerType {
   TASK_REWARD
+  TASK_REWARD_REVERSAL
   DAILY_GOAL_BONUS
   PLANET_BONUS
   WISH_SPEND

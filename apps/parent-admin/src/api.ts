@@ -248,6 +248,7 @@ export type LedgerEntry = {
   id: string;
   type:
     | "TASK_REWARD"
+    | "TASK_REWARD_REVERSAL"
     | "DAILY_GOAL_BONUS"
     | "PLANET_BONUS"
     | "WISH_SPEND"
@@ -312,7 +313,7 @@ export type TaskHistoryItem = {
   attempts: Array<{
     id: string;
     attemptNumber: number;
-    status: "RUNNING" | "PAUSED" | "COMPLETED" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
+    status: "RUNNING" | "PAUSED" | "COMPLETED" | "ROLLED_BACK" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
     startedAt: string;
     endedAt: string | null;
     elapsedSeconds: number | null;
@@ -622,6 +623,19 @@ export const parentApi = {
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
       `/api/parent/children/${childId}/task-history?days=${days}`,
     ),
+  rollbackTask: (childId: string, taskId: string) =>
+    api<{
+      ok: true;
+      dailyTaskId: string;
+      attemptId: string;
+      attemptNumber: number;
+      taskRewardStars: number;
+      dailyGoalBonusStars: number;
+      reversedStars: number;
+      balanceAfter: number;
+    }>(`/api/parent/children/${childId}/task-history/${taskId}/rollback`, {
+      method: "POST",
+    }),
   planets: (childId: string) =>
     api<PlanetSettingsResponse>(`/api/parent/children/${childId}/planets`),
   savePlanets: (

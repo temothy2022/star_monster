@@ -848,3 +848,122 @@ export async function completeTask(
     alreadyCompleted: false,
   };
 }
+
+/**
+ * Reverses the latest completed attempt for a daily task without deleting
+ * history. The task can then be started again and the ledger records the
+ * balance correction as a separate entry.
+ */
+export async function rollbackCompletedTask(
+  childId: string,
+  dailyTaskId: string,
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const dailyTask = await tx.dailyTask.findFirst({
+        where: { id: dailyTaskId, childId },
+        select: {
+          id: true,
+          titleSnapshot: true,
+          attempts: {
+            where: { status: "COMPLETED" },
+            orderBy: [{ endedAt: "desc" }, { attemptNumber: "desc" }],
+            take: 1,
+            select: {
+              id: true,
+              attemptNumber: true,
+              baseStarsAwarded: true,
+              bonusStarsAwarded: true,
+            },
+          },
+        },
+      });
+      if (!dailyTask) {
+        throw new HttpError(404, "TASK_NOT_FOUND", "没有找到这条任务记录");
+      }
+
+      const attempt = dailyTask.attempts[0];
+      if (!attempt) {
+        throw new HttpError(409, "TASK_NOT_COMPLETED", "这条任务没有可回退的完成记录");
+      }
+
+      const rewardLedger = await tx.starLedger.findUnique({
+        where: { taskAttemptId: attempt.id },
+        select: { amount: true },
+      });
+      const taskRewardStars = rewardLedger?.amount ??
+        attempt.baseStarsAwarded + attempt.bonusStarsAwarded;
+      if (taskRewardStars <= 0) {
+        throw new HttpError(409, "TASK_REWARD_NOT_FOUND", "没有找到这次任务对应的奖励记录");
+      }
+
+      const dailyGoalLedger = await tx.starLedger.findFirst({
+        where: {
+          childId,
+          type: "DAILY_GOAL_BONUS",
+          referenceId: attempt.id,
+        },
+        select: { amount: true },
+      });
+      const dailyGoalBonusStars = Math.max(0, dailyGoalLedger?.amount ?? 0);
+      const reversedStars = taskRewardStars + dailyGoalBonusStars;
+      const child = await tx.childProfile.findUniqueOrThrow({
+        where: { id: childId },
+        select: { starBalance: true },
+      });
+      if (child.starBalance < reversedStars) {
+        throw new HttpError(
+          409,
+          "INSUFFICIENT_STAR_BALANCE_FOR_ROLLBACK",
+          `当前星星余额不足以退回 ${reversedStars} 颗星，请先处理余额或兑换记录`,
+        );
+      }
+
+      const updatedChild = await tx.childProfile.update({
+        where: { id: childId },
+        data: { starBalance: { decrement: reversedStars } },
+        select: { starBalance: true },
+      });
+      await tx.starLedger.create({
+        data: {
+          childId,
+          type: "TASK_REWARD_REVERSAL",
+          amount: -reversedStars,
+          balanceAfter: updatedChild.starBalance,
+          reason: dailyGoalBonusStars > 0
+            ? `${dailyTask.titleSnapshot} 任务奖励回退（含每日达标奖）`
+            : `${dailyTask.titleSnapshot} 任务奖励回退`,
+          referenceId: attempt.id,
+          idempotencyKey: `task:${attempt.id}:reward-reversal`,
+        },
+      });
+      await tx.taskAttempt.update({
+        where: { id: attempt.id },
+        data: {
+          status: "ROLLED_BACK",
+          baseStarsAwarded: 0,
+          bonusStarsAwarded: 0,
+        },
+      });
+      await tx.dailyTask.update({
+        where: { id: dailyTask.id },
+        data: {
+          status: "PENDING",
+          completedAt: null,
+          completionDurationSeconds: null,
+        },
+      });
+
+      return {
+        dailyTaskId: dailyTask.id,
+        attemptId: attempt.id,
+        attemptNumber: attempt.attemptNumber,
+        taskRewardStars,
+        dailyGoalBonusStars,
+        reversedStars,
+        balanceAfter: updatedChild.starBalance,
+      };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+}
