@@ -102,6 +102,13 @@ export function dailyGoalBonusAmount(input: {
   return input.bonusStars;
 }
 
+export function lifetimeStarsAfterTaskRefund(
+  currentLifetimeStars: number,
+  refundedStars: number,
+): number {
+  return Math.max(0, currentLifetimeStars - Math.max(0, refundedStars));
+}
+
 export function dailyTaskStatusAfterCompletion(
   repeatableDaily: boolean,
 ): DailyTaskStatus {

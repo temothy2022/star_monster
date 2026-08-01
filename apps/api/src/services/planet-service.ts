@@ -24,12 +24,12 @@ type PlanetSettingsInput = Array<{
 export function resolveLifetimeStarsEarned(input: {
   storedLifetimeStarsEarned: number;
   starBalance: number;
-  positiveLedgerStars: number;
+  ledgerLifetimeStars: number;
 }) {
   return Math.max(
     input.storedLifetimeStarsEarned,
     input.starBalance,
-    input.positiveLedgerStars,
+    input.ledgerLifetimeStars,
   );
 }
 
@@ -41,15 +41,26 @@ async function reconcileLifetimeStarsEarned(
   const ledgerTotal = await client.starLedger.aggregate({
     where: {
       childId,
-      type: { in: ["TASK_REWARD", "DAILY_GOAL_BONUS", "PLANET_BONUS", "MANUAL_ADJUSTMENT"] },
-      amount: { gt: 0 },
+      OR: [
+        {
+          type: {
+            in: [
+              "TASK_REWARD",
+              "TASK_REWARD_REVERSAL",
+              "DAILY_GOAL_BONUS",
+              "PLANET_BONUS",
+            ],
+          },
+        },
+        { type: "MANUAL_ADJUSTMENT", amount: { gt: 0 } },
+      ],
     },
     _sum: { amount: true },
   });
   const lifetimeStarsEarned = resolveLifetimeStarsEarned({
     storedLifetimeStarsEarned: child.lifetimeStarsEarned,
     starBalance: child.starBalance,
-    positiveLedgerStars: ledgerTotal._sum.amount ?? 0,
+    ledgerLifetimeStars: ledgerTotal._sum.amount ?? 0,
   });
 
   if (lifetimeStarsEarned > child.lifetimeStarsEarned) {

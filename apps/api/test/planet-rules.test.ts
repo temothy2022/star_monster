@@ -38,7 +38,7 @@ describe("航行能量", () => {
       resolveLifetimeStarsEarned({
         storedLifetimeStarsEarned: 38,
         starBalance: 52,
-        positiveLedgerStars: 44,
+        ledgerLifetimeStars: 44,
       }),
     ).toBe(52);
 
@@ -46,8 +46,18 @@ describe("航行能量", () => {
       resolveLifetimeStarsEarned({
         storedLifetimeStarsEarned: 120,
         starBalance: 12,
-        positiveLedgerStars: 96,
+        ledgerLifetimeStars: 96,
       }),
     ).toBe(120);
+  });
+
+  it("keeps refunded task rewards out of the reconciled lifetime total", () => {
+    expect(
+      resolveLifetimeStarsEarned({
+        storedLifetimeStarsEarned: 100,
+        starBalance: 36,
+        ledgerLifetimeStars: 100,
+      }),
+    ).toBe(100);
   });
 });

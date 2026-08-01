@@ -5,6 +5,7 @@ import {
   dailyGoalBonusAmount,
   dailyTaskStatusAfterCompletion,
   isScheduledForDate,
+  lifetimeStarsAfterTaskRefund,
   remainingSeconds,
   taskReward,
 } from "../src/domain/task-rules.js";
@@ -35,6 +36,17 @@ describe("每日目标达成奖", () => {
       taskStarsEarned: 18,
       alreadyAwarded: true,
     })).toBe(0);
+  });
+});
+
+describe("任务奖励退款", () => {
+  it("从历史累计星星中扣除本次退款的全部奖励", () => {
+    expect(lifetimeStarsAfterTaskRefund(102, 2)).toBe(100);
+    expect(lifetimeStarsAfterTaskRefund(105, 5)).toBe(100);
+  });
+
+  it("异常旧数据下也不会让历史累计星星变为负数", () => {
+    expect(lifetimeStarsAfterTaskRefund(1, 2)).toBe(0);
   });
 });
 
