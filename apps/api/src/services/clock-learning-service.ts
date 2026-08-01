@@ -1,8 +1,10 @@
 import { Prisma, type ClockLearningSession } from "@prisma/client";
 import type { AppConfig } from "../config.js";
 import {
+  clockSecondIsSeparated,
   generateClockQuestions,
   isClockAnswerCorrect,
+  separatedClockSecond,
   type ClockAnswer,
   type ClockQuestion,
 } from "../domain/clock-learning.js";
@@ -19,11 +21,14 @@ function questionsFromJson(value: Prisma.JsonValue): ClockQuestion[] {
       (item.type !== "SET_CLOCK" && item.type !== "READ_CLOCK") ||
       typeof item.hour !== "number" || typeof item.minute !== "number"
     ) return [];
+    const second = typeof item.second === "number" ? item.second : 0;
     return [{
       type: item.type,
       hour: item.hour,
       minute: item.minute,
-      second: typeof item.second === "number" ? item.second : 0,
+      second: clockSecondIsSeparated({ hour: item.hour, minute: item.minute, second })
+        ? second
+        : separatedClockSecond(item.hour, item.minute, second),
     }];
   });
 }

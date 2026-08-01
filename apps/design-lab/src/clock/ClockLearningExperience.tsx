@@ -21,23 +21,60 @@ function formatTime(time: Pick<ClockTime, "hour" | "minute">) {
   return `${String(normalizedHour(time.hour)).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`;
 }
 
+function angleDistance(first: number, second: number) {
+  const difference = Math.abs(first - second) % 360;
+  return Math.min(difference, 360 - difference);
+}
+
+function secondIsSeparated(hour: number, minute: number, second: number) {
+  const hourAngle = (hour % 12) * 30 + minute * 0.5;
+  const minuteAngle = minute * 6;
+  const secondAngle = second * 6;
+  return angleDistance(secondAngle, hourAngle) >= 24 &&
+    angleDistance(secondAngle, minuteAngle) >= 24;
+}
+
+function separatedSecond(
+  hour: number,
+  minute: number,
+  preferred: number,
+  target?: Pick<ClockTime, "hour" | "minute">,
+) {
+  for (let offset = 0; offset < 60; offset += 1) {
+    const candidate = (preferred + offset) % 60;
+    if (
+      secondIsSeparated(hour, minute, candidate) &&
+      (!target || secondIsSeparated(target.hour, target.minute, candidate))
+    ) {
+      return candidate;
+    }
+  }
+  return preferred;
+}
+
 function initialQuestionTime(question: ClockQuestion, minuteStep: 1 | 5): ClockTime {
   if (question.type === "READ_CLOCK") return { hour: 12, minute: 0, second: 0 };
   const minute = (question.minute + minuteStep * 2) % 60;
   const hour = minute < question.minute ? normalizedHour(question.hour + 1) : question.hour;
-  return { hour, minute, second: 0 };
+  return {
+    hour,
+    minute,
+    second: separatedSecond(hour, minute, question.second, question),
+  };
 }
 
 function ClockFace({
   time,
   minuteStep,
   interactive,
+  avoidHandOverlap = false,
   compact = false,
   onChange,
 }: {
   time: ClockTime;
   minuteStep: 1 | 5;
   interactive: boolean;
+  avoidHandOverlap?: boolean;
   compact?: boolean;
   onChange?: (time: ClockTime) => void;
 }) {
@@ -50,16 +87,35 @@ function ClockFace({
     const y = clientY - (bounds.top + bounds.height / 2);
     const angle = (Math.atan2(y, x) * 180 / Math.PI + 90 + 360) % 360;
     if (kind === "hour") {
-      onChange({ ...time, hour: normalizedHour(Math.round(angle / 30)) });
+      const hour = normalizedHour(Math.round(angle / 30));
+      onChange({
+        ...time,
+        hour,
+        second: avoidHandOverlap
+          ? separatedSecond(hour, time.minute, time.second)
+          : time.second,
+      });
       return;
     }
     if (kind === "minute") {
       const rawMinute = Math.round(angle / 6) % 60;
       const minute = minuteStep === 5 ? Math.round(rawMinute / 5) * 5 % 60 : rawMinute;
-      onChange({ ...time, minute });
+      onChange({
+        ...time,
+        minute,
+        second: avoidHandOverlap
+          ? separatedSecond(time.hour, minute, time.second)
+          : time.second,
+      });
       return;
     }
-    onChange({ ...time, second: Math.round(angle / 6) % 60 });
+    const second = Math.round(angle / 6) % 60;
+    onChange({
+      ...time,
+      second: avoidHandOverlap
+        ? separatedSecond(time.hour, time.minute, second)
+        : second,
+    });
   }
 
   function handEvents(kind: HandKind) {
@@ -195,7 +251,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
     </section> : null}
 
     {stage === "QUESTION" && question ? <section className="clock-learning-workspace">
-      <div className="clock-learning-clock-column"><ClockFace time={question.type === "READ_CLOCK" ? question : time} minuteStep={session.minuteStep} interactive={question.type === "SET_CLOCK"} onChange={setTime} /></div>
+      <div className="clock-learning-clock-column"><ClockFace time={question.type === "READ_CLOCK" ? question : time} minuteStep={session.minuteStep} interactive={question.type === "SET_CLOCK"} avoidHandOverlap onChange={setTime} /></div>
       <div className="clock-learning-prompt"><span className="clock-learning-badge">{question.type === "SET_CLOCK" ? "拨钟题" : "认读题"}</span><h2>{question.type === "SET_CLOCK" ? `请拨到 ${formatTime(question)}` : "这个钟面是几点？"}</h2>{question.type === "READ_CLOCK" ? <div className="clock-answer-steppers"><TimeStepper label="时" value={time.hour} min={1} max={12} step={1} onChange={(hour) => setTime({ ...time, hour })} /><TimeStepper label="分" value={time.minute} min={0} max={59} step={session.minuteStep} onChange={(minute) => setTime({ ...time, minute })} /></div> : <p>拖动时针和分针，完成后提交答案。</p>}<button type="button" className="clock-primary-button" disabled={busy} onClick={() => void submit()}>{busy ? "判断中…" : "确定"}</button>{error ? <div className="clock-learning-error">{error}</div> : null}</div>
     </section> : null}
 

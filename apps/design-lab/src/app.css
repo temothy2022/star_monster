@@ -74,11 +74,11 @@ body:has(.clock-learning-page),
 .clock-face--compact .clock-face__number { font-size: 15px; }
 .clock-hand {
   width: 44px;
-  height: 50%;
+  height: var(--clock-hand-length);
   padding: 0;
   border: 0;
   position: absolute;
-  top: 0;
+  bottom: 50%;
   left: calc(50% - 22px);
   transform-origin: 50% 100%;
   background: transparent;
@@ -86,15 +86,18 @@ body:has(.clock-learning-page),
   touch-action: none;
 }
 .clock-hand:disabled { opacity: 1; cursor: default; }
-.clock-hand span { display: block; width: 8px; height: 60%; margin: 40% auto 0; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
-.clock-hand--minute span { width: 6px; height: 78%; margin-top: 22%; background: #2688a3; }
-.clock-hand--second span { width: 3px; height: 88%; margin-top: 12%; background: #ef5c52; box-shadow: none; }
+.clock-hand span { display: block; width: 8px; height: calc(100% + 5px); margin: 0 auto -5px; border-radius: 8px 8px 3px 3px; background: #5b463c; box-shadow: 0 2px 4px rgb(0 0 0 / 16%); }
+.clock-hand--hour { --clock-hand-length: 28%; z-index: 4; }
+.clock-hand--minute { --clock-hand-length: 37%; z-index: 5; }
+.clock-hand--minute span { width: 6px; background: #2688a3; }
+.clock-hand--second { --clock-hand-length: 42%; z-index: 6; }
+.clock-hand--second span { width: 3px; background: #ef5c52; box-shadow: none; }
 .clock-face--compact .clock-hand { width: 28px; left: calc(50% - 14px); }
 .clock-face--compact .clock-hand span { width: 5px; }
 .clock-face--compact .clock-hand--minute span { width: 4px; }
 .clock-face--compact .clock-hand--second span { width: 2px; }
-.clock-face__pin { width: 20px; height: 20px; position: absolute; top: calc(50% - 10px); left: calc(50% - 10px); z-index: 8; border: 3px solid #fff; border-radius: 50%; background: var(--clock-orange); box-shadow: 0 2px 6px rgb(0 0 0 / 18%); }
-.clock-face--compact .clock-face__pin { width: 14px; height: 14px; top: calc(50% - 7px); left: calc(50% - 7px); border-width: 3px; }
+.clock-face__pin { width: 18px; height: 18px; position: absolute; top: calc(50% - 9px); left: calc(50% - 9px); z-index: 8; border: 0; border-radius: 50%; background: #ef5c52; box-shadow: 0 0 0 3px rgb(239 92 82 / 20%), 0 2px 6px rgb(0 0 0 / 18%); }
+.clock-face--compact .clock-face__pin { width: 12px; height: 12px; top: calc(50% - 6px); left: calc(50% - 6px); }
 .clock-digital-time { display: flex; align-items: baseline; gap: 12px; padding: 10px 22px; border: 3px solid #fff; border-radius: 8px; background: #dff3f8; box-shadow: 0 4px 12px rgb(72 91 110 / 10%); font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .clock-digital-time small { color: #71849a; font-size: 15px; }
 .clock-digital-time--muted { background: #f5f0e7; }

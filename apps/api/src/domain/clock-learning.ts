@@ -20,6 +20,44 @@ function randomInt(maxExclusive: number, random: () => number): number {
   return Math.floor(random() * maxExclusive);
 }
 
+function clockAngleDistance(first: number, second: number): number {
+  const difference = Math.abs(first - second) % 360;
+  return Math.min(difference, 360 - difference);
+}
+
+export function clockSecondIsSeparated(
+  time: Pick<ClockQuestion, "hour" | "minute" | "second">,
+): boolean {
+  const hourAngle = (time.hour % 12) * 30 + time.minute * 0.5;
+  const minuteAngle = time.minute * 6;
+  const secondAngle = time.second * 6;
+  return clockAngleDistance(secondAngle, hourAngle) >= 24 &&
+    clockAngleDistance(secondAngle, minuteAngle) >= 24;
+}
+
+export function separatedClockSecond(
+  hour: number,
+  minute: number,
+  preferred = 30,
+): number {
+  const normalizedPreferred = ((Math.round(preferred) % 60) + 60) % 60;
+  for (let offset = 0; offset < 60; offset += 1) {
+    const second = (normalizedPreferred + offset) % 60;
+    if (clockSecondIsSeparated({ hour, minute, second })) return second;
+  }
+  return 30;
+}
+
+function separatedSecond(
+  hour: number,
+  minute: number,
+  random: () => number,
+): number {
+  const candidates = Array.from({ length: 60 }, (_, second) => second)
+    .filter((second) => clockSecondIsSeparated({ hour, minute, second }));
+  return candidates[randomInt(candidates.length, random)] ?? 30;
+}
+
 export function normalizeClockHour(hour: number): number {
   const normalized = Math.round(hour) % 12;
   return normalized <= 0 ? normalized + 12 : normalized;
@@ -52,7 +90,7 @@ export function generateClockQuestions(
         break;
       }
     }
-    return { type, hour, minute, second: 0 };
+    return { type, hour, minute, second: separatedSecond(hour, minute, random) };
   });
 }
 

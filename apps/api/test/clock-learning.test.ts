@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   clockMastery,
+  clockSecondIsSeparated,
   generateClockQuestions,
   isClockAnswerCorrect,
+  separatedClockSecond,
 } from "../src/domain/clock-learning.js";
 
 function sequenceRandom(values: number[]) {
@@ -31,6 +33,20 @@ describe("时钟学习出题", () => {
       sequenceRandom([0.1, 0.4, 0.12, 0.8, 0.7, 0.23]),
     );
     expect(questions.some((question) => question.minute % 5 !== 0)).toBe(true);
+  });
+
+  it("秒针不会与时针或分针重合，并保留清晰间隔", () => {
+    const questions = generateClockQuestions(
+      20,
+      1,
+      sequenceRandom([0, 0.12, 0.26, 0.51, 0.77, 0.93]),
+    );
+    expect(questions.every(clockSecondIsSeparated)).toBe(true);
+    expect(clockSecondIsSeparated({
+      hour: 12,
+      minute: 0,
+      second: separatedClockSecond(12, 0, 0),
+    })).toBe(true);
   });
 });
 
