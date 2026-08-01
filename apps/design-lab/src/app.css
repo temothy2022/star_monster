@@ -335,20 +335,26 @@ body:has(.poem-page),
 .poem-page--runtime .poem-page__recitation-column {
   justify-content: flex-start;
   overflow: auto;
+  overscroll-behavior: contain;
   padding-top: 16px;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
 }
 
 .poem-runtime__text {
   display: grid;
   width: min(100%, 540px);
+  flex: 0 0 auto;
   gap: 9px;
   align-content: center;
   min-height: 0;
+  max-width: 100%;
   padding: 10px 8px;
   text-align: center;
 }
 
 .poem-runtime__text .poem-page__line {
+  min-width: max-content;
   justify-content: flex-start;
   gap: 7px;
 }
@@ -356,12 +362,14 @@ body:has(.poem-page),
 .poem-runtime__text .poem-page__character {
   width: 46px;
   height: 46px;
+  flex: 0 0 46px;
   border-width: 1.5px;
   font-size: 24px;
 }
 
 .poem-runtime__text .poem-page__punctuation {
   width: 8px;
+  flex: 0 0 8px;
   font-size: 24px;
   line-height: 46px;
 }
@@ -474,10 +482,12 @@ body:has(.poem-page),
   .poem-runtime__text .poem-page__character {
     width: 40px;
     height: 40px;
+    flex-basis: 40px;
     font-size: 21px;
   }
 
   .poem-runtime__text .poem-page__punctuation {
+    flex-basis: 8px;
     font-size: 21px;
     line-height: 40px;
   }
@@ -593,11 +603,13 @@ body:has(.poem-page),
   .poem-runtime__text .poem-page__character {
     width: 54px;
     height: 54px;
+    flex-basis: 54px;
     font-size: 27px;
   }
 
   .poem-runtime__text .poem-page__punctuation {
     width: 9px;
+    flex-basis: 9px;
     font-size: 27px;
     line-height: 54px;
   }
@@ -638,11 +650,13 @@ body:has(.poem-page),
   .poem-runtime__text .poem-page__character {
     width: 35px;
     height: 35px;
+    flex-basis: 35px;
     font-size: 20px;
   }
 
   .poem-runtime__text .poem-page__punctuation {
     width: 5px;
+    flex-basis: 5px;
     font-size: 20px;
     line-height: 35px;
   }
