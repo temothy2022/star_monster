@@ -69,8 +69,7 @@ export async function registerSuperAdminRoutes(
 ): Promise<void> {
   app.get("/api/admin/families", async (request, reply) => {
     await requireAdmin(request, reply, config);
-    return {
-      families: await prisma.family.findMany({
+    const families = await prisma.family.findMany({
         orderBy: { createdAt: "desc" },
         include: {
           users: {
@@ -81,6 +80,11 @@ export async function registerSuperAdminRoutes(
               displayName: true,
               status: true,
               lastLoginAt: true,
+              sessions: {
+                orderBy: { lastSeenAt: "desc" },
+                take: 1,
+                select: { lastSeenAt: true },
+              },
             },
           },
           children: {
@@ -91,10 +95,28 @@ export async function registerSuperAdminRoutes(
               status: true,
               loginCodeLastFour: true,
               lastLoginAt: true,
+              sessions: {
+                orderBy: { lastSeenAt: "desc" },
+                take: 1,
+                select: { lastSeenAt: true },
+              },
             },
           },
         },
-      }),
+      });
+
+    return {
+      families: families.map((family) => ({
+        ...family,
+        users: family.users.map(({ sessions, lastLoginAt, ...user }) => ({
+          ...user,
+          lastActiveAt: sessions[0]?.lastSeenAt ?? lastLoginAt,
+        })),
+        children: family.children.map(({ sessions, lastLoginAt, ...child }) => ({
+          ...child,
+          lastActiveAt: sessions[0]?.lastSeenAt ?? lastLoginAt,
+        })),
+      })),
     };
   });
 

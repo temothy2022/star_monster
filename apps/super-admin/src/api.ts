@@ -11,7 +11,7 @@ export type ParentAccount = {
   username: string;
   displayName: string;
   status: "ACTIVE" | "DISABLED";
-  lastLoginAt: string | null;
+  lastActiveAt: string | null;
 };
 
 export type AdminChild = {
@@ -20,7 +20,7 @@ export type AdminChild = {
   petType: string | null;
   status: "ACTIVE" | "DISABLED";
   loginCodeLastFour: string;
-  lastLoginAt: string | null;
+  lastActiveAt: string | null;
 };
 
 export type Family = {
