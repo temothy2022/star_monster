@@ -30,7 +30,7 @@ import {
   type Wish,
 } from "./api";
 import { AiAssistant } from "./AiAssistant";
-import { ParentClockLearning, ParentHanziLearning, ParentPoemLearning } from "./LearningLibraries";
+import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "../../design-lab/src/assets/reward-categories/sports.webp";
 import gamesReward from "../../design-lab/src/assets/reward-categories/games.webp";
 import televisionReward from "../../design-lab/src/assets/reward-categories/television.webp";
@@ -50,6 +50,7 @@ type Section =
   | "tasks"
   | "hanzi"
   | "clock"
+  | "make-ten"
   | "poems"
   | "wishes"
   | "redemptions"
@@ -64,6 +65,7 @@ const SECTION_LABELS: Record<Section, string> = {
   tasks: "任务配置",
   hanzi: "汉字学习",
   clock: "时钟学习",
+  "make-ten": "凑十训练",
   poems: "古诗学习",
   wishes: "星愿管理",
   redemptions: "兑换处理",
@@ -93,6 +95,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     items: [
       { key: "hanzi", label: "汉字学习", icon: "字" },
       { key: "clock", label: "时钟学习", icon: "时" },
+      { key: "make-ten", label: "凑十训练", icon: "十" },
       { key: "poems", label: "古诗学习", icon: "诗" },
     ],
   },
@@ -328,6 +331,7 @@ function Overview({ child, onChanged }: { child: Child; onChanged: () => void })
   const [learningOverview, setLearningOverview] = useState<{
     hanzi: Awaited<ReturnType<typeof parentApi.hanziSettings>>;
     clock: Awaited<ReturnType<typeof parentApi.clockSettings>>;
+    makeTen: Awaited<ReturnType<typeof parentApi.makeTenSettings>>;
     poems: Awaited<ReturnType<typeof parentApi.poemSettings>>;
   } | null>(null);
   const [learningError, setLearningError] = useState("");
@@ -342,10 +346,11 @@ function Overview({ child, onChanged }: { child: Child; onChanged: () => void })
     void Promise.all([
       parentApi.hanziSettings(child.id),
       parentApi.clockSettings(child.id),
+      parentApi.makeTenSettings(child.id),
       parentApi.poemSettings(child.id),
     ])
-      .then(([hanzi, clock, poems]) => {
-        if (!cancelled) setLearningOverview({ hanzi, clock, poems });
+      .then(([hanzi, clock, makeTen, poems]) => {
+        if (!cancelled) setLearningOverview({ hanzi, clock, makeTen, poems });
       })
       .catch((reason) => {
         if (!cancelled) {
@@ -409,6 +414,14 @@ function Overview({ child, onChanged }: { child: Child; onChanged: () => void })
                 <div><span>总体正确率</span><strong>{percent(learningOverview.clock.stats.accuracy)}</strong><small>{learningOverview.clock.stats.totalQuestions} 道题</small></div>
                 <div><span>近 30 天</span><strong>{percent(learningOverview.clock.stats.recentAccuracy)}</strong><small>近期正确率</small></div>
                 <div><span>完整练习</span><strong>{learningOverview.clock.stats.completedSessions}</strong><small>次任务</small></div>
+              </div>
+            </article>
+            <article className="learning-overview-card">
+              <div className="learning-overview-card__header"><strong>凑十训练</strong><span>{learningOverview.makeTen.stats.mastery.label}</span></div>
+              <div className="learning-overview-card__metrics">
+                <div><span>总体正确率</span><strong>{percent(learningOverview.makeTen.stats.accuracy)}</strong><small>{learningOverview.makeTen.stats.totalQuestions} 道题</small></div>
+                <div><span>近 30 天</span><strong>{percent(learningOverview.makeTen.stats.recentAccuracy)}</strong><small>近期正确率</small></div>
+                <div><span>完整练习</span><strong>{learningOverview.makeTen.stats.completedSessions}</strong><small>次任务</small></div>
               </div>
             </article>
           </div>
@@ -503,7 +516,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
                       ? " · 已退款"
                     : "";
                 const hasCompletion = task.attempts.some((attempt) => attempt.status === "COMPLETED");
-                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td>{task.completedAt ? formatTimeHM(task.completedAt) : "—"}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td><td><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td><td>{hasCompletion ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定退款“${task.titleSnapshot}”吗？任务奖励和相关每日达标奖会从可用星星及历史累计星星中扣回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.refundTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days)).then((result) => { setTasks(result.tasks); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务退款失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "退款中…" : "退款"}</button> : "—"}</td></tr>;
+                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td>{task.completedAt ? formatTimeHM(task.completedAt) : "—"}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td><td><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td><td>{hasCompletion && taskStars > 0 ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定退款“${task.titleSnapshot}”吗？任务奖励和相关每日达标奖会从可用星星及历史累计星星中扣回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.refundTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days)).then((result) => { setTasks(result.tasks); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务退款失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "退款中…" : "退款"}</button> : "—"}</td></tr>;
               })}</tbody>
             </table>
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
@@ -516,7 +529,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
 
 type TaskForm = {
   title: string;
-  experienceKind: "STANDARD" | "HANZI_LEARNING" | "CLOCK_LEARNING";
+  experienceKind: "STANDARD" | "HANZI_LEARNING" | "CLOCK_LEARNING" | "MAKE_TEN";
   category: string;
   mode: "UNTIMED" | "TIMED";
   durationMinutes: number;
@@ -561,7 +574,8 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
     title: template.title,
     experienceKind:
       template.experienceKind === "HANZI_LEARNING" ||
-      template.experienceKind === "CLOCK_LEARNING"
+      template.experienceKind === "CLOCK_LEARNING" ||
+      template.experienceKind === "MAKE_TEN"
         ? template.experienceKind
         : "STANDARD",
     category: template.category,
@@ -586,12 +600,13 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
 function taskPayload(form: TaskForm, sortOrder = 0) {
   const isHanzi = form.experienceKind === "HANZI_LEARNING";
   const isClock = form.experienceKind === "CLOCK_LEARNING";
-  const isLearningExperience = isHanzi || isClock;
+  const isMakeTen = form.experienceKind === "MAKE_TEN";
+  const isLearningExperience = isHanzi || isClock || isMakeTen;
   return {
     title: form.title,
     experienceKind: form.experienceKind,
-    category: isHanzi ? "CHINESE" : isClock ? "MATH" : form.category,
-    iconKey: isHanzi ? "chinese" : isClock ? "math" : form.category.toLowerCase(),
+    category: isHanzi ? "CHINESE" : isClock || isMakeTen ? "MATH" : form.category,
+    iconKey: isHanzi ? "chinese" : isClock || isMakeTen ? "math" : form.category.toLowerCase(),
     mode: isLearningExperience ? "UNTIMED" : form.mode,
     suggestedSeconds: isLearningExperience || form.mode === "UNTIMED" ? form.durationMinutes * 60 : null,
     timeLimitSeconds: !isLearningExperience && form.mode === "TIMED" ? form.durationMinutes * 60 : null,
@@ -762,14 +777,16 @@ function Tasks({ child }: { child: Child }) {
                   ? "汉字学习"
                   : experienceKind === "CLOCK_LEARNING"
                     ? "时钟学习"
+                    : experienceKind === "MAKE_TEN"
+                      ? "凑十训练"
                     : form.title
                 : form.title,
-              category: experienceKind === "HANZI_LEARNING" ? "CHINESE" : experienceKind === "CLOCK_LEARNING" ? "MATH" : form.category,
+              category: experienceKind === "HANZI_LEARNING" ? "CHINESE" : experienceKind === "CLOCK_LEARNING" || experienceKind === "MAKE_TEN" ? "MATH" : form.category,
               mode: experienceKind === "STANDARD" ? form.mode : "UNTIMED",
               repeatableDaily: experienceKind === "STANDARD" ? form.repeatableDaily : false,
               earlyBonusEnabled: experienceKind === "STANDARD" ? form.earlyBonusEnabled : false,
             });
-          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option></select></label>
+          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option></select></label>
           <label>分类<select disabled={form.experienceKind !== "STANDARD"} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>计时类型<select disabled={form.experienceKind !== "STANDARD"} value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
           <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<input type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
@@ -849,7 +866,7 @@ function Tasks({ child }: { child: Child }) {
                   setDragOverId(null);
                 }}
                 onClick={(event) => event.preventDefault()}
-              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>
@@ -2572,6 +2589,7 @@ export function App() {
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <ParentHanziLearning child={selectedChild} />}
             {section === "clock" && <ParentClockLearning child={selectedChild} />}
+            {section === "make-ten" && <ParentMakeTenLearning child={selectedChild} />}
             {section === "poems" && <ParentPoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}

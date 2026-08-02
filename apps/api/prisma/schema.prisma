@@ -47,6 +47,7 @@ enum TaskExperienceKind {
   STANDARD
   HANZI_LEARNING
   CLOCK_LEARNING
+  MAKE_TEN
   POEM_LEARNING
   POEM_REVIEW
 }
@@ -257,6 +258,8 @@ model ChildProfile {
   hanziSessions      HanziLearningSession[]
   clockSettings      ClockLearningSettings?
   clockSessions      ClockLearningSession[]
+  makeTenSettings    MakeTenLearningSettings?
+  makeTenSessions    MakeTenLearningSession[]
   poemSettings       PoemLearningSettings?
   poemProgress       PoemLearningProgress[]
   poemSessions       PoemLearningSession[]
@@ -559,6 +562,42 @@ model ClockLearningSession {
   @@index([childId, sessionDate])
 }
 
+model MakeTenLearningSettings {
+  id                  String   @id @default(cuid())
+  childId             String   @unique
+  questionsPerDay     Int      @default(20)
+  secondsPerQuestion  Int      @default(5)
+  passAccuracyPercent Int      @default(80)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+model MakeTenLearningSession {
+  id                  String   @id @default(cuid())
+  childId             String
+  taskAttemptId       String   @unique
+  sessionDate         DateTime @db.Date
+  secondsPerQuestion  Int
+  passAccuracyPercent Int
+  questions           Json
+  answers             Json
+  currentIndex        Int      @default(0)
+  correctCount        Int      @default(0)
+  totalQuestions      Int
+  passed              Boolean?
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+
+  @@index([childId, completedAt])
+  @@index([childId, sessionDate])
+}
+
 model Poem {
   id        String   @id @default(cuid())
   title     String
@@ -655,6 +694,7 @@ model TaskAttempt {
   activeSlot   ActiveTaskSlot?
   hanziSession HanziLearningSession?
   clockSession ClockLearningSession?
+  makeTenSession MakeTenLearningSession?
   poemSession  PoemLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])

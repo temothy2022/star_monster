@@ -28,6 +28,7 @@ export type TaskTemplate = {
     | "STANDARD"
     | "HANZI_LEARNING"
     | "CLOCK_LEARNING"
+    | "MAKE_TEN"
     | "POEM_LEARNING"
     | "POEM_REVIEW";
   systemManaged: boolean;
@@ -74,6 +75,14 @@ export type ClockLearningStats = {
     label: string;
   };
 };
+
+export type MakeTenLearningSettings = {
+  questionsPerDay: number;
+  secondsPerQuestion: number;
+  passAccuracyPercent: number;
+};
+
+export type MakeTenLearningStats = ClockLearningStats;
 
 export type HanziCharacterResource = {
   id: string;
@@ -443,6 +452,15 @@ export const parentApi = {
   updateClockSettings: (childId: string, data: ClockLearningSettings) =>
     api<{ settings: ClockLearningSettings }>(
       `/api/parent/children/${childId}/clock/settings`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
+  makeTenSettings: (childId: string) =>
+    api<{ settings: MakeTenLearningSettings; stats: MakeTenLearningStats }>(
+      `/api/parent/children/${childId}/make-ten/settings`,
+    ),
+  updateMakeTenSettings: (childId: string, data: MakeTenLearningSettings) =>
+    api<{ settings: MakeTenLearningSettings }>(
+      `/api/parent/children/${childId}/make-ten/settings`,
       { method: "PATCH", body: JSON.stringify(data) },
     ),
   hanziCharacters: (

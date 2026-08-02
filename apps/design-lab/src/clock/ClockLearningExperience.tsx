@@ -14,6 +14,7 @@ import {
   type ClockLearningSession,
   type ClockQuestion,
 } from "../api/child-api";
+import { playAnswerSound } from "../audio/feedback-sounds";
 import backIcon from "../assets/icon-arrow-left.svg";
 
 type ClockTime = { hour: number; minute: number; second: number };
@@ -230,6 +231,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
       });
       setSession(result.session);
       setFeedback({ answer: result.answer, question: result.question });
+      playAnswerSound(result.answer.correct);
       setStage("FEEDBACK");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "答案提交失败");
@@ -258,7 +260,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
     : stage === "FEEDBACK" || stage === "RESULT"
       ? session.currentIndex
       : Math.min(session.currentIndex + 1, session.totalQuestions);
-  return <main className="clock-learning-page">
+  return <main className="clock-learning-page" onContextMenu={(event) => event.preventDefault()}>
     <button className="clock-back-button" type="button" onClick={onExit} aria-label="返回任务列表">
       <img src={backIcon} alt="" aria-hidden="true" />
     </button>
@@ -272,9 +274,10 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
       <div className="clock-learning-prompt"><span className="clock-learning-badge">自由练习</span><h2>试着拨动三根指针</h2><p>准备好以后，开始今天的 {session.totalQuestions} 道题。</p><button type="button" className="clock-primary-button" onClick={() => setStage("QUESTION")}>开始测试</button></div>
     </section> : null}
 
-    {stage === "QUESTION" && question ? <section className="clock-learning-workspace">
+    {stage === "QUESTION" && question ? <section className="clock-learning-workspace clock-learning-workspace--question">
       <div className="clock-learning-clock-column"><ClockFace time={question.type === "READ_CLOCK" ? question : time} minuteStep={session.minuteStep} interactive={question.type === "SET_CLOCK"} avoidHandOverlap onChange={setTime} /></div>
-      <div className="clock-learning-prompt"><span className="clock-learning-badge">{question.type === "SET_CLOCK" ? "拨钟题" : "认读题"}</span><h2>{question.type === "SET_CLOCK" ? `请拨到 ${formatTime(question)}` : "这个钟面是几点？"}</h2>{question.type === "READ_CLOCK" ? <div className="clock-answer-steppers"><TimeStepper label="时" value={time.hour} min={1} max={12} step={1} onChange={(hour) => setTime({ ...time, hour })} /><TimeStepper label="分" value={time.minute} min={0} max={59} step={session.minuteStep} onChange={(minute) => setTime({ ...time, minute })} /></div> : <p>拖动时针和分针，完成后提交答案。</p>}<button type="button" className="clock-primary-button" disabled={busy} onClick={() => void submit()}>{busy ? "判断中…" : "确定"}</button>{error ? <div className="clock-learning-error">{error}</div> : null}</div>
+      <div className="clock-learning-prompt"><span className="clock-learning-badge">{question.type === "SET_CLOCK" ? "拨钟题" : "认读题"}</span><h2>{question.type === "SET_CLOCK" ? `请拨到 ${formatTime(question)}` : "这个钟面是几点？"}</h2>{question.type === "READ_CLOCK" ? <div className="clock-answer-steppers"><TimeStepper label="时" value={time.hour} min={1} max={12} step={1} onChange={(hour) => setTime({ ...time, hour })} /><TimeStepper label="分" value={time.minute} min={0} max={59} step={session.minuteStep} onChange={(minute) => setTime({ ...time, minute })} /></div> : <p>拖动时针和分针，完成后提交答案。</p>}{error ? <div className="clock-learning-error">{error}</div> : null}</div>
+      <div className="clock-learning-submit-zone"><button type="button" className="clock-primary-button" disabled={busy} onClick={() => void submit()}>{busy ? "判断中…" : "确定"}</button></div>
     </section> : null}
 
     {stage === "FEEDBACK" && feedback ? <section className="clock-learning-workspace clock-learning-workspace--feedback">

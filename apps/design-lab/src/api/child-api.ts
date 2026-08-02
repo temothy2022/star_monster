@@ -151,6 +151,7 @@ export type DailyTask = {
     | "STANDARD"
     | "HANZI_LEARNING"
     | "CLOCK_LEARNING"
+    | "MAKE_TEN"
     | "POEM_LEARNING"
     | "POEM_REVIEW";
   suggestedSecondsSnapshot: number | null;
@@ -442,6 +443,64 @@ export async function finishClockLearningSession(sessionId: string) {
     };
     alreadyCompleted: boolean;
   }>(`/api/child/clock/sessions/${sessionId}/finish`, { method: "POST" });
+}
+
+export type MakeTenQuestion = { target: number };
+
+export type MakeTenAnswer = {
+  questionIndex: number;
+  selectedNumber: number | null;
+  correct: boolean;
+  timedOut: boolean;
+  answeredAt: string;
+};
+
+export type MakeTenLearningSession = {
+  id: string;
+  taskAttemptId: string;
+  secondsPerQuestion: number;
+  passAccuracyPercent: number;
+  questions: MakeTenQuestion[];
+  answers: MakeTenAnswer[];
+  currentIndex: number;
+  correctCount: number;
+  totalQuestions: number;
+  passed: boolean | null;
+  completedAt: string | null;
+};
+
+export async function startMakeTenSession(attemptId: string) {
+  return request<{ session: MakeTenLearningSession }>(
+    "/api/child/make-ten/sessions/start",
+    { method: "POST", body: JSON.stringify({ attemptId }) },
+  );
+}
+
+export async function submitMakeTenAnswer(
+  sessionId: string,
+  input: { questionIndex: number; selectedNumber: number | null; timedOut: boolean },
+) {
+  return request<{
+    session: MakeTenLearningSession;
+    answer: MakeTenAnswer;
+    question: MakeTenQuestion;
+  }>(`/api/child/make-ten/sessions/${sessionId}/answer`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function finishMakeTenSession(sessionId: string) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/make-ten/sessions/${sessionId}/finish`, { method: "POST" });
 }
 
 export type Poem = {

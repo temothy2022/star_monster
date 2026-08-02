@@ -3,6 +3,7 @@ import {
   parentApi,
   type Child,
   type ClockLearningSettings,
+  type MakeTenLearningSettings,
   type HanziCharacterResource,
   type HanziLearningSettings,
   type PoemLearningSettings,
@@ -209,6 +210,55 @@ export function ParentClockLearning({ child }: { child: Child }) {
           <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
         </form>}
         {error ? <Notice error>{error}</Notice> : null}
+    </Panel>
+  </div>;
+}
+
+const DEFAULT_MAKE_TEN_SETTINGS: MakeTenLearningSettings = {
+  questionsPerDay: 20,
+  secondsPerQuestion: 5,
+  passAccuracyPercent: 80,
+};
+
+export function ParentMakeTenLearning({ child }: { child: Child }) {
+  const [settings, setSettings] = useState(DEFAULT_MAKE_TEN_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    void parentApi.makeTenSettings(child.id)
+      .then((result) => setSettings(result.settings))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "凑十训练设置加载失败"))
+      .finally(() => setLoading(false));
+  }, [child.id]);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await parentApi.updateMakeTenSettings(child.id, settings);
+      setSettings(result.settings);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "凑十训练设置保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <div className="admin-stack">
+    <Panel title="凑十训练设置">
+      {loading ? <div className="empty-state">正在读取设置…</div> : <form className="admin-form" onSubmit={save}>
+        <label>每日题量<input type="number" min={1} max={50} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
+        <label>每题时间（秒）<input type="number" min={2} max={30} value={settings.secondsPerQuestion} onChange={(event) => setSettings({ ...settings, secondsPerQuestion: Number(event.target.value) })} /></label>
+        <label>达标正确率（%）<input type="number" min={1} max={100} value={settings.passAccuracyPercent} onChange={(event) => setSettings({ ...settings, passAccuracyPercent: Number(event.target.value) })} /></label>
+        <div className="field-span admin-help">未在规定时间内作答或选错均计为错误；最终正确率低于达标值时，本次任务不获得星星。请在“任务配置”中新建“凑十训练任务”。</div>
+        <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
+      </form>}
+      {error ? <Notice error>{error}</Notice> : null}
     </Panel>
   </div>;
 }

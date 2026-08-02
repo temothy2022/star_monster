@@ -7,6 +7,7 @@ import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
 import { isScheduledForDate } from "../domain/task-rules.js";
 import { clockMastery } from "../domain/clock-learning.js";
+import { makeTenMastery } from "../domain/make-ten-learning.js";
 import { requireParent } from "../services/auth-service.js";
 import {
   abandonTask,
@@ -25,7 +26,7 @@ import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
-const taskExperienceKind = z.enum(["STANDARD", "HANZI_LEARNING", "CLOCK_LEARNING"]);
+const taskExperienceKind = z.enum(["STANDARD", "HANZI_LEARNING", "CLOCK_LEARNING", "MAKE_TEN"]);
 const scheduleKind = z.enum([
   "DAILY",
   "WORKDAYS",
@@ -96,6 +97,11 @@ const hanziSettingsSchema = z.object({
 const clockSettingsSchema = z.object({
   questionsPerDay: z.number().int().min(1).max(20),
   minuteStep: z.union([z.literal(1), z.literal(5)]),
+});
+const makeTenSettingsSchema = z.object({
+  questionsPerDay: z.number().int().min(1).max(50),
+  secondsPerQuestion: z.number().int().min(2).max(30),
+  passAccuracyPercent: z.number().int().min(1).max(100),
 });
 const hanziLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
@@ -171,7 +177,8 @@ const taskTemplateSchema = z
     }
     if (
       (input.experienceKind === "HANZI_LEARNING" ||
-        input.experienceKind === "CLOCK_LEARNING") &&
+        input.experienceKind === "CLOCK_LEARNING" ||
+        input.experienceKind === "MAKE_TEN") &&
       (input.mode !== "UNTIMED" || input.repeatableDaily)
     ) {
       context.addIssue({
@@ -934,6 +941,57 @@ export async function registerParentRoutes(
     await requireOwnedChild(request, reply, config, id);
     const input = clockSettingsSchema.parse(request.body);
     const settings = await prisma.clockLearningSettings.upsert({
+      where: { childId: id },
+      update: input,
+      create: { childId: id, ...input },
+    });
+    return { settings };
+  });
+
+  app.get("/api/parent/children/:id/make-ten/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const recentFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [settings, allTime, recent] = await Promise.all([
+      prisma.makeTenLearningSettings.upsert({
+        where: { childId: id },
+        update: {},
+        create: { childId: id },
+      }),
+      prisma.makeTenLearningSession.aggregate({
+        where: { childId: id, completedAt: { not: null }, taskAttempt: { status: "COMPLETED" } },
+        _count: { _all: true },
+        _sum: { correctCount: true, totalQuestions: true },
+      }),
+      prisma.makeTenLearningSession.aggregate({
+        where: { childId: id, completedAt: { gte: recentFrom }, taskAttempt: { status: "COMPLETED" } },
+        _count: { _all: true },
+        _sum: { correctCount: true, totalQuestions: true },
+      }),
+    ]);
+    const totalQuestions = allTime._sum.totalQuestions ?? 0;
+    const correctAnswers = allTime._sum.correctCount ?? 0;
+    const recentQuestions = recent._sum.totalQuestions ?? 0;
+    const recentCorrect = recent._sum.correctCount ?? 0;
+    const accuracy = totalQuestions ? correctAnswers / totalQuestions : null;
+    return {
+      settings,
+      stats: {
+        completedSessions: allTime._count._all,
+        totalQuestions,
+        correctAnswers,
+        accuracy,
+        recentAccuracy: recentQuestions ? recentCorrect / recentQuestions : null,
+        mastery: makeTenMastery(accuracy),
+      },
+    };
+  });
+
+  app.patch("/api/parent/children/:id/make-ten/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const input = makeTenSettingsSchema.parse(request.body);
+    const settings = await prisma.makeTenLearningSettings.upsert({
       where: { childId: id },
       update: input,
       create: { childId: id, ...input },

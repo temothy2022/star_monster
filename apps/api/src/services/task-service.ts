@@ -696,6 +696,32 @@ export async function completeTask(
       );
     }
   }
+  let learningOutcomeAllowsReward = true;
+  if (existing.dailyTask.experienceKindSnapshot === "MAKE_TEN") {
+    stageStartedAt = performance.now();
+    const makeTenSession = await prisma.makeTenLearningSession.findUnique({
+      where: { taskAttemptId: existing.id },
+      select: {
+        completedAt: true,
+        currentIndex: true,
+        totalQuestions: true,
+        passed: true,
+      },
+    });
+    mark("load-make-ten-session", stageStartedAt);
+    if (
+      !makeTenSession?.completedAt ||
+      makeTenSession.currentIndex < makeTenSession.totalQuestions ||
+      makeTenSession.passed === null
+    ) {
+      throw new HttpError(
+        409,
+        "MAKE_TEN_SESSION_INCOMPLETE",
+        "请先完成全部凑十题目",
+      );
+    }
+    learningOutcomeAllowsReward = makeTenSession.passed;
+  }
   if (
     existing.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
     existing.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
@@ -732,15 +758,16 @@ export async function completeTask(
     throw new HttpError(409, "TASK_TIMED_OUT", "本次挑战已经超时");
   }
 
-  const reward = taskReward({
-    mode: attempt.dailyTask.modeSnapshot,
-    baseStars: attempt.dailyTask.baseStarsSnapshot,
-    earlyBonusEnabled: attempt.dailyTask.earlyBonusEnabledSnapshot,
-    earlyThresholdSeconds:
-      attempt.dailyTask.earlyThresholdSecsSnapshot,
-    earlyBonusStars: attempt.dailyTask.earlyBonusStarsSnapshot,
-    remainingSeconds: remaining,
-  });
+  const reward = learningOutcomeAllowsReward
+    ? taskReward({
+        mode: attempt.dailyTask.modeSnapshot,
+        baseStars: attempt.dailyTask.baseStarsSnapshot,
+        earlyBonusEnabled: attempt.dailyTask.earlyBonusEnabledSnapshot,
+        earlyThresholdSeconds: attempt.dailyTask.earlyThresholdSecsSnapshot,
+        earlyBonusStars: attempt.dailyTask.earlyBonusStarsSnapshot,
+        remainingSeconds: remaining,
+      })
+    : { baseStars: 0, bonusStars: 0, totalStars: 0 };
 
   stageStartedAt = performance.now();
   const completion = await prisma.$transaction(
@@ -791,28 +818,30 @@ export async function completeTask(
       });
       mark("transaction-load-child-settings", transactionStageStartedAt);
       transactionStageStartedAt = performance.now();
-      const childAfterTaskReward = await tx.childProfile.update({
-        where: { id: childId },
-        data: {
-          starBalance: { increment: reward.totalStars },
-          lifetimeStarsEarned: { increment: reward.totalStars },
-        },
-      });
-      mark("transaction-update-child-task-reward", transactionStageStartedAt);
-      transactionStageStartedAt = performance.now();
-      await tx.starLedger.create({
-        data: {
-          childId,
-          taskAttemptId: attempt.id,
-          type: "TASK_REWARD",
-          amount: reward.totalStars,
-          balanceAfter: childAfterTaskReward.starBalance,
-          reason: `${attempt.dailyTask.titleSnapshot} 任务奖励`,
-          referenceId: attempt.dailyTaskId,
-          idempotencyKey: `task:${attempt.id}:reward`,
-        },
-      });
-      mark("transaction-create-task-ledger", transactionStageStartedAt);
+      if (reward.totalStars > 0) {
+        const childAfterTaskReward = await tx.childProfile.update({
+          where: { id: childId },
+          data: {
+            starBalance: { increment: reward.totalStars },
+            lifetimeStarsEarned: { increment: reward.totalStars },
+          },
+        });
+        mark("transaction-update-child-task-reward", transactionStageStartedAt);
+        transactionStageStartedAt = performance.now();
+        await tx.starLedger.create({
+          data: {
+            childId,
+            taskAttemptId: attempt.id,
+            type: "TASK_REWARD",
+            amount: reward.totalStars,
+            balanceAfter: childAfterTaskReward.starBalance,
+            reason: `${attempt.dailyTask.titleSnapshot} 任务奖励`,
+            referenceId: attempt.dailyTaskId,
+            idempotencyKey: `task:${attempt.id}:reward`,
+          },
+        });
+        mark("transaction-create-task-ledger", transactionStageStartedAt);
+      }
 
       transactionStageStartedAt = performance.now();
       const completedTaskReward = await tx.taskAttempt.aggregate({
@@ -834,7 +863,7 @@ export async function completeTask(
         attempt.dailyTask.taskDate.toISOString().slice(0, 10);
       let dailyGoalBonusStars = 0;
 
-      if (childSettings.dailyGoalBonusEnabled) {
+      if (reward.totalStars > 0 && childSettings.dailyGoalBonusEnabled) {
         transactionStageStartedAt = performance.now();
         const existingGoalBonus = await findActiveDailyGoalBonus(
           tx,

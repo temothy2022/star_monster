@@ -59,6 +59,11 @@ const ClockLearningExperience = lazy(() =>
     default: module.ClockLearningExperience,
   })),
 );
+const MakeTenExperience = lazy(() =>
+  import("./make-ten/MakeTenExperience").then((module) => ({
+    default: module.MakeTenExperience,
+  })),
+);
 const UntimedTaskActive = lazy(() =>
   loadUntimedTaskPages().then((module) => ({
     default: module.UntimedTaskActive,
@@ -220,6 +225,7 @@ type AppRoute =
   | "hanzi-result"
   | "hanzi-session"
   | "clock-session"
+  | "make-ten-session"
   | "poem-session"
   | "poem-recitation";
 
@@ -282,6 +288,7 @@ function readRouteFromHash(): AppRoute {
     "hanzi-result",
     "hanzi-session",
     "clock-session",
+    "make-ten-session",
     "poem-session",
     "poem-recitation",
   ];
@@ -308,6 +315,7 @@ function isActiveTaskRoute(route: AppRoute) {
     route === "timed-active" ||
     route === "hanzi-session" ||
     route === "clock-session" ||
+    route === "make-ten-session" ||
     route === "poem-session"
   );
 }
@@ -317,6 +325,7 @@ function childPageTitle(route: AppRoute) {
   if (route.startsWith("planet-") || route === "map") return "航图";
   if (route.startsWith("hanzi-")) return "汉字学习";
   if (route === "clock-session") return "时钟学习";
+  if (route === "make-ten-session") return "凑十训练";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
 
@@ -498,6 +507,8 @@ export function App() {
             ? "hanzi-session"
             : active.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING"
               ? "clock-session"
+            : active.dailyTask.experienceKindSnapshot === "MAKE_TEN"
+              ? "make-ten-session"
             : active.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
                 active.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
               ? "poem-session"
@@ -564,6 +575,8 @@ export function App() {
               ? "hanzi-session"
               : attempt.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING"
                 ? "clock-session"
+              : attempt.dailyTask.experienceKindSnapshot === "MAKE_TEN"
+                ? "make-ten-session"
               : attempt.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
                   attempt.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
                 ? "poem-session"
@@ -611,6 +624,27 @@ export function App() {
       <ClockLearningExperience
         attemptId={activeAttempt!.id}
         onExit={leaveLearningAttempt}
+        onCompleted={(reward) => {
+          setLastCompletion({
+            taskTitle: activeAttempt!.dailyTask.titleSnapshot,
+            ...reward,
+          });
+          setActiveAttempt(null);
+          navigate("untimed-complete");
+        }}
+      />
+    );
+  }
+
+  if (route === "make-ten-session") {
+    return (
+      <MakeTenExperience
+        attemptId={activeAttempt!.id}
+        onExit={leaveLearningAttempt}
+        onFailed={() => {
+          setActiveAttempt(null);
+          navigate("tasks-partial");
+        }}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,
