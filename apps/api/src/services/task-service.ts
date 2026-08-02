@@ -11,7 +11,7 @@ import {
   consecutiveScoredDays,
   dailyGoalBonusAmount,
   dailyTaskStatusAfterCompletion,
-  isScheduledForDate,
+  isTemplateEligibleBySchedule,
   lifetimeStarsAfterTaskRefund,
   remainingSeconds,
   taskReward,
@@ -126,7 +126,7 @@ async function eligibleTaskTemplates(
   });
 
   const due = templates.filter((template) =>
-    isScheduledForDate(template, businessDate),
+    isTemplateEligibleBySchedule(template, businessDate),
   );
   if (due.length === 0) return [];
 

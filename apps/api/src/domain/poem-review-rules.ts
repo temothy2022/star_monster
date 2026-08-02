@@ -1,6 +1,8 @@
 import { addBusinessDays } from "../lib/time.js";
 
-export const POEM_REVIEW_OFFSETS = [2, 4, 7, 15, 30, 60] as const;
+// Daily-task adaptation of the Ebbinghaus curve. Sub-day review points are
+// intentionally omitted because this product schedules at most one review task per day.
+export const POEM_REVIEW_OFFSETS = [1, 2, 4, 7, 15, 30] as const;
 export const POEM_REVIEW_STAGE_COUNT = POEM_REVIEW_OFFSETS.length;
 
 export function firstPoemReviewDate(anchorDate: Date): Date {

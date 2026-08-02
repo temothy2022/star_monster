@@ -8,16 +8,16 @@ import {
 const date = (value: string) => new Date(`${value}T00:00:00.000Z`);
 
 describe("poem review schedule", () => {
-  it("starts two days after learning", () => {
-    expect(firstPoemReviewDate(date("2026-07-29"))).toEqual(date("2026-07-31"));
+  it("starts on the day after learning", () => {
+    expect(firstPoemReviewDate(date("2026-07-29"))).toEqual(date("2026-07-30"));
   });
 
-  it("uses the six absolute review offsets", () => {
+  it("uses the six Ebbinghaus daily review offsets", () => {
     const anchor = date("2026-07-01");
-    const expected = ["2026-07-05", "2026-07-08", "2026-07-16", "2026-07-31", "2026-08-30"];
+    const expected = ["2026-07-03", "2026-07-05", "2026-07-08", "2026-07-16", "2026-07-31"];
 
     expected.forEach((value, index) => {
-      expect(nextPoemReviewDate(anchor, index + 1, date("2026-07-03"))).toEqual(
+      expect(nextPoemReviewDate(anchor, index + 1, date("2026-07-02"))).toEqual(
         date(value),
       );
     });

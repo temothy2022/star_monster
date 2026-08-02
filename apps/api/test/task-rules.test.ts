@@ -5,6 +5,7 @@ import {
   dailyGoalBonusAmount,
   dailyTaskStatusAfterCompletion,
   isScheduledForDate,
+  isTemplateEligibleBySchedule,
   lifetimeStarsAfterTaskRefund,
   remainingSeconds,
   taskReward,
@@ -82,6 +83,27 @@ describe("任务计划规则", () => {
     };
     expect(isScheduledForDate(template, monday)).toBe(true);
     expect(isScheduledForDate(template, sunday)).toBe(false);
+  });
+
+  it("古诗复习忽略新诗学习星期，每天都检查是否有到期内容", () => {
+    const template = {
+      experienceKind: "POEM_REVIEW" as const,
+      scheduleKind: "SELECTED_WEEKDAYS" as const,
+      weekdays: [2, 4],
+      oneTimeDate: null,
+    };
+    expect(isTemplateEligibleBySchedule(template, monday)).toBe(true);
+    expect(isTemplateEligibleBySchedule(template, sunday)).toBe(true);
+  });
+
+  it("其他任务仍严格遵守原有星期设置", () => {
+    const template = {
+      experienceKind: "POEM_LEARNING" as const,
+      scheduleKind: "SELECTED_WEEKDAYS" as const,
+      weekdays: [2, 4],
+      oneTimeDate: null,
+    };
+    expect(isTemplateEligibleBySchedule(template, monday)).toBe(false);
   });
 });
 

@@ -2,6 +2,7 @@ import type {
   AttemptStatus,
   DailyTaskStatus,
   ScheduleKind,
+  TaskExperienceKind,
   TaskAttempt,
   TaskMode,
 } from "@prisma/client";
@@ -11,6 +12,10 @@ type SchedulableTemplate = {
   scheduleKind: ScheduleKind;
   weekdays: number[];
   oneTimeDate: Date | null;
+};
+
+type ExperienceSchedulableTemplate = SchedulableTemplate & {
+  experienceKind: TaskExperienceKind;
 };
 
 type AttemptTiming = Pick<
@@ -37,6 +42,15 @@ export function isScheduledForDate(
         businessDate.toISOString().slice(0, 10)
       );
   }
+}
+
+export function isTemplateEligibleBySchedule(
+  template: ExperienceSchedulableTemplate,
+  businessDate: Date,
+): boolean {
+  // Poem reviews are driven by each poem's due date, not the new-poem weekdays.
+  if (template.experienceKind === "POEM_REVIEW") return true;
+  return isScheduledForDate(template, businessDate);
 }
 
 export function activeElapsedSeconds(
