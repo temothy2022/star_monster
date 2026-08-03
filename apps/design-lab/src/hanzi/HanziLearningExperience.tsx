@@ -940,35 +940,37 @@ export function HanziLearningExperience({
         : assetProgress.ready
           ? 100
           : 0;
-    const stages = [
-      {
-        title: "先复习",
-        duration: "约 3 分钟",
-        body: "看看还记不记得",
-        count: `${session.reviewCharacterIds.length} 个字`,
-        tone: "review",
-      },
-      {
-        title: "认识新字",
-        duration: "约 1 分钟",
-        body: "看字形、听读音、想意思",
-        count: `${session.newCharacterIds.length} 个字`,
-        tone: "new",
-      },
-      {
-        title: "听句挑战",
-        duration: "约 3 分钟",
-        body: "听句子，选出正确的字",
-        count: `${session.questions.length} 道题`,
-        tone: "listen",
-      },
-    ];
+    const isReviewOnly = session.kind === "REVIEW";
+    const stages = isReviewOnly
+      ? [{
+          title: "复习汉字",
+          duration: "约 3 分钟",
+          body: "看看还记不记得这些字",
+          count: `${session.reviewCharacterIds.length} 个字`,
+          tone: "review",
+        }]
+      : [
+          {
+            title: "认识新字",
+            duration: "约 1 分钟",
+            body: "看字形、听读音、想意思",
+            count: `${session.newCharacterIds.length} 个字`,
+            tone: "new",
+          },
+          {
+            title: "听句挑战",
+            duration: "约 3 分钟",
+            body: "听句子，选出正确的字",
+            count: `${session.questions.length} 道题`,
+            tone: "listen",
+          },
+        ];
     return (
       <main className="hanzi-page hanzi-page--home">
         <header className="hanzi-home-header">
           <span className="hanzi-header-spacer" aria-hidden="true" />
-          <h1>汉字学习</h1>
-          <div className="hanzi-time-chip"><span aria-hidden="true">◷</span>约 7 分钟</div>
+          <h1>{isReviewOnly ? "汉字复习" : "汉字学习"}</h1>
+          <div className="hanzi-time-chip"><span aria-hidden="true">◷</span>{isReviewOnly ? "约 3 分钟" : "约 4 分钟"}</div>
         </header>
         <HanziTaskControls onAbandon={abandonLearning} />
         <section className="hanzi-stage-list" aria-label="今日汉字学习流程">
@@ -1030,8 +1032,8 @@ export function HanziLearningExperience({
               ? session.reviewIndex > 0 ||
                 session.newIndex > 0 ||
                 session.questionIndex > 0
-                ? "继续学习"
-                : "开始学习"
+                ? isReviewOnly ? "继续复习" : "继续学习"
+                : isReviewOnly ? "开始复习" : "开始学习"
               : `正在准备 ${assetPercent}%`}
             {assetProgress.ready && flowTransition !== "start" ? (
               <span aria-hidden="true">→</span>
@@ -1397,7 +1399,7 @@ export function HanziLearningExperience({
       <HanziTaskControls onAbandon={abandonLearning} />
       <header className="hanzi-result-header">
         <div className="hanzi-result-medal" aria-hidden="true">✓</div>
-        <div><h1>今天的汉字学习完成啦！</h1><p>今天认识了好多汉字朋友！</p></div>
+        <div><h1>{session.kind === "REVIEW" ? "今天的汉字复习完成啦！" : "今天的汉字学习完成啦！"}</h1><p>{session.kind === "REVIEW" ? "记得越多，汉字朋友越牢固！" : "今天认识了好多汉字朋友！"}</p></div>
       </header>
       <section className="hanzi-result-grid" aria-label="学习结果">
         <article>
@@ -1405,28 +1407,32 @@ export function HanziLearningExperience({
           <p><span>认识</span><strong>{session.summary.reviewKnown} 个</strong></p>
           <p><span>再见几次</span><strong>{session.summary.reviewUnknown} 个</strong></p>
         </article>
-        <article>
-          <h2>今天新学</h2>
-          <p>认识了 {session.newCharacterIds.length} 个新朋友</p>
-          <div className="hanzi-result-characters">
-            {session.newCharacterIds.map((id) => <b key={id}>{characterById.get(id)?.character}</b>)}
-          </div>
-        </article>
-        <article>
-          <h2>听句挑战</h2>
-          <div
-            className="hanzi-score-ring"
-            style={{
-              background: `conic-gradient(#4da8e8 ${scoreRatio * 360}deg, #e7f2ff 0deg)`,
-            }}
-          >
-            <div className="hanzi-score-ring__value"><strong>{session.summary.correct}</strong><span>/ {session.summary.total}</span></div>
-          </div>
-        </article>
+        {session.kind !== "REVIEW" ? (
+          <>
+            <article>
+              <h2>今天新学</h2>
+              <p>认识了 {session.newCharacterIds.length} 个新朋友</p>
+              <div className="hanzi-result-characters">
+                {session.newCharacterIds.map((id) => <b key={id}>{characterById.get(id)?.character}</b>)}
+              </div>
+            </article>
+            <article>
+              <h2>听句挑战</h2>
+              <div
+                className="hanzi-score-ring"
+                style={{
+                  background: `conic-gradient(#4da8e8 ${scoreRatio * 360}deg, #e7f2ff 0deg)`,
+                }}
+              >
+                <div className="hanzi-score-ring__value"><strong>{session.summary.correct}</strong><span>/ {session.summary.total}</span></div>
+              </div>
+            </article>
+          </>
+        ) : null}
       </section>
       {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
       <footer className="hanzi-result-footer">
-        <p>这些汉字会在合适的时候再回来见你，见得越多，记得越牢。</p>
+        <p>{session.kind === "REVIEW" ? "按时回来复习，汉字就会记得越来越牢。" : "这些汉字会在合适的时候再回来见你，见得越多，记得越牢。"}</p>
         <button
           className={busy ? "child-submit-button--loading" : undefined}
           disabled={busy || Boolean(flowTransition)}

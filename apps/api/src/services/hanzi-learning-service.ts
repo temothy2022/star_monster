@@ -6,12 +6,18 @@ import {
   type HanziReviewAnswer,
 } from "../domain/hanzi-completion.js";
 import { selectDailyHanziCharacters } from "../domain/hanzi-selection.js";
+import {
+  firstHanziReviewDate,
+  HANZI_REVIEW_STAGE_COUNT,
+  nextHanziReviewDate,
+  retryHanziReviewDate,
+} from "../domain/hanzi-review-rules.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 import { completeTask } from "./task-service.js";
 
-const REVIEW_INTERVAL_DAYS = [2, 4, 7, 14, 30] as const;
+const REVIEW_INTERVAL_DAYS = [1, 2, 4, 7, 15, 30] as const;
 
 type ConsolidationQuestion = {
   targetId: string;
@@ -23,6 +29,7 @@ type HanziSessionRecord = {
   childId: string;
   taskAttemptId: string;
   sessionDate: Date;
+  kind: "COMBINED_LEGACY" | "LEARNING" | "REVIEW";
   phase: string;
   reviewCharacterIds: string[] | null;
   reviewIndex: number | null;
@@ -38,12 +45,6 @@ type HanziSessionRecord = {
   createdAt: Date;
   updatedAt: Date;
 };
-
-function addUtcDays(date: Date, days: number): Date {
-  const result = new Date(date);
-  result.setUTCDate(result.getUTCDate() + days);
-  return result;
-}
 
 function unique(items: string[]): string[] {
   return [...new Set(items)];
@@ -119,7 +120,10 @@ async function requireHanziAttempt(childId: string, attemptId: string) {
   if (!slot || slot.attemptId !== attemptId) {
     throw new HttpError(409, "ATTEMPT_NOT_ACTIVE", "这个任务已不在进行中");
   }
-  if (slot.attempt.dailyTask.experienceKindSnapshot !== "HANZI_LEARNING") {
+  if (
+    slot.attempt.dailyTask.experienceKindSnapshot !== "HANZI_LEARNING" &&
+    slot.attempt.dailyTask.experienceKindSnapshot !== "HANZI_REVIEW"
+  ) {
     throw new HttpError(400, "NOT_HANZI_TASK", "这不是汉字学习任务");
   }
   return slot.attempt;
@@ -203,6 +207,10 @@ export async function startHanziSession(
       data: normalizedSettings,
     });
   }
+  const attempt = await requireHanziAttempt(childId, attemptId);
+  const kind = attemptKindForExperience(
+    attempt.dailyTask.experienceKindSnapshot,
+  );
   const [dueProgress, unlearnedCharacterIds, pool] = await Promise.all([
     prisma.hanziLearningProgress.findMany({
       where: {
@@ -233,7 +241,7 @@ export async function startHanziSession(
     }),
   ]);
   const poolById = new Map(pool.map((character) => [character.id, character]));
-  const newCharacterIds = selectDailyHanziCharacters(
+  const newCharacterIds = kind === "REVIEW" ? [] : selectDailyHanziCharacters(
     unlearnedCharacterIds,
     normalizedSettings.newCharactersPerDay,
     `${childId}:${today.toISOString().slice(0, 10)}`,
@@ -244,7 +252,9 @@ export async function startHanziSession(
     throw new HttpError(409, "HANZI_LIBRARY_EMPTY", "汉字词库还没有可学习的内容");
   }
 
-  const reviewCharacters = dueProgress.map((item) => item.character);
+  const reviewCharacters = kind === "LEARNING"
+    ? []
+    : dueProgress.map((item) => item.character);
   const targetIds = unique([
     ...reviewCharacters.map((item) => item.id),
     ...newCharacterIds,
@@ -252,8 +262,10 @@ export async function startHanziSession(
   const questionTargets = targetIds.length
     ? targetIds.map((id) => poolById.get(id)!)
     : pool.slice(0, 1);
-  const questions = buildQuestions(questionTargets, pool, normalizedSettings.consolidationQuestionCount);
-  const phase = reviewCharacters.length
+  const questions = kind === "REVIEW"
+    ? []
+    : buildQuestions(questionTargets, pool, normalizedSettings.consolidationQuestionCount);
+  const phase = kind === "REVIEW" || reviewCharacters.length
     ? "REVIEW"
     : newCharacterIds.length
       ? "NEW_LEARNING"
@@ -270,6 +282,7 @@ export async function startHanziSession(
         taskAttemptId: attemptId,
         sessionDate: today,
         phase,
+        kind,
         reviewCharacterIds: reviewCharacters.map((item) => item.id),
         newCharacterIds,
         consolidationQuestions: questions,
@@ -287,6 +300,12 @@ export async function startHanziSession(
     );
   }
   return { session: await serializeSession(session) };
+}
+
+function attemptKindForExperience(experienceKind: string): "COMBINED_LEGACY" | "LEARNING" | "REVIEW" {
+  if (experienceKind === "HANZI_REVIEW") return "REVIEW";
+  if (experienceKind === "HANZI_LEARNING") return "LEARNING";
+  return "COMBINED_LEGACY";
 }
 
 export async function answerHanziReview(
@@ -328,12 +347,13 @@ export async function answerHanziReview(
       await tx.hanziLearningProgress.update({
         where: { id: progress.id },
         data: {
-          status: nextStage >= REVIEW_INTERVAL_DAYS.length ? "MASTERED" : "LEARNING",
-          reviewStage: Math.min(nextStage, REVIEW_INTERVAL_DAYS.length),
-          nextReviewDate:
-            nextStage >= REVIEW_INTERVAL_DAYS.length
-              ? null
-              : addUtcDays(today, REVIEW_INTERVAL_DAYS[nextStage]!),
+          status: nextStage >= HANZI_REVIEW_STAGE_COUNT ? "MASTERED" : "LEARNING",
+          reviewStage: Math.min(nextStage, HANZI_REVIEW_STAGE_COUNT),
+          nextReviewDate: nextHanziReviewDate(
+            progress.learnedDate,
+            nextStage,
+            today,
+          ),
           consecutiveWrong: 0,
           lastReviewedAt: new Date(),
         },
@@ -342,16 +362,12 @@ export async function answerHanziReview(
       const wrongCount = progress.consecutiveWrong + 1;
       const nextStage = Math.max(0, progress.reviewStage - 1);
       const difficult = wrongCount >= 2;
-      const baseInterval = REVIEW_INTERVAL_DAYS[nextStage] ?? 2;
       await tx.hanziLearningProgress.update({
         where: { id: progress.id },
         data: {
           status: "LEARNING",
           reviewStage: nextStage,
-          nextReviewDate: addUtcDays(
-            today,
-            difficult ? Math.max(1, Math.floor(baseInterval / 2)) : baseInterval,
-          ),
+          nextReviewDate: retryHanziReviewDate(today, nextStage, difficult),
           isDifficult: difficult || progress.isDifficult,
           consecutiveWrong: wrongCount,
           lastReviewedAt: new Date(),
@@ -403,7 +419,7 @@ export async function completeHanziNewCharacter(
         characterId,
         learnedDate: today,
         reviewStage: 0,
-        nextReviewDate: addUtcDays(today, REVIEW_INTERVAL_DAYS[0]),
+        nextReviewDate: firstHanziReviewDate(today),
       },
     });
     return tx.hanziLearningSession.update({
@@ -560,14 +576,15 @@ export async function finalizeHanziSession(
             where: { id: progress.id },
             data: {
               status:
-                nextStage >= REVIEW_INTERVAL_DAYS.length
+                nextStage >= HANZI_REVIEW_STAGE_COUNT
                   ? "MASTERED"
                   : "LEARNING",
-              reviewStage: Math.min(nextStage, REVIEW_INTERVAL_DAYS.length),
-              nextReviewDate:
-                nextStage >= REVIEW_INTERVAL_DAYS.length
-                  ? null
-                  : addUtcDays(today, REVIEW_INTERVAL_DAYS[nextStage]!),
+              reviewStage: Math.min(nextStage, HANZI_REVIEW_STAGE_COUNT),
+              nextReviewDate: nextHanziReviewDate(
+                progress.learnedDate,
+                nextStage,
+                today,
+              ),
               consecutiveWrong: 0,
               lastReviewedAt: new Date(),
             },
@@ -577,18 +594,12 @@ export async function finalizeHanziSession(
           const wrongCount = progress.consecutiveWrong + 1;
           const nextStage = Math.max(0, progress.reviewStage - 1);
           const difficult = wrongCount >= 2;
-          const baseInterval = REVIEW_INTERVAL_DAYS[nextStage] ?? 2;
           await tx.hanziLearningProgress.update({
             where: { id: progress.id },
             data: {
               status: "LEARNING",
               reviewStage: nextStage,
-              nextReviewDate: addUtcDays(
-                today,
-                difficult
-                  ? Math.max(1, Math.floor(baseInterval / 2))
-                  : baseInterval,
-              ),
+              nextReviewDate: retryHanziReviewDate(today, nextStage, difficult),
               isDifficult: difficult || progress.isDifficult,
               consecutiveWrong: wrongCount,
               lastReviewedAt: new Date(),
@@ -607,7 +618,7 @@ export async function finalizeHanziSession(
             characterId,
             learnedDate: today,
             reviewStage: 0,
-            nextReviewDate: addUtcDays(today, REVIEW_INTERVAL_DAYS[0]),
+            nextReviewDate: firstHanziReviewDate(today),
           },
         });
       }

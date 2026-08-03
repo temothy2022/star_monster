@@ -46,6 +46,7 @@ enum TaskMode {
 enum TaskExperienceKind {
   STANDARD
   HANZI_LEARNING
+  HANZI_REVIEW
   CLOCK_LEARNING
   MAKE_TEN
   POEM_LEARNING
@@ -147,6 +148,12 @@ enum HanziSessionPhase {
   NEW_LEARNING
   CONSOLIDATION
   COMPLETED
+}
+
+enum HanziSessionKind {
+  COMBINED_LEGACY
+  LEARNING
+  REVIEW
 }
 
 enum PoemLearningStatus {
@@ -476,6 +483,7 @@ model HanziLearningSettings {
   newCharactersPerDay        Int      @default(3)
   reviewDailyLimit           Int      @default(25)
   consolidationQuestionCount Int      @default(3)
+  reviewTaskStars            Int      @default(1)
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
 
@@ -508,6 +516,7 @@ model HanziLearningSession {
   childId                String
   taskAttemptId          String            @unique
   sessionDate            DateTime          @db.Date
+  kind                   HanziSessionKind  @default(COMBINED_LEGACY)
   phase                  HanziSessionPhase
   reviewCharacterIds     String[]          @default([])
   reviewIndex            Int               @default(0)

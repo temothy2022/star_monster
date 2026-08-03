@@ -529,7 +529,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
 
 type TaskForm = {
   title: string;
-  experienceKind: "STANDARD" | "HANZI_LEARNING" | "CLOCK_LEARNING" | "MAKE_TEN";
+  experienceKind: "STANDARD" | "HANZI_LEARNING" | "HANZI_REVIEW" | "CLOCK_LEARNING" | "MAKE_TEN";
   category: string;
   mode: "UNTIMED" | "TIMED";
   durationMinutes: number;
@@ -866,7 +866,7 @@ function Tasks({ child }: { child: Child }) {
                   setDragOverId(null);
                 }}
                 onClick={(event) => event.preventDefault()}
-              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>
@@ -887,6 +887,7 @@ const DEFAULT_HANZI_SETTINGS: HanziLearningSettings = {
   newCharactersPerDay: 3,
   reviewDailyLimit: 25,
   consolidationQuestionCount: 3,
+  reviewTaskStars: 1,
 };
 
 type HanziCharacterForm = {
@@ -1343,7 +1344,8 @@ function HanziLearning({ child }: { child: Child }) {
               <label>每日新字数量<input type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
               <label>每日复习上限<input type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
               <label>听句挑战题数<input type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
-              <div className="field-span admin-help">孩子点击“汉字学习任务”后，会依次完成到期复习、新字学习和听句挑战。三个环节全部结束，系统才会按原任务规则发放星星并记录任务完成。</div>
+              <label>汉字复习任务星星<input type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label>
+              <div className="field-span admin-help">新字学习任务仍按任务配置中的星期出现；汉字复习任务根据到期汉字每天自动出现，不受学习日限制。</div>
               {message && <div className="field-span"><Notice>{message}</Notice></div>}
               <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
             </form>

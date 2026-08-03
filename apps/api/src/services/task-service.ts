@@ -27,6 +27,67 @@ type CompleteTaskOptions = {
   onTiming?: (timing: CompleteTaskTiming) => void;
 };
 
+async function ensureHanziReviewTemplate(childId: string): Promise<void> {
+  const settings = await prisma.hanziLearningSettings.findUnique({
+    where: { childId },
+    select: { reviewTaskStars: true },
+  });
+  if (!settings) return;
+  await prisma.taskTemplate.upsert({
+    where: { systemKey: `hanzi-review:${childId}` },
+    create: {
+      childId,
+      systemKey: `hanzi-review:${childId}`,
+      title: "复习汉字",
+      category: "CHINESE",
+      iconKey: "chinese",
+      mode: "UNTIMED",
+      experienceKind: "HANZI_REVIEW",
+      suggestedSeconds: 600,
+      timeLimitSeconds: null,
+      baseStars: settings.reviewTaskStars,
+      earlyBonusEnabled: false,
+      earlyThresholdSeconds: null,
+      earlyBonusStars: null,
+      repeatableDaily: false,
+      scheduleKind: "DAILY",
+      weekdays: [],
+      oneTimeDate: null,
+      sortOrder: 6,
+      isEnabled: true,
+      aiSchedulingEnabled: false,
+      targetSessionsPerWeek: null,
+      minimumGapDays: null,
+      systemManaged: true,
+      learningPracticeKind: "REVIEW",
+    },
+    update: {
+      title: "复习汉字",
+      category: "CHINESE",
+      iconKey: "chinese",
+      mode: "UNTIMED",
+      experienceKind: "HANZI_REVIEW",
+      suggestedSeconds: 600,
+      timeLimitSeconds: null,
+      baseStars: settings.reviewTaskStars,
+      earlyBonusEnabled: false,
+      earlyThresholdSeconds: null,
+      earlyBonusStars: null,
+      repeatableDaily: false,
+      scheduleKind: "DAILY",
+      weekdays: [],
+      oneTimeDate: null,
+      sortOrder: 6,
+      isEnabled: true,
+      aiSchedulingEnabled: false,
+      targetSessionsPerWeek: null,
+      minimumGapDays: null,
+      systemManaged: true,
+      learningPracticeKind: "REVIEW",
+    },
+  });
+}
+
 function isUniqueConstraint(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -117,6 +178,7 @@ async function eligibleTaskTemplates(
   childId: string,
   businessDate: Date,
 ): Promise<TaskTemplate[]> {
+  await ensureHanziReviewTemplate(childId);
   const templates = await prisma.taskTemplate.findMany({
     where: {
       childId,
@@ -136,7 +198,10 @@ async function eligibleTaskTemplates(
   const needsPoemReview = due.some(
     (template) => template.experienceKind === "POEM_REVIEW",
   );
-  const [newPoem, dueReview] = await Promise.all([
+  const needsHanziReview = due.some(
+    (template) => template.experienceKind === "HANZI_REVIEW",
+  );
+  const [newPoem, dueReview, dueHanziReview] = await Promise.all([
     needsPoemLearning
       ? prisma.poem.findFirst({
           where: {
@@ -157,11 +222,23 @@ async function eligibleTaskTemplates(
           select: { id: true },
         })
       : null,
+    needsHanziReview
+      ? prisma.hanziLearningProgress.findFirst({
+          where: {
+            childId,
+            status: "LEARNING",
+            nextReviewDate: { lte: businessDate },
+            character: { isEnabled: true },
+          },
+          select: { id: true },
+        })
+      : null,
   ]);
 
   return due.filter((template) => {
     if (template.experienceKind === "POEM_LEARNING") return Boolean(newPoem);
     if (template.experienceKind === "POEM_REVIEW") return Boolean(dueReview);
+    if (template.experienceKind === "HANZI_REVIEW") return Boolean(dueHanziReview);
     return true;
   });
 }
@@ -663,7 +740,10 @@ export async function completeTask(
       alreadyCompleted: true,
     };
   }
-  if (existing.dailyTask.experienceKindSnapshot === "HANZI_LEARNING") {
+  if (
+    existing.dailyTask.experienceKindSnapshot === "HANZI_LEARNING" ||
+    existing.dailyTask.experienceKindSnapshot === "HANZI_REVIEW"
+  ) {
     stageStartedAt = performance.now();
     const learningSession = await prisma.hanziLearningSession.findUnique({
       where: { taskAttemptId: existing.id },

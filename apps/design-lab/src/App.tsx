@@ -503,7 +503,7 @@ export function App() {
 
         setActiveAttempt(active);
         const expectedRoute =
-          active.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
+          (active.dailyTask.experienceKindSnapshot === "HANZI_LEARNING" || active.dailyTask.experienceKindSnapshot === "HANZI_REVIEW")
             ? "hanzi-session"
             : active.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING"
               ? "clock-session"
@@ -571,7 +571,7 @@ export function App() {
           if (attempt.id === optimisticallyAbandonedAttemptId) return;
           setActiveAttempt(attempt);
           navigate(
-            attempt.dailyTask.experienceKindSnapshot === "HANZI_LEARNING"
+            (attempt.dailyTask.experienceKindSnapshot === "HANZI_LEARNING" || attempt.dailyTask.experienceKindSnapshot === "HANZI_REVIEW")
               ? "hanzi-session"
               : attempt.dailyTask.experienceKindSnapshot === "CLOCK_LEARNING"
                 ? "clock-session"

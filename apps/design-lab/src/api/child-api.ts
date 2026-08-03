@@ -150,6 +150,7 @@ export type DailyTask = {
   experienceKindSnapshot:
     | "STANDARD"
     | "HANZI_LEARNING"
+    | "HANZI_REVIEW"
     | "CLOCK_LEARNING"
     | "MAKE_TEN"
     | "POEM_LEARNING"
@@ -253,6 +254,7 @@ export type HanziCharacter = {
 export type HanziLearningSession = {
   id: string;
   taskAttemptId: string;
+  kind: "COMBINED_LEGACY" | "LEARNING" | "REVIEW";
   phase: "REVIEW" | "NEW_LEARNING" | "CONSOLIDATION" | "COMPLETED";
   reviewCharacterIds: string[];
   reviewIndex: number;

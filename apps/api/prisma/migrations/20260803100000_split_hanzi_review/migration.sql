@@ -1,0 +1,9 @@
+ALTER TYPE "TaskExperienceKind" ADD VALUE 'HANZI_REVIEW';
+
+CREATE TYPE "HanziSessionKind" AS ENUM ('COMBINED_LEGACY', 'LEARNING', 'REVIEW');
+
+ALTER TABLE "HanziLearningSettings"
+ADD COLUMN "reviewTaskStars" INTEGER NOT NULL DEFAULT 1;
+
+ALTER TABLE "HanziLearningSession"
+ADD COLUMN "kind" "HanziSessionKind" NOT NULL DEFAULT 'COMBINED_LEGACY';

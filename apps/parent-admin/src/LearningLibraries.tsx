@@ -74,6 +74,7 @@ const DEFAULT_HANZI_SETTINGS: HanziLearningSettings = {
   newCharactersPerDay: 3,
   reviewDailyLimit: 25,
   consolidationQuestionCount: 3,
+  reviewTaskStars: 1,
 };
 
 export function ParentHanziLearning({ child }: { child: Child }) {
@@ -137,6 +138,8 @@ export function ParentHanziLearning({ child }: { child: Child }) {
           <label>每日新字数量<input type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
           <label>每日复习上限<input type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
           <label>听句挑战题数<input type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
+          <label>汉字复习任务星星<input type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label>
+          <div className="field-span admin-help">新字学习任务仍按任务配置中的星期出现；汉字复习任务根据到期汉字每天自动出现，不受学习日限制。</div>
           <div className="field-span admin-help">学习参数只影响当前孩子，不会修改共享汉字库。</div>
           <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
         </form>}

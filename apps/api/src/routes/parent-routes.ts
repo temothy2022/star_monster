@@ -93,6 +93,7 @@ const hanziSettingsSchema = z.object({
   newCharactersPerDay: z.number().int().min(1).max(10),
   reviewDailyLimit: z.number().int().min(1).max(50),
   consolidationQuestionCount: z.number().int().min(1).max(10),
+  reviewTaskStars: z.number().int().min(1).max(999),
 });
 const clockSettingsSchema = z.object({
   questionsPerDay: z.number().int().min(1).max(20),
@@ -494,6 +495,58 @@ async function ensurePoemTaskTemplates(
   ]);
 }
 
+async function ensureHanziTaskTemplates(
+  tx: Prisma.TransactionClient,
+  childId: string,
+  settings: z.infer<typeof hanziSettingsSchema>,
+) {
+  const common = {
+    childId,
+    category: "CHINESE" as const,
+    iconKey: "chinese",
+    mode: "UNTIMED" as const,
+    suggestedSeconds: 600,
+    timeLimitSeconds: null,
+    earlyBonusEnabled: false,
+    earlyThresholdSeconds: null,
+    earlyBonusStars: null,
+    repeatableDaily: false,
+    archivedAt: null,
+    aiSchedulingEnabled: false,
+    targetSessionsPerWeek: null,
+    minimumGapDays: null,
+    systemManaged: true,
+    isEnabled: true,
+  };
+
+  await tx.taskTemplate.upsert({
+      where: { systemKey: `hanzi-review:${childId}` },
+      create: {
+        ...common,
+        systemKey: `hanzi-review:${childId}`,
+        title: "复习汉字",
+        experienceKind: "HANZI_REVIEW",
+        baseStars: settings.reviewTaskStars,
+        scheduleKind: "DAILY",
+        weekdays: [],
+        oneTimeDate: null,
+        sortOrder: 6,
+        learningPracticeKind: "REVIEW",
+      },
+      update: {
+        ...common,
+        title: "复习汉字",
+        experienceKind: "HANZI_REVIEW",
+        baseStars: settings.reviewTaskStars,
+        scheduleKind: "DAILY",
+        weekdays: [],
+        oneTimeDate: null,
+        sortOrder: 6,
+        learningPracticeKind: "REVIEW",
+      },
+    });
+}
+
 export async function registerParentRoutes(
   app: FastifyInstance,
   config: AppConfig,
@@ -855,12 +908,13 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/hanzi/settings", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    const [settings, progress, characterCount] = await Promise.all([
-      prisma.hanziLearningSettings.upsert({
+    const settings = await prisma.hanziLearningSettings.upsert({
         where: { childId: id },
         update: {},
         create: { childId: id },
-      }),
+      });
+    await prisma.$transaction((tx) => ensureHanziTaskTemplates(tx, id, settings));
+    const [progress, characterCount] = await Promise.all([
       prisma.hanziLearningProgress.groupBy({
         by: ["status"],
         where: { childId: id },
@@ -881,11 +935,16 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     const input = hanziSettingsSchema.parse(request.body);
-    const settings = await prisma.hanziLearningSettings.upsert({
-      where: { childId: id },
-      update: input,
-      create: { childId: id, ...input },
+    const settings = await prisma.$transaction(async (tx) => {
+      const updated = await tx.hanziLearningSettings.upsert({
+        where: { childId: id },
+        update: input,
+        create: { childId: id, ...input },
+      });
+      await ensureHanziTaskTemplates(tx, id, updated);
+      return updated;
     });
+    await prepareDailyTasks(id, config);
     return { settings };
   });
 

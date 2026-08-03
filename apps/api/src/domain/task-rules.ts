@@ -49,7 +49,7 @@ export function isTemplateEligibleBySchedule(
   businessDate: Date,
 ): boolean {
   // Poem reviews are driven by each poem's due date, not the new-poem weekdays.
-  if (template.experienceKind === "POEM_REVIEW") return true;
+  if (template.experienceKind === "POEM_REVIEW" || template.experienceKind === "HANZI_REVIEW") return true;
   return isScheduledForDate(template, businessDate);
 }
 

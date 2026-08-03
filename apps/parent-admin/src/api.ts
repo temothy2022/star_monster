@@ -27,6 +27,7 @@ export type TaskTemplate = {
   experienceKind:
     | "STANDARD"
     | "HANZI_LEARNING"
+    | "HANZI_REVIEW"
     | "CLOCK_LEARNING"
     | "MAKE_TEN"
     | "POEM_LEARNING"
@@ -57,6 +58,7 @@ export type HanziLearningSettings = {
   newCharactersPerDay: number;
   reviewDailyLimit: number;
   consolidationQuestionCount: number;
+  reviewTaskStars: number;
 };
 
 export type ClockLearningSettings = {
