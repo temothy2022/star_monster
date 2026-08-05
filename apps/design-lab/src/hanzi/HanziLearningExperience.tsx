@@ -489,6 +489,7 @@ export function HanziLearningExperience({
   const flowTransitionRef = useRef<FlowTransitionAction | null>(null);
   const transitionFrameIds = useRef<number[]>([]);
   const transitionTimer = useRef<number | null>(null);
+  const autoCompletingReviewId = useRef<string | null>(null);
   const [answerFeedback, setAnswerFeedback] = useState<{
     selectedId: string;
     targetId: string;
@@ -618,6 +619,72 @@ export function HanziLearningExperience({
       });
     });
   }, [session]);
+
+  useEffect(() => {
+    if (
+      !session ||
+      session.kind !== "REVIEW" ||
+      !started ||
+      session.phase !== "CONSOLIDATION" ||
+      session.reviewIndex < session.reviewCharacterIds.length ||
+      session.questions.length > 0 ||
+      pendingSession ||
+      flowTransition ||
+      autoCompletingReviewId.current === session.id
+    ) {
+      return;
+    }
+
+    autoCompletingReviewId.current = session.id;
+    stopActiveSpeech();
+    setBusy(true);
+    setError("");
+    const knownIds = new Set(session.reviewKnownIds);
+    const unknownIds = new Set(session.reviewUnknownIds);
+    void finalizeHanziLearningSession(
+      session.id,
+      {
+        reviewAnswers: session.reviewCharacterIds.map((characterId) => ({
+          characterId,
+          known: knownIds.has(characterId)
+            ? true
+            : unknownIds.has(characterId)
+              ? false
+              : false,
+        })),
+        learnedCharacterIds: [],
+        answers: [],
+      },
+      requestAbort.current.signal,
+    )
+      .then((result) => {
+        clearLocalDraft(session.id);
+        onCompleted(result.reward);
+      })
+      .catch((reason: unknown) => {
+        autoCompletingReviewId.current = null;
+        if (
+          reason instanceof ApiError &&
+          (reason.code === "ATTEMPT_NOT_ACTIVE" ||
+            reason.code === "ATTEMPT_NOT_FOUND")
+        ) {
+          onExit();
+          return;
+        }
+        setError(
+          reason instanceof Error ? reason.message : "汉字复习暂时无法完成",
+        );
+      })
+      .finally(() => setBusy(false));
+  }, [
+    flowTransition,
+    onCompleted,
+    onExit,
+    pendingSession,
+    session,
+    started,
+    stopActiveSpeech,
+  ]);
 
   if (!session) {
     return (

@@ -27,6 +27,38 @@ type CompleteTaskOptions = {
   onTiming?: (timing: CompleteTaskTiming) => void;
 };
 
+async function normalizeSystemTaskSnapshot(
+  tx: Prisma.TransactionClient,
+  dailyTask: DailyTask,
+): Promise<DailyTask> {
+  const template = await tx.taskTemplate.findUnique({
+    where: { id: dailyTask.templateId },
+    select: {
+      systemManaged: true,
+      experienceKind: true,
+      title: true,
+      category: true,
+      iconKey: true,
+    },
+  });
+  if (
+    !template?.systemManaged ||
+    (dailyTask.experienceKindSnapshot === template.experienceKind &&
+      dailyTask.titleSnapshot === template.title)
+  ) {
+    return dailyTask;
+  }
+  return tx.dailyTask.update({
+    where: { id: dailyTask.id },
+    data: {
+      experienceKindSnapshot: template.experienceKind,
+      titleSnapshot: template.title,
+      categorySnapshot: template.category,
+      iconKeySnapshot: template.iconKey,
+    },
+  });
+}
+
 async function ensureHanziReviewTemplate(childId: string): Promise<void> {
   const settings = await prisma.hanziLearningSettings.findUnique({
     where: { childId },
@@ -306,6 +338,49 @@ async function reconcileTodayTaskSnapshots(
   });
 }
 
+async function normalizeTodaySystemSnapshots(
+  childId: string,
+  today: Date,
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const tasks = await tx.dailyTask.findMany({
+      where: {
+        childId,
+        taskDate: today,
+        status: { not: "EXPIRED" },
+        template: { systemManaged: true },
+      },
+      include: {
+        template: {
+          select: {
+            experienceKind: true,
+            title: true,
+            category: true,
+            iconKey: true,
+          },
+        },
+      },
+    });
+    for (const task of tasks) {
+      if (
+        task.experienceKindSnapshot === task.template.experienceKind &&
+        task.titleSnapshot === task.template.title
+      ) {
+        continue;
+      }
+      await tx.dailyTask.update({
+        where: { id: task.id },
+        data: {
+          experienceKindSnapshot: task.template.experienceKind,
+          titleSnapshot: task.template.title,
+          categorySnapshot: task.template.category,
+          iconKeySnapshot: task.template.iconKey,
+        },
+      });
+    }
+  });
+}
+
 async function settleTimedOutAttempt(
   childId: string,
   now: Date,
@@ -356,6 +431,7 @@ export async function prepareDailyTasks(
   await settlePreviousDay(childId, today, now);
   const dueTemplates = await generateDailyTasks(childId, today);
   await reconcileTodayTaskSnapshots(childId, today, now, dueTemplates);
+  await normalizeTodaySystemSnapshots(childId, today);
   const timedOutAttempt = await settleTimedOutAttempt(childId, now);
   return { timedOutAttemptId: timedOutAttempt?.id ?? null };
 }
@@ -512,15 +588,23 @@ export async function startTask(
           include: { attempt: { include: { dailyTask: true } } },
         });
         if (existingSlot) {
-          return { attempt: existingSlot.attempt, alreadyActive: true };
+          const dailyTask = await normalizeSystemTaskSnapshot(
+            tx,
+            existingSlot.attempt.dailyTask,
+          );
+          return {
+            attempt: { ...existingSlot.attempt, dailyTask },
+            alreadyActive: true,
+          };
         }
 
-        const task = await tx.dailyTask.findFirst({
+        const loadedTask = await tx.dailyTask.findFirst({
           where: { id: dailyTaskId, childId, taskDate: today },
         });
-        if (!task) {
+        if (!loadedTask) {
           throw new HttpError(404, "TASK_NOT_FOUND", "没有找到今天的这个任务");
         }
+        const task = await normalizeSystemTaskSnapshot(tx, loadedTask);
         if (task.status === "COMPLETED") {
           throw new HttpError(409, "TASK_ALREADY_COMPLETED", "这个任务已经完成");
         }
