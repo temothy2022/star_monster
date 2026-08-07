@@ -1550,3 +1550,14 @@ td { font-size: 13px; }
   .leaderboard-preview-list { grid-template-columns: 1fr; }
   .leaderboard-setting-control { padding: 13px; }
 }
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

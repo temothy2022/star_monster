@@ -11711,3 +11711,14 @@ body:has(.footprints-page),
     border-radius: 18px;
   }
 }
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
