@@ -23,7 +23,7 @@ export function PoemRecitationPage({ onNavigate }: { onNavigate: Navigate }) {
   if (!playbackQueueRef.current) {
     playbackQueueRef.current = new SinglePendingPlaybackQueue();
   }
-  useEffect(() => () => playbackQueueRef.current?.dispose(), []);
+  useEffect(() => () => playbackQueueRef.current?.clear(), []);
 
   const speakPoem = useCallback(() => {
     playbackQueueRef.current?.enqueue(() =>

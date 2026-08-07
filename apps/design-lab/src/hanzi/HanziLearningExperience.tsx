@@ -594,7 +594,7 @@ export function HanziLearningExperience({
 
   useEffect(() => {
     return () => {
-      speechQueueRef.current?.dispose();
+      speechQueueRef.current?.clear();
       activeSpeechCleanup.current = null;
       assetPreloadAbort.current?.abort();
       requestAbort.current.abort();

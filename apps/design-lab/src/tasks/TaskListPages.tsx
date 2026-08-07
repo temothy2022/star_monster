@@ -208,7 +208,7 @@ function ProgressColumn({
   }, []);
 
   useEffect(() => () => {
-    playbackQueueRef.current?.dispose();
+    playbackQueueRef.current?.clear();
   }, []);
 
   function speak() {

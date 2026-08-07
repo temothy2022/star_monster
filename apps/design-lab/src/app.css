@@ -11668,12 +11668,62 @@ body:has(.footprints-page),
 .pet-room-hud {
   position: absolute;
   inset: max(18px, env(safe-area-inset-top)) clamp(18px, 2.6vw, 38px) auto;
-  z-index: 6;
+  z-index: 8;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 18px;
   pointer-events: none;
+}
+
+.pet-sound-toggle {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 4px;
+  border: 2px solid rgb(122 87 33 / 20%);
+  border-radius: 8px;
+  background: rgb(255 248 225 / 88%);
+  box-shadow: 0 6px 18px rgb(96 65 30 / 14%);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+  transition: transform 160ms ease, background-color 160ms ease, opacity 160ms ease;
+}
+
+.pet-sound-toggle img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.pet-sound-toggle.is-muted {
+  background: rgb(239 235 226 / 92%);
+}
+
+.pet-sound-toggle.is-muted img {
+  filter: grayscale(.85);
+  opacity: .58;
+}
+
+.pet-sound-toggle.is-muted::after {
+  content: "";
+  position: absolute;
+  width: 42px;
+  height: 4px;
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 4px;
+  background: #795548;
+  box-shadow: 0 1px 2px rgb(73 45 31 / 22%);
+  transform: rotate(-43deg);
+}
+
+.pet-sound-toggle:active {
+  transform: scale(.94);
 }
 
 .pet-star-balance {
@@ -12263,6 +12313,7 @@ body:has(.footprints-page),
 .pet-audio-icon b::after { position: absolute; right: 0; top: 4px; width: 8px; height: 14px; border: 2px solid currentColor; border-block-color: transparent; border-left-color: transparent; border-radius: 0 50% 50% 0; content: ""; }
 .pet-audio-icon b::after { right: -6px; top: -4px; height: 18px; }
 .pet-audio-button.is-speaking { background: #e66f3a; }
+.pet-audio-button:disabled { color: #806f64; background: #e8e1d8; opacity: 1; }
 .pet-audio-button.is-speaking .pet-audio-icon i { left: 2px; top: 4px; width: 4px; height: 15px; border-radius: 3px; box-shadow: 7px 4px 0 currentColor, 14px -1px 0 currentColor; animation: pet-audio-bars .72s ease-in-out infinite alternate; }
 .pet-audio-button.is-speaking .pet-audio-icon i::after,
 .pet-audio-button.is-speaking .pet-audio-icon b { display: none; }
@@ -12280,6 +12331,10 @@ body:has(.footprints-page),
 
 @media (max-width: 699px) {
   .pet-room-hud { inset: max(10px, env(safe-area-inset-top)) 10px auto; }
+  .pet-room-hud { gap: 8px; }
+  .pet-sound-toggle { width: 46px; height: 46px; padding: 3px; }
+  .pet-sound-toggle img { width: 38px; height: 38px; }
+  .pet-sound-toggle.is-muted::after { width: 35px; height: 3px; }
   .pet-star-balance { min-width: 62px; min-height: 46px; padding: 5px 8px; gap: 5px; }
   .pet-star-balance span { font-size: 21px; }
   .pet-star-balance small { display: none; }
@@ -12364,6 +12419,16 @@ body:has(.footprints-page),
     min-width: 132px;
     min-height: 62px;
     padding: 8px 17px;
+  }
+
+  .pet-sound-toggle {
+    width: 62px;
+    height: 62px;
+  }
+
+  .pet-sound-toggle img {
+    width: 51px;
+    height: 51px;
   }
 
   .pet-star-balance span {

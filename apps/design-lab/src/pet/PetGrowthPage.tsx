@@ -24,6 +24,7 @@ import eatingSound from "@star-monsters/assets/audio/pet/eating.mp3";
 import drinkingSound from "@star-monsters/assets/audio/pet/drinking.mp3";
 import happyEntrySound from "@star-monsters/assets/audio/pet/happy-entry.mp3";
 import postcardArrivedSound from "@star-monsters/assets/audio/pet/postcard-arrived.mp3";
+import soundToggleIcon from "@star-monsters/assets/images/pet/sound-toggle.webp";
 import {
   createAudioWithSpeechFallback,
   createHtmlAudioPlayback,
@@ -39,8 +40,17 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
 
 const CARE_ANIMATION_MS = 3_000;
 const ROOM_NOTICE_MS = 2_000;
+const PET_SOUND_STORAGE_KEY = "star-monsters:pet-sound-enabled";
 type CareKind = "feed" | "drink";
 type RoomNotice = { id: number; message: string };
+
+function initialPetSoundEnabled() {
+  try {
+    return window.localStorage.getItem(PET_SOUND_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
 
 const PET_FALLBACK_DIALOGUES: Record<PetDialogueContext, string[]> = {
   PET_NEEDS_CARE: ["肚子和水杯都有点空啦，先照顾我一下吧。"],
@@ -108,7 +118,7 @@ function Meter({ label, value, tone }: { label: string; value: number; tone: str
   );
 }
 
-function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; mascotImage: string; mascotName: string; onClose: () => void }) {
+function Postcard({ trip, mascotImage, mascotName, soundEnabled, onClose }: { trip: PetTrip; mascotImage: string; mascotName: string; soundEnabled: boolean; onClose: () => void }) {
   const [speaking, setSpeaking] = useState(false);
   const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -117,6 +127,7 @@ function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; m
   }
 
   function speak() {
+    if (!soundEnabled) return;
     const narration = `${trip.destinationName}。${trip.introduction}。你知道吗？${trip.funFact}`;
     if (trip.audioUrl) {
       playbackQueueRef.current?.enqueue(() => {
@@ -135,8 +146,12 @@ function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; m
   }
 
   useEffect(() => () => {
-    playbackQueueRef.current?.dispose();
+    playbackQueueRef.current?.clear();
   }, []);
+
+  useEffect(() => {
+    if (!soundEnabled) playbackQueueRef.current?.clear();
+  }, [soundEnabled]);
 
   return (
     <div className="pet-modal" role="dialog" aria-modal="true" aria-label={`${trip.destinationName}旅行明信片`}>
@@ -153,8 +168,8 @@ function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; m
           <h2>{trip.destinationName}</h2>
           <p>{trip.introduction}</p>
           <div className="pet-postcard__fact"><strong>有趣的小知识</strong>{trip.funFact}</div>
-          <button className={`pet-audio-button${speaking ? " is-speaking" : ""}`} type="button" onClick={speak}>
-            <span className="pet-audio-icon" aria-hidden="true"><i /><b /></span>{speaking ? "正在讲给你听" : "听听这个地方"}
+          <button className={`pet-audio-button${speaking ? " is-speaking" : ""}`} type="button" disabled={!soundEnabled} onClick={speak}>
+            <span className="pet-audio-icon" aria-hidden="true"><i /><b /></span>{soundEnabled ? speaking ? "正在讲给你听" : "听听这个地方" : "音效已关闭"}
           </button>
         </div>
       </article>
@@ -175,6 +190,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(null);
   const [dialogueSpeaking, setDialogueSpeaking] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(initialPetSoundEnabled);
   const [now, setNow] = useState(Date.now());
   const careTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
@@ -184,6 +200,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const petSoundQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const soundRetryCleanupRef = useRef(new Set<() => void>());
   const postcardSoundTripIdRef = useRef<string | null>(null);
+  const soundEnabledRef = useRef(soundEnabled);
   const roomNoticeIdRef = useRef(0);
   if (!dialogueQueueRef.current) {
     dialogueQueueRef.current = new SinglePendingPlaybackQueue(setDialogueSpeaking);
@@ -208,6 +225,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   useEffect(() => { void load(); }, [load]);
   const playPetSound = useCallback((url: string, retryOnGesture = false) => {
+    if (!soundEnabledRef.current) return;
     let canRetry = retryOnGesture;
     const enqueue = () => {
       petSoundQueueRef.current?.enqueue(() => {
@@ -242,7 +260,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     enqueue();
   }, []);
   useEffect(() => {
-    playPetSound(happyEntrySound, true);
+    if (soundEnabledRef.current) playPetSound(happyEntrySound, true);
   }, [playPetSound]);
   useEffect(() => {
     const returnedTrip = state?.currentTrip;
@@ -298,14 +316,14 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   useEffect(() => () => {
     if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
-    dialogueQueueRef.current?.dispose();
-    petSoundQueueRef.current?.dispose();
+    dialogueQueueRef.current?.clear();
+    petSoundQueueRef.current?.clear();
     soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
     soundRetryCleanupRef.current.clear();
   }, []);
 
   function speakPetDialogue() {
-    if (!selectedDialogue || careAnimation) return;
+    if (!soundEnabledRef.current || !selectedDialogue || careAnimation) return;
 
     if (!selectedDialogue.audioUrl) {
       const text = selectedDialogue.text;
@@ -324,6 +342,25 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       dialogueAudioCacheRef.current.set(audioUrl, audio);
       return createAudioWithSpeechFallback(audio, text, { rate: 0.9 });
     });
+  }
+
+  function toggleSound() {
+    const next = !soundEnabledRef.current;
+    soundEnabledRef.current = next;
+    setSoundEnabled(next);
+    try {
+      window.localStorage.setItem(PET_SOUND_STORAGE_KEY, String(next));
+    } catch {
+      // The toggle still works for this visit when storage is unavailable.
+    }
+    if (!next) {
+      dialogueQueueRef.current?.clear();
+      petSoundQueueRef.current?.clear();
+      soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
+      soundRetryCleanupRef.current.clear();
+      return;
+    }
+    playPetSound(happyEntrySound);
   }
 
   const moodImage = useMemo(() => {
@@ -443,6 +480,16 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       <section className="pet-growth-stage">
         <div className="pet-room-backdrop" />
         <header className="pet-room-hud">
+          <button
+            className={`pet-sound-toggle${soundEnabled ? " is-enabled" : " is-muted"}`}
+            type="button"
+            aria-label={soundEnabled ? "关闭星宠小屋音效" : "开启星宠小屋音效"}
+            aria-pressed={soundEnabled}
+            title={soundEnabled ? "关闭音效" : "开启音效"}
+            onClick={toggleSound}
+          >
+            <img src={soundToggleIcon} alt="" aria-hidden="true" />
+          </button>
           <div className="pet-star-balance" aria-label={`当前有 ${state.wallet.starBalance} 颗星`}><span>★</span><div><small>我的星星</small><strong>{state.wallet.starBalance}</strong></div></div>
         </header>
 
@@ -487,7 +534,6 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <div className="pet-traveling-scene">
             <div className="pet-traveling-orbit"><span>✦</span><span>✦</span><span>✦</span></div>
             <img src={moodImage} alt={`${mascot.name}正在旅行`} />
-            <div className="pet-suitcase">▣</div>
             <h1>{mascot.name}出发旅行啦</h1>
             <p>回来时会带一张神秘明信片</p>
             <time>{formatCountdown(trip.returnsAt, now)}</time>
@@ -575,7 +621,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           </section>
         </div>
       )}
-      {postcard && <Postcard trip={postcard} mascotImage={mascot.activityImages.travel} mascotName={mascot.name} onClose={() => setPostcard(null)} />}
+      {postcard && <Postcard trip={postcard} mascotImage={mascot.activityImages.travel} mascotName={mascot.name} soundEnabled={soundEnabled} onClose={() => setPostcard(null)} />}
       <ChildBottomNav active="pet" onNavigate={onNavigate} />
     </main>
   );

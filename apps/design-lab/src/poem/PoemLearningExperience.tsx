@@ -121,7 +121,7 @@ export function PoemLearningExperience({
     };
   }, [attemptId]);
 
-  useEffect(() => () => playbackQueueRef.current?.dispose(), []);
+  useEffect(() => () => playbackQueueRef.current?.clear(), []);
 
   const poem = session?.poems[session.currentIndex] ?? session?.poems[0] ?? null;
   const clauses = useMemo(
