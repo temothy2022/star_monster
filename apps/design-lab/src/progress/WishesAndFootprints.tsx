@@ -617,21 +617,6 @@ function FloatingFootprintMascot({
   );
 }
 
-function leaderboardPrompt(
-  leaderboard: ChildLeaderboard,
-  period: LeaderboardPeriod,
-) {
-  const self = leaderboard.self;
-  if (!self) return "完成任务后就能加入排行榜";
-  if (self.stars === 0) {
-    return period === "daily"
-      ? "完成今天第一个任务，点亮你的排名"
-      : "本周的第一颗星，正等你去获得";
-  }
-  if (self.rank === 1) return "你正在领航，继续按自己的计划前进";
-  return `再得 ${self.starsToNextRank} 颗星，有机会前进一名`;
-}
-
 function FootprintLeaderboard({
   leaderboards,
   period,
@@ -642,17 +627,10 @@ function FootprintLeaderboard({
   onPeriodChange: (period: LeaderboardPeriod) => void;
 }) {
   const leaderboard = leaderboards[period];
-  const self = leaderboard.self;
   return (
     <aside className="footprints-leaderboard" aria-labelledby="footprints-leaderboard-title">
       <header className="footprints-leaderboard__header">
-        <div>
-          <span className="footprints-leaderboard__eyebrow">星宠探险家</span>
-          <h1 id="footprints-leaderboard-title">全球小朋友榜</h1>
-        </div>
-        <span className="footprints-leaderboard__participant-count">
-          {self?.totalParticipants ?? 0} 人
-        </span>
+        <h1 id="footprints-leaderboard-title">全球小朋友榜</h1>
       </header>
 
       <div className="footprints-leaderboard__tabs" aria-label="排行榜周期">
@@ -674,20 +652,6 @@ function FootprintLeaderboard({
         </button>
       </div>
 
-      {self && (
-        <div className="footprints-leaderboard__motivation">
-          <div>
-            <span>{period === "daily" ? "我的今日排名" : "我的本周排名"}</span>
-            <strong>第 {self.rank} 名</strong>
-          </div>
-          <div>
-            <span>{period === "daily" ? "今日获得" : "本周获得"}</span>
-            <strong>{self.stars} 星</strong>
-          </div>
-          <p>{leaderboardPrompt(leaderboard, period)}</p>
-        </div>
-      )}
-
       <ol className="footprints-leaderboard__list">
         {leaderboard.entries.map((entry, index) => (
           <li
@@ -703,7 +667,6 @@ function FootprintLeaderboard({
             </span>
             <span className="footprints-leaderboard__name">
               <strong>{entry.displayName}</strong>
-              <small>{entry.completedTasks} 个任务</small>
             </span>
             <span className="footprints-leaderboard__stars">
               <strong>{entry.stars}</strong>
@@ -712,14 +675,6 @@ function FootprintLeaderboard({
           </li>
         ))}
       </ol>
-
-      {self && !self.inTopTen && (
-        <div className="footprints-leaderboard__self-row">
-          <span>我的位置</span>
-          <strong>第 {self.rank} 名</strong>
-          <span>{self.stars} 星</span>
-        </div>
-      )}
     </aside>
   );
 }

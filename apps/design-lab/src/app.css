@@ -5480,30 +5480,11 @@ input[type="reset"] {
   gap: 10px;
 }
 
-.footprints-leaderboard__eyebrow {
-  display: block;
-  color: #d65c27;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 14px;
-}
-
 .footprints-leaderboard__header h1 {
-  margin: 2px 0 0;
+  margin: 0;
   font-size: 22px;
   font-weight: 800;
   line-height: 30px;
-}
-
-.footprints-leaderboard__participant-count {
-  flex: 0 0 auto;
-  padding: 4px 9px;
-  border: 2px solid var(--progress-ink);
-  border-radius: 999px;
-  background: #fff1c7;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
 }
 
 .footprints-leaderboard__tabs {
@@ -5538,50 +5519,6 @@ input[type="reset"] {
   color: #4b2718;
 }
 
-.footprints-leaderboard__motivation {
-  display: grid;
-  flex: 0 0 auto;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 13px -18px 0;
-  padding: 11px 18px 12px;
-  border-top: 2px solid #efdcd0;
-  border-bottom: 2px solid #efdcd0;
-  background: #fff1ec;
-}
-
-.footprints-leaderboard__motivation > div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-
-.footprints-leaderboard__motivation > div + div {
-  padding-left: 12px;
-  border-left: 1px solid #ddc4b8;
-}
-
-.footprints-leaderboard__motivation span {
-  color: #78675f;
-  font-size: 11px;
-  line-height: 16px;
-}
-
-.footprints-leaderboard__motivation strong {
-  margin-top: 1px;
-  color: #4b2718;
-  font-size: 19px;
-  line-height: 25px;
-}
-
-.footprints-leaderboard__motivation p {
-  grid-column: 1 / -1;
-  margin: 8px 0 0;
-  color: #8e401e;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 18px;
-}
-
 .footprints-leaderboard__list {
   min-height: 0;
   flex: 1 1 auto;
@@ -5594,8 +5531,8 @@ input[type="reset"] {
 
 .footprints-leaderboard__row {
   display: grid;
-  min-height: 58px;
-  grid-template-columns: 28px 48px minmax(0, 1fr) auto;
+  min-height: 60px;
+  grid-template-columns: 30px 48px minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
   padding: 5px 3px;
@@ -5622,7 +5559,7 @@ input[type="reset"] {
   background: #eee7df;
   color: var(--progress-ink);
   font-family: Arial, sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -5664,16 +5601,10 @@ input[type="reset"] {
 
 .footprints-leaderboard__name strong {
   overflow: hidden;
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 16px;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.footprints-leaderboard__name small {
-  color: #7b6a62;
-  font-size: 10px;
-  line-height: 15px;
 }
 
 .footprints-leaderboard__stars {
@@ -5685,27 +5616,12 @@ input[type="reset"] {
 
 .footprints-leaderboard__stars strong {
   font-family: Arial, sans-serif;
-  font-size: 15px;
+  font-size: 18px;
 }
 
 .footprints-leaderboard__stars img {
   width: 15px;
   height: 15px;
-}
-
-.footprints-leaderboard__self-row {
-  display: grid;
-  min-height: 38px;
-  flex: 0 0 auto;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 10px;
-  margin-top: 7px;
-  padding: 7px 10px;
-  border: 2px dashed #e7a33a;
-  border-radius: 12px;
-  background: #fff8dd;
-  font-size: 12px;
 }
 
 .footprints-floating-mascot {
@@ -5822,13 +5738,6 @@ input[type="reset"] {
     padding: 14px;
   }
 
-  .footprints-leaderboard__motivation {
-    margin-right: -14px;
-    margin-left: -14px;
-    padding-right: 14px;
-    padding-left: 14px;
-  }
-
   .footprints-leaderboard__header h1 {
     font-size: 19px;
   }
@@ -5855,11 +5764,6 @@ input[type="reset"] {
     padding-bottom: 12px;
   }
 
-  .footprints-leaderboard__eyebrow,
-  .footprints-leaderboard__name small {
-    display: none;
-  }
-
   .footprints-leaderboard__header h1 {
     margin-top: 0;
     font-size: 19px;
@@ -5870,16 +5774,6 @@ input[type="reset"] {
     height: 36px;
     flex-basis: 36px;
     margin-top: 8px;
-  }
-
-  .footprints-leaderboard__motivation {
-    margin-top: 8px;
-    padding-top: 7px;
-    padding-bottom: 7px;
-  }
-
-  .footprints-leaderboard__motivation p {
-    margin-top: 4px;
   }
 
   .footprints-leaderboard__row {
@@ -5920,8 +5814,8 @@ input[type="reset"] {
 
   .footprints-leaderboard {
     width: 100%;
-    height: min(346px, 46dvh);
-    min-height: 300px;
+    height: auto;
+    min-height: 0;
     flex: 0 0 auto;
     padding: 14px;
     border-radius: 22px;
@@ -5932,15 +5826,13 @@ input[type="reset"] {
     line-height: 27px;
   }
 
-  .footprints-leaderboard__motivation {
-    margin-right: -14px;
-    margin-left: -14px;
-    padding-right: 14px;
-    padding-left: 14px;
-  }
-
   .footprints-leaderboard__row {
     min-height: 54px;
+  }
+
+  .footprints-leaderboard__list {
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .footprints-interactive {
