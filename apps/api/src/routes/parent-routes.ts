@@ -26,6 +26,7 @@ import {
 } from "../services/planet-service.js";
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
+import { getGrowthAnalytics } from "../services/growth-analytics-service.js";
 import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
@@ -182,14 +183,20 @@ const taskTemplateSchema = z
     }
     if (
       (input.experienceKind === "HANZI_LEARNING" ||
-        input.experienceKind === "CLOCK_LEARNING" ||
-        input.experienceKind === "MAKE_TEN") &&
+        input.experienceKind === "CLOCK_LEARNING") &&
       (input.mode !== "UNTIMED" || input.repeatableDaily)
     ) {
       context.addIssue({
         code: "custom",
         path: ["experienceKind"],
         message: "学习任务必须是不限时且当天不可重复领取的任务",
+      });
+    }
+    if (input.experienceKind === "MAKE_TEN" && input.mode !== "UNTIMED") {
+      context.addIssue({
+        code: "custom",
+        path: ["experienceKind"],
+        message: "凑十训练必须是不限时任务",
       });
     }
     if (
@@ -346,6 +353,11 @@ const statsQuery = z.object({
 });
 const historyQuery = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30),
+});
+const growthAnalyticsQuery = z.object({
+  days: z.coerce.number().int().refine((value) => [7, 30, 90].includes(value), {
+    message: "统计范围只支持 7、30 或 90 天",
+  }).default(30),
 });
 const historyTaskParams = z.object({
   id: z.string().min(1),
@@ -1384,6 +1396,21 @@ export async function registerParentRoutes(
       ),
     };
   });
+
+  app.get(
+    "/api/parent/children/:id/growth-analytics",
+    async (request, reply) => {
+      const { id } = idParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, id);
+      const { days } = growthAnalyticsQuery.parse(request.query);
+      return getGrowthAnalytics(
+        id,
+        days,
+        new Date(),
+        config.APP_TIME_ZONE,
+      );
+    },
+  );
 
   app.get("/api/parent/children/:id/task-history", async (request, reply) => {
     const { id } = idParams.parse(request.params);

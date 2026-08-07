@@ -1,7 +1,9 @@
 import type { FastifyBaseLogger } from "fastify";
 import type { AppConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
+import { businessDateAt, businessDateKey } from "../lib/time.js";
 import { prepareDailyTasks } from "./task-service.js";
+import { generateDueWeeklyGrowthReports } from "./weekly-growth-report-service.js";
 
 const MAINTENANCE_INTERVAL_MS = 60_000;
 const PERFORMANCE_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -11,6 +13,8 @@ export function startDailyScheduler(
   logger: FastifyBaseLogger,
 ): () => void {
   let running = false;
+  let weeklyReportsRunning = false;
+  let lastWeeklyReportSweepDate: string | null = null;
 
   const maintain = async () => {
     if (running) return;
@@ -52,8 +56,29 @@ export function startDailyScheduler(
     }
   };
 
+  const maintainWeeklyReports = async () => {
+    const now = new Date();
+    const dateKey = businessDateKey(
+      businessDateAt(now, config.APP_TIME_ZONE),
+    );
+    if (weeklyReportsRunning || lastWeeklyReportSweepDate === dateKey) return;
+    weeklyReportsRunning = true;
+    try {
+      await generateDueWeeklyGrowthReports(config, logger, now);
+    } catch (error) {
+      logger.error({ error }, "成长周报定时维护失败");
+    } finally {
+      lastWeeklyReportSweepDate = dateKey;
+      weeklyReportsRunning = false;
+    }
+  };
+
   void maintain();
-  const timer = setInterval(() => void maintain(), MAINTENANCE_INTERVAL_MS);
+  void maintainWeeklyReports();
+  const timer = setInterval(() => {
+    void maintain();
+    void maintainWeeklyReports();
+  }, MAINTENANCE_INTERVAL_MS);
   timer.unref();
   return () => clearInterval(timer);
 }

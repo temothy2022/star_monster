@@ -171,7 +171,7 @@ export type DailyTask = {
 
 export type TaskAttempt = {
   id: string;
-  status: "RUNNING" | "PAUSED" | "COMPLETED" | "ROLLED_BACK" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
+  status: "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "ROLLED_BACK" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
   elapsedSeconds: number | null;
   remainingSeconds: number | null;
   dailyTask: DailyTask;

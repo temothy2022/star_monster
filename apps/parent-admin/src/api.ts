@@ -308,6 +308,98 @@ export type LedgerEntry = {
   createdAt: string;
 };
 
+export type GrowthAnalytics = {
+  range: { days: number; from: string; to: string };
+  summary: {
+    scheduledTasks: number;
+    completedTasks: number;
+    completionRate: number;
+    activeDays: number;
+    taskStarsEarned: number;
+    bonusStarsEarned: number;
+    rewardStarsReversed: number;
+    starsSpent: number;
+    starsRefunded: number;
+    netStars: number;
+  };
+  daily: Array<{
+    date: string;
+    scheduledTasks: number;
+    completedTasks: number;
+    completedAttempts: number;
+    failedAttempts: number;
+    abandonedAttempts: number;
+    taskStarsEarned: number;
+    bonusStarsEarned: number;
+    rewardStarsReversed: number;
+    starsSpent: number;
+    starsRefunded: number;
+  }>;
+  categories: Array<{
+    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "OTHER";
+    label: string;
+    scheduledTasks: number;
+    completedTasks: number;
+    completedAttempts: number;
+    failedAttempts: number;
+    starsEarned: number;
+    completionRate: number;
+  }>;
+  tasks: Array<{
+    templateId: string;
+    title: string;
+    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "OTHER";
+    categoryLabel: string;
+    repeatableDaily: boolean;
+    scheduledDays: number;
+    completedDays: number;
+    completedAttempts: number;
+    failedAttempts: number;
+    abandonedAttempts: number;
+    starsEarned: number;
+    completionRate: number;
+    averageMinutes: number | null;
+  }>;
+  spending: Array<{
+    category: "SPORTS" | "TELEVISION" | "TOYS";
+    label: string;
+    redemptionCount: number;
+    starsSpent: number;
+    share: number;
+  }>;
+  spendingItems: Array<{
+    title: string;
+    category: "SPORTS" | "TELEVISION" | "TOYS";
+    redemptionCount: number;
+    starsSpent: number;
+  }>;
+  insights: {
+    strongTaskIds: string[];
+    focusTaskIds: string[];
+    preferredWishCategory: "SPORTS" | "TELEVISION" | "TOYS" | null;
+  };
+};
+
+export type WeeklyGrowthAnalysis = {
+  summary: string;
+  progressHighlights: Array<{ title: string; evidence: string }>;
+  focusAreas: Array<{ title: string; evidence: string; suggestion: string }>;
+  consumptionInsight: { summary: string; preferredCategories: string[] };
+  nextWeekSuggestions: Array<{ title: string; action: string; reason: string }>;
+  parentMessage: string;
+  disclaimer: string;
+};
+
+export type WeeklyGrowthReport = {
+  id: string;
+  status: "GENERATING" | "COMPLETED" | "FAILED";
+  weekStart: string;
+  weekEnd: string;
+  generatedAt: string | null;
+  model: string | null;
+  analysis: WeeklyGrowthAnalysis | null;
+};
+
 export type PlanetKey =
   | "MERCURY"
   | "VENUS"
@@ -361,7 +453,7 @@ export type TaskHistoryItem = {
   attempts: Array<{
     id: string;
     attemptNumber: number;
-    status: "RUNNING" | "PAUSED" | "COMPLETED" | "ROLLED_BACK" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
+    status: "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "ROLLED_BACK" | "TIMED_OUT" | "ABANDONED" | "DAY_ENDED";
     startedAt: string;
     endedAt: string | null;
     elapsedSeconds: number | null;
@@ -685,6 +777,10 @@ export const parentApi = {
       }>;
       stars: Record<string, number>;
     }>(`/api/parent/children/${childId}/stats`),
+  growthAnalytics: (childId: string, days: 7 | 30 | 90) =>
+    api<GrowthAnalytics>(
+      `/api/parent/children/${childId}/growth-analytics?days=${days}`,
+    ),
   taskHistory: (childId: string, days: number) =>
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
       `/api/parent/children/${childId}/task-history?days=${days}`,
@@ -718,6 +814,15 @@ export const parentApi = {
       body: JSON.stringify({ planets }),
     }),
   aiConfig: () => api<{ config: AiConfig }>("/api/parent/ai/config"),
+  weeklyGrowth: (childId: string) =>
+    api<{ configured: boolean; report: WeeklyGrowthReport | null }>(
+      `/api/parent/children/${childId}/ai/weekly-growth`,
+    ),
+  generateWeeklyGrowth: (childId: string) =>
+    api<{ report: WeeklyGrowthReport | null }>(
+      `/api/parent/children/${childId}/ai/weekly-growth/generate`,
+      { method: "POST" },
+    ),
   aiModels: () =>
     api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/parent/ai/models"),
   saveAiConfig: (data: {

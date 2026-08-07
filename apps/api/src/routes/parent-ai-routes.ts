@@ -5,6 +5,7 @@ import {
   rewardAuditResponseSchema,
   scheduleResponseSchema,
   taskAdviceResponseSchema,
+  weeklyGrowthResponseSchema,
 } from "../ai/schemas.js";
 import {
   AI_PROMPT_VERSION,
@@ -24,6 +25,10 @@ import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-servi
 import { validateSchedulePlan } from "../services/schedule-validation.js";
 import { generateDailyTasks } from "../services/task-service.js";
 import { businessDateAt } from "../lib/time.js";
+import {
+  generateWeeklyGrowthReport,
+  latestWeeklyGrowthReport,
+} from "../services/weekly-growth-report-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
 const recommendationParams = z.object({
@@ -169,6 +174,22 @@ function estimatedMinutes(template: {
   );
 }
 
+function weeklyReportResponse(
+  report: Awaited<ReturnType<typeof latestWeeklyGrowthReport>>,
+) {
+  if (!report) return null;
+  const parsed = weeklyGrowthResponseSchema.safeParse(report.responsePayload);
+  return {
+    id: report.id,
+    status: report.status,
+    weekStart: report.weekStart,
+    weekEnd: report.weekEnd,
+    generatedAt: report.generatedAt,
+    model: report.model,
+    analysis: parsed.success ? parsed.data : null,
+  };
+}
+
 async function saveRecommendation(input: {
   kind: AiRecommendationKind;
   familyId: string;
@@ -215,6 +236,56 @@ export async function registerParentAiRoutes(
           },
     };
   });
+
+  app.get(
+    "/api/parent/children/:id/ai/weekly-growth",
+    async (request, reply) => {
+      const { id: childId } = idParams.parse(request.params);
+      const { familyId } = await ownedChild(request, reply, config, childId);
+      const [stored, report] = await Promise.all([
+        prisma.familyAiConfig.findUnique({
+          where: { familyId },
+          select: { enabled: true },
+        }),
+        latestWeeklyGrowthReport(childId),
+      ]);
+      return {
+        configured: Boolean(stored?.enabled),
+        report: weeklyReportResponse(report),
+      };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:id/ai/weekly-growth/generate",
+    async (request, reply) => {
+      const { id: childId } = idParams.parse(request.params);
+      const { user, familyId } = await ownedChild(
+        request,
+        reply,
+        config,
+        childId,
+      );
+      enforceAiLimit(familyId, user.id, "weekly-growth");
+      const report = await generateWeeklyGrowthReport(childId, config, {
+        force: true,
+      });
+      await writeAudit(prisma, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId,
+        action: "AI_WEEKLY_GROWTH_GENERATE",
+        resourceType: "WeeklyGrowthReport",
+        resourceId: report.id,
+        metadata: {
+          weekStart: report.weekStart.toISOString().slice(0, 10),
+          status: report.status,
+        },
+        ipAddress: request.ip,
+      });
+      return { report: weeklyReportResponse(report) };
+    },
+  );
 
   app.get("/api/parent/ai/models", async (request, reply) => {
     const { familyId } = await familyUser(request, reply, config);

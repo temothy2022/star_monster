@@ -860,7 +860,6 @@ export async function completeTask(
       );
     }
   }
-  let learningOutcomeAllowsReward = true;
   if (existing.dailyTask.experienceKindSnapshot === "MAKE_TEN") {
     stageStartedAt = performance.now();
     const makeTenSession = await prisma.makeTenLearningSession.findUnique({
@@ -884,7 +883,13 @@ export async function completeTask(
         "请先完成全部凑十题目",
       );
     }
-    learningOutcomeAllowsReward = makeTenSession.passed;
+    if (!makeTenSession.passed) {
+      throw new HttpError(
+        409,
+        "MAKE_TEN_CHALLENGE_FAILED",
+        "本次凑十挑战未达标，任务不会完成",
+      );
+    }
   }
   if (
     existing.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
@@ -922,16 +927,14 @@ export async function completeTask(
     throw new HttpError(409, "TASK_TIMED_OUT", "本次挑战已经超时");
   }
 
-  const reward = learningOutcomeAllowsReward
-    ? taskReward({
-        mode: attempt.dailyTask.modeSnapshot,
-        baseStars: attempt.dailyTask.baseStarsSnapshot,
-        earlyBonusEnabled: attempt.dailyTask.earlyBonusEnabledSnapshot,
-        earlyThresholdSeconds: attempt.dailyTask.earlyThresholdSecsSnapshot,
-        earlyBonusStars: attempt.dailyTask.earlyBonusStarsSnapshot,
-        remainingSeconds: remaining,
-      })
-    : { baseStars: 0, bonusStars: 0, totalStars: 0 };
+  const reward = taskReward({
+    mode: attempt.dailyTask.modeSnapshot,
+    baseStars: attempt.dailyTask.baseStarsSnapshot,
+    earlyBonusEnabled: attempt.dailyTask.earlyBonusEnabledSnapshot,
+    earlyThresholdSeconds: attempt.dailyTask.earlyThresholdSecsSnapshot,
+    earlyBonusStars: attempt.dailyTask.earlyBonusStarsSnapshot,
+    remainingSeconds: remaining,
+  });
 
   stageStartedAt = performance.now();
   const completion = await prisma.$transaction(

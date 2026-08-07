@@ -168,6 +168,10 @@ export function makeTenPassed(
   return totalQuestions > 0 && correctCount * 100 >= totalQuestions * passAccuracyPercent;
 }
 
+export function makeTenAttemptStatus(passed: boolean) {
+  return passed ? "COMPLETED" as const : "FAILED" as const;
+}
+
 export function makeTenMastery(accuracy: number | null) {
   if (accuracy === null || !Number.isFinite(accuracy)) return { level: "NO_DATA" as const, label: "暂无数据" };
   if (accuracy >= 0.9) return { level: "MASTERED" as const, label: "反应熟练" };

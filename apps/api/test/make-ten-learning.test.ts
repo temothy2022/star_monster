@@ -4,6 +4,7 @@ import {
   generateMakeTenQuestions,
   isMakeTenAnswerCorrect,
   makeTenAnswer,
+  makeTenAttemptStatus,
   makeTenQuestionWeight,
   makeTenPassed,
 } from "../src/domain/make-ten-learning.js";
@@ -93,5 +94,10 @@ describe("凑十训练达标规则", () => {
     expect(makeTenPassed(8, 10, 80)).toBe(true);
     expect(makeTenPassed(7, 10, 80)).toBe(false);
     expect(makeTenPassed(4, 5, 80)).toBe(true);
+  });
+
+  it("未达标尝试保持失败状态，只有达标才完成任务", () => {
+    expect(makeTenAttemptStatus(true)).toBe("COMPLETED");
+    expect(makeTenAttemptStatus(false)).toBe("FAILED");
   });
 });

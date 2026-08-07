@@ -1,9 +1,11 @@
 import { Prisma, type MakeTenLearningSession } from "@prisma/client";
 import type { AppConfig } from "../config.js";
+import { activeElapsedSeconds } from "../domain/task-rules.js";
 import {
   generateAdaptiveMakeTenQuestions,
   generateMakeTenQuestions,
   isMakeTenAnswerCorrect,
+  makeTenAttemptStatus,
   makeTenPassed,
   type MakeTenAnswer,
   type MakeTenQuestion,
@@ -254,5 +256,94 @@ export async function finishMakeTenSession(childId: string, sessionId: string) {
   if (!session.completedAt || session.currentIndex < session.totalQuestions || session.passed === null) {
     throw new HttpError(409, "MAKE_TEN_SESSION_INCOMPLETE", "请先完成全部凑十题目");
   }
-  return completeTask(childId, session.taskAttemptId);
+  if (makeTenAttemptStatus(session.passed) === "COMPLETED") {
+    return completeTask(childId, session.taskAttemptId);
+  }
+
+  const now = new Date();
+  const existing = await prisma.taskAttempt.findFirst({
+    where: { id: session.taskAttemptId, childId },
+    include: { dailyTask: true },
+  });
+  if (!existing) {
+    throw new HttpError(404, "ATTEMPT_NOT_FOUND", "没有找到这次任务");
+  }
+  if (existing.status === "FAILED") {
+    return {
+      attempt: existing,
+      reward: {
+        baseStars: 0,
+        bonusStars: 0,
+        dailyGoalBonusStars: 0,
+        totalStars: 0,
+      },
+      alreadyCompleted: false,
+    };
+  }
+  if (existing.status !== "RUNNING" && existing.status !== "PAUSED") {
+    throw new HttpError(409, "ATTEMPT_NOT_ACTIVE", "这个任务已不在进行中");
+  }
+
+  const elapsedSeconds = activeElapsedSeconds(existing, now);
+  const updatedAttempt = await prisma.$transaction(
+    async (tx) => {
+      const currentSlot = await tx.activeTaskSlot.findUnique({
+        where: { childId },
+      });
+      if (!currentSlot || currentSlot.attemptId !== existing.id) {
+        throw new HttpError(409, "ATTEMPT_NOT_ACTIVE", "这个任务已不在进行中");
+      }
+
+      const updateResult = await tx.taskAttempt.updateMany({
+        where: {
+          id: existing.id,
+          childId,
+          status: { in: ["RUNNING", "PAUSED"] },
+        },
+        data: {
+          status: "FAILED",
+          endedAt: now,
+          elapsedSeconds,
+          remainingSeconds: null,
+          baseStarsAwarded: 0,
+          bonusStarsAwarded: 0,
+        },
+      });
+      if (updateResult.count !== 1) {
+        throw new HttpError(409, "ATTEMPT_NOT_ACTIVE", "这个任务已不在进行中");
+      }
+
+      const priorCompletion = await tx.taskAttempt.findFirst({
+        where: {
+          dailyTaskId: existing.dailyTaskId,
+          id: { not: existing.id },
+          status: "COMPLETED",
+        },
+        select: { id: true },
+      });
+      await tx.dailyTask.update({
+        where: { id: existing.dailyTaskId },
+        data: {
+          status: "PENDING",
+          ...(!priorCompletion
+            ? { completedAt: null, completionDurationSeconds: null }
+            : {}),
+        },
+      });
+      await tx.activeTaskSlot.delete({ where: { childId } });
+      return tx.taskAttempt.findUniqueOrThrow({ where: { id: existing.id } });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+
+  return {
+    attempt: { ...updatedAttempt, dailyTask: existing.dailyTask },
+    reward: {
+      baseStars: 0,
+      bonusStars: 0,
+      dailyGoalBonusStars: 0,
+      totalStars: 0,
+    },
+    alreadyCompleted: false,
+  };
 }

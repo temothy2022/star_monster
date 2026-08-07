@@ -72,6 +72,7 @@ enum AttemptStatus {
   RUNNING
   PAUSED
   COMPLETED
+  FAILED
   ROLLED_BACK
   TIMED_OUT
   ABANDONED
@@ -178,6 +179,12 @@ enum AiRecommendationStatus {
   DISMISSED
 }
 
+enum WeeklyGrowthReportStatus {
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
 model Family {
   id        String        @id @default(cuid())
   name      String
@@ -190,6 +197,7 @@ model Family {
   aiConfig          FamilyAiConfig?
   minimaxConfig     FamilyMinimaxConfig?
   aiRecommendations AiRecommendation[]
+  weeklyGrowthReports WeeklyGrowthReport[]
 
   @@index([status])
 }
@@ -259,6 +267,7 @@ model ChildProfile {
   schedulePreference ChildSchedulePreference?
   availabilitySlots  ChildAvailabilitySlot[]
   aiRecommendations  AiRecommendation[]
+  weeklyGrowthReports WeeklyGrowthReport[]
   planetProgress     PlanetProgress[]
   hanziSettings      HanziLearningSettings?
   hanziProgress      HanziLearningProgress[]
@@ -422,6 +431,30 @@ model AiRecommendation {
 
   @@index([familyId, childId, kind, createdAt])
   @@index([status, createdAt])
+}
+
+model WeeklyGrowthReport {
+  id              String                   @id @default(cuid())
+  familyId        String
+  childId         String
+  weekStart       DateTime                 @db.Date
+  weekEnd         DateTime                 @db.Date
+  status          WeeklyGrowthReportStatus @default(GENERATING)
+  promptVersion   String
+  model           String?
+  metricsPayload  Json
+  responsePayload Json?
+  errorCode       String?
+  generatedAt     DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child  ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, weekStart])
+  @@index([familyId, childId, weekStart])
+  @@index([status, updatedAt])
 }
 
 model DailyTask {

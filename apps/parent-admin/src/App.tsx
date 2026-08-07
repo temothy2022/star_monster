@@ -30,6 +30,7 @@ import {
   type Wish,
 } from "./api";
 import { AiAssistant } from "./AiAssistant";
+import { GrowthOverview } from "./GrowthOverview";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "../../design-lab/src/assets/reward-categories/sports.webp";
 import gamesReward from "../../design-lab/src/assets/reward-categories/games.webp";
@@ -57,6 +58,7 @@ type Section =
   | "stars"
   | "planets"
   | "ai"
+  | "profile"
   | "settings";
 
 const SECTION_LABELS: Record<Section, string> = {
@@ -72,6 +74,7 @@ const SECTION_LABELS: Record<Section, string> = {
   stars: "星星流水",
   planets: "航图规则",
   ai: "AI 助手",
+  profile: "孩子档案",
   settings: "登录设备",
 };
 
@@ -112,6 +115,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     label: "智能与设置",
     items: [
       { key: "ai", label: "AI 助手", icon: "✦" },
+      { key: "profile", label: "孩子档案", icon: "档" },
       { key: "settings", label: "登录设备", icon: "⚙" },
     ],
   },
@@ -326,112 +330,6 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
   );
 }
 
-function Overview({ child, onChanged }: { child: Child; onChanged: () => void }) {
-  const [stats, setStats] = useState<Awaited<ReturnType<typeof parentApi.stats>> | null>(null);
-  const [learningOverview, setLearningOverview] = useState<{
-    hanzi: Awaited<ReturnType<typeof parentApi.hanziSettings>>;
-    clock: Awaited<ReturnType<typeof parentApi.clockSettings>>;
-    makeTen: Awaited<ReturnType<typeof parentApi.makeTenSettings>>;
-    poems: Awaited<ReturnType<typeof parentApi.poemSettings>>;
-  } | null>(null);
-  const [learningError, setLearningError] = useState("");
-  const [learningRefreshKey, setLearningRefreshKey] = useState(0);
-  useEffect(() => {
-    void parentApi.stats(child.id).then(setStats).catch(() => setStats(null));
-  }, [child.id]);
-  useEffect(() => {
-    let cancelled = false;
-    setLearningOverview(null);
-    setLearningError("");
-    void Promise.all([
-      parentApi.hanziSettings(child.id),
-      parentApi.clockSettings(child.id),
-      parentApi.makeTenSettings(child.id),
-      parentApi.poemSettings(child.id),
-    ])
-      .then(([hanzi, clock, makeTen, poems]) => {
-        if (!cancelled) setLearningOverview({ hanzi, clock, makeTen, poems });
-      })
-      .catch((reason) => {
-        if (!cancelled) {
-          setLearningError(reason instanceof Error ? reason.message : "学习状态读取失败");
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [child.id, learningRefreshKey]);
-
-  const completed = stats?.taskInstances.completed ?? 0;
-  const expired = stats?.tasks.EXPIRED ?? 0;
-  const total = stats?.taskInstances.total ?? 0;
-  const completionRate = total ? Math.round((completed / total) * 100) : 0;
-  const timeout = stats?.attempts.find((item) => item.status === "TIMED_OUT")?.count ?? 0;
-  const abandoned = stats?.attempts.find((item) => item.status === "ABANDONED")?.count ?? 0;
-  const handleChildChanged = () => {
-    onChanged();
-    setLearningRefreshKey((value) => value + 1);
-  };
-  const percent = (value: number | null) => value === null ? "—" : `${Math.round(value * 100)}%`;
-
-  return (
-    <div className="admin-stack">
-      <div className="metric-grid">
-        <article><span>当前星星</span><strong>{child.starBalance}</strong><small>可用于兑换</small></article>
-        <article><span>累计获得星星</span><strong>{child.lifetimeStarsEarned}</strong><small>只增不减</small></article>
-        <article><span>近 30 天完成率</span><strong>{completionRate}%</strong><small>{completed}/{total} 个任务</small></article>
-        <article><span>每日目标</span><strong>{child.dailyStarGoal}</strong><small>星星/天</small></article>
-      </div>
-      <Panel title="任务状态摘要">
-        <div className="summary-row">
-          <div><span>已完成</span><strong>{completed}</strong></div>
-          <div><span>未完成/过期</span><strong>{expired}</strong></div>
-          <div><span>限时超时</span><strong>{timeout}</strong></div>
-          <div><span>主动放弃</span><strong>{abandoned}</strong></div>
-        </div>
-      </Panel>
-      <Panel title="学习状态概览">
-        {learningOverview ? (
-          <div className="learning-overview-grid">
-            <article className="learning-overview-card">
-              <div className="learning-overview-card__header"><strong>汉字学习</strong><span>当前字库 {learningOverview.hanzi.characterCount} 字</span></div>
-              <div className="learning-overview-card__metrics">
-                <div><span>学习中</span><strong>{learningOverview.hanzi.progress.LEARNING ?? 0}</strong><small>个汉字</small></div>
-                <div><span>已掌握</span><strong>{learningOverview.hanzi.progress.MASTERED ?? 0}</strong><small>个汉字</small></div>
-              </div>
-            </article>
-            <article className="learning-overview-card">
-              <div className="learning-overview-card__header"><strong>古诗学习</strong><span>{learningOverview.poems.settings.enabled ? "任务已开启" : "任务未开启"}</span></div>
-              <div className="learning-overview-card__metrics">
-                <div><span>学习中</span><strong>{learningOverview.poems.progress.LEARNING ?? 0}</strong><small>首古诗</small></div>
-                <div><span>已掌握</span><strong>{learningOverview.poems.progress.MASTERED ?? 0}</strong><small>首古诗</small></div>
-                <div><span>待复习</span><strong>{learningOverview.poems.dueCount}</strong><small>首古诗</small></div>
-              </div>
-            </article>
-            <article className="learning-overview-card">
-              <div className="learning-overview-card__header"><strong>时钟学习</strong><span>{learningOverview.clock.stats.mastery.label}</span></div>
-              <div className="learning-overview-card__metrics">
-                <div><span>总体正确率</span><strong>{percent(learningOverview.clock.stats.accuracy)}</strong><small>{learningOverview.clock.stats.totalQuestions} 道题</small></div>
-                <div><span>近 30 天</span><strong>{percent(learningOverview.clock.stats.recentAccuracy)}</strong><small>近期正确率</small></div>
-                <div><span>完整练习</span><strong>{learningOverview.clock.stats.completedSessions}</strong><small>次任务</small></div>
-              </div>
-            </article>
-            <article className="learning-overview-card">
-              <div className="learning-overview-card__header"><strong>凑十训练</strong><span>{learningOverview.makeTen.stats.mastery.label}</span></div>
-              <div className="learning-overview-card__metrics">
-                <div><span>总体正确率</span><strong>{percent(learningOverview.makeTen.stats.accuracy)}</strong><small>{learningOverview.makeTen.stats.totalQuestions} 道题</small></div>
-                <div><span>近 30 天</span><strong>{percent(learningOverview.makeTen.stats.recentAccuracy)}</strong><small>近期正确率</small></div>
-                <div><span>完整练习</span><strong>{learningOverview.makeTen.stats.completedSessions}</strong><small>次任务</small></div>
-              </div>
-            </article>
-          </div>
-        ) : <div className="empty-state">{learningError || "正在读取学习状态…"}</div>}
-      </Panel>
-      <ChildProfileSettings child={child} onChanged={handleChildChanged} />
-    </div>
-  );
-}
-
 function History({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [days, setDays] = useState(30);
   const [tasks, setTasks] = useState<TaskHistoryItem[]>([]);
@@ -460,6 +358,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
 
   const attempts = tasks.flatMap((task) => task.attempts);
   const completed = attempts.filter((attempt) => attempt.status === "COMPLETED").length;
+  const failed = attempts.filter((attempt) => attempt.status === "FAILED").length;
   const timedOut = attempts.filter((attempt) => attempt.status === "TIMED_OUT").length;
   const abandoned = attempts.filter((attempt) => attempt.status === "ABANDONED").length;
   const stars = attempts.reduce(
@@ -477,6 +376,9 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
     if (task.attempts.some((attempt) => attempt.status === "ROLLED_BACK")) {
       return "已退款，待完成";
     }
+    if (task.attempts.some((attempt) => attempt.status === "FAILED")) {
+      return "未达标，待完成";
+    }
     if (task.status === "COMPLETED") return "已完成";
     if (task.status === "EXPIRED") return "未完成";
     if (task.status === "PAUSED") return "已暂停";
@@ -489,13 +391,13 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
       <div className="history-toolbar">
         <div>
           <h2>任务历史与执行数据</h2>
-          <p>包含完成、未完成、限时超时、放弃、执行时长和奖励明细</p>
+          <p>包含完成、未达标、限时超时、放弃、执行时长和奖励明细</p>
         </div>
         <div>{[7, 30, 90].map((range) => <button type="button" className={days === range ? "active" : ""} key={range} onClick={() => setDays(range)}>近 {range} 天</button>)}</div>
       </div>
       <div className="metric-grid">
         <article><span>已完成</span><strong>{completed}</strong><small>共 {tasks.length} 个每日任务</small></article>
-        <article><span>限时超时 / 放弃</span><strong>{timedOut + abandoned}</strong><small>{timedOut} 超时 · {abandoned} 放弃</small></article>
+        <article><span>未达标 / 超时 / 放弃</span><strong>{failed + timedOut + abandoned}</strong><small>{failed} 未达标 · {timedOut} 超时 · {abandoned} 放弃</small></article>
         <article><span>任务奖励</span><strong>{stars}</strong><small>基础与加成星星</small></article>
         <article><span>累计执行</span><strong>{Math.round(elapsed / 60)}</strong><small>分钟</small></article>
       </div>
@@ -508,8 +410,10 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
               <tbody>{tasks.map((task) => {
                 const taskElapsed = task.attempts.reduce((sum, attempt) => sum + (attempt.elapsedSeconds ?? 0), 0);
                 const taskStars = task.attempts.reduce((sum, attempt) => sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded, 0);
-                const exception = task.attempts.some((attempt) => attempt.status === "TIMED_OUT")
-                  ? " · 有超时"
+                const exception = task.attempts.some((attempt) => attempt.status === "FAILED")
+                  ? " · 有未达标"
+                  : task.attempts.some((attempt) => attempt.status === "TIMED_OUT")
+                    ? " · 有超时"
                   : task.attempts.some((attempt) => attempt.status === "ABANDONED")
                     ? " · 有放弃"
                     : task.attempts.some((attempt) => attempt.status === "ROLLED_BACK")
@@ -602,6 +506,7 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
   const isClock = form.experienceKind === "CLOCK_LEARNING";
   const isMakeTen = form.experienceKind === "MAKE_TEN";
   const isLearningExperience = isHanzi || isClock || isMakeTen;
+  const supportsRepeatableDaily = form.experienceKind === "STANDARD" || isMakeTen;
   return {
     title: form.title,
     experienceKind: form.experienceKind,
@@ -614,7 +519,7 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
     earlyBonusEnabled: !isLearningExperience && form.mode === "TIMED" && form.earlyBonusEnabled,
     earlyThresholdSeconds: !isLearningExperience && form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyThresholdMinutes * 60 : null,
     earlyBonusStars: !isLearningExperience && form.mode === "TIMED" && form.earlyBonusEnabled ? form.earlyBonusStars : null,
-    repeatableDaily: !isLearningExperience && form.repeatableDaily,
+    repeatableDaily: supportsRepeatableDaily && form.repeatableDaily,
     scheduleKind: form.scheduleKind,
     weekdays: form.scheduleKind === "SELECTED_WEEKDAYS" ? form.weekdays : [],
     oneTimeDate: form.scheduleKind === "ONE_TIME" ? form.oneTimeDate : null,
@@ -783,7 +688,7 @@ function Tasks({ child }: { child: Child }) {
                 : form.title,
               category: experienceKind === "HANZI_LEARNING" ? "CHINESE" : experienceKind === "CLOCK_LEARNING" || experienceKind === "MAKE_TEN" ? "MATH" : form.category,
               mode: experienceKind === "STANDARD" ? form.mode : "UNTIMED",
-              repeatableDaily: experienceKind === "STANDARD" ? form.repeatableDaily : false,
+              repeatableDaily: experienceKind === "STANDARD" || experienceKind === "MAKE_TEN" ? form.repeatableDaily : false,
               earlyBonusEnabled: experienceKind === "STANDARD" ? form.earlyBonusEnabled : false,
             });
           }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option></select></label>
@@ -796,7 +701,7 @@ function Tasks({ child }: { child: Child }) {
             <label>剩余至少（分钟）<input type="number" min={1} value={form.earlyThresholdMinutes} onChange={(event) => setForm({ ...form, earlyThresholdMinutes: Number(event.target.value) })} /></label>
             <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
-          {form.experienceKind === "STANDARD" && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
+          {(form.experienceKind === "STANDARD" || form.experienceKind === "MAKE_TEN") && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
           <label>出现方式<select value={form.scheduleKind} onChange={(event) => setForm({ ...form, scheduleKind: event.target.value as TaskForm["scheduleKind"] })}><option value="DAILY">每天</option><option value="WORKDAYS">工作日</option><option value="SELECTED_WEEKDAYS">指定星期</option><option value="ONE_TIME">一次性任务</option></select></label>
           {form.scheduleKind === "ONE_TIME" && <label>任务日期<input required type="date" value={form.oneTimeDate} onChange={(event) => setForm({ ...form, oneTimeDate: event.target.value })} /></label>}
           {form.scheduleKind === "SELECTED_WEEKDAYS" && <fieldset className="weekday-field field-span"><legend>选择星期</legend>{["日","一","二","三","四","五","六"].map((label, weekday) => <label key={weekday}><input type="checkbox" checked={form.weekdays.includes(weekday)} onChange={(event) => setForm({ ...form, weekdays: event.target.checked ? [...form.weekdays, weekday] : form.weekdays.filter((item) => item !== weekday) })} />周{label}</label>)}</fieldset>}
@@ -2583,7 +2488,7 @@ export function App() {
         <div className="admin-content">
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
-            {section === "overview" && <Overview child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
+            {section === "overview" && <GrowthOverview child={selectedChild} />}
             {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <ParentHanziLearning child={selectedChild} />}
@@ -2592,6 +2497,7 @@ export function App() {
             {section === "poems" && <ParentPoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
+            {section === "profile" && <div className="admin-stack"><ChildProfileSettings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} /></div>}
             {section === "settings" && <Settings child={selectedChild} />}
           </>}
         </div>
