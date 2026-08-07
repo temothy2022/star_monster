@@ -50,7 +50,7 @@ export async function getFootprints(
     }),
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
-      select: { dailyStarGoal: true, petType: true },
+      select: { dailyStarGoal: true, nickname: true, petType: true },
     }),
   ]);
 
@@ -133,6 +133,7 @@ export async function getFootprints(
       daily: buildMotivationalLeaderboard({
         childId,
         ...dailyStats,
+        nickname: child.nickname,
         petType: child.petType,
         goalStars: child.dailyStarGoal,
         seed: todayKey,
@@ -140,6 +141,7 @@ export async function getFootprints(
       weekly: buildMotivationalLeaderboard({
         childId,
         ...weeklyStats,
+        nickname: child.nickname,
         petType: child.petType,
         goalStars: child.dailyStarGoal * elapsedWeekDays,
         seed: businessDateKey(weekStart),

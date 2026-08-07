@@ -3,6 +3,7 @@ import { buildMotivationalLeaderboard } from "../src/domain/child-leaderboard.js
 
 const baseInput = {
   childId: "child-a",
+  nickname: "了了",
   stars: 0,
   completedTasks: 0,
   petType: "DOUYA" as const,
@@ -20,8 +21,13 @@ describe("孩子激励排行榜", () => {
     expect(result.entries.map((entry) => entry.rank)).toEqual(
       Array.from({ length: 12 }, (_, index) => index + 1),
     );
-    expect(self).toMatchObject({ displayName: "我", flagKey: "CHINA" });
+    expect(self).toMatchObject({ displayName: "了了", flagKey: "CHINA" });
     expect(new Set(result.entries.filter((entry) => !entry.isSelf).map((entry) => entry.petType)).size).toBe(5);
+    expect(
+      result.entries
+        .filter((entry) => !entry.isSelf)
+        .every((entry) => /^[A-Z][a-z]{2}$/.test(entry.displayName)),
+    ).toBe(true);
   });
 
   it("尚未获得星星时位于榜尾且其他名次不会全部显示零星", () => {

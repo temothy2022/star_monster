@@ -21,6 +21,7 @@ export type LeaderboardFlagKey =
 
 export type MotivationalLeaderboardInput = {
   childId: string;
+  nickname?: string | null;
   stars: number;
   completedTasks: number;
   petType: LeaderboardPetType | null;
@@ -52,34 +53,19 @@ const COMPETITOR_FLAGS: LeaderboardFlagKey[] = [
   "UNITED_STATES",
 ];
 
-const ALIAS_PREFIXES = [
-  "晨光",
-  "云朵",
-  "星河",
-  "彩虹",
-  "月亮",
-  "阳光",
-  "小树",
-  "海风",
-  "萤火",
-  "雪花",
-  "果冻",
-  "麦穗",
-];
-
-const ALIAS_ROLES = [
-  "探险家",
-  "行动派",
-  "小队长",
-  "追光者",
-  "旅行家",
-  "发现家",
-  "领航员",
-  "星星手",
-  "梦想家",
-  "挑战者",
-  "坚持派",
-  "能量员",
+const COMPETITOR_NAMES = [
+  "Leo",
+  "Mia",
+  "Max",
+  "Ava",
+  "Sam",
+  "Zoe",
+  "Ben",
+  "Ivy",
+  "Eli",
+  "Joy",
+  "Tom",
+  "Amy",
 ];
 
 function stableHash(value: string) {
@@ -147,11 +133,10 @@ function virtualStarsAtRank({
 }
 
 function virtualIdentity(seed: string, virtualIndex: number) {
-  const offset = stableHash(seed) % ALIAS_PREFIXES.length;
+  const offset = stableHash(seed) % COMPETITOR_NAMES.length;
   return {
-    displayName: `${ALIAS_PREFIXES[(virtualIndex + offset) % ALIAS_PREFIXES.length]}${
-      ALIAS_ROLES[(virtualIndex * 5 + offset) % ALIAS_ROLES.length]
-    }`,
+    displayName:
+      COMPETITOR_NAMES[(virtualIndex + offset) % COMPETITOR_NAMES.length],
     petType: PET_TYPES[(virtualIndex + offset) % PET_TYPES.length],
     flagKey:
       COMPETITOR_FLAGS[(virtualIndex + offset) % COMPETITOR_FLAGS.length],
@@ -184,7 +169,7 @@ export function buildMotivationalLeaderboard(
     if (rank === selfRank) {
       return {
         rank,
-        displayName: "我",
+        displayName: input.nickname?.trim() || "我",
         stars,
         completedTasks,
         petType: input.petType ?? "DOUYA",
