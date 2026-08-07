@@ -12,6 +12,7 @@ import {
   makeTenMastery,
   makeTenQuestionWeight,
 } from "../domain/make-ten-learning.js";
+import type { MakeTenFactSnapshot } from "../domain/make-ten-learning.js";
 import { requireParent } from "../services/auth-service.js";
 import {
   abandonTask,
@@ -1115,7 +1116,7 @@ export async function registerParentRoutes(
     const recentQuestions = recent._sum.totalQuestions ?? 0;
     const recentCorrect = recent._sum.correctCount ?? 0;
     const accuracy = totalQuestions ? correctAnswers / totalQuestions : null;
-    const progressByTarget = new Map(
+    const progressByTarget = new Map<number, MakeTenFactSnapshot>(
       factProgress.map((progress) => [progress.target, progress]),
     );
     return {
