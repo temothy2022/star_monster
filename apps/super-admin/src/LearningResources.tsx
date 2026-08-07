@@ -91,6 +91,14 @@ const DIALOGUE_CONTEXT_LABELS: Record<MascotDialogue["context"], string> = {
   COMPLETE: "全部完成",
   EMPTY: "暂无任务",
   GENERAL: "通用鼓励",
+  PET_NEEDS_CARE: "小屋·又饿又渴",
+  PET_HUNGRY: "小屋·饥饿",
+  PET_THIRSTY: "小屋·口渴",
+  PET_TASK_START: "小屋·任务未开始",
+  PET_TASK_PROGRESS: "小屋·任务进行中",
+  PET_TASK_COMPLETE: "小屋·任务已完成",
+  PET_RELAX: "小屋·今日无任务",
+  PET_GENERAL: "小屋·通用陪伴",
 };
 
 function MascotDialogueLibrary() {
@@ -158,7 +166,7 @@ function MascotDialogueLibrary() {
 
   return <div className="admin-stack">
     <section className="admin-panel">
-      <header className="admin-panel__header"><div><h2>任务页星宠对话</h2><p>孩子点击星宠时展示并播放已生成的语音。</p></div><button type="button" className="primary-button" disabled={bulkBusy || Boolean(busyId)} onClick={() => void generateMissing()}>{bulkBusy ? "批量生成中…" : "生成全部缺失语音"}</button></header>
+      <header className="admin-panel__header"><div><h2>星宠对话</h2><p>任务页和星宠小屋会按场景选择话术；孩子点击星宠时才播放语音。</p></div><button type="button" className="primary-button" disabled={bulkBusy || Boolean(busyId)} onClick={() => void generateMissing()}>{bulkBusy ? "批量生成中…" : "生成全部缺失语音"}</button></header>
       {message ? <Notice>{message}</Notice> : null}
       <div className="mascot-dialogue-grid">
         {items.map((item) => <article className="mascot-dialogue-card" key={item.id}>

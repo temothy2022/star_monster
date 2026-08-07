@@ -113,6 +113,15 @@ export async function getChildProfile() {
 }
 
 export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";
+export type PetDialogueContext =
+  | "PET_NEEDS_CARE"
+  | "PET_HUNGRY"
+  | "PET_THIRSTY"
+  | "PET_TASK_START"
+  | "PET_TASK_PROGRESS"
+  | "PET_TASK_COMPLETE"
+  | "PET_RELAX"
+  | "PET_GENERAL";
 export type PetTrip = {
   id: string;
   status: "TRAVELING" | "RETURNED" | "REVEALED" | "CANCELLED";
@@ -159,6 +168,9 @@ export type PetGrowthState = {
     feed: { costStars: number; restore: number; experience: number };
     drink: { costStars: number; restore: number; experience: number };
   };
+  dialogueContext?: PetDialogueContext;
+  dialogues?: MascotDialogue[];
+  taskProgress?: { total: number; completed: number };
   currentTrip: PetTrip | null;
   postcards: PetTrip[];
 };
@@ -270,7 +282,13 @@ export type TodayTaskExperience = {
 export type MascotDialogue = {
   id: string;
   key: string;
-  context: "START" | "PROGRESS" | "COMPLETE" | "EMPTY" | "GENERAL";
+  context:
+    | "START"
+    | "PROGRESS"
+    | "COMPLETE"
+    | "EMPTY"
+    | "GENERAL"
+    | PetDialogueContext;
   text: string;
   audioUrl: string | null;
 };

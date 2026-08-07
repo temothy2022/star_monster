@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   petExperienceForNextLevel,
+  petDialogueContext,
   petGrowthStageForLevel,
   petLevelFromExperience,
   settledPetStatus,
@@ -40,5 +41,25 @@ describe("pet growth rules", () => {
       settledAt: new Date("2026-08-07T03:00:00.000Z"),
       changed: true,
     });
+  });
+
+  it("prioritizes care needs over task progress in room dialogue", () => {
+    expect(petDialogueContext({ satiety: 20, hydration: 20, totalTasks: 4, completedTasks: 4 }))
+      .toBe("PET_NEEDS_CARE");
+    expect(petDialogueContext({ satiety: 25, hydration: 80, totalTasks: 4, completedTasks: 4 }))
+      .toBe("PET_HUNGRY");
+    expect(petDialogueContext({ satiety: 80, hydration: 30, totalTasks: 4, completedTasks: 4 }))
+      .toBe("PET_THIRSTY");
+  });
+
+  it("uses today's completion state when the pet is comfortable", () => {
+    expect(petDialogueContext({ satiety: 80, hydration: 80, totalTasks: 0, completedTasks: 0 }))
+      .toBe("PET_RELAX");
+    expect(petDialogueContext({ satiety: 80, hydration: 80, totalTasks: 4, completedTasks: 0 }))
+      .toBe("PET_TASK_START");
+    expect(petDialogueContext({ satiety: 80, hydration: 80, totalTasks: 4, completedTasks: 2 }))
+      .toBe("PET_TASK_PROGRESS");
+    expect(petDialogueContext({ satiety: 80, hydration: 80, totalTasks: 4, completedTasks: 4 }))
+      .toBe("PET_TASK_COMPLETE");
   });
 });

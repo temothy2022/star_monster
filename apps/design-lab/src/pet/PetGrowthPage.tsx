@@ -5,6 +5,8 @@ import {
   getPetGrowth,
   revealPetTrip,
   startPetTrip,
+  type MascotDialogue,
+  type PetDialogueContext,
   type PetGrowthState,
   type PetTravelTier,
   type PetTrip,
@@ -22,6 +24,43 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
 const CARE_ANIMATION_MS = 3_000;
 const ROOM_NOTICE_MS = 2_000;
 type CareKind = "feed" | "drink";
+
+const PET_FALLBACK_DIALOGUES: Record<PetDialogueContext, string[]> = {
+  PET_NEEDS_CARE: ["肚子和水杯都有点空啦，先照顾我一下吧。"],
+  PET_HUNGRY: ["肚子在咕咕唱歌，能给我一点点心吗？"],
+  PET_THIRSTY: ["跑了这么久，我想喝一口清凉的水。"],
+  PET_TASK_START: ["新的一天开始啦，做完任务再回来陪我玩吧。"],
+  PET_TASK_PROGRESS: ["欢迎回来！休息一下，再按自己的节奏继续吧。"],
+  PET_TASK_COMPLETE: ["今天辛苦啦，现在我们可以安心玩一会儿。"],
+  PET_RELAX: ["今天没有新任务，我们一起轻松玩一会儿吧。"],
+  PET_GENERAL: ["见到你真开心，来摸摸我吧。"],
+};
+
+function pickPetDialogue(
+  dialogues: MascotDialogue[],
+  context: PetDialogueContext,
+): MascotDialogue {
+  if (dialogues.length > 0) {
+    return dialogues[Math.floor(Math.random() * dialogues.length)]!;
+  }
+  const fallback = PET_FALLBACK_DIALOGUES[context];
+  const index = Math.floor(Math.random() * fallback.length);
+  return {
+    id: `fallback-${context}-${index}`,
+    key: `fallback-${context}-${index}`,
+    context,
+    text: fallback[index]!,
+    audioUrl: null,
+  };
+}
+
+function roomDialogueContext(state: PetGrowthState): PetDialogueContext {
+  if (state.dialogueContext) return state.dialogueContext;
+  if (state.pet.satiety <= 30 && state.pet.hydration <= 30) return "PET_NEEDS_CARE";
+  if (state.pet.satiety <= 30) return "PET_HUNGRY";
+  if (state.pet.hydration <= 30) return "PET_THIRSTY";
+  return "PET_GENERAL";
+}
 
 function actionKey(prefix: string) {
   return createIdempotencyKey(prefix);
@@ -136,9 +175,15 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
   const [travelOpen, setTravelOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
+  const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(null);
+  const [dialogueSpeaking, setDialogueSpeaking] = useState(false);
   const [now, setNow] = useState(Date.now());
   const careTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
+  const dialogueAudioRef = useRef<HTMLAudioElement | null>(null);
+  const dialogueAudioCacheRef = useRef(new Map<string, HTMLAudioElement>());
+  const dialoguePlaybackTokenRef = useRef(0);
+  const dialogueLastTapAtRef = useRef(0);
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -173,10 +218,87 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
     });
   }, [mascot.activityImages]);
 
+  useEffect(() => {
+    if (!state) return;
+    const context = roomDialogueContext(state);
+    const dialogues = state.dialogues ?? [];
+    setSelectedDialogue((current) => {
+      const remainsAvailable = current?.context === context && (
+        dialogues.length === 0 || dialogues.some((dialogue) => dialogue.id === current.id)
+      );
+      return remainsAvailable ? current : pickPetDialogue(dialogues, context);
+    });
+  }, [state]);
+
+  useEffect(() => {
+    if (!selectedDialogue?.audioUrl || dialogueAudioCacheRef.current.has(selectedDialogue.audioUrl)) return;
+    const audio = new Audio(selectedDialogue.audioUrl);
+    audio.preload = "auto";
+    dialogueAudioCacheRef.current.set(selectedDialogue.audioUrl, audio);
+  }, [selectedDialogue]);
+
   useEffect(() => () => {
     if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    dialoguePlaybackTokenRef.current += 1;
+    dialogueAudioRef.current?.pause();
+    window.speechSynthesis?.cancel();
   }, []);
+
+  async function speakPetDialogue() {
+    if (!selectedDialogue || careAnimation) return;
+    const tappedAt = performance.now();
+    if (tappedAt - dialogueLastTapAtRef.current < 350) return;
+    dialogueLastTapAtRef.current = tappedAt;
+
+    window.speechSynthesis?.cancel();
+    const activeAudio = dialogueAudioRef.current;
+    if (activeAudio) {
+      activeAudio.currentTime = 0;
+      setDialogueSpeaking(true);
+      if (activeAudio.paused) void activeAudio.play().catch(() => setDialogueSpeaking(false));
+      return;
+    }
+
+    if (!selectedDialogue.audioUrl) {
+      if (!window.speechSynthesis) return;
+      const utterance = new SpeechSynthesisUtterance(selectedDialogue.text);
+      utterance.lang = "zh-CN";
+      utterance.rate = 0.9;
+      utterance.onend = () => setDialogueSpeaking(false);
+      utterance.onerror = () => setDialogueSpeaking(false);
+      setDialogueSpeaking(true);
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
+    const token = ++dialoguePlaybackTokenRef.current;
+    const cached = dialogueAudioCacheRef.current.get(selectedDialogue.audioUrl);
+    const audio = cached ?? new Audio(selectedDialogue.audioUrl);
+    audio.preload = "auto";
+    dialogueAudioCacheRef.current.set(selectedDialogue.audioUrl, audio);
+    dialogueAudioRef.current = audio;
+    audio.currentTime = 0;
+    audio.onended = () => {
+      if (dialoguePlaybackTokenRef.current !== token) return;
+      dialogueAudioRef.current = null;
+      setDialogueSpeaking(false);
+    };
+    audio.onerror = () => {
+      if (dialoguePlaybackTokenRef.current !== token) return;
+      dialogueAudioRef.current = null;
+      setDialogueSpeaking(false);
+    };
+    setDialogueSpeaking(true);
+    try {
+      await audio.play();
+    } catch {
+      if (dialoguePlaybackTokenRef.current === token) {
+        dialogueAudioRef.current = null;
+        setDialogueSpeaking(false);
+      }
+    }
+  }
 
   const moodImage = useMemo(() => {
     if (!state) return mascot.images.neutral;
@@ -326,15 +448,17 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
           </div>
         ) : (
           <>
-            <div className={`pet-main-figure pet-main-figure--${state.pet.growthStage.toLowerCase()}`}>
+            <div className={`pet-main-figure pet-main-figure--${state.pet.growthStage.toLowerCase()}${dialogueSpeaking ? " pet-main-figure--speaking" : ""}`}>
               <span className="pet-main-figure__spark">✦</span>
-              <img src={moodImage} alt={`你的星宠${mascot.name}`} />
+              <button className="pet-main-figure__button" type="button" disabled={Boolean(careAnimation)} aria-label={`点击听${mascot.name}说话`} aria-pressed={dialogueSpeaking} onClick={() => void speakPetDialogue()}>
+                <img src={moodImage} alt={`你的星宠${mascot.name}`} />
+              </button>
               {careAnimation ? (
                 <div className="pet-care-progress" key={careAnimation.startedAt}>
                   <strong>{careAnimation.kind === "feed" ? "正在享用点心" : "正在补充水分"}</strong>
                   <i><b /></i>
                 </div>
-              ) : <p>{state.pet.satiety < 30 ? "肚子有一点饿啦" : state.pet.hydration < 30 ? "想喝一点水" : "今天想去哪里看看呢？"}</p>}
+              ) : <p key={selectedDialogue?.id}>{selectedDialogue?.text ?? PET_FALLBACK_DIALOGUES[roomDialogueContext(state)][0]}</p>}
             </div>
           </>
         )}

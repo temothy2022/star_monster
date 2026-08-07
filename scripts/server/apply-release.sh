@@ -60,6 +60,10 @@ sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$POEM_UPLOAD_DIR"
 # The script only processes missing rows, so interrupted releases resume safely.
 sudo -u "$API_RUN_USER" bash -lc "cd '$PROJECT_ROOT/apps/api' && '$PROJECT_ROOT/apps/api/node_modules/.bin/tsx' prisma/generate-pet-destination-audio.ts"
 
+# Pet room dialogue audio is also generated once and then served as a cached
+# static file. The script resumes safely by selecting only missing audio URLs.
+sudo -u "$API_RUN_USER" bash -lc "cd '$PROJECT_ROOT/apps/api' && '$PROJECT_ROOT/apps/api/node_modules/.bin/tsx' prisma/generate-pet-room-dialogue-audio.ts"
+
 # If Nginx already serves the workspace dist directory, rsync has uploaded the
 # files into place. A separate web root is also supported for future migrations.
 sync_static() {

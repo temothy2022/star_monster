@@ -5,6 +5,34 @@ import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 
 const MAX_STATUS = 100;
+const LOW_PET_STATUS = 30;
+
+export type PetDialogueContext =
+  | "PET_NEEDS_CARE"
+  | "PET_HUNGRY"
+  | "PET_THIRSTY"
+  | "PET_TASK_START"
+  | "PET_TASK_PROGRESS"
+  | "PET_TASK_COMPLETE"
+  | "PET_RELAX"
+  | "PET_GENERAL";
+
+export function petDialogueContext(input: {
+  satiety: number;
+  hydration: number;
+  totalTasks: number;
+  completedTasks: number;
+}): PetDialogueContext {
+  if (input.satiety <= LOW_PET_STATUS && input.hydration <= LOW_PET_STATUS) {
+    return "PET_NEEDS_CARE";
+  }
+  if (input.satiety <= LOW_PET_STATUS) return "PET_HUNGRY";
+  if (input.hydration <= LOW_PET_STATUS) return "PET_THIRSTY";
+  if (input.totalTasks === 0) return "PET_RELAX";
+  if (input.completedTasks >= input.totalTasks) return "PET_TASK_COMPLETE";
+  if (input.completedTasks > 0) return "PET_TASK_PROGRESS";
+  return "PET_TASK_START";
+}
 
 export function petLevelFromExperience(experience: number) {
   return Math.min(30, Math.floor(Math.sqrt(Math.max(0, experience) / 24)) + 1);
@@ -195,11 +223,12 @@ function serializeTrip(trip: {
 
 export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
   const now = new Date();
+  const today = businessDateAt(now, appConfig.APP_TIME_ZONE);
   await prisma.$transaction(async (tx) => {
     await settleProfile(tx, childId, now);
     await refreshTripStatus(tx, childId, now);
   });
-  const [child, profile, config, currentTrip, postcards] = await Promise.all([
+  const [child, profile, config, currentTrip, postcards, tasks] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { nickname: true, petType: true, starBalance: true },
@@ -215,7 +244,36 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       orderBy: { revealedAt: "desc" },
       take: 40,
     }),
+    prisma.dailyTask.findMany({
+      where: { childId, taskDate: today },
+      select: {
+        status: true,
+        _count: {
+          select: { attempts: { where: { status: "COMPLETED" } } },
+        },
+      },
+    }),
   ]);
+  const completedTasks = tasks.filter(
+    (task) => task.status === "COMPLETED" || task._count.attempts > 0,
+  ).length;
+  const dialogueContext = petDialogueContext({
+    satiety: profile.satiety,
+    hydration: profile.hydration,
+    totalTasks: tasks.length,
+    completedTasks,
+  });
+  const availableDialogues = await prisma.mascotDialogue.findMany({
+    where: {
+      isEnabled: true,
+      context: { in: [dialogueContext, "PET_GENERAL"] },
+    },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, key: true, context: true, text: true, audioUrl: true },
+  });
+  const contextualDialogues = availableDialogues.filter(
+    (dialogue) => dialogue.context === dialogueContext,
+  );
   const nextLevelExperience = petExperienceForNextLevel(profile.level);
   const currentLevelStart = profile.level <= 1 ? 0 : (profile.level - 1) ** 2 * 24;
   const dailySpent = await prisma.$transaction((tx) =>
@@ -254,6 +312,14 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
         restore: config.drinkRestore,
         experience: config.drinkExperience,
       },
+    },
+    dialogueContext,
+    dialogues: contextualDialogues.length > 0
+      ? contextualDialogues
+      : availableDialogues.filter((dialogue) => dialogue.context === "PET_GENERAL"),
+    taskProgress: {
+      total: tasks.length,
+      completed: completedTasks,
     },
     currentTrip: currentTrip ? serializeTrip(currentTrip) : null,
     postcards: postcards.map(serializeTrip),

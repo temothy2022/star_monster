@@ -11905,6 +11905,24 @@ body:has(.footprints-page),
 .pet-main-figure--growing { scale: 1; }
 .pet-main-figure--mature { scale: 1.08; }
 
+.pet-main-figure__button {
+  width: 100%;
+  display: block;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pet-main-figure__button:focus,
+.pet-main-figure__button:focus-visible {
+  outline: none;
+}
+
+.pet-main-figure__button:disabled { opacity: 1; }
+
 .pet-main-figure img {
   width: 100%;
   height: auto;
@@ -11913,6 +11931,9 @@ body:has(.footprints-page),
 }
 
 @keyframes pet-idle { 50% { transform: translateY(-8px) rotate(.5deg); } }
+
+.pet-main-figure--speaking img { animation: pet-speaking 420ms ease-in-out infinite alternate; }
+@keyframes pet-speaking { to { transform: translateY(-5px) scale(1.018) rotate(1deg); } }
 
 .pet-main-figure__spark {
   position: absolute;
@@ -11927,6 +11948,7 @@ body:has(.footprints-page),
 
 .pet-main-figure p,
 .pet-care-progress {
+  max-width: 112%;
   margin: -6px 0 0;
   padding: 11px 20px;
   border: 2px solid rgba(96, 76, 60, .14);
@@ -11935,8 +11957,13 @@ body:has(.footprints-page),
   box-shadow: 0 8px 18px rgba(76, 54, 39, .12);
   font-size: clamp(16px, 1.55vw, 21px);
   font-weight: 800;
+  line-height: 1.42;
+  text-align: center;
   backdrop-filter: blur(8px);
 }
+
+.pet-main-figure p { animation: pet-dialogue-in 260ms ease-out both; }
+@keyframes pet-dialogue-in { from { opacity: 0; transform: translateY(5px) scale(.97); } }
 
 .pet-care-progress {
   width: min(250px, 88%);

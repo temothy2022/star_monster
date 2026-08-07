@@ -159,7 +159,11 @@ export type MinimaxConfig = {
 export type MascotDialogue = {
   id: string;
   key: string;
-  context: "START" | "PROGRESS" | "COMPLETE" | "EMPTY" | "GENERAL";
+  context:
+    | "START" | "PROGRESS" | "COMPLETE" | "EMPTY" | "GENERAL"
+    | "PET_NEEDS_CARE" | "PET_HUNGRY" | "PET_THIRSTY"
+    | "PET_TASK_START" | "PET_TASK_PROGRESS" | "PET_TASK_COMPLETE"
+    | "PET_RELAX" | "PET_GENERAL";
   text: string;
   audioUrl: string | null;
   isEnabled: boolean;

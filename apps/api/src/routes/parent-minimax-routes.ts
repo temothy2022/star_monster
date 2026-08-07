@@ -42,7 +42,12 @@ const poemGenerateParams = z.object({
 const mascotDialogueParams = z.object({ id: z.string().min(1) });
 const mascotDialoguePatchSchema = z.object({
   text: z.string().trim().min(2).max(40).optional(),
-  context: z.enum(["START", "PROGRESS", "COMPLETE", "EMPTY", "GENERAL"]).optional(),
+  context: z.enum([
+    "START", "PROGRESS", "COMPLETE", "EMPTY", "GENERAL",
+    "PET_NEEDS_CARE", "PET_HUNGRY", "PET_THIRSTY",
+    "PET_TASK_START", "PET_TASK_PROGRESS", "PET_TASK_COMPLETE",
+    "PET_RELAX", "PET_GENERAL",
+  ]).optional(),
   isEnabled: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(10_000).optional(),
 }).refine((input) => Object.keys(input).length > 0, {
