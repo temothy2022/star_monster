@@ -21,6 +21,10 @@ import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-b
 import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
 import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import { useMascot } from "../mascots";
+import {
+  createHtmlAudioPlayback,
+  SinglePendingPlaybackQueue,
+} from "../audio/queued-playback";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
 import {
@@ -163,10 +167,7 @@ function ProgressColumn({
   mascotAssets: MascotAsset[];
 }) {
   const { mascot } = useMascot();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCacheRef = useRef(new Map<string, HTMLAudioElement>());
-  const playbackTokenRef = useRef(0);
-  const lastTapAtRef = useRef(0);
   const candidates = useMemo(() => dialogues, [dialogues]);
   const taskMascotImage =
     mascotAssets.find(
@@ -180,6 +181,10 @@ function ProgressColumn({
     () => pickMascotDialogue(candidates),
   );
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  if (!playbackQueueRef.current) {
+    playbackQueueRef.current = new SinglePendingPlaybackQueue(setIsSpeaking);
+  }
 
   useEffect(() => {
     candidatesRef.current = candidates;
@@ -203,55 +208,22 @@ function ProgressColumn({
   }, []);
 
   useEffect(() => () => {
-    playbackTokenRef.current += 1;
-    audioRef.current?.pause();
-    audioRef.current = null;
+    playbackQueueRef.current?.dispose();
   }, []);
 
-  async function speak() {
-    const now = performance.now();
-    if (now - lastTapAtRef.current < 350) return;
-    lastTapAtRef.current = now;
-
-    const active = audioRef.current;
-    if (active) {
-      active.currentTime = 0;
-      if (active.paused) {
-        void active.play().catch(() => undefined);
-      }
-      return;
-    }
-
+  function speak() {
     if (!selectedDialogue?.audioUrl) return;
 
-    const token = ++playbackTokenRef.current;
-    const cached = audioCacheRef.current.get(selectedDialogue.audioUrl);
-    const audio = cached ?? new Audio(selectedDialogue.audioUrl);
-    if (!cached) {
-      audio.preload = "auto";
-      audioCacheRef.current.set(selectedDialogue.audioUrl, audio);
-    }
-    audioRef.current = audio;
-    audio.currentTime = 0;
-    setIsSpeaking(true);
-    audio.onended = () => {
-      if (playbackTokenRef.current !== token) return;
-      audioRef.current = null;
-      setIsSpeaking(false);
-    };
-    audio.onerror = () => {
-      if (playbackTokenRef.current !== token) return;
-      audioRef.current = null;
-      setIsSpeaking(false);
-    };
-    try {
-      await audio.play();
-    } catch {
-      if (playbackTokenRef.current === token) {
-        audioRef.current = null;
-        setIsSpeaking(false);
+    const audioUrl = selectedDialogue.audioUrl;
+    playbackQueueRef.current?.enqueue(() => {
+      const cached = audioCacheRef.current.get(audioUrl);
+      const audio = cached ?? new Audio(audioUrl);
+      if (!cached) {
+        audio.preload = "auto";
+        audioCacheRef.current.set(audioUrl, audio);
       }
-    }
+      return createHtmlAudioPlayback(audio);
+    });
   }
 
   return (
@@ -272,7 +244,7 @@ function ProgressColumn({
           type="button"
           aria-label={`点击让${mascot.name}说话`}
           aria-pressed={isSpeaking}
-          onClick={() => void speak()}
+          onClick={speak}
         >
           <MascotSpeech
             key={selectedDialogue?.id ?? `${mascotContext}-fallback`}

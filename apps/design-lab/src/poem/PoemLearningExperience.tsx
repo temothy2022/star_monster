@@ -19,6 +19,13 @@ import {
   preloadPoemAssets,
 } from "./poem-asset-cache";
 import { reportChildPageReady } from "../api/performance-telemetry";
+import {
+  createAudioWithSpeechFallback,
+  createDeferredPlayback,
+  createSpeechPlayback,
+  SinglePendingPlaybackQueue,
+  type PlaybackHandle,
+} from "../audio/queued-playback";
 
 type Reward = {
   baseStars: number;
@@ -67,58 +74,6 @@ function reviewHint(clause: string): string {
   return `${first}${"＿".repeat(Math.min(hiddenCount, 8))}${punctuation}`;
 }
 
-async function speakPoem(
-  poem: Poem,
-  onStarted?: () => void,
-  onEnded?: () => void,
-  onError?: () => void,
-): Promise<() => void> {
-  if (poem.audioUrl) {
-    const audio = await getPoemAudioElement(poem.audioUrl);
-    let stopped = false;
-    audio.pause();
-    audio.currentTime = 0;
-    audio.onended = () => {
-      if (!stopped) onEnded?.();
-    };
-    audio.onerror = () => {
-      if (!stopped) onError?.();
-    };
-    void audio
-      .play()
-      .then(() => {
-        if (!stopped) onStarted?.();
-      })
-      .catch(() => {
-        if (!stopped) onError?.();
-      });
-    return () => {
-      stopped = true;
-      audio.onended = null;
-      audio.onerror = null;
-      audio.pause();
-      audio.currentTime = 0;
-    };
-  }
-
-  if (!("speechSynthesis" in window)) {
-    onError?.();
-    return () => undefined;
-  }
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(
-    `${poem.title}，${poem.dynasty}代，${poem.author}。${poem.content}`,
-  );
-  utterance.lang = "zh-CN";
-  utterance.rate = 0.72;
-  utterance.pitch = 1.04;
-  utterance.onstart = () => onStarted?.();
-  utterance.onend = () => onEnded?.();
-  utterance.onerror = () => onError?.();
-  window.speechSynthesis.speak(utterance);
-  return () => window.speechSynthesis.cancel();
-}
-
 export function PoemLearningExperience({
   attemptId,
   onExit,
@@ -133,8 +88,10 @@ export function PoemLearningExperience({
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
-  const stopAudioRef = useRef<(() => void) | null>(null);
-  const playbackRequestRef = useRef(0);
+  const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  if (!playbackQueueRef.current) {
+    playbackQueueRef.current = new SinglePendingPlaybackQueue(setPlaying);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -160,10 +117,11 @@ export function PoemLearningExperience({
       });
     return () => {
       cancelled = true;
-      playbackRequestRef.current += 1;
-      stopAudioRef.current?.();
+      playbackQueueRef.current?.clear();
     };
   }, [attemptId]);
+
+  useEffect(() => () => playbackQueueRef.current?.dispose(), []);
 
   const poem = session?.poems[session.currentIndex] ?? session?.poems[0] ?? null;
   const clauses = useMemo(
@@ -189,39 +147,37 @@ export function PoemLearningExperience({
     };
   }, [session]);
 
-  async function playCurrent() {
+  function playCurrent() {
     if (!poem || busy) return;
-    const requestId = playbackRequestRef.current + 1;
-    playbackRequestRef.current = requestId;
     setError("");
-    setPlaying(true);
-    stopAudioRef.current?.();
-    stopAudioRef.current = null;
-    const cleanup = await speakPoem(
-      poem,
-      undefined,
-      () => {
-        if (playbackRequestRef.current === requestId) setPlaying(false);
-      },
-      () => {
-        if (playbackRequestRef.current === requestId) {
-          setPlaying(false);
-          setError("暂时无法播放朗读，请再试一次");
-        }
-      },
-    );
-    if (playbackRequestRef.current !== requestId) {
-      cleanup();
-      return;
-    }
-    stopAudioRef.current = cleanup;
+    const currentPoem = poem;
+    const narration = `${currentPoem.title}，${currentPoem.dynasty}代，${currentPoem.author}。${currentPoem.content}`;
+    playbackQueueRef.current?.enqueue(() => {
+      let playback: PlaybackHandle;
+      if (currentPoem.audioUrl) {
+        playback = createDeferredPlayback(async () => {
+          const audio = await getPoemAudioElement(currentPoem.audioUrl!);
+          return createAudioWithSpeechFallback(audio, narration, {
+            rate: 0.72,
+            pitch: 1.04,
+          });
+        });
+      } else {
+        playback = createSpeechPlayback(narration, {
+          rate: 0.72,
+          pitch: 1.04,
+        });
+      }
+      void playback.done.catch(() => setError("暂时无法播放朗读，请再试一次"));
+      return playback;
+    });
   }
 
   async function finishLearning(currentPoem: Poem) {
     if (!session || busy) return;
     setBusy(true);
     setError("");
-    stopAudioRef.current?.();
+    playbackQueueRef.current?.clear();
     setPlaying(false);
     try {
       const result = await completePoemLearning(session.id, currentPoem.id);
@@ -240,7 +196,7 @@ export function PoemLearningExperience({
     if (!session || !poem || busy) return;
     setBusy(true);
     setError("");
-    stopAudioRef.current?.();
+    playbackQueueRef.current?.clear();
     try {
       const response = await submitPoemReview(
         session.id,
@@ -331,7 +287,7 @@ export function PoemLearningExperience({
             type="button"
             aria-label={`播放${poem.title}`}
             disabled={busy}
-            onClick={() => void playCurrent()}
+            onClick={playCurrent}
           >
             <img src={speakerIcon} alt="" aria-hidden="true" />
           </button>

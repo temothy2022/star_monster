@@ -20,6 +20,16 @@ import {
 import { useMascot } from "../mascots";
 import { PLANET_BY_KEY } from "../planets/planet-data";
 import returnEnvelope from "@star-monsters/assets/images/pet/pet-return-envelope.webp";
+import eatingSound from "@star-monsters/assets/audio/pet/eating.mp3";
+import drinkingSound from "@star-monsters/assets/audio/pet/drinking.mp3";
+import happyEntrySound from "@star-monsters/assets/audio/pet/happy-entry.mp3";
+import postcardArrivedSound from "@star-monsters/assets/audio/pet/postcard-arrived.mp3";
+import {
+  createAudioWithSpeechFallback,
+  createHtmlAudioPlayback,
+  createSpeechPlayback,
+  SinglePendingPlaybackQueue,
+} from "../audio/queued-playback";
 
 const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
   NEARBY: { name: "附近散步", note: "发现身边的小惊喜" },
@@ -99,53 +109,33 @@ function Meter({ label, value, tone }: { label: string; value: number; tone: str
 }
 
 function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; mascotImage: string; mascotName: string; onClose: () => void }) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [speaking, setSpeaking] = useState(false);
-
-  function speak() {
-    if (speaking) {
-      audioRef.current?.pause();
-      if (audioRef.current) audioRef.current.currentTime = 0;
-      window.speechSynthesis?.cancel();
-      setSpeaking(false);
-      return;
-    }
-    audioRef.current?.pause();
-    window.speechSynthesis?.cancel();
-    setSpeaking(true);
-    if (trip.audioUrl) {
-      const audio = new Audio(trip.audioUrl);
-      audioRef.current = audio;
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => {
-        setSpeaking(false);
-        fallbackSpeak();
-      };
-      void audio.play().catch(fallbackSpeak);
-      return;
-    }
-    fallbackSpeak();
+  const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  if (!playbackQueueRef.current) {
+    playbackQueueRef.current = new SinglePendingPlaybackQueue(setSpeaking);
   }
 
-  function fallbackSpeak() {
-    if (!window.speechSynthesis) {
-      setSpeaking(false);
+  function speak() {
+    const narration = `${trip.destinationName}。${trip.introduction}。你知道吗？${trip.funFact}`;
+    if (trip.audioUrl) {
+      playbackQueueRef.current?.enqueue(() => {
+        const audio = audioRef.current ?? new Audio(trip.audioUrl!);
+        audio.preload = "auto";
+        audioRef.current = audio;
+        return createAudioWithSpeechFallback(audio, narration, {
+          rate: 0.86,
+        });
+      });
       return;
     }
-    setSpeaking(true);
-    const utterance = new SpeechSynthesisUtterance(
-      `${trip.destinationName}。${trip.introduction}。你知道吗？${trip.funFact}`,
+    playbackQueueRef.current?.enqueue(() =>
+      createSpeechPlayback(narration, { rate: 0.86 }),
     );
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.86;
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-    window.speechSynthesis.speak(utterance);
   }
 
   useEffect(() => () => {
-    audioRef.current?.pause();
-    window.speechSynthesis?.cancel();
+    playbackQueueRef.current?.dispose();
   }, []);
 
   return (
@@ -188,11 +178,19 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [now, setNow] = useState(Date.now());
   const careTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
-  const dialogueAudioRef = useRef<HTMLAudioElement | null>(null);
   const dialogueAudioCacheRef = useRef(new Map<string, HTMLAudioElement>());
-  const dialoguePlaybackTokenRef = useRef(0);
-  const dialogueLastTapAtRef = useRef(0);
+  const petSoundCacheRef = useRef(new Map<string, HTMLAudioElement>());
+  const dialogueQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  const petSoundQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  const soundRetryCleanupRef = useRef(new Set<() => void>());
+  const postcardSoundTripIdRef = useRef<string | null>(null);
   const roomNoticeIdRef = useRef(0);
+  if (!dialogueQueueRef.current) {
+    dialogueQueueRef.current = new SinglePendingPlaybackQueue(setDialogueSpeaking);
+  }
+  if (!petSoundQueueRef.current) {
+    petSoundQueueRef.current = new SinglePendingPlaybackQueue();
+  }
   const idleMascotImage = useMemo(
     () => (Math.random() < 0.42 ? mascot.activityImages.sleeping : mascot.images.neutral),
     [mascot.activityImages.sleeping, mascot.images.neutral],
@@ -209,6 +207,50 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  const playPetSound = useCallback((url: string, retryOnGesture = false) => {
+    let canRetry = retryOnGesture;
+    const enqueue = () => {
+      petSoundQueueRef.current?.enqueue(() => {
+        const cached = petSoundCacheRef.current.get(url);
+        const audio = cached ?? new Audio(url);
+        if (!cached) {
+          audio.preload = "auto";
+          petSoundCacheRef.current.set(url, audio);
+        }
+        const playback = createHtmlAudioPlayback(audio);
+        if (canRetry) {
+          void playback.done.catch(() => {
+            canRetry = false;
+            const retry = () => {
+              cleanup();
+              enqueue();
+            };
+            const cleanup = () => {
+              document.removeEventListener("pointerdown", retry, true);
+              soundRetryCleanupRef.current.delete(cleanup);
+            };
+            soundRetryCleanupRef.current.add(cleanup);
+            document.addEventListener("pointerdown", retry, {
+              capture: true,
+              once: true,
+            });
+          });
+        }
+        return playback;
+      });
+    };
+    enqueue();
+  }, []);
+  useEffect(() => {
+    playPetSound(happyEntrySound, true);
+  }, [playPetSound]);
+  useEffect(() => {
+    const returnedTrip = state?.currentTrip;
+    if (returnedTrip?.status !== "RETURNED") return;
+    if (postcardSoundTripIdRef.current === returnedTrip.id) return;
+    postcardSoundTripIdRef.current = returnedTrip.id;
+    playPetSound(postcardArrivedSound, true);
+  }, [playPetSound, state?.currentTrip]);
   useEffect(() => {
     if (state) reportChildPageReady("pet-growth", "/api/child/pet");
   }, [state]);
@@ -256,64 +298,32 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   useEffect(() => () => {
     if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
-    dialoguePlaybackTokenRef.current += 1;
-    dialogueAudioRef.current?.pause();
-    window.speechSynthesis?.cancel();
+    dialogueQueueRef.current?.dispose();
+    petSoundQueueRef.current?.dispose();
+    soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
+    soundRetryCleanupRef.current.clear();
   }, []);
 
-  async function speakPetDialogue() {
+  function speakPetDialogue() {
     if (!selectedDialogue || careAnimation) return;
-    const tappedAt = performance.now();
-    if (tappedAt - dialogueLastTapAtRef.current < 350) return;
-    dialogueLastTapAtRef.current = tappedAt;
-
-    window.speechSynthesis?.cancel();
-    const activeAudio = dialogueAudioRef.current;
-    if (activeAudio) {
-      activeAudio.currentTime = 0;
-      setDialogueSpeaking(true);
-      if (activeAudio.paused) void activeAudio.play().catch(() => setDialogueSpeaking(false));
-      return;
-    }
 
     if (!selectedDialogue.audioUrl) {
-      if (!window.speechSynthesis) return;
-      const utterance = new SpeechSynthesisUtterance(selectedDialogue.text);
-      utterance.lang = "zh-CN";
-      utterance.rate = 0.9;
-      utterance.onend = () => setDialogueSpeaking(false);
-      utterance.onerror = () => setDialogueSpeaking(false);
-      setDialogueSpeaking(true);
-      window.speechSynthesis.speak(utterance);
+      const text = selectedDialogue.text;
+      dialogueQueueRef.current?.enqueue(() =>
+        createSpeechPlayback(text, { rate: 0.9 }),
+      );
       return;
     }
 
-    const token = ++dialoguePlaybackTokenRef.current;
-    const cached = dialogueAudioCacheRef.current.get(selectedDialogue.audioUrl);
-    const audio = cached ?? new Audio(selectedDialogue.audioUrl);
-    audio.preload = "auto";
-    dialogueAudioCacheRef.current.set(selectedDialogue.audioUrl, audio);
-    dialogueAudioRef.current = audio;
-    audio.currentTime = 0;
-    audio.onended = () => {
-      if (dialoguePlaybackTokenRef.current !== token) return;
-      dialogueAudioRef.current = null;
-      setDialogueSpeaking(false);
-    };
-    audio.onerror = () => {
-      if (dialoguePlaybackTokenRef.current !== token) return;
-      dialogueAudioRef.current = null;
-      setDialogueSpeaking(false);
-    };
-    setDialogueSpeaking(true);
-    try {
-      await audio.play();
-    } catch {
-      if (dialoguePlaybackTokenRef.current === token) {
-        dialogueAudioRef.current = null;
-        setDialogueSpeaking(false);
-      }
-    }
+    const audioUrl = selectedDialogue.audioUrl;
+    const text = selectedDialogue.text;
+    dialogueQueueRef.current?.enqueue(() => {
+      const cached = dialogueAudioCacheRef.current.get(audioUrl);
+      const audio = cached ?? new Audio(audioUrl);
+      audio.preload = "auto";
+      dialogueAudioCacheRef.current.set(audioUrl, audio);
+      return createAudioWithSpeechFallback(audio, text, { rate: 0.9 });
+    });
   }
 
   const moodImage = useMemo(() => {
@@ -363,6 +373,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       setCareConfirm(null);
       const startedAt = Date.now();
       setCareAnimation({ kind, startedAt });
+      playPetSound(kind === "feed" ? eatingSound : drinkingSound);
       if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
       careTimerRef.current = window.setTimeout(() => {
         setCareAnimation(null);
@@ -422,7 +433,6 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     ? {
         kind: careConfirm,
         title: careConfirm === "feed" ? `给${mascot.name}喂点心吗？` : `给${mascot.name}喂水吗？`,
-        description: careConfirm === "feed" ? "香香的小点心会补充饱食度" : "清凉的水会补充饮水状态",
         actionText: careConfirm === "feed" ? "确认喂点心" : "确认喂水",
         costStars: state.careOptions[careConfirm].costStars,
       }
@@ -498,7 +508,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <>
             <div className={`pet-main-figure pet-main-figure--${state.pet.growthStage.toLowerCase()}${dialogueSpeaking ? " pet-main-figure--speaking" : ""}`}>
               <span className="pet-main-figure__spark">✦</span>
-              <button className="pet-main-figure__button" type="button" disabled={Boolean(careAnimation)} aria-label={`点击听${mascot.name}说话`} aria-pressed={dialogueSpeaking} onClick={() => void speakPetDialogue()}>
+              <button className="pet-main-figure__button" type="button" disabled={Boolean(careAnimation)} aria-label={`点击听${mascot.name}说话`} aria-pressed={dialogueSpeaking} onClick={speakPetDialogue}>
                 <img src={moodImage} alt={`你的星宠${mascot.name}`} />
               </button>
               {careAnimation ? (
@@ -525,12 +535,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <div className={`pet-care-confirm__icon pet-care-confirm__icon--${careConfirmation.kind}`} aria-hidden="true">
               <span className={`pet-action-icon ${careConfirmation.kind === "feed" ? "pet-action-icon--snack" : "pet-action-icon--water"}`}><i /></span>
             </div>
-            <small>照顾星宠</small>
             <h2 id="pet-care-confirm-title">{careConfirmation.title}</h2>
-            <p>{careConfirmation.description}</p>
             <div className="pet-care-confirm__cost">
-              <span><b>★</b> 本次使用 <strong>{careConfirmation.costStars}</strong> 颗星</span>
-              <small>当前余额 {state.wallet.starBalance} 颗星</small>
+              <span><b>★</b> 需要消耗 <strong>{careConfirmation.costStars}</strong> 颗星</span>
             </div>
             {state.wallet.starBalance < careConfirmation.costStars && <div className="pet-care-confirm__warning">星星余额不足，暂时不能进行这次照顾</div>}
             <div className="pet-care-confirm__actions">

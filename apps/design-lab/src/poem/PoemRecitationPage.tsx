@@ -1,7 +1,11 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
 import poemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
+import {
+  createSpeechPlayback,
+  SinglePendingPlaybackQueue,
+} from "../audio/queued-playback";
 
 type Navigate = (route: "pages") => void;
 
@@ -14,19 +18,20 @@ const poemLines = [
 
 const poemText = poemLines.map((line) => line.join("")).join("");
 
-function speakPoem() {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(poemText);
-  utterance.lang = "zh-CN";
-  utterance.rate = 0.72;
-  utterance.pitch = 1.05;
-  window.speechSynthesis.speak(utterance);
-}
-
 export function PoemRecitationPage({ onNavigate }: { onNavigate: Navigate }) {
+  const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  if (!playbackQueueRef.current) {
+    playbackQueueRef.current = new SinglePendingPlaybackQueue();
+  }
+  useEffect(() => () => playbackQueueRef.current?.dispose(), []);
+
+  const speakPoem = useCallback(() => {
+    playbackQueueRef.current?.enqueue(() =>
+      createSpeechPlayback(poemText, { rate: 0.72, pitch: 1.05 }),
+    );
+  }, []);
   const handleComplete = useCallback(() => {
-    window.speechSynthesis?.cancel();
+    playbackQueueRef.current?.clear();
     onNavigate("pages");
   }, [onNavigate]);
 

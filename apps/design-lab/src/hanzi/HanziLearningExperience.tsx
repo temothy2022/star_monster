@@ -28,6 +28,10 @@ import {
   reportChildMediaDiagnostic,
   reportChildPageReady,
 } from "../api/performance-telemetry";
+import {
+  createCallbackPlayback,
+  SinglePendingPlaybackQueue,
+} from "../audio/queued-playback";
 
 type CompletionReward = {
   baseStars: number;
@@ -55,10 +59,20 @@ function mediaPath(url?: string | null) {
   }
 }
 
-function speak(text: string, audioUrl?: string | null) {
+function speak(
+  text: string,
+  audioUrl?: string | null,
+  onFinished: () => void = () => undefined,
+) {
   let cancelled = false;
   let fallbackCleanup: (() => void) | undefined;
+  let finished = false;
   const startedAt = performance.now();
+  const finish = () => {
+    if (cancelled || finished) return;
+    finished = true;
+    onFinished();
+  };
   const speakWithBrowserVoice = () => {
     if (cancelled || fallbackCleanup) return;
     reportChildMediaDiagnostic({
@@ -69,8 +83,10 @@ function speak(text: string, audioUrl?: string | null) {
       totalMs: performance.now() - startedAt,
       path: mediaPath(audioUrl),
     });
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    if (!("speechSynthesis" in window)) {
+      finish();
+      return;
+    }
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "zh-CN";
     utterance.rate = 0.72;
@@ -82,7 +98,9 @@ function speak(text: string, audioUrl?: string | null) {
         totalMs: performance.now() - startedAt,
         path: mediaPath(audioUrl),
       });
+      finish();
     };
+    utterance.onend = finish;
     window.speechSynthesis.speak(utterance);
     fallbackCleanup = () => {
       utterance.onend = null;
@@ -95,10 +113,12 @@ function speak(text: string, audioUrl?: string | null) {
     const audio = getHanziAudioElement(audioUrl);
     audio.pause();
     audio.currentTime = 0;
+    audio.onended = finish;
     audio.onerror = speakWithBrowserVoice;
     void audio.play().catch(speakWithBrowserVoice);
     return () => {
       cancelled = true;
+      audio.onended = null;
       audio.onerror = null;
       audio.pause();
       audio.currentTime = 0;
@@ -140,6 +160,7 @@ function speakCharacterThenText(
   character: HanziCharacter,
   text: string,
   textAudioUrl?: string | null,
+  onFinished: () => void = () => undefined,
 ) {
   let cancelled = false;
   let pauseTimer: number | undefined;
@@ -150,7 +171,7 @@ function speakCharacterThenText(
   const speakFollowingText = () => {
     if (cancelled) return;
     pauseTimer = window.setTimeout(() => {
-      if (!cancelled) followingCleanup = speak(text, textAudioUrl);
+      if (!cancelled) followingCleanup = speak(text, textAudioUrl, onFinished);
     }, 500);
   };
 
@@ -165,13 +186,16 @@ function speakCharacterThenText(
       totalMs: 0,
       path: mediaPath(character.characterAudioUrl),
     });
-    if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    if (!("speechSynthesis" in window)) {
+      onFinished();
+      return;
+    }
     const utterance = new SpeechSynthesisUtterance(character.character);
     utterance.lang = "zh-CN";
     utterance.rate = 0.72;
     utterance.pitch = 1.05;
     utterance.onend = speakFollowingText;
+    utterance.onerror = onFinished;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -510,6 +534,7 @@ export function HanziLearningExperience({
     ready: false,
   });
   const activeSpeechCleanup = useRef<null | (() => void)>(null);
+  const speechQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const assetPreloadAbort = useRef<AbortController | null>(null);
   const preloadedSessionId = useRef<string | null>(null);
   const requestAbort = useRef(new AbortController());
@@ -523,19 +548,26 @@ export function HanziLearningExperience({
     correct: boolean;
     nextSession: HanziLearningSession;
   } | null>(null);
+  if (!speechQueueRef.current) {
+    speechQueueRef.current = new SinglePendingPlaybackQueue();
+  }
 
   const stopActiveSpeech = useCallback(() => {
-    activeSpeechCleanup.current?.();
+    speechQueueRef.current?.clear();
     activeSpeechCleanup.current = null;
-    window.speechSynthesis?.cancel();
   }, []);
 
   const playSpeech = useCallback(
     (text: string, audioUrl?: string | null) => {
-      stopActiveSpeech();
-      activeSpeechCleanup.current = speak(text, audioUrl);
+      speechQueueRef.current?.enqueue(() =>
+        createCallbackPlayback((finished) => {
+          const cleanup = speak(text, audioUrl, finished);
+          activeSpeechCleanup.current = cleanup;
+          return cleanup;
+        }),
+      );
     },
-    [stopActiveSpeech],
+    [],
   );
 
   const playCharacterThenText = useCallback(
@@ -544,19 +576,26 @@ export function HanziLearningExperience({
       text: string,
       textAudioUrl?: string | null,
     ) => {
-      stopActiveSpeech();
-      activeSpeechCleanup.current = speakCharacterThenText(
-        character,
-        text,
-        textAudioUrl,
+      speechQueueRef.current?.enqueue(() =>
+        createCallbackPlayback((finished) => {
+          const cleanup = speakCharacterThenText(
+            character,
+            text,
+            textAudioUrl,
+            finished,
+          );
+          activeSpeechCleanup.current = cleanup;
+          return cleanup;
+        }),
       );
     },
-    [stopActiveSpeech],
+    [],
   );
 
   useEffect(() => {
     return () => {
-      stopActiveSpeech();
+      speechQueueRef.current?.dispose();
+      activeSpeechCleanup.current = null;
       assetPreloadAbort.current?.abort();
       requestAbort.current.abort();
       for (const frameId of transitionFrameIds.current) {

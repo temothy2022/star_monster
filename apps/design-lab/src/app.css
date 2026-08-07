@@ -12118,14 +12118,14 @@ body:has(.footprints-page),
   display: flex;
   min-height: 68px;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   margin: 20px 0 18px;
   padding: 11px 14px;
   border: 2px solid rgb(117 81 52 / 12%);
   border-radius: 8px;
   background: rgb(255 237 181 / 58%);
-  text-align: left;
+  text-align: center;
 }
 
 .pet-care-confirm--drink .pet-care-confirm__cost {
