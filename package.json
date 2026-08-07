@@ -10,6 +10,7 @@
     "dev:parent": "pnpm --filter @star-monsters/parent-admin dev",
     "dev:super": "pnpm --filter @star-monsters/super-admin dev",
     "dev:api": "pnpm --filter @star-monsters/api dev",
+    "local:ipad": "bash scripts/start-local-ipad-test.sh",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
