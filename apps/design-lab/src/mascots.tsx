@@ -24,26 +24,31 @@ import douyaHungry from "./assets/mascots/states/douya-hungry.webp";
 import douyaEating from "./assets/mascots/states/douya-eating.webp";
 import douyaDrinking from "./assets/mascots/states/douya-drinking.webp";
 import douyaTravel from "./assets/mascots/states/douya-travel.webp";
+import douyaSleeping from "./assets/mascots/states/douya-sleeping.webp";
 import paopaoHungry from "./assets/mascots/states/paopao-hungry.webp";
 import paopaoEating from "./assets/mascots/states/paopao-eating.webp";
 import paopaoDrinking from "./assets/mascots/states/paopao-drinking.webp";
 import paopaoTravel from "./assets/mascots/states/paopao-travel.webp";
+import paopaoSleeping from "./assets/mascots/states/paopao-sleeping.webp";
 import tuantuanHungry from "./assets/mascots/states/tuantuan-hungry.webp";
 import tuantuanEating from "./assets/mascots/states/tuantuan-eating.webp";
 import tuantuanDrinking from "./assets/mascots/states/tuantuan-drinking.webp";
 import tuantuanTravel from "./assets/mascots/states/tuantuan-travel.webp";
+import tuantuanSleeping from "./assets/mascots/states/tuantuan-sleeping.webp";
 import miluHungry from "./assets/mascots/states/milu-hungry.webp";
 import miluEating from "./assets/mascots/states/milu-eating.webp";
 import miluDrinking from "./assets/mascots/states/milu-drinking.webp";
 import miluTravel from "./assets/mascots/states/milu-travel.webp";
+import miluSleeping from "./assets/mascots/states/milu-sleeping.webp";
 import shanshanHungry from "./assets/mascots/states/shanshan-hungry.webp";
 import shanshanEating from "./assets/mascots/states/shanshan-eating.webp";
 import shanshanDrinking from "./assets/mascots/states/shanshan-drinking.webp";
 import shanshanTravel from "./assets/mascots/states/shanshan-travel.webp";
+import shanshanSleeping from "./assets/mascots/states/shanshan-sleeping.webp";
 
 export type PetType = "DOUYA" | "PAOPAO" | "TUANTUAN" | "MILU" | "SHANSHAN";
 export type MascotMood = "neutral" | "focus" | "celebrate";
-export type MascotActivity = "hungry" | "eating" | "drinking" | "travel";
+export type MascotActivity = "hungry" | "eating" | "drinking" | "travel" | "sleeping";
 
 type MascotDefinition = {
   type: PetType;
@@ -67,7 +72,7 @@ export const MASCOTS: Record<PetType, MascotDefinition> = {
     trait: "生机勃勃",
     tone: "leaf",
     images: { neutral: douyaNeutral, focus: douyaFocus, celebrate: douyaCelebrate },
-    activityImages: { hungry: douyaHungry, eating: douyaEating, drinking: douyaDrinking, travel: douyaTravel },
+    activityImages: { hungry: douyaHungry, eating: douyaEating, drinking: douyaDrinking, travel: douyaTravel, sleeping: douyaSleeping },
     picker: { imageSize: 173, figmaNode: "1:732" },
   },
   PAOPAO: {
@@ -76,7 +81,7 @@ export const MASCOTS: Record<PetType, MascotDefinition> = {
     trait: "充满好奇",
     tone: "sky",
     images: { neutral: paopaoNeutral, focus: paopaoFocus, celebrate: paopaoCelebrate },
-    activityImages: { hungry: paopaoHungry, eating: paopaoEating, drinking: paopaoDrinking, travel: paopaoTravel },
+    activityImages: { hungry: paopaoHungry, eating: paopaoEating, drinking: paopaoDrinking, travel: paopaoTravel, sleeping: paopaoSleeping },
     picker: { imageSize: 164, figmaNode: "1:741" },
   },
   TUANTUAN: {
@@ -85,7 +90,7 @@ export const MASCOTS: Record<PetType, MascotDefinition> = {
     trait: "勇敢无畏",
     tone: "coral",
     images: { neutral: tuantuanNeutral, focus: tuantuanFocus, celebrate: tuantuanCelebrate },
-    activityImages: { hungry: tuantuanHungry, eating: tuantuanEating, drinking: tuantuanDrinking, travel: tuantuanTravel },
+    activityImages: { hungry: tuantuanHungry, eating: tuantuanEating, drinking: tuantuanDrinking, travel: tuantuanTravel, sleeping: tuantuanSleeping },
     picker: { imageSize: 200, imageOffsetX: -7, imageOffsetY: 1.56, figmaNode: "1:750" },
   },
   MILU: {
@@ -94,7 +99,7 @@ export const MASCOTS: Record<PetType, MascotDefinition> = {
     trait: "聪明机智",
     tone: "lavender",
     images: { neutral: miluNeutral, focus: miluFocus, celebrate: miluCelebrate },
-    activityImages: { hungry: miluHungry, eating: miluEating, drinking: miluDrinking, travel: miluTravel },
+    activityImages: { hungry: miluHungry, eating: miluEating, drinking: miluDrinking, travel: miluTravel, sleeping: miluSleeping },
     picker: { imageSize: 190, imageOffsetX: -4.08, imageOffsetY: -5.01, figmaNode: "1:762" },
   },
   SHANSHAN: {
@@ -103,7 +108,7 @@ export const MASCOTS: Record<PetType, MascotDefinition> = {
     trait: "活泼可爱",
     tone: "gold",
     images: { neutral: shanshanNeutral, focus: shanshanFocus, celebrate: shanshanCelebrate },
-    activityImages: { hungry: shanshanHungry, eating: shanshanEating, drinking: shanshanDrinking, travel: shanshanTravel },
+    activityImages: { hungry: shanshanHungry, eating: shanshanEating, drinking: shanshanDrinking, travel: shanshanTravel, sleeping: shanshanSleeping },
     picker: { imageSize: 180, imageOffsetX: -6.68, imageOffsetY: -1.14, figmaNode: "1:771" },
   },
 };

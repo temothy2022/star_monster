@@ -24,6 +24,7 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
 const CARE_ANIMATION_MS = 3_000;
 const ROOM_NOTICE_MS = 2_000;
 type CareKind = "feed" | "drink";
+type RoomNotice = { id: number; message: string };
 
 const PET_FALLBACK_DIALOGUES: Record<PetDialogueContext, string[]> = {
   PET_NEEDS_CARE: ["肚子和水杯都有点空啦，先照顾我一下吧。"],
@@ -171,7 +172,7 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [careAnimation, setCareAnimation] = useState<{ kind: CareKind; startedAt: number } | null>(null);
-  const [roomNotice, setRoomNotice] = useState("");
+  const [roomNotice, setRoomNotice] = useState<RoomNotice | null>(null);
   const [travelOpen, setTravelOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
@@ -184,6 +185,11 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
   const dialogueAudioCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const dialoguePlaybackTokenRef = useRef(0);
   const dialogueLastTapAtRef = useRef(0);
+  const roomNoticeIdRef = useRef(0);
+  const idleMascotImage = useMemo(
+    () => (Math.random() < 0.42 ? mascot.activityImages.sleeping : mascot.images.neutral),
+    [mascot.activityImages.sleeping, mascot.images.neutral],
+  );
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -308,14 +314,16 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
     if (state.pet.satiety < 30 || state.pet.hydration < 30) return mascot.activityImages.hungry;
     if (state.currentTrip) return mascot.images.celebrate;
     if (state.pet.satiety > 85 && state.pet.hydration > 85) return mascot.images.celebrate;
-    return mascot.images.neutral;
-  }, [careAnimation, mascot.activityImages, mascot.images, state]);
+    return idleMascotImage;
+  }, [careAnimation, idleMascotImage, mascot.activityImages, mascot.images, state]);
 
   function showRoomNotice(message: string) {
-    setRoomNotice(message);
+    const id = roomNoticeIdRef.current + 1;
+    roomNoticeIdRef.current = id;
+    setRoomNotice({ id, message });
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     noticeTimerRef.current = window.setTimeout(() => {
-      setRoomNotice("");
+      setRoomNotice((current) => (current?.id === id ? null : current));
       noticeTimerRef.current = null;
     }, ROOM_NOTICE_MS);
   }
@@ -424,7 +432,7 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
           </button>
         </aside>
 
-        {roomNotice && <div className="pet-room-notice" role="status" aria-live="polite">{roomNotice}</div>}
+        {roomNotice && <div className="pet-room-notice" key={roomNotice.id} role="status" aria-live="polite">{roomNotice.message}</div>}
         {trip?.status === "TRAVELING" ? (
           <div className="pet-traveling-scene">
             <div className="pet-traveling-orbit"><span>✦</span><span>✦</span><span>✦</span></div>
