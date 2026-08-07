@@ -36,10 +36,30 @@
 .mascot-dialogue-card textarea { width: 100%; min-height: 76px; resize: vertical; }
 .mascot-dialogue-card__settings select { min-width: 120px; }
 .mascot-dialogue-card__settings input[type="number"] { width: 86px; }
+.mascot-assets-page .admin-panel__header p { margin: 5px 0 0; color: #7b8699; font-size: 13px; }
+.mascot-assets-grid { display: grid; gap: 18px; }
+.mascot-asset-pet { border: 1px solid #dce1e8; border-radius: 16px; background: #fffdfa; overflow: hidden; }
+.mascot-asset-pet > header { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; background: #f7f9fc; border-bottom: 1px solid #e7ebf1; }
+.mascot-asset-pet h3 { margin: 0; color: #233653; font-size: 20px; }
+.mascot-asset-pet > header span { color: #7b8699; font-size: 12px; font-weight: 700; }
+.mascot-asset-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 14px; }
+.mascot-asset-card { display: grid; grid-template-columns: 82px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e3e7ec; border-radius: 14px; background: white; }
+.mascot-asset-card__preview { width: 82px; height: 82px; display: grid; place-items: center; border-radius: 14px; background: linear-gradient(180deg, #fff7ec, #f0f5ff); box-shadow: inset 0 0 0 1px rgb(35 54 83 / 6%); overflow: hidden; }
+.mascot-asset-card__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.mascot-asset-card__preview span { color: #9aa4b5; font-size: 12px; font-weight: 700; }
+.mascot-asset-card__content { min-width: 0; display: grid; gap: 3px; }
+.mascot-asset-card__content strong { color: #233653; font-size: 15px; }
+.mascot-asset-card__content small,
+.mascot-asset-card__content em { overflow: hidden; color: #7b8699; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.mascot-asset-upload { min-width: 64px; justify-content: center; }
 .super-metric-wide { grid-column: span 2; }
 .audit-json { display: block; max-width: 300px; overflow: hidden; color: #7b8699; font-family: ui-monospace, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 980px) {
   .super-family-card__body { grid-template-columns: 1fr; }
   .mascot-dialogue-grid { grid-template-columns: 1fr; }
+  .mascot-asset-slots { grid-template-columns: 1fr; }
+  .mascot-asset-card { grid-template-columns: 72px minmax(0, 1fr); }
+  .mascot-asset-card__preview { width: 72px; height: 72px; }
+  .mascot-asset-upload { grid-column: 1 / -1; }
 }

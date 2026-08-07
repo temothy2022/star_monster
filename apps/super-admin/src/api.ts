@@ -172,6 +172,29 @@ export type MascotDialogue = {
   updatedAt: string;
 };
 
+export type MascotAssetSlot =
+  | "TASK_IDLE"
+  | "NEUTRAL"
+  | "FOCUS"
+  | "CELEBRATE"
+  | "HUNGRY"
+  | "EATING"
+  | "DRINKING"
+  | "TRAVEL"
+  | "SLEEPING";
+
+export type MascotAsset = {
+  id: string;
+  petType: "DOUYA" | "PAOPAO" | "TUANTUAN" | "MILU" | "SHANSHAN";
+  slot: MascotAssetSlot;
+  mediaUrl: string;
+  contentType: string;
+  fileName: string;
+  updatedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";
 export type PetGrowthConfig = {
   id: string;
@@ -218,6 +241,7 @@ function uploadContentType(file: File) {
     jpeg: "image/jpeg",
     png: "image/png",
     webp: "image/webp",
+    gif: "image/gif",
     mp3: "audio/mpeg",
     m4a: "audio/mp4",
     wav: "audio/wav",
@@ -243,6 +267,12 @@ export const adminApi = {
   mascotDialogues: () => api<{ dialogues: MascotDialogue[] }>("/api/admin/mascot-dialogues"),
   updateMascotDialogue: (id: string, data: Partial<Pick<MascotDialogue, "text" | "context" | "isEnabled" | "sortOrder">>) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   generateMascotDialogueAudio: (id: string) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}/generate-audio`, { method: "POST" }),
+  mascotAssets: () => api<{ assets: MascotAsset[] }>("/api/admin/mascot-assets"),
+  uploadMascotAsset: (
+    petType: MascotAsset["petType"],
+    slot: MascotAssetSlot,
+    file: File,
+  ) => api<{ asset: MascotAsset }>(`/api/admin/mascot-assets/${petType}/${slot}`, { method: "PUT", headers: { "Content-Type": uploadContentType(file) }, body: file }),
   hanziCharacters: (query: { q?: string; page?: number; pageSize?: number; includeDisabled?: boolean } = {}) => {
     const search = new URLSearchParams();
     if (query.q) search.set("q", query.q);

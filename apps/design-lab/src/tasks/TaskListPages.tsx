@@ -30,6 +30,7 @@ import {
   markChildPlanetNotified,
   type ChildPlanet,
   type DailyTask,
+  type MascotAsset,
   type MascotDialogue,
   type TaskAttempt,
   type TodayTaskExperience,
@@ -152,12 +153,14 @@ function ProgressColumn({
   balance,
   mascotContext,
   dialogues,
+  mascotAssets,
 }: {
   earned: number;
   goal: number;
   balance: number;
   mascotContext: TodayTaskExperience["mascotContext"];
   dialogues: MascotDialogue[];
+  mascotAssets: MascotAsset[];
 }) {
   const { mascot } = useMascot();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -165,6 +168,12 @@ function ProgressColumn({
   const playbackTokenRef = useRef(0);
   const lastTapAtRef = useRef(0);
   const candidates = useMemo(() => dialogues, [dialogues]);
+  const taskMascotImage =
+    mascotAssets.find(
+      (asset) => asset.petType === mascot.type && asset.slot === "TASK_IDLE",
+    )?.mediaUrl ??
+    mascot.taskImage ??
+    mascot.images.neutral;
   const candidatesRef = useRef<MascotDialogue[]>(candidates);
   const fallbackText = FALLBACK_MASCOT_DIALOGUES[mascotContext][0];
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(
@@ -269,7 +278,7 @@ function ProgressColumn({
             key={selectedDialogue?.id ?? `${mascotContext}-fallback`}
             text={selectedDialogue?.text ?? fallbackText}
           />
-          <img className="task-mascot-area__image" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
+          <img className="task-mascot-area__image" src={taskMascotImage} alt={`星宠${mascot.name}`} />
         </button>
       </section>
     </aside>
@@ -645,6 +654,7 @@ export function TaskExperience({
             balance={experience.starBalance}
             mascotContext={experience.mascotContext}
             dialogues={experience.mascotDialogues}
+            mascotAssets={experience.mascotAssets ?? []}
           />
           {effectiveView === "empty" ? (
             <EmptyTaskPanel />

@@ -77,6 +77,9 @@ export function resolvePoemMediaFile(uploadDir: string, fileName: string) {
 export function contentTypeForPoemMedia(fileName: string) {
   const extension = path.extname(fileName).slice(1).toLowerCase();
   if (extension === "webp") return "image/webp";
+  if (extension === "gif") return "image/gif";
+  if (extension === "png") return "image/png";
+  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
   if (extension === "mp3") return "audio/mpeg";
   throw new HttpError(404, "POEM_MEDIA_NOT_FOUND", "没有找到这个媒体文件");
 }

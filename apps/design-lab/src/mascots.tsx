@@ -17,6 +17,7 @@ import tuantuanCelebrate from "@star-monsters/assets/images/mascots/tuantuan-cel
 import miluNeutral from "@star-monsters/assets/images/mascots/milu-neutral.webp";
 import miluFocus from "@star-monsters/assets/images/mascots/milu-focus.webp";
 import miluCelebrate from "@star-monsters/assets/images/mascots/milu-celebrate.webp";
+import miluTaskIdle from "@star-monsters/assets/images/mascots/animations/milu-task-idle.webp";
 import shanshanNeutral from "@star-monsters/assets/images/mascots/shanshan-neutral.webp";
 import shanshanFocus from "@star-monsters/assets/images/mascots/shanshan-focus.webp";
 import shanshanCelebrate from "@star-monsters/assets/images/mascots/shanshan-celebrate.webp";
@@ -57,6 +58,7 @@ type MascotDefinition = {
   tone: "leaf" | "sky" | "coral" | "lavender" | "gold";
   images: Record<MascotMood, string>;
   activityImages: Record<MascotActivity, string>;
+  taskImage?: string;
   picker: {
     imageSize: number;
     imageOffsetX?: number;
@@ -100,6 +102,7 @@ export const MASCOTS: Record<PetType, MascotDefinition> = {
     tone: "lavender",
     images: { neutral: miluNeutral, focus: miluFocus, celebrate: miluCelebrate },
     activityImages: { hungry: miluHungry, eating: miluEating, drinking: miluDrinking, travel: miluTravel, sleeping: miluSleeping },
+    taskImage: miluTaskIdle,
     picker: { imageSize: 190, imageOffsetX: -4.08, imageOffsetY: -5.01, figmaNode: "1:762" },
   },
   SHANSHAN: {

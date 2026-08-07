@@ -546,6 +546,21 @@ model MascotDialogue {
   @@index([context, isEnabled, sortOrder])
 }
 
+model MascotAsset {
+  id              String   @id @default(cuid())
+  petType         PetType
+  slot            String
+  mediaUrl        String
+  contentType     String
+  fileName        String
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([petType, slot])
+  @@index([slot])
+}
+
 model ChildLeaderboardSettings {
   id                       String    @id @default(cuid())
   childId                  String    @unique

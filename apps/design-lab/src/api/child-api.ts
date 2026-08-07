@@ -277,6 +277,15 @@ export type TodayTaskExperience = {
   timedOutAttemptId: string | null;
   mascotContext: "START" | "PROGRESS" | "COMPLETE" | "EMPTY";
   mascotDialogues: MascotDialogue[];
+  mascotAssets: MascotAsset[];
+};
+
+export type MascotAsset = {
+  id: string;
+  petType: PetType;
+  slot: "TASK_IDLE";
+  mediaUrl: string;
+  updatedAt: string;
 };
 
 export type MascotDialogue = {

@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => ({
         target: "http://127.0.0.1:8787",
         changeOrigin: true,
       },
+      "/poem-assets": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: true,
+      },
     },
   },
 }));

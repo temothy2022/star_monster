@@ -22,8 +22,9 @@ import { registerAdminMinimaxRoutes } from "./routes/parent-minimax-routes.js";
 import { registerClientTelemetryRoutes } from "./routes/client-telemetry-routes.js";
 import { registerHanziMediaRoutes } from "./routes/hanzi-media-routes.js";
 import { registerPoemMediaRoutes } from "./routes/poem-media-routes.js";
+import { registerMascotAssetRoutes } from "./routes/mascot-asset-routes.js";
 import { prisma } from "./lib/prisma.js";
-import { HANZI_MEDIA_BODY_LIMIT } from "./services/hanzi-media-service.js";
+import { MASCOT_ASSET_BODY_LIMIT } from "./services/mascot-asset-service.js";
 
 export async function buildApp(config: AppConfig) {
   const app = Fastify({
@@ -82,6 +83,7 @@ export async function buildApp(config: AppConfig) {
       "image/jpeg",
       "image/png",
       "image/webp",
+      "image/gif",
       "audio/mpeg",
       "audio/mp3",
       "audio/mp4",
@@ -90,7 +92,7 @@ export async function buildApp(config: AppConfig) {
       "audio/wav",
       "audio/x-wav",
     ],
-    { parseAs: "buffer", bodyLimit: HANZI_MEDIA_BODY_LIMIT },
+    { parseAs: "buffer", bodyLimit: MASCOT_ASSET_BODY_LIMIT },
     (_request, body, done) => done(null, body),
   );
 
@@ -121,6 +123,7 @@ export async function buildApp(config: AppConfig) {
   await registerParentAiRoutes(app, config);
   await registerAdminMinimaxRoutes(app, config);
   await registerPetManagementRoutes(app, config);
+  await registerMascotAssetRoutes(app, config);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

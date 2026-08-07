@@ -448,7 +448,7 @@ export async function getTodayTaskExperience(
   const streakLookback = new Date(today);
   streakLookback.setUTCDate(streakLookback.getUTCDate() - 400);
 
-  const [child, tasks, activeSlot, scoredDays, completedStars, mascotDialogues] = await Promise.all([
+  const [child, tasks, activeSlot, scoredDays, completedStars, mascotDialogues, mascotAssets] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { dailyStarGoal: true, starBalance: true },
@@ -530,6 +530,10 @@ export async function getTodayTaskExperience(
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, key: true, context: true, text: true, audioUrl: true },
     }),
+    prisma.mascotAsset.findMany({
+      where: { slot: "TASK_IDLE" },
+      select: { id: true, petType: true, slot: true, mediaUrl: true, updatedAt: true },
+    }),
   ]);
 
   const taskStarsEarnedToday =
@@ -581,6 +585,7 @@ export async function getTodayTaskExperience(
       (dialogue) =>
         dialogue.context === mascotContext || dialogue.context === "GENERAL",
     ),
+    mascotAssets,
     mascotContext,
     active: activeAttempt
       ? {
