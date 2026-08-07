@@ -13,8 +13,8 @@ const inPlace = Boolean(args["in-place"]);
 
 if (!args.input || !args.manifest) {
   throw new Error(
-    "Usage: node scripts/fingerprint-media-assets.mjs --input outputs/hanzi-assets "
-      + "--manifest outputs/hanzi-assets/manifest.json --public-base-url https://... --in-place",
+    "Usage: node scripts/fingerprint-media-assets.mjs --input packages/assets/generated/hanzi-assets "
+      + "--manifest packages/assets/generated/hanzi-assets/manifest.json --public-base-url https://... --in-place",
   );
 }
 if (!inPlace && !dryRun) {

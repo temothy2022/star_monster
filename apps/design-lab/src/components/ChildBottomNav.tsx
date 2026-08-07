@@ -1,7 +1,7 @@
-import navTasks from "../assets/task-list/semantic/nav-tasks.png";
-import navMap from "../assets/task-list/semantic/nav-map.png";
-import navWish from "../assets/task-list/semantic/nav-wish.png";
-import navFootprints from "../assets/task-list/semantic/nav-trail.png";
+import navTasks from "@star-monsters/assets/images/task-list/semantic/nav-tasks.png";
+import navMap from "@star-monsters/assets/images/task-list/semantic/nav-map.png";
+import navWish from "@star-monsters/assets/images/task-list/semantic/nav-wish.png";
+import navFootprints from "@star-monsters/assets/images/task-list/semantic/nav-trail.png";
 import { markChildNavigation } from "../api/performance-telemetry";
 
 export type ChildRoute =

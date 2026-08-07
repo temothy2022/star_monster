@@ -353,7 +353,7 @@ git log -5 --oneline
 - Nginx 对带指纹的 JS/CSS/图片/字体设置一年缓存，HTML 和 API 不按同样策略缓存。
 - 不再加载大体积 Noto Sans SC 字体包，优先使用系统常用中文字体栈。
 - 汉字媒体不进入 Vite bundle；生产路径为 `/hanzi-assets/v1/...`，Nginx 设置 30 天
-  公共缓存。代码发布必须继续排除 `hanzi-assets/`、`outputs/` 和 `work/`。
+  公共缓存。代码发布必须继续排除 `hanzi-assets/`、`packages/assets/generated/` 和 `work/`。
 - 汉字会话启动后只预加载本次会话涉及的资源，不得一次性预加载 698 个汉字。
   当前限制为 3 个后台请求并发和最多 180 个音频元素的 LRU 缓存。
 - 听句选字使用会话内已经下发的 `targetId` 本地即时判断；API 负责按顺序持久化答案，
@@ -861,7 +861,7 @@ pnpm deploy:production
 1. 在本机构建孩子端、家长端、超级后台。
 2. 检查 SSH。
 3. rsync 代码与构建产物到 `/opt/star-monsters`。
-4. 保留生产 `.env`、数据库、`work/`、`outputs/` 和独立
+4. 保留生产 `.env`、数据库、`work/`、`packages/assets/generated/` 和独立
    `hanzi-assets/` 媒体目录。
 5. 服务器执行 `prisma generate`、`prisma migrate deploy`、API 构建。
 6. 重启并检查 `star-monsters-api.service`。
@@ -900,26 +900,26 @@ sudo nginx -t
 
 - 内容源：`work/hanzi-assets-input.json`
 - 人工审核文本：`work/hanzi-content-reviewed.tsv`
-- 生成结果与 manifest：`outputs/hanzi-assets/`
+- 生成结果与 manifest：`packages/assets/generated/hanzi-assets/`
 
 生成完成后先检查并压缩图片：
 
 ```bash
 cd "/Users/qing/Documents/Codex/2026-07-22/ni"
 
-pnpm hanzi:compress-images:check -- --input outputs/hanzi-assets
-pnpm hanzi:compress-images -- --input outputs/hanzi-assets --dry-run
-pnpm hanzi:compress-images -- --input outputs/hanzi-assets
+pnpm hanzi:compress-images:check -- --input packages/assets/generated/hanzi-assets
+pnpm hanzi:compress-images -- --input packages/assets/generated/hanzi-assets --dry-run
+pnpm hanzi:compress-images -- --input packages/assets/generated/hanzi-assets
 ```
 
-确认 `outputs/hanzi-assets/manifest.json` 是完整全量文件后上传：
+确认 `packages/assets/generated/hanzi-assets/manifest.json` 是完整全量文件后上传：
 
 ```bash
 pnpm hanzi:deploy-assets
 ```
 
 重要：`hanzi:deploy-assets` 使用 `rsync --delete`。如果本地
-`outputs/hanzi-assets/` 是残缺的小批次，上传会删除生产服务器上不在本地目录中的
+`packages/assets/generated/hanzi-assets/` 是残缺的小批次，上传会删除生产服务器上不在本地目录中的
 其他汉字资源；运行前必须确认本地目录是预期的完整集合。
 
 上传目标：
@@ -943,7 +943,7 @@ ssh -i /Users/qing/.ssh/star_monsters_deploy ubuntu@43.136.134.234 \
 
 ```bash
 pnpm hanzi:import -- \
-  --manifest outputs/hanzi-assets/manifest.json \
+  --manifest packages/assets/generated/hanzi-assets/manifest.json \
   --public-base-url https://timothy.run/hanzi-assets/v1
 ```
 

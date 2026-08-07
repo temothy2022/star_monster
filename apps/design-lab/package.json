@@ -12,6 +12,7 @@
     "assets:webp": "node scripts/convert-web-images.mjs"
   },
   "dependencies": {
+    "@star-monsters/assets": "workspace:*",
     "@star-monsters/design-tokens": "workspace:*",
     "@star-monsters/ui": "workspace:*",
     "react": "^19.2.0",

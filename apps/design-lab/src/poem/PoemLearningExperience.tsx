@@ -8,9 +8,9 @@ import {
   type Poem,
   type PoemLearningSession,
 } from "../api/child-api";
-import speakerIcon from "../assets/hanzi/sound-speaker.svg";
-import backIcon from "../assets/icon-arrow-left.svg";
-import defaultPoemImage from "../assets/poem/spring-dawn.webp";
+import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
+import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import defaultPoemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
 import { ChildDataState } from "../components/ChildDataState";
 import { LoadingDots } from "../components/LoadingDots";
 import { HanziTaskControls } from "../hanzi/HanziTaskControls";

@@ -17,7 +17,7 @@ source "$CONFIG_FILE"
 : "${DEPLOY_PATH:?DEPLOY_PATH is required}"
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
-LOCAL_ASSET_DIR="${HANZI_LOCAL_ASSET_DIR:-$PROJECT_ROOT/outputs/hanzi-assets}"
+LOCAL_ASSET_DIR="${HANZI_LOCAL_ASSET_DIR:-$PROJECT_ROOT/packages/assets/generated/hanzi-assets}"
 REMOTE_ASSET_DIR="${HANZI_REMOTE_ASSET_DIR:-/opt/star-monsters/hanzi-assets/v1}"
 
 RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes"

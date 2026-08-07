@@ -9,18 +9,18 @@
 ```bash
 brew install ffmpeg
 pnpm assets:compress-audio -- \
-  --input outputs/hanzi-assets \
+  --input packages/assets/generated/hanzi-assets \
   --in-place \
   --bitrate 64k \
   --sample-rate 24000
 pnpm assets:compress-audio -- \
-  --input outputs/poem-assets \
+  --input packages/assets/generated/poem-assets \
   --in-place \
   --bitrate 64k \
   --sample-rate 24000
 ```
 
-这会保持目录结构和文件名不变，数据库 URL 不需要立即修改。当前环境未安装 `ffmpeg`，所以本轮没有直接改写 `outputs/` 中的 MP3。
+这会保持目录结构和文件名不变，数据库 URL 不需要立即修改。当前环境未安装 `ffmpeg`，所以本轮没有直接改写 `packages/assets/generated/` 中的 MP3。
 
 ## 媒体缓存指纹
 
@@ -28,14 +28,14 @@ pnpm assets:compress-audio -- \
 
 ```bash
 pnpm assets:fingerprint-media -- \
-  --input outputs/hanzi-assets \
-  --manifest outputs/hanzi-assets/manifest.json \
+  --input packages/assets/generated/hanzi-assets \
+  --manifest packages/assets/generated/hanzi-assets/manifest.json \
   --public-base-url https://timothy.run/hanzi-assets/v1 \
   --in-place
 
 pnpm assets:fingerprint-media -- \
-  --input outputs/poem-assets \
-  --manifest outputs/poem-assets/manifest.json \
+  --input packages/assets/generated/poem-assets \
+  --manifest packages/assets/generated/poem-assets/manifest.json \
   --public-base-url https://timothy.run/poem-assets/v1 \
   --in-place
 ```

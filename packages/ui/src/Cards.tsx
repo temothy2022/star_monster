@@ -1,6 +1,6 @@
-import planetSaturn from "./assets/planet-saturn.jpeg";
-import taskBook from "./assets/task-book.jpeg";
-import wishStar from "./assets/wish-star.svg";
+import planetSaturn from "@star-monsters/assets/images/ui/planet-saturn.jpeg";
+import taskBook from "@star-monsters/assets/images/ui/task-book.jpeg";
+import wishStar from "@star-monsters/assets/icons/ui/wish-star.svg";
 import { ProgressBar } from "./ProgressBar";
 
 export interface TaskCardProps {

@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@star-monsters/assets": "workspace:*",
     "@star-monsters/design-tokens": "workspace:*"
   },
   "peerDependencies": {

@@ -34,18 +34,18 @@ import {
 import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentPoemLearning } from "./LearningLibraries";
-import sportsReward from "../../design-lab/src/assets/reward-categories/sports.webp";
-import gamesReward from "../../design-lab/src/assets/reward-categories/games.webp";
-import televisionReward from "../../design-lab/src/assets/reward-categories/television.webp";
-import toysReward from "../../design-lab/src/assets/reward-categories/toys.webp";
-import earthPlanet from "../../design-lab/src/assets/planets/earth.webp";
-import jupiterPlanet from "../../design-lab/src/assets/planets/jupiter.webp";
-import marsPlanet from "../../design-lab/src/assets/planets/mars.webp";
-import mercuryPlanet from "../../design-lab/src/assets/planets/mercury.webp";
-import neptunePlanet from "../../design-lab/src/assets/planets/neptune.webp";
-import saturnPlanet from "../../design-lab/src/assets/planets/saturn.webp";
-import uranusPlanet from "../../design-lab/src/assets/planets/uranus.webp";
-import venusPlanet from "../../design-lab/src/assets/planets/venus.webp";
+import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
+import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
+import televisionReward from "@star-monsters/assets/images/reward-categories/television.webp";
+import toysReward from "@star-monsters/assets/images/reward-categories/toys.webp";
+import earthPlanet from "@star-monsters/assets/images/planets/earth.webp";
+import jupiterPlanet from "@star-monsters/assets/images/planets/jupiter.webp";
+import marsPlanet from "@star-monsters/assets/images/planets/mars.webp";
+import mercuryPlanet from "@star-monsters/assets/images/planets/mercury.webp";
+import neptunePlanet from "@star-monsters/assets/images/planets/neptune.webp";
+import saturnPlanet from "@star-monsters/assets/images/planets/saturn.webp";
+import uranusPlanet from "@star-monsters/assets/images/planets/uranus.webp";
+import venusPlanet from "@star-monsters/assets/images/planets/venus.webp";
 
 type Section =
   | "overview"

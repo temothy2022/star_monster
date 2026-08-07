@@ -15,7 +15,7 @@ import {
   type ClockQuestion,
 } from "../api/child-api";
 import { playAnswerSound } from "../audio/feedback-sounds";
-import backIcon from "../assets/icon-arrow-left.svg";
+import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 
 type ClockTime = { hour: number; minute: number; second: number };
 type HandKind = "hour" | "minute" | "second";

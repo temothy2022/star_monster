@@ -16,7 +16,7 @@ source "$CONFIG_FILE"
 : "${DEPLOY_USER:?DEPLOY_USER is required}"
 
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
-LOCAL_ASSET_DIR="${POEM_LOCAL_ASSET_DIR:-$PROJECT_ROOT/outputs/poem-assets}"
+LOCAL_ASSET_DIR="${POEM_LOCAL_ASSET_DIR:-$PROJECT_ROOT/packages/assets/generated/poem-assets}"
 REMOTE_ASSET_DIR="${POEM_REMOTE_ASSET_DIR:-/opt/star-monsters/poem-assets/v1}"
 
 RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes"

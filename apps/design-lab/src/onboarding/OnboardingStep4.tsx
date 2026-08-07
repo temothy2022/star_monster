@@ -1,6 +1,6 @@
-import energyIcon from "../assets/onboarding/step4-energy.svg";
-import starIcon from "../assets/onboarding/step4-star.svg";
-import startIcon from "../assets/onboarding/step4-start.svg";
+import energyIcon from "@star-monsters/assets/icons/onboarding/step4-energy.svg";
+import starIcon from "@star-monsters/assets/icons/onboarding/step4-star.svg";
+import startIcon from "@star-monsters/assets/icons/onboarding/step4-start.svg";
 import { PLANET_BY_KEY, type PlanetKey } from "../planets/planet-data";
 import { OnboardingViewport } from "./OnboardingViewport";
 

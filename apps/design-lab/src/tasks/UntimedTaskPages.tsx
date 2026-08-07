@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import ongoingBackground from "../assets/untimed-task/ongoing-bg.webp";
-import ongoingStar from "../assets/wishes/star.svg";
-import backIcon from "../assets/untimed-task/back.svg";
-import moreIcon from "../assets/untimed-task/more.svg";
-import completeBackground from "../assets/untimed-task/complete-bg.svg";
-import completeSpark from "../assets/untimed-task/complete-spark.svg";
-import outlineStar from "../assets/untimed-task/outline-star.svg";
-import heartIcon from "../assets/untimed-task/heart.svg";
-import centerStar from "../assets/untimed-task/star-center.svg";
-import bookIcon from "../assets/untimed-task/book.svg";
-import arrowIcon from "../assets/untimed-task/arrow.svg";
+import ongoingBackground from "@star-monsters/assets/images/untimed-task/ongoing-bg.webp";
+import ongoingStar from "@star-monsters/assets/icons/wishes/star.svg";
+import backIcon from "@star-monsters/assets/icons/untimed-task/back.svg";
+import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
+import completeBackground from "@star-monsters/assets/icons/untimed-task/complete-bg.svg";
+import completeSpark from "@star-monsters/assets/icons/untimed-task/complete-spark.svg";
+import outlineStar from "@star-monsters/assets/icons/untimed-task/outline-star.svg";
+import heartIcon from "@star-monsters/assets/icons/untimed-task/heart.svg";
+import centerStar from "@star-monsters/assets/icons/untimed-task/star-center.svg";
+import bookIcon from "@star-monsters/assets/icons/untimed-task/book.svg";
+import arrowIcon from "@star-monsters/assets/icons/untimed-task/arrow.svg";
 import { useMascot } from "../mascots";
 import {
   playCompletionSound,

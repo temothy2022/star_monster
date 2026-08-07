@@ -6,7 +6,7 @@ import {
   type MakeTenLearningSession,
 } from "../api/child-api";
 import { playAnswerSound } from "../audio/feedback-sounds";
-import backIcon from "../assets/icon-arrow-left.svg";
+import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 
 type Feedback = {
   selectedNumber: number | null;

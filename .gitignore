@@ -9,5 +9,5 @@ test-results
 !.env.example
 .deploy.env
 coverage
-outputs
+packages/assets/generated/
 /hanzi-assets/

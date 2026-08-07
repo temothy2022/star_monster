@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
-import rocketIcon from "../assets/icon-rocket.svg";
+import rocketIcon from "@star-monsters/assets/icons/icon-rocket.svg";
 import { loginChild } from "../api/child-api";
 import type { PetType } from "../mascots";
 

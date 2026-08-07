@@ -1,11 +1,11 @@
-import backButton from "../assets/onboarding/step2-back-button.webp";
-import changeIcon from "../assets/onboarding/step2-change.svg";
-import gradeIcon from "../assets/onboarding/step2-grade.svg";
-import headerIcon from "../assets/onboarding/step2-header.svg";
-import launchIcon from "../assets/onboarding/step2-launch.svg";
-import spaceship from "../assets/onboarding/step2-spaceship.webp";
-import sparkIcon from "../assets/onboarding/step2-spark.svg";
-import userIcon from "../assets/onboarding/step2-user.svg";
+import backButton from "@star-monsters/assets/images/onboarding/step2-back-button.webp";
+import changeIcon from "@star-monsters/assets/icons/onboarding/step2-change.svg";
+import gradeIcon from "@star-monsters/assets/icons/onboarding/step2-grade.svg";
+import headerIcon from "@star-monsters/assets/icons/onboarding/step2-header.svg";
+import launchIcon from "@star-monsters/assets/icons/onboarding/step2-launch.svg";
+import spaceship from "@star-monsters/assets/images/onboarding/step2-spaceship.webp";
+import sparkIcon from "@star-monsters/assets/icons/onboarding/step2-spark.svg";
+import userIcon from "@star-monsters/assets/icons/onboarding/step2-user.svg";
 import { OnboardingViewport } from "./OnboardingViewport";
 
 interface OnboardingStep2Props {

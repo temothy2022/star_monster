@@ -6,38 +6,38 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import balanceStar from "../assets/wishes/balance-star.svg";
-import costStar from "../assets/wishes/cost-star.svg";
-import redeemedCheck from "../assets/wishes/redeemed-check.svg";
-import requestSparkle from "../assets/wishes/request-sparkle.svg";
-import starIcon from "../assets/wishes/star.svg";
-import confirmStar from "../assets/wishes/confirm-star.svg";
-import footprintStar from "../assets/footprints/star.svg";
-import selectedPattern from "../assets/footprints/selected-pattern.svg";
-import detailPattern from "../assets/footprints/detail-pattern.svg";
-import triumphIcon from "../assets/footprints/triumph.svg";
-import readingIcon from "../assets/footprints/task-reading.svg";
-import mathIcon from "../assets/footprints/task-math.svg";
-import booksIcon from "../assets/footprints/task-books.svg";
-import chinaFlag from "../assets/footprints/flags/china.webp?no-inline";
-import japanFlag from "../assets/footprints/flags/japan.webp?no-inline";
-import koreaFlag from "../assets/footprints/flags/korea.webp?no-inline";
-import singaporeFlag from "../assets/footprints/flags/singapore.webp?no-inline";
-import unitedKingdomFlag from "../assets/footprints/flags/united-kingdom.webp?no-inline";
-import franceFlag from "../assets/footprints/flags/france.webp?no-inline";
-import germanyFlag from "../assets/footprints/flags/germany.webp?no-inline";
-import italyFlag from "../assets/footprints/flags/italy.webp?no-inline";
-import canadaFlag from "../assets/footprints/flags/canada.webp?no-inline";
-import australiaFlag from "../assets/footprints/flags/australia.webp?no-inline";
-import brazilFlag from "../assets/footprints/flags/brazil.webp?no-inline";
-import unitedStatesFlag from "../assets/footprints/flags/united-states.webp?no-inline";
+import balanceStar from "@star-monsters/assets/icons/wishes/balance-star.svg";
+import costStar from "@star-monsters/assets/icons/wishes/cost-star.svg";
+import redeemedCheck from "@star-monsters/assets/icons/wishes/redeemed-check.svg";
+import requestSparkle from "@star-monsters/assets/icons/wishes/request-sparkle.svg";
+import starIcon from "@star-monsters/assets/icons/wishes/star.svg";
+import confirmStar from "@star-monsters/assets/icons/wishes/confirm-star.svg";
+import footprintStar from "@star-monsters/assets/icons/footprints/star.svg";
+import selectedPattern from "@star-monsters/assets/icons/footprints/selected-pattern.svg";
+import detailPattern from "@star-monsters/assets/icons/footprints/detail-pattern.svg";
+import triumphIcon from "@star-monsters/assets/icons/footprints/triumph.svg";
+import readingIcon from "@star-monsters/assets/icons/footprints/task-reading.svg";
+import mathIcon from "@star-monsters/assets/icons/footprints/task-math.svg";
+import booksIcon from "@star-monsters/assets/icons/footprints/task-books.svg";
+import chinaFlag from "@star-monsters/assets/images/footprints/flags/china.webp?no-inline";
+import japanFlag from "@star-monsters/assets/images/footprints/flags/japan.webp?no-inline";
+import koreaFlag from "@star-monsters/assets/images/footprints/flags/korea.webp?no-inline";
+import singaporeFlag from "@star-monsters/assets/images/footprints/flags/singapore.webp?no-inline";
+import unitedKingdomFlag from "@star-monsters/assets/images/footprints/flags/united-kingdom.webp?no-inline";
+import franceFlag from "@star-monsters/assets/images/footprints/flags/france.webp?no-inline";
+import germanyFlag from "@star-monsters/assets/images/footprints/flags/germany.webp?no-inline";
+import italyFlag from "@star-monsters/assets/images/footprints/flags/italy.webp?no-inline";
+import canadaFlag from "@star-monsters/assets/images/footprints/flags/canada.webp?no-inline";
+import australiaFlag from "@star-monsters/assets/images/footprints/flags/australia.webp?no-inline";
+import brazilFlag from "@star-monsters/assets/images/footprints/flags/brazil.webp?no-inline";
+import unitedStatesFlag from "@star-monsters/assets/images/footprints/flags/united-states.webp?no-inline";
 import { MASCOTS, useMascot } from "../mascots";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
-import sportsReward from "../assets/reward-categories/sports.webp";
-import gamesReward from "../assets/reward-categories/games.webp";
-import televisionReward from "../assets/reward-categories/television.webp";
-import toysReward from "../assets/reward-categories/toys.webp";
+import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
+import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
+import televisionReward from "@star-monsters/assets/images/reward-categories/television.webp";
+import toysReward from "@star-monsters/assets/images/reward-categories/toys.webp";
 import {
   ApiError,
   getChildFootprints,

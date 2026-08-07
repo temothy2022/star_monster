@@ -15,7 +15,7 @@ if (!inputPath || !petKey) {
 }
 
 const states = ["hungry", "eating", "drinking", "travel"];
-const outputDir = resolve("apps/design-lab/src/assets/mascots/states");
+const outputDir = resolve("packages/assets/images/mascots/states");
 const tempDir = resolve(".tmp/pet-state-assets", `${petKey}-${Date.now()}`);
 const codexHome = process.env.CODEX_HOME || resolve(homedir(), ".codex");
 const chromaScript = resolve(codexHome, "skills/.system/imagegen/scripts/remove_chroma_key.py");

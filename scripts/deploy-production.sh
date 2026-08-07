@@ -71,7 +71,7 @@ rsync -az --delete \
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \
   --exclude 'work/' \
-  --exclude 'outputs/' \
+  --exclude 'packages/assets/generated/' \
   --exclude 'hanzi-assets/' \
   --exclude 'poem-assets/' \
   -e "$RSYNC_SSH" \

@@ -1,15 +1,15 @@
 import { useState } from "react";
-import backIcon from "../assets/icon-arrow-left.svg";
-import playIcon from "../assets/untimed-task/play.svg";
-import testGeneratedHanziImage from "../assets/hanzi/test-generated-shui.jpeg";
-import meaningNextIcon from "../assets/hanzi/meaning-next.svg";
-import meaningSpeakerIcon from "../assets/hanzi/meaning-speaker.svg";
-import shapeCounterIcon from "../assets/hanzi/shape-counter.svg";
-import shapeNextIcon from "../assets/hanzi/shape-next.svg";
-import soundCheckIcon from "../assets/hanzi/sound-check.svg";
-import soundNextIcon from "../assets/hanzi/sound-next.svg";
-import soundSpeakerIcon from "../assets/hanzi/sound-speaker.svg";
-import soundStepEarIcon from "../assets/hanzi/sound-step-ear.svg";
+import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import playIcon from "@star-monsters/assets/icons/untimed-task/play.svg";
+import testGeneratedHanziImage from "@star-monsters/assets/images/hanzi/test-generated-shui.jpeg";
+import meaningNextIcon from "@star-monsters/assets/icons/hanzi/meaning-next.svg";
+import meaningSpeakerIcon from "@star-monsters/assets/icons/hanzi/meaning-speaker.svg";
+import shapeCounterIcon from "@star-monsters/assets/icons/hanzi/shape-counter.svg";
+import shapeNextIcon from "@star-monsters/assets/icons/hanzi/shape-next.svg";
+import soundCheckIcon from "@star-monsters/assets/icons/hanzi/sound-check.svg";
+import soundNextIcon from "@star-monsters/assets/icons/hanzi/sound-next.svg";
+import soundSpeakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
+import soundStepEarIcon from "@star-monsters/assets/icons/hanzi/sound-step-ear.svg";
 import { HanziTaskControls } from "./HanziTaskControls";
 
 type HanziRoute =

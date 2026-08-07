@@ -31,7 +31,7 @@ const speechEndpoints = [
 ].filter(Boolean);
 
 const inputFile = resolveFromRepoRoot(args.input ?? "work/poems.json");
-const outputDir = resolveFromRepoRoot(args.output ?? "outputs/poem-assets");
+const outputDir = resolveFromRepoRoot(args.output ?? "packages/assets/generated/poem-assets");
 const publicBaseUrl = normalizeBaseUrl(args["public-base-url"] ?? process.env.POEM_ASSET_PUBLIC_BASE_URL ?? "");
 const overwrite = Boolean(args.overwrite);
 const only = String(args.only ?? "all");

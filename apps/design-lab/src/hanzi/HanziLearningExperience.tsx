@@ -15,10 +15,10 @@ import {
 } from "../api/child-api";
 import { ChildDataState } from "../components/ChildDataState";
 import { LoadingDots } from "../components/LoadingDots";
-import backIcon from "../assets/icon-arrow-left.svg";
-import playIcon from "../assets/untimed-task/play.svg";
-import defaultHanziImage from "../assets/hanzi/test-generated-shui.jpeg";
-import meaningSpeakerIcon from "../assets/hanzi/meaning-speaker.svg";
+import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import playIcon from "@star-monsters/assets/icons/untimed-task/play.svg";
+import defaultHanziImage from "@star-monsters/assets/images/hanzi/test-generated-shui.jpeg";
+import meaningSpeakerIcon from "@star-monsters/assets/icons/hanzi/meaning-speaker.svg";
 import {
   getHanziAudioElement,
   preloadHanziSessionAssets,

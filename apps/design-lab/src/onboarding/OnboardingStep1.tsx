@@ -1,8 +1,8 @@
 import { useRef } from "react";
 import { AdventureButton, StarPetCard } from "@star-monsters/ui";
-import arrowLeft from "../assets/icon-arrow-left.svg";
-import check from "../assets/icon-check.svg";
-import rocket from "../assets/icon-rocket.svg";
+import arrowLeft from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import check from "@star-monsters/assets/icons/icon-check.svg";
+import rocket from "@star-monsters/assets/icons/icon-rocket.svg";
 import { MASCOTS, MASCOT_ORDER, type PetType } from "../mascots";
 import { OnboardingViewport } from "./OnboardingViewport";
 

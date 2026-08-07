@@ -51,7 +51,7 @@ const speechEndpoints = [
 ].filter(Boolean);
 
 const args = parseArgs(process.argv.slice(2));
-const outputDir = path.resolve(args.output ?? "outputs/hanzi-assets");
+const outputDir = path.resolve(args.output ?? "packages/assets/generated/hanzi-assets");
 const publicBaseUrl = normalizeBaseUrl(args["public-base-url"] ?? process.env.HANZI_ASSET_PUBLIC_BASE_URL ?? "");
 const imageCandidates = Number(args["image-candidates"] ?? 1);
 const overwrite = Boolean(args.overwrite);

@@ -8,7 +8,7 @@ const sharp = require("../apps/design-lab/node_modules/sharp");
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const args = parseArgs(process.argv.slice(2));
-const inputDir = resolveFromRepoRoot(args.input ?? "outputs/hanzi-assets");
+const inputDir = resolveFromRepoRoot(args.input ?? "packages/assets/generated/hanzi-assets");
 const checkOnly = Boolean(args.check);
 const dryRun = Boolean(args["dry-run"]);
 const overwrite = !checkOnly && !dryRun;

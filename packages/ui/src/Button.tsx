@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import spinner from "./assets/spinner.svg";
+import spinner from "@star-monsters/assets/icons/ui/spinner.svg";
 
 export type AdventureButtonVariant = "primary" | "secondary" | "danger";
 export type AdventureButtonSize = "child" | "standard";

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import moreIcon from "../assets/untimed-task/more.svg";
-import cancelIcon from "../assets/untimed-task/cancel.svg";
+import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
+import cancelIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
 import { AbandonDialog } from "../tasks/TaskOverlays";
 
 export function HanziTaskControls({

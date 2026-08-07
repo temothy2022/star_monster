@@ -1,6 +1,6 @@
 # 古诗媒体生成与导入流程
 
-本流程用于批量生成古诗学习的专属配图和朗读音频。生成脚本会调用 MiniMax，输出到 `outputs/poem-assets/`，并生成可导入数据库的 `manifest.json`。
+本流程用于批量生成古诗学习的专属配图和朗读音频。生成脚本会调用 MiniMax，输出到 `packages/assets/generated/poem-assets/`，并生成可导入数据库的 `manifest.json`。
 
 ## 1. 准备
 
@@ -15,7 +15,7 @@ export POEM_ASSET_PUBLIC_BASE_URL="https://timothy.run/poem-assets/v1"
 ```bash
 pnpm poem:generate-assets -- \
   --input "/Users/qing/Workbuddy/2026-07-29-10-33-53/人教版小学语文1-6年级古诗.json" \
-  --output outputs/poem-assets \
+  --output packages/assets/generated/poem-assets \
   --public-base-url "$POEM_ASSET_PUBLIC_BASE_URL" \
   --plan
 ```
@@ -27,7 +27,7 @@ pnpm poem:generate-assets -- \
 ```bash
 pnpm poem:generate-assets -- \
   --input "/Users/qing/Workbuddy/2026-07-29-10-33-53/人教版小学语文1-6年级古诗.json" \
-  --output outputs/poem-assets \
+  --output packages/assets/generated/poem-assets \
   --public-base-url "$POEM_ASSET_PUBLIC_BASE_URL" \
   --limit 3 \
   --concurrency 2 \
@@ -44,7 +44,7 @@ pnpm poem:generate-assets -- \
 ```bash
 pnpm poem:generate-assets -- \
   --input "/Users/qing/Workbuddy/2026-07-29-10-33-53/人教版小学语文1-6年级古诗.json" \
-  --output outputs/poem-assets \
+  --output packages/assets/generated/poem-assets \
   --public-base-url "$POEM_ASSET_PUBLIC_BASE_URL" \
   --concurrency 3 \
   --image-rpm 8 \
@@ -63,14 +63,14 @@ pnpm poem:generate-assets -- \
 ```bash
 pnpm poem:generate-assets -- \
   --input "/Users/qing/Workbuddy/2026-07-29-10-33-53/人教版小学语文1-6年级古诗.json" \
-  --output outputs/poem-assets \
+  --output packages/assets/generated/poem-assets \
   --public-base-url "$POEM_ASSET_PUBLIC_BASE_URL" \
   --ffmpeg-audio
 ```
 
 ## 4. 上传媒体
 
-确认 `outputs/poem-assets/manifest.json` 是完整全量文件后再上传。上传脚本使用 `.deploy.env`：
+确认 `packages/assets/generated/poem-assets/manifest.json` 是完整全量文件后再上传。上传脚本使用 `.deploy.env`：
 
 ```bash
 pnpm poem:deploy-assets
@@ -108,7 +108,7 @@ sudo systemctl reload nginx
 
 ```bash
 pnpm poem:import-assets -- \
-  --manifest outputs/poem-assets/manifest.json \
+  --manifest packages/assets/generated/poem-assets/manifest.json \
   --public-base-url "$POEM_ASSET_PUBLIC_BASE_URL"
 ```
 

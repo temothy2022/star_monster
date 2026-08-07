@@ -1,0 +1,10 @@
+{
+  "name": "@star-monsters/assets",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./images/*": "./images/*",
+    "./icons/*": "./icons/*"
+  }
+}

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = parseArgs(process.argv.slice(2));
-const inputDir = resolvePath(args.input ?? "outputs/hanzi-assets");
+const inputDir = resolvePath(args.input ?? "packages/assets/generated/hanzi-assets");
 const outputDir = args.output ? resolvePath(args.output) : inputDir;
 const inPlace = Boolean(args["in-place"]);
 const bitrate = String(args.bitrate ?? "64k");

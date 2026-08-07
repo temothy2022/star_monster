@@ -19,7 +19,7 @@ import {
 } from "../components/ChildBottomNav";
 import { useMascot } from "../mascots";
 import { PLANET_BY_KEY } from "../planets/planet-data";
-import returnEnvelope from "../assets/pet/pet-return-envelope.webp";
+import returnEnvelope from "@star-monsters/assets/images/pet/pet-return-envelope.webp";
 
 const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
   NEARBY: { name: "附近散步", note: "发现身边的小惊喜" },

@@ -1,8 +1,12 @@
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
-const sourceRoot = path.resolve("src");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const sourceRoot = path.join(repoRoot, "packages/assets/images");
+const sourceCodeRoot = path.join(repoRoot, "apps");
+const sharedCodeRoot = path.join(repoRoot, "packages");
 const checkOnly = process.argv.includes("--check");
 const sourceExtensions = new Set([".ts", ".tsx", ".css", ".html"]);
 const minimumSavingRatio = 0.1;
@@ -19,17 +23,18 @@ async function walk(directory) {
   return nested.flat();
 }
 
-const sourceFiles = (await walk(sourceRoot)).filter((file) =>
+const sourceFiles = (await walk(sourceCodeRoot)).concat(await walk(sharedCodeRoot)).filter((file) =>
   sourceExtensions.has(path.extname(file).toLowerCase()),
 );
 const references = new Map();
 
 for (const sourceFile of sourceFiles) {
   const source = await readFile(sourceFile, "utf8");
-  const matches = source.matchAll(/["'(]([^"'()]+\.png)(?=["')])/gi);
+  const matches = source.matchAll(/(@star-monsters\/assets\/images\/[^"'()\s]+\.png)(?=[?"')])/gi);
   for (const match of matches) {
     const reference = match[1];
-    const input = path.resolve(path.dirname(sourceFile), reference);
+    const relativeAsset = reference.replace("@star-monsters/assets/images/", "");
+    const input = path.join(sourceRoot, relativeAsset);
     if (!input.startsWith(sourceRoot)) continue;
     try {
       await stat(input);

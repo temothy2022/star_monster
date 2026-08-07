@@ -1,11 +1,11 @@
-import abandonBackground from "../assets/untimed-task/abandon-bg.png";
-import cancelIcon from "../assets/untimed-task/cancel.svg";
-import exitIcon from "../assets/untimed-task/exit.svg";
-import helpIcon from "../assets/untimed-task/help.svg";
-import pauseIcon from "../assets/untimed-task/pause.svg";
-import playIcon from "../assets/untimed-task/play.svg";
-import spaceship from "../assets/untimed-task/spaceship.webp";
-import sparkleIcon from "../assets/untimed-task/sparkle.svg";
+import abandonBackground from "@star-monsters/assets/images/untimed-task/abandon-bg.png";
+import cancelIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
+import exitIcon from "@star-monsters/assets/icons/untimed-task/exit.svg";
+import helpIcon from "@star-monsters/assets/icons/untimed-task/help.svg";
+import pauseIcon from "@star-monsters/assets/icons/untimed-task/pause.svg";
+import playIcon from "@star-monsters/assets/icons/untimed-task/play.svg";
+import spaceship from "@star-monsters/assets/images/untimed-task/spaceship.webp";
+import sparkleIcon from "@star-monsters/assets/icons/untimed-task/sparkle.svg";
 
 export type UntimedOverlay = "menu" | "abandon" | null;
 

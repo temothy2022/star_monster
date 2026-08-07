@@ -1,7 +1,7 @@
 import { useCallback } from "react";
-import backIcon from "../assets/icon-arrow-left.svg";
-import speakerIcon from "../assets/hanzi/sound-speaker.svg";
-import poemImage from "../assets/poem/spring-dawn.webp";
+import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
+import poemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
 
 type Navigate = (route: "pages") => void;
 

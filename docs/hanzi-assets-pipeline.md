@@ -46,7 +46,7 @@ export HANZI_ASSET_PUBLIC_BASE_URL="https://timothy.run/hanzi-assets/v1"
 
 pnpm hanzi:generate -- \
   --input work/hanzi-assets-input.json \
-  --output outputs/hanzi-assets \
+  --output packages/assets/generated/hanzi-assets \
   --public-base-url "$HANZI_ASSET_PUBLIC_BASE_URL"
 ```
 
@@ -55,7 +55,7 @@ For a small test batch:
 ```bash
 pnpm hanzi:generate -- \
   --input work/hanzi-assets-input.json \
-  --output outputs/hanzi-assets \
+  --output packages/assets/generated/hanzi-assets \
   --public-base-url "$HANZI_ASSET_PUBLIC_BASE_URL" \
   --limit 5
 ```
@@ -82,7 +82,7 @@ Check the request plan without calling MiniMax:
 ```bash
 pnpm hanzi:generate -- \
   --input work/hanzi-assets-input.json \
-  --output outputs/hanzi-assets \
+  --output packages/assets/generated/hanzi-assets \
   --public-base-url "$HANZI_ASSET_PUBLIC_BASE_URL" \
   --repair-content \
   --concurrency 6 \
@@ -96,7 +96,7 @@ Run the repair and continue the unfinished characters:
 ```bash
 pnpm hanzi:generate -- \
   --input work/hanzi-assets-input.json \
-  --output outputs/hanzi-assets \
+  --output packages/assets/generated/hanzi-assets \
   --public-base-url "$HANZI_ASSET_PUBLIC_BASE_URL" \
   --repair-content \
   --concurrency 6 \
@@ -124,14 +124,14 @@ the same file names and paths, so the manifest does not need to change.
 Audit the current image size first:
 
 ```bash
-pnpm hanzi:compress-images:check -- --input outputs/hanzi-assets
+pnpm hanzi:compress-images:check -- --input packages/assets/generated/hanzi-assets
 ```
 
 Preview the expected savings without touching files:
 
 ```bash
 pnpm hanzi:compress-images -- \
-  --input outputs/hanzi-assets \
+  --input packages/assets/generated/hanzi-assets \
   --dry-run
 ```
 
@@ -139,7 +139,7 @@ Compress the generated hanzi images:
 
 ```bash
 pnpm hanzi:compress-images -- \
-  --input outputs/hanzi-assets
+  --input packages/assets/generated/hanzi-assets
 ```
 
 The default image policy is conservative for the iPad UI: keep images at up to
@@ -175,7 +175,7 @@ cd "/Users/qing/Documents/Codex/2026-07-22/ni"
 pnpm hanzi:deploy-assets
 ```
 
-This uploads `outputs/hanzi-assets/` to:
+This uploads `packages/assets/generated/hanzi-assets/` to:
 
 ```text
 /opt/star-monsters/hanzi-assets/v1
@@ -198,7 +198,7 @@ Local database:
 ```bash
 cd "/Users/qing/Documents/Codex/2026-07-22/ni"
 pnpm hanzi:import -- \
-  --manifest outputs/hanzi-assets/manifest.json \
+  --manifest packages/assets/generated/hanzi-assets/manifest.json \
   --public-base-url https://timothy.run/hanzi-assets/v1
 ```
 

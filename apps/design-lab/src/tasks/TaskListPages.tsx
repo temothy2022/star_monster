@@ -5,21 +5,21 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import balanceStar from "../assets/task-list/semantic/balance-star.png";
-import streakFlame from "../assets/task-list/semantic/streak-flame.png";
-import bookIcon from "../assets/task-list/semantic/task-book.png";
-import trainingIcon from "../assets/task-list/semantic/task-training.png";
-import mathIcon from "../assets/task-list/semantic/task-math.png";
-import returnIcon from "../assets/task-list/semantic/task-return.png";
-import clockIcon from "../assets/task-list/semantic/meta-clock.png";
-import rewardStar from "../assets/task-list/semantic/meta-star.png";
-import startArrow from "../assets/task-list/semantic/task-start-arrow-figma.svg";
-import completedStamp from "../assets/task-list/semantic/completed-stamp.webp";
-import emptyRocket from "../assets/task-list/semantic/empty-rocket.webp";
-import addPlus from "../assets/task-list/semantic/add-plus.png";
-import launchBase from "../assets/task-list/semantic/launch-base.webp";
-import completeStar from "../assets/task-list/semantic/complete-star.png";
-import compassIcon from "../assets/task-list/semantic/compass.png";
+import balanceStar from "@star-monsters/assets/images/task-list/semantic/balance-star.png";
+import streakFlame from "@star-monsters/assets/images/task-list/semantic/streak-flame.png";
+import bookIcon from "@star-monsters/assets/images/task-list/semantic/task-book.png";
+import trainingIcon from "@star-monsters/assets/images/task-list/semantic/task-training.png";
+import mathIcon from "@star-monsters/assets/images/task-list/semantic/task-math.png";
+import returnIcon from "@star-monsters/assets/images/task-list/semantic/task-return.png";
+import clockIcon from "@star-monsters/assets/images/task-list/semantic/meta-clock.png";
+import rewardStar from "@star-monsters/assets/images/task-list/semantic/meta-star.png";
+import startArrow from "@star-monsters/assets/icons/task-list/semantic/task-start-arrow-figma.svg";
+import completedStamp from "@star-monsters/assets/images/task-list/semantic/completed-stamp.webp";
+import emptyRocket from "@star-monsters/assets/images/task-list/semantic/empty-rocket.webp";
+import addPlus from "@star-monsters/assets/images/task-list/semantic/add-plus.png";
+import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-base.webp";
+import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
+import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import { useMascot } from "../mascots";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";

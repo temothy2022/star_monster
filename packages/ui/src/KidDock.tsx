@@ -1,7 +1,7 @@
-import navFootprint from "./assets/nav-footprint.svg";
-import navMap from "./assets/nav-map.svg";
-import navTask from "./assets/nav-task.svg";
-import navWish from "./assets/nav-wish.svg";
+import navFootprint from "@star-monsters/assets/icons/ui/nav-footprint.svg";
+import navMap from "@star-monsters/assets/icons/ui/nav-map.svg";
+import navTask from "@star-monsters/assets/icons/ui/nav-task.svg";
+import navWish from "@star-monsters/assets/icons/ui/nav-wish.svg";
 
 export type KidDockItem = "tasks" | "pet" | "wishes" | "footprints";
 

@@ -1,11 +1,11 @@
-import continueIcon from "../assets/onboarding/step3-continue.svg";
-import confettiA from "../assets/onboarding/step3-confetti-a.svg";
-import confettiB from "../assets/onboarding/step3-confetti-b.svg";
-import confettiC from "../assets/onboarding/step3-confetti-c.svg";
-import energyCluster from "../assets/onboarding/step3-energy-cluster.png";
-import flowArrow from "../assets/onboarding/step3-flow-arrow.png";
-import heading from "../assets/onboarding/step3-heading.webp";
-import taskCard from "../assets/onboarding/step3-task-card.webp";
+import continueIcon from "@star-monsters/assets/icons/onboarding/step3-continue.svg";
+import confettiA from "@star-monsters/assets/icons/onboarding/step3-confetti-a.svg";
+import confettiB from "@star-monsters/assets/icons/onboarding/step3-confetti-b.svg";
+import confettiC from "@star-monsters/assets/icons/onboarding/step3-confetti-c.svg";
+import energyCluster from "@star-monsters/assets/images/onboarding/step3-energy-cluster.png";
+import flowArrow from "@star-monsters/assets/images/onboarding/step3-flow-arrow.png";
+import heading from "@star-monsters/assets/images/onboarding/step3-heading.webp";
+import taskCard from "@star-monsters/assets/images/onboarding/step3-task-card.webp";
 import { useMascot } from "../mascots";
 import { OnboardingViewport } from "./OnboardingViewport";
 

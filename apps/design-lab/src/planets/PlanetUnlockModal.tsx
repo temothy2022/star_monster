@@ -1,5 +1,5 @@
 import type { ChildPlanet } from "../api/child-api";
-import rewardStar from "../assets/onboarding/step4-star.svg";
+import rewardStar from "@star-monsters/assets/icons/onboarding/step4-star.svg";
 import { useMascot } from "../mascots";
 import { PLANET_BY_KEY } from "./planet-data";
 

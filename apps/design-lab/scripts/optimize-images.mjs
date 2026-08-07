@@ -1,8 +1,10 @@
 import { readdir, rename, stat, unlink } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import sharp from "sharp";
 
-const root = path.resolve("src/assets");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+const root = path.join(repoRoot, "packages/assets/images");
 const checkOnly = process.argv.includes("--check");
 const rasterExtensions = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 const MAX_SINGLE_FILE_BYTES = 1_500_000;
