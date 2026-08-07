@@ -1,5 +1,6 @@
 import type { PetType } from "../mascots";
 import type { PlanetKey } from "../planets/planet-data";
+import { createIdempotencyKey } from "./idempotency";
 import { recordApiPerformance } from "./performance-telemetry";
 
 export type ChildProfile = {
@@ -722,7 +723,7 @@ export async function redeemChildWish(wishId: string) {
     alreadyProcessed: boolean;
   }>(`/api/child/wishes/${wishId}/redeem`, {
     method: "POST",
-    body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
+    body: JSON.stringify({ idempotencyKey: createIdempotencyKey("wish") }),
   });
 }
 

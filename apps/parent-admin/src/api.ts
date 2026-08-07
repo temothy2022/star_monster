@@ -1,3 +1,5 @@
+import { createIdempotencyKey } from "./idempotency";
+
 export type StaffUser = {
   id: string;
   username: string;
@@ -807,7 +809,7 @@ export const parentApi = {
         body: JSON.stringify({
           amount,
           reason,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: createIdempotencyKey("manual-stars"),
         }),
       },
     ),

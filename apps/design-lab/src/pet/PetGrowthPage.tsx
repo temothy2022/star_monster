@@ -9,6 +9,7 @@ import {
   type PetTravelTier,
   type PetTrip,
 } from "../api/child-api";
+import { createIdempotencyKey } from "../api/idempotency";
 import { useMascot } from "../mascots";
 
 const TIER_COPY: Record<PetTravelTier, { name: string; note: string; icon: string }> = {
@@ -17,8 +18,12 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string; icon: strin
   WORLD: { name: "世界旅行", note: "认识远方风景", icon: "🌍" },
 };
 
+const CARE_ANIMATION_MS = 3_000;
+const ROOM_NOTICE_MS = 2_000;
+type CareKind = "feed" | "drink";
+
 function actionKey(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
+  return createIdempotencyKey(prefix);
 }
 
 function formatDuration(minutes: number) {
@@ -116,10 +121,14 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
   const [state, setState] = useState<PetGrowthState | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [careAnimation, setCareAnimation] = useState<{ kind: CareKind; startedAt: number } | null>(null);
+  const [roomNotice, setRoomNotice] = useState("");
   const [travelOpen, setTravelOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
   const [now, setNow] = useState(Date.now());
+  const careTimerRef = useRef<number | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -147,25 +156,60 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
     return () => document.removeEventListener("visibilitychange", visible);
   }, [load]);
 
+  useEffect(() => {
+    Object.values(mascot.activityImages).forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
+  }, [mascot.activityImages]);
+
+  useEffect(() => () => {
+    if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+  }, []);
+
   const moodImage = useMemo(() => {
     if (!state) return mascot.images.neutral;
-    if (busy === "feed") return mascot.activityImages.eating;
-    if (busy === "drink") return mascot.activityImages.drinking;
+    if (careAnimation?.kind === "feed") return mascot.activityImages.eating;
+    if (careAnimation?.kind === "drink") return mascot.activityImages.drinking;
     if (state.currentTrip?.status === "TRAVELING") return mascot.activityImages.travel;
     if (state.pet.satiety < 30 || state.pet.hydration < 30) return mascot.activityImages.hungry;
     if (state.currentTrip) return mascot.images.celebrate;
     if (state.pet.satiety > 85 && state.pet.hydration > 85) return mascot.images.celebrate;
     return mascot.images.neutral;
-  }, [busy, mascot.activityImages, mascot.images, state]);
+  }, [careAnimation, mascot.activityImages, mascot.images, state]);
 
-  async function care(kind: "feed" | "drink") {
-    if (busy) return;
+  function showRoomNotice(message: string) {
+    setRoomNotice(message);
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => {
+      setRoomNotice("");
+      noticeTimerRef.current = null;
+    }, ROOM_NOTICE_MS);
+  }
+
+  async function care(kind: CareKind) {
+    if (busy || careAnimation || !state) return;
+    const status = kind === "feed" ? state.pet.satiety : state.pet.hydration;
+    if (status >= 100) {
+      showRoomNotice(kind === "feed" ? "星宠现在吃得很饱" : "星宠现在不渴");
+      return;
+    }
     setBusy(kind);
     try {
-      setState(await careForPet(kind, actionKey(kind)));
+      const result = await careForPet(kind, actionKey(kind));
+      setState(result);
       setError("");
+      const startedAt = Date.now();
+      setCareAnimation({ kind, startedAt });
+      if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
+      careTimerRef.current = window.setTimeout(() => {
+        setCareAnimation(null);
+        careTimerRef.current = null;
+      }, CARE_ANIMATION_MS);
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : "照顾星宠没有完成");
+      setTravelOpen(false);
+      showRoomNotice(reason instanceof ApiError ? reason.message : "照顾星宠没有完成");
     } finally {
       setBusy(null);
     }
@@ -215,17 +259,40 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
 
   return (
     <main className={`pet-growth-page pet-growth-page--${trip ? "travel" : "home"}`}>
-      <header className="pet-growth-header">
-        <button className="pet-back-button" type="button" onClick={onBack} aria-label="返回任务列表">‹ <span>返回</span></button>
-        <div className="pet-level-card">
-          <span>Lv.{state.pet.level}</span>
-          <div><strong>{mascot.name}</strong><i><b style={{ width: `${levelProgress}%` }} /></i></div>
-        </div>
-        <div className="pet-star-balance"><span>★</span><strong>{state.wallet.starBalance}</strong></div>
-      </header>
-
       <section className="pet-growth-stage">
         <div className="pet-room-backdrop" />
+        <header className="pet-room-hud">
+          <button className="pet-back-button" type="button" onClick={onBack} aria-label="返回任务列表"><span aria-hidden="true">‹</span><strong>返回</strong></button>
+          <div className="pet-level-card">
+            <span>Lv.{state.pet.level}</span>
+            <div><strong>{mascot.name}的成长进度</strong><i><b style={{ width: `${levelProgress}%` }} /></i></div>
+          </div>
+          <div className="pet-star-balance" aria-label={`当前有 ${state.wallet.starBalance} 颗星`}><span>★</span><div><small>我的星星</small><strong>{state.wallet.starBalance}</strong></div></div>
+        </header>
+
+        <section className="pet-status-card" aria-label="星宠状态">
+          <div className="pet-status-card__title"><div><small>成长阶段</small><strong>{state.pet.growthStage === "BABY" ? "幼年伙伴" : state.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong></div><span>第 {state.pet.level} 级</span></div>
+          <Meter label="饱食度" value={state.pet.satiety} tone="#f59a55" icon="●" />
+          <Meter label="饮水状态" value={state.pet.hydration} tone="#55b9d6" icon="◆" />
+          <div className="pet-spend-note">今日已使用 <strong>{state.wallet.dailySpent}</strong> 颗星{state.wallet.dailySpendLimitStars !== null && <> / {state.wallet.dailySpendLimitStars}</>}</div>
+        </section>
+
+        <aside className="pet-action-rail" aria-label="星宠操作">
+          <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation)} onClick={() => setTravelOpen(true)}>
+            <span className="pet-action-icon pet-action-icon--travel" aria-hidden="true">✦</span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "去看看远方" : "旅行已关闭"}</small></div>
+          </button>
+          <button className="pet-action-button pet-action-button--feed" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => void care("feed")}>
+            <span className="pet-action-icon pet-action-icon--snack" aria-hidden="true"><i /></span><div><strong>{busy === "feed" ? "准备点心…" : careAnimation?.kind === "feed" ? "正在吃点心" : "喂点心"}</strong><small>使用 {state.careOptions.feed.costStars} 颗星</small></div>
+          </button>
+          <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => void care("drink")}>
+            <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><i /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
+          </button>
+          <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(busy) || Boolean(careAnimation)} onClick={() => setAlbumOpen(true)}>
+            <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><i /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
+          </button>
+        </aside>
+
+        {roomNotice && <div className="pet-room-notice" role="status" aria-live="polite">{roomNotice}</div>}
         {trip?.status === "TRAVELING" ? (
           <div className="pet-traveling-scene">
             <div className="pet-traveling-orbit"><span>✦</span><span>✦</span><span>✦</span></div>
@@ -247,37 +314,23 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
             <div className={`pet-main-figure pet-main-figure--${state.pet.growthStage.toLowerCase()}`}>
               <span className="pet-main-figure__spark">✦</span>
               <img src={moodImage} alt={`你的星宠${mascot.name}`} />
-              <p>{state.pet.satiety < 30 ? "肚子有一点饿啦" : state.pet.hydration < 30 ? "想喝一点水" : "今天想去哪里看看呢？"}</p>
-            </div>
-            <div className="pet-care-controls">
-              <button type="button" disabled={Boolean(busy)} onClick={() => void care("feed")}>
-                <span>🍎</span><strong>{busy === "feed" ? "准备中…" : "喂点心"}</strong><small>★ {state.careOptions.feed.costStars}</small>
-              </button>
-              <button type="button" disabled={Boolean(busy)} onClick={() => void care("drink")}>
-                <span>💧</span><strong>{busy === "drink" ? "准备中…" : "喂水"}</strong><small>★ {state.careOptions.drink.costStars}</small>
-              </button>
+              {careAnimation ? (
+                <div className="pet-care-progress" key={careAnimation.startedAt}>
+                  <strong>{careAnimation.kind === "feed" ? "正在享用点心" : "正在补充水分"}</strong>
+                  <i><b /></i>
+                </div>
+              ) : <p>{state.pet.satiety < 30 ? "肚子有一点饿啦" : state.pet.hydration < 30 ? "想喝一点水" : "今天想去哪里看看呢？"}</p>}
             </div>
           </>
         )}
       </section>
-
-      <aside className="pet-growth-panel">
-        <div className="pet-growth-panel__title"><div><small>成长阶段</small><strong>{state.pet.growthStage === "BABY" ? "幼年伙伴" : state.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong></div><span>第 {state.pet.level} 级</span></div>
-        <Meter label="饱食度" value={state.pet.satiety} tone="#f59a55" icon="●" />
-        <Meter label="饮水状态" value={state.pet.hydration} tone="#55b9d6" icon="◆" />
-        {error && <div className="pet-inline-error" onClick={() => setError("")}>{error}</div>}
-        <div className="pet-primary-actions">
-          <button type="button" disabled={Boolean(trip) || !state.travelEnabled} onClick={() => setTravelOpen(true)}><span>✈</span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "选择旅费，目的地会是惊喜" : "家长暂时关闭了旅行"}</small></div></button>
-          <button type="button" onClick={() => setAlbumOpen(true)}><span>▧</span><div><strong>明信片册</strong><small>已经收藏 {state.postcards.length} 张</small></div></button>
-        </div>
-        <div className="pet-spend-note">今天为星宠使用了 <strong>{state.wallet.dailySpent}</strong> 颗星{state.wallet.dailySpendLimitStars !== null && <>，上限 {state.wallet.dailySpendLimitStars} 颗</>}</div>
-      </aside>
 
       {travelOpen && (
         <div className="pet-modal" role="dialog" aria-modal="true" aria-label="选择旅行">
           <button className="pet-modal__backdrop" type="button" aria-label="关闭" onClick={() => setTravelOpen(false)} />
           <section className="pet-travel-sheet">
             <header><div><small>给星宠准备旅费</small><h2>这次去哪里，会是一个惊喜</h2></div><button type="button" onClick={() => setTravelOpen(false)} aria-label="关闭">×</button></header>
+            {error && <div className="pet-inline-error" onClick={() => setError("")}>{error}</div>}
             <div className="pet-travel-options">
               {state.travelOptions.map((option) => {
                 const copy = TIER_COPY[option.tier];
