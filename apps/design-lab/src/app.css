@@ -1313,26 +1313,13 @@ input[type="reset"] {
   justify-content: center;
   padding: 12px 18px;
   border: 2px solid var(--task-ink);
-  border-radius: 20px 20px 20px 0;
+  border-radius: 20px;
   background: var(--task-surface);
   box-shadow: 0 8px 24px rgba(37, 59, 89, 0.1);
   font-size: 14px;
   line-height: 20px;
   text-align: left;
   overflow-wrap: anywhere;
-}
-
-.task-speech-bubble::after {
-  position: absolute;
-  bottom: -12px;
-  left: -2px;
-  width: 18px;
-  height: 18px;
-  border-bottom: 2px solid var(--task-ink);
-  border-left: 2px solid var(--task-ink);
-  background: var(--task-surface);
-  content: "";
-  transform: skewY(-34deg);
 }
 
 .task-speech-bubble__line {

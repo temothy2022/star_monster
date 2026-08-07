@@ -111,6 +111,17 @@ const FALLBACK_MASCOT_DIALOGUES: Record<
   EMPTY: ["今天轻松一点，去看看你的星愿吧！", "暂时没有新任务，我们一起放松一下。"],
 };
 
+function pickMascotDialogue(
+  dialogues: MascotDialogue[],
+  currentId?: string | null,
+) {
+  if (dialogues.length === 0) return null;
+  const choices = currentId == null || dialogues.length === 1
+    ? dialogues
+    : dialogues.filter((dialogue) => dialogue.id !== currentId);
+  return choices[Math.floor(Math.random() * choices.length)] ?? dialogues[0] ?? null;
+}
+
 function DailyProgress({ earned, total }: { earned: number; total: number }) {
   const radius = 55;
   const circumference = 2 * Math.PI * radius;
@@ -153,30 +164,34 @@ function ProgressColumn({
   const audioCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const playbackTokenRef = useRef(0);
   const lastTapAtRef = useRef(0);
-  const lastSpokenIdRef = useRef<string | null>(null);
-  const candidates = useMemo(() => {
-    const withAudio = dialogues.filter((dialogue) => Boolean(dialogue.audioUrl));
-    return withAudio.length > 0 ? withAudio : dialogues;
-  }, [dialogues]);
+  const candidates = useMemo(() => dialogues, [dialogues]);
+  const candidatesRef = useRef<MascotDialogue[]>(candidates);
   const fallbackText = FALLBACK_MASCOT_DIALOGUES[mascotContext][0];
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(
-    () => candidates[0] ?? null,
+    () => pickMascotDialogue(candidates),
   );
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
+    candidatesRef.current = candidates;
     setSelectedDialogue((current) =>
       candidates.find((dialogue) => dialogue.id === current?.id) ??
-      candidates[0] ??
+      pickMascotDialogue(candidates) ??
       null,
     );
-    for (const dialogue of candidates) {
-      if (!dialogue.audioUrl || audioCacheRef.current.has(dialogue.audioUrl)) continue;
-      const audio = new Audio(dialogue.audioUrl);
-      audio.preload = "auto";
-      audioCacheRef.current.set(dialogue.audioUrl, audio);
-    }
   }, [candidates]);
+
+  useEffect(() => {
+    function refreshDialogueOnVisible() {
+      if (document.visibilityState !== "visible") return;
+      setSelectedDialogue((current) =>
+        pickMascotDialogue(candidatesRef.current, current?.id),
+      );
+    }
+
+    document.addEventListener("visibilitychange", refreshDialogueOnVisible);
+    return () => document.removeEventListener("visibilitychange", refreshDialogueOnVisible);
+  }, []);
 
   useEffect(() => () => {
     playbackTokenRef.current += 1;
@@ -198,23 +213,14 @@ function ProgressColumn({
       return;
     }
 
-    const currentIndex = candidates.findIndex(
-      (dialogue) => dialogue.id === lastSpokenIdRef.current,
-    );
-    const dialogue = lastSpokenIdRef.current == null
-      ? selectedDialogue ?? candidates[0] ?? null
-      : candidates[(currentIndex + 1) % Math.max(1, candidates.length)] ?? null;
-    if (!dialogue) return;
-    setSelectedDialogue(dialogue);
-    lastSpokenIdRef.current = dialogue.id;
-    if (!dialogue.audioUrl) return;
+    if (!selectedDialogue?.audioUrl) return;
 
     const token = ++playbackTokenRef.current;
-    const cached = audioCacheRef.current.get(dialogue.audioUrl);
-    const audio = cached ?? new Audio(dialogue.audioUrl);
+    const cached = audioCacheRef.current.get(selectedDialogue.audioUrl);
+    const audio = cached ?? new Audio(selectedDialogue.audioUrl);
     if (!cached) {
       audio.preload = "auto";
-      audioCacheRef.current.set(dialogue.audioUrl, audio);
+      audioCacheRef.current.set(selectedDialogue.audioUrl, audio);
     }
     audioRef.current = audio;
     audio.currentTime = 0;
