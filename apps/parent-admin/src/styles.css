@@ -118,6 +118,13 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
   cursor: pointer;
 }
 .primary-button { color: white; background: #f47a3f; box-shadow: 0 4px 0 #243654; }
+.list-card__actions .primary-button,
+.wish-admin-card .primary-button,
+.table-actions .primary-button {
+  color: white;
+  border-color: #243654;
+  background: #f47a3f;
+}
 .primary-button:active { transform: translateY(3px); box-shadow: 0 1px 0 #243654; }
 .primary-button:disabled, button:disabled { cursor: not-allowed; opacity: .45; }
 .ghost-button { background: #fffdf7; }
