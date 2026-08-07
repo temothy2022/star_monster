@@ -4,7 +4,10 @@ import "@star-monsters/ui/styles.css";
 import { App } from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { MascotProvider } from "./mascots";
+import { installVersionRefresh } from "./version-refresh";
 import "./app.css";
+
+installVersionRefresh();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
