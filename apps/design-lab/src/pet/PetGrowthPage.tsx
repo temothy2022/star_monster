@@ -41,6 +41,7 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
 const CARE_ANIMATION_MS = 3_000;
 const ROOM_NOTICE_MS = 2_000;
 const PET_SOUND_STORAGE_KEY = "star-monsters:pet-sound-enabled";
+const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
 type CareKind = "feed" | "drink";
 type RoomNotice = { id: number; message: string };
 
@@ -50,6 +51,18 @@ function initialPetSoundEnabled() {
   } catch {
     return true;
   }
+}
+
+function shanghaiDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 const PET_FALLBACK_DIALOGUES: Record<PetDialogueContext, string[]> = {
@@ -198,8 +211,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const petSoundCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const dialogueQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const petSoundQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  const careSoundQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  const entrySoundPlaybackRef = useRef<ReturnType<typeof createHtmlAudioPlayback> | null>(null);
   const soundRetryCleanupRef = useRef(new Set<() => void>());
   const postcardSoundTripIdRef = useRef<string | null>(null);
+  const entryVisitHandledRef = useRef(false);
   const soundEnabledRef = useRef(soundEnabled);
   const roomNoticeIdRef = useRef(0);
   if (!dialogueQueueRef.current) {
@@ -207,6 +223,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }
   if (!petSoundQueueRef.current) {
     petSoundQueueRef.current = new SinglePendingPlaybackQueue();
+  }
+  if (!careSoundQueueRef.current) {
+    careSoundQueueRef.current = new SinglePendingPlaybackQueue();
   }
   const idleMascotImage = useMemo(
     () => (Math.random() < 0.42 ? mascot.activityImages.sleeping : mascot.images.neutral),
@@ -224,6 +243,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  const stopEntrySound = useCallback(() => {
+    entrySoundPlaybackRef.current?.cancel();
+    entrySoundPlaybackRef.current = null;
+  }, []);
   const playPetSound = useCallback((url: string, retryOnGesture = false) => {
     if (!soundEnabledRef.current) return;
     let canRetry = retryOnGesture;
@@ -260,15 +283,50 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     enqueue();
   }, []);
   useEffect(() => {
-    if (soundEnabledRef.current) playPetSound(happyEntrySound, true);
-  }, [playPetSound]);
+    if (!state || entryVisitHandledRef.current) return;
+    entryVisitHandledRef.current = true;
+
+    const today = shanghaiDateKey();
+    let lastPlayedDate: string | null = null;
+    try {
+      lastPlayedDate = window.localStorage.getItem(PET_ENTRY_SOUND_DATE_KEY);
+      window.localStorage.setItem(PET_ENTRY_SOUND_DATE_KEY, today);
+    } catch {
+      // The visit still works when storage is unavailable, but cannot persist the daily limit.
+    }
+    if (
+      lastPlayedDate === today
+      || !soundEnabledRef.current
+      || state.currentTrip?.status === "RETURNED"
+    ) return;
+
+    const cached = petSoundCacheRef.current.get(happyEntrySound);
+    const audio = cached ?? new Audio(happyEntrySound);
+    if (!cached) {
+      audio.preload = "auto";
+      petSoundCacheRef.current.set(happyEntrySound, audio);
+    }
+    const playback = createHtmlAudioPlayback(audio);
+    entrySoundPlaybackRef.current = playback;
+    void playback.done
+      .catch(() => undefined)
+      .finally(() => {
+        if (entrySoundPlaybackRef.current === playback) {
+          entrySoundPlaybackRef.current = null;
+        }
+      });
+  }, [state, stopEntrySound]);
   useEffect(() => {
     const returnedTrip = state?.currentTrip;
     if (returnedTrip?.status !== "RETURNED") return;
+    stopEntrySound();
     if (postcardSoundTripIdRef.current === returnedTrip.id) return;
     postcardSoundTripIdRef.current = returnedTrip.id;
     playPetSound(postcardArrivedSound, true);
-  }, [playPetSound, state?.currentTrip]);
+  }, [playPetSound, state?.currentTrip, stopEntrySound]);
+  useEffect(() => {
+    if (postcard) stopEntrySound();
+  }, [postcard, stopEntrySound]);
   useEffect(() => {
     if (state) reportChildPageReady("pet-growth", "/api/child/pet");
   }, [state]);
@@ -318,9 +376,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     dialogueQueueRef.current?.clear();
     petSoundQueueRef.current?.clear();
+    careSoundQueueRef.current?.clear();
+    stopEntrySound();
     soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
     soundRetryCleanupRef.current.clear();
-  }, []);
+  }, [stopEntrySound]);
 
   function speakPetDialogue() {
     if (!soundEnabledRef.current || !selectedDialogue || careAnimation) return;
@@ -356,11 +416,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (!next) {
       dialogueQueueRef.current?.clear();
       petSoundQueueRef.current?.clear();
+      careSoundQueueRef.current?.clear();
+      stopEntrySound();
       soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
       soundRetryCleanupRef.current.clear();
-      return;
     }
-    playPetSound(happyEntrySound);
   }
 
   const moodImage = useMemo(() => {
@@ -410,9 +470,22 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       setCareConfirm(null);
       const startedAt = Date.now();
       setCareAnimation({ kind, startedAt });
-      playPetSound(kind === "feed" ? eatingSound : drinkingSound);
+      careSoundQueueRef.current?.clear();
+      if (soundEnabledRef.current) {
+        const soundUrl = kind === "feed" ? eatingSound : drinkingSound;
+        careSoundQueueRef.current?.enqueue(() => {
+          const cached = petSoundCacheRef.current.get(soundUrl);
+          const audio = cached ?? new Audio(soundUrl);
+          if (!cached) {
+            audio.preload = "auto";
+            petSoundCacheRef.current.set(soundUrl, audio);
+          }
+          return createHtmlAudioPlayback(audio);
+        });
+      }
       if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
       careTimerRef.current = window.setTimeout(() => {
+        careSoundQueueRef.current?.clear();
         setCareAnimation(null);
         careTimerRef.current = null;
       }, CARE_ANIMATION_MS);
@@ -476,7 +549,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     : null;
 
   return (
-    <main className={`pet-growth-page pet-growth-page--${trip ? "travel" : "home"}`}>
+    <main
+      className={`pet-growth-page pet-growth-page--${trip ? "travel" : "home"}`}
+      onPointerDownCapture={stopEntrySound}
+    >
       <section className="pet-growth-stage">
         <div className="pet-room-backdrop" />
         <header className="pet-room-hud">
