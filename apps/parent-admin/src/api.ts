@@ -102,6 +102,7 @@ export type MakeTenFactStats = {
 };
 
 export type MakeTenLearningStats = ClockLearningStats & {
+  averageResponseMs: number | null;
   facts: MakeTenFactStats[];
 };
 
@@ -382,12 +383,9 @@ export type GrowthAnalytics = {
 
 export type WeeklyGrowthAnalysis = {
   summary: string;
-  progressHighlights: Array<{ title: string; evidence: string }>;
-  focusAreas: Array<{ title: string; evidence: string; suggestion: string }>;
-  consumptionInsight: { summary: string; preferredCategories: string[] };
-  nextWeekSuggestions: Array<{ title: string; action: string; reason: string }>;
-  parentMessage: string;
-  disclaimer: string;
+  strengths: string[];
+  focus: string | null;
+  suggestions: string[];
 };
 
 export type WeeklyGrowthReport = {

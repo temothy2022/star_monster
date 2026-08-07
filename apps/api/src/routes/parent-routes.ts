@@ -978,7 +978,6 @@ export async function registerParentRoutes(
         where: {
           childId: id,
           completedAt: { not: null },
-          taskAttempt: { status: "COMPLETED" },
         },
         _count: { _all: true },
         _sum: { correctCount: true, totalQuestions: true },
@@ -987,7 +986,6 @@ export async function registerParentRoutes(
         where: {
           childId: id,
           completedAt: { gte: recentFrom },
-          taskAttempt: { status: "COMPLETED" },
         },
         _count: { _all: true },
         _sum: { correctCount: true, totalQuestions: true },
@@ -1027,25 +1025,32 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     const recentFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [settings, allTime, recent, factProgress] = await Promise.all([
+    const [settings, allTime, recent, factProgress, responseTimes] = await Promise.all([
       prisma.makeTenLearningSettings.upsert({
         where: { childId: id },
         update: {},
         create: { childId: id },
       }),
       prisma.makeTenLearningSession.aggregate({
-        where: { childId: id, completedAt: { not: null }, taskAttempt: { status: "COMPLETED" } },
+        where: { childId: id, completedAt: { not: null } },
         _count: { _all: true },
         _sum: { correctCount: true, totalQuestions: true },
       }),
       prisma.makeTenLearningSession.aggregate({
-        where: { childId: id, completedAt: { gte: recentFrom }, taskAttempt: { status: "COMPLETED" } },
+        where: { childId: id, completedAt: { gte: recentFrom } },
         _count: { _all: true },
         _sum: { correctCount: true, totalQuestions: true },
       }),
       prisma.makeTenFactProgress.findMany({
         where: { childId: id },
         orderBy: { target: "asc" },
+      }),
+      prisma.makeTenQuestionAttempt.aggregate({
+        where: {
+          childId: id,
+          session: { completedAt: { not: null } },
+        },
+        _avg: { responseMs: true },
       }),
     ]);
     const totalQuestions = allTime._sum.totalQuestions ?? 0;
@@ -1064,6 +1069,10 @@ export async function registerParentRoutes(
         correctAnswers,
         accuracy,
         recentAccuracy: recentQuestions ? recentCorrect / recentQuestions : null,
+        averageResponseMs:
+          responseTimes._avg.responseMs === null
+            ? null
+            : Math.round(responseTimes._avg.responseMs),
         mastery: makeTenMastery(accuracy),
         facts: Array.from({ length: 9 }, (_, index) => index + 1).map(
           (target) => {

@@ -152,7 +152,7 @@ export async function generateWeeklyGrowthReport(
       systemPrompt: weeklyGrowthSystemPrompt,
       userPayload: metricsPayload,
       outputSchema: weeklyGrowthResponseSchema,
-      maxTokens: 3_500,
+      maxTokens: 1_200,
     });
     return await prisma.weeklyGrowthReport.update({
       where: { id: report.id },

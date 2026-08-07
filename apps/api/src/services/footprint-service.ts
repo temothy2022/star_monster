@@ -4,6 +4,7 @@ import {
   addBusinessDays,
   businessDateAt,
   businessDateKey,
+  businessMinuteOfDayAt,
   startOfBusinessWeek,
 } from "../lib/time.js";
 import {
@@ -31,6 +32,8 @@ export async function getFootprints(
       : requestedDate;
 
   const todayKey = businessDateKey(today);
+  const weekStartKey = businessDateKey(weekStart);
+  const currentMinute = businessMinuteOfDayAt(now, config.APP_TIME_ZONE);
   const [tasks, child] = await Promise.all([
     prisma.dailyTask.findMany({
       where: {
@@ -122,6 +125,14 @@ export async function getFootprints(
   const weeklyStats = summarizePeriod(weekStart, today);
   const elapsedWeekDays =
     Math.floor((today.getTime() - weekStart.getTime()) / 86_400_000) + 1;
+  const weeklyScoreDays = Array.from({ length: elapsedWeekDays }, (_, index) => {
+    const date = addBusinessDays(weekStart, index);
+    return {
+      seed: businessDateKey(date),
+      elapsedMinutes:
+        index === elapsedWeekDays - 1 ? currentMinute : 24 * 60,
+    };
+  });
 
   return {
     weekStart: businessDateKey(weekStart),
@@ -136,7 +147,9 @@ export async function getFootprints(
         nickname: child.nickname,
         petType: child.petType,
         goalStars: child.dailyStarGoal,
-        seed: todayKey,
+        dailyGoalStars: child.dailyStarGoal,
+        seed: weekStartKey,
+        scoreDays: [{ seed: todayKey, elapsedMinutes: currentMinute }],
       }),
       weekly: buildMotivationalLeaderboard({
         childId,
@@ -144,7 +157,9 @@ export async function getFootprints(
         nickname: child.nickname,
         petType: child.petType,
         goalStars: child.dailyStarGoal * elapsedWeekDays,
-        seed: businessDateKey(weekStart),
+        dailyGoalStars: child.dailyStarGoal,
+        seed: weekStartKey,
+        scoreDays: weeklyScoreDays,
       }),
     },
   };

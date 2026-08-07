@@ -1,4 +1,5 @@
 const DATE_PARTS_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+const TIME_PARTS_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(timeZone: string): Intl.DateTimeFormat {
   const existing = DATE_PARTS_FORMATTERS.get(timeZone);
@@ -20,6 +21,26 @@ export function businessDateAt(instant: Date, timeZone: string): Date {
   const month = Number(parts.find((part) => part.type === "month")?.value);
   const day = Number(parts.find((part) => part.type === "day")?.value);
   return new Date(Date.UTC(year, month - 1, day));
+}
+
+export function businessMinuteOfDayAt(
+  instant: Date,
+  timeZone: string,
+): number {
+  let timeFormatter = TIME_PARTS_FORMATTERS.get(timeZone);
+  if (!timeFormatter) {
+    timeFormatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    TIME_PARTS_FORMATTERS.set(timeZone, timeFormatter);
+  }
+  const parts = timeFormatter.formatToParts(instant);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value);
+  return hour * 60 + minute;
 }
 
 export function businessDateKey(date: Date): string {

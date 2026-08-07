@@ -2,6 +2,7 @@ import { Prisma, type AiRecommendationKind } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  legacyWeeklyGrowthResponseSchema,
   rewardAuditResponseSchema,
   scheduleResponseSchema,
   taskAdviceResponseSchema,
@@ -179,6 +180,25 @@ function weeklyReportResponse(
 ) {
   if (!report) return null;
   const parsed = weeklyGrowthResponseSchema.safeParse(report.responsePayload);
+  const legacy = parsed.success
+    ? null
+    : legacyWeeklyGrowthResponseSchema.safeParse(report.responsePayload);
+  const analysis = parsed.success
+    ? parsed.data
+    : legacy?.success
+      ? {
+          summary: legacy.data.summary,
+          strengths: legacy.data.progressHighlights
+            .slice(0, 2)
+            .map((item) => `${item.title}：${item.evidence}`),
+          focus: legacy.data.focusAreas[0]
+            ? `${legacy.data.focusAreas[0].title}：${legacy.data.focusAreas[0].evidence}`
+            : null,
+          suggestions: legacy.data.nextWeekSuggestions
+            .slice(0, 2)
+            .map((item) => item.action),
+        }
+      : null;
   return {
     id: report.id,
     status: report.status,
@@ -186,7 +206,7 @@ function weeklyReportResponse(
     weekEnd: report.weekEnd,
     generatedAt: report.generatedAt,
     model: report.model,
-    analysis: parsed.success ? parsed.data : null,
+    analysis,
   };
 }
 

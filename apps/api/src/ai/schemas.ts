@@ -283,7 +283,7 @@ export const scheduleResponseSchema = z.object({
   evidencePrinciples: z.array(evidencePrincipleSchema).min(1).max(7),
 });
 
-export const weeklyGrowthResponseSchema = z.object({
+export const legacyWeeklyGrowthResponseSchema = z.object({
   summary: z.string().min(1).max(320),
   progressHighlights: z
     .array(
@@ -317,6 +317,13 @@ export const weeklyGrowthResponseSchema = z.object({
     .max(3),
   parentMessage: z.string().min(1).max(240),
   disclaimer: z.string().min(1).max(240),
+});
+
+export const weeklyGrowthResponseSchema = z.object({
+  summary: z.string().min(1).max(180),
+  strengths: z.array(z.string().min(1).max(100)).max(2),
+  focus: z.string().min(1).max(120).nullable(),
+  suggestions: z.array(z.string().min(1).max(140)).min(1).max(2),
 });
 
 export type TaskAdviceResponse = z.infer<typeof taskAdviceResponseSchema>;

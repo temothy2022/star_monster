@@ -653,10 +653,10 @@ function FootprintLeaderboard({
       </div>
 
       <ol className="footprints-leaderboard__list">
-        {leaderboard.entries.map((entry, index) => (
+        {leaderboard.entries.map((entry) => (
           <li
             className={`footprints-leaderboard__row${entry.isSelf ? " footprints-leaderboard__row--self" : ""}`}
-            key={`${period}-${index}-${entry.displayName}-${entry.flagKey}`}
+            key={`${period}-${entry.displayName}-${entry.flagKey}`}
           >
             <span className={`footprints-leaderboard__rank footprints-leaderboard__rank--${Math.min(entry.rank, 4)}`}>
               {entry.rank}
