@@ -48,9 +48,13 @@
 .mascot-asset-card__preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .mascot-asset-card__preview span { color: #9aa4b5; font-size: 12px; font-weight: 700; }
 .mascot-asset-card__content { min-width: 0; display: grid; gap: 3px; }
-.mascot-asset-card__content strong { color: #233653; font-size: 15px; }
+.mascot-asset-card__content strong { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: #233653; font-size: 15px; }
 .mascot-asset-card__content small,
 .mascot-asset-card__content em { overflow: hidden; color: #7b8699; font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.mascot-asset-source { padding: 3px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.mascot-asset-source--default { color: #667085; background: #eef2f6; }
+.mascot-asset-source--uploaded { color: #946300; background: #fff2bd; }
+.mascot-asset-source--empty { color: #8b6f58; background: #fff5eb; }
 .mascot-asset-upload { min-width: 64px; justify-content: center; }
 .super-metric-wide { grid-column: span 2; }
 .audit-json { display: block; max-width: 300px; overflow: hidden; color: #7b8699; font-family: ui-monospace, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
