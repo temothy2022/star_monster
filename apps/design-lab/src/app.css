@@ -1187,7 +1187,7 @@ input[type="reset"] {
 .task-progress-card {
   position: relative;
   width: 100%;
-  height: clamp(300px, 48%, 404.78px);
+  height: clamp(284px, 46%, 390px);
   overflow: hidden;
   border: 2px solid var(--task-ink);
   border-radius: 24px;
@@ -1227,7 +1227,7 @@ input[type="reset"] {
 
 .daily-progress {
   position: absolute;
-  top: 122.78px;
+  top: 106px;
   left: 50%;
   width: 160px;
   height: 160px;
@@ -1262,7 +1262,7 @@ input[type="reset"] {
 
 .task-balance {
   position: absolute;
-  top: 306.78px;
+  top: 284px;
   left: 26px;
   display: flex;
   right: 26px;
@@ -1283,7 +1283,7 @@ input[type="reset"] {
 
 .task-mascot-area {
   position: absolute;
-  top: min(428.78px, calc(48% + 24px));
+  top: min(404px, calc(46% + 18px));
   bottom: 0;
   left: 0;
   width: 100%;
@@ -2037,16 +2037,15 @@ input[type="reset"] {
 
   .task-progress-column {
     width: 100%;
-    height: 160px;
-    flex: 0 0 160px;
+    height: 154px;
+    flex: 0 0 154px;
   }
 
-  .task-progress-card { height: 160px; }
+  .task-progress-card { height: 154px; }
   .task-progress-card h2 { top: 16px; left: 18px; font-size: 22px; line-height: 30px; }
-  .task-progress-card > p { top: 49px; right: 150px; left: 18px; font-size: 12px; line-height: 18px; }
   .daily-progress {
-    top: 14px;
-    right: 14px;
+    top: 10px;
+    right: 10px;
     left: auto;
     width: 120px;
     height: 120px;
@@ -2054,7 +2053,7 @@ input[type="reset"] {
   }
   .daily-progress svg { width: 120px; height: 120px; }
   .daily-progress__label { font-size: 23px; }
-  .task-balance { top: 94px; right: auto; left: 18px; width: 176px; height: 48px; padding: 0 12px; }
+  .task-balance { top: 86px; right: auto; left: 18px; width: 176px; height: 48px; padding: 0 12px; }
   .task-balance__value { gap: 5px; }
   .task-balance__value strong { font-size: 18px; }
   .task-balance > span { font-size: 12px; }
@@ -2226,14 +2225,13 @@ input[type="reset"] {
 }
 
 @media (max-height: 850px) and (min-width: 701px) {
-  .task-progress-card { height: 300px; }
+  .task-progress-card { height: 282px; }
   .task-progress-card h2 { top: 18px; left: 22px; font-size: 24px; }
-  .task-progress-card > p { top: 58px; left: 22px; }
-  .daily-progress { top: 88px; width: 128px; height: 128px; }
+  .daily-progress { top: 74px; width: 128px; height: 128px; }
   .daily-progress svg { width: 128px; height: 128px; }
   .daily-progress__label { font-size: 26px; }
   .task-balance { top: auto; right: 22px; bottom: 16px; left: 22px; height: 54px; }
-  .task-mascot-area { top: 324px; }
+  .task-mascot-area { top: 304px; }
   .task-mascot-area__glow { top: auto; bottom: 0; }
   .task-mascot-figure {
     width: min(86%, clamp(140px, calc(100dvh - 504px), 260px));
