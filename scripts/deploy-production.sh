@@ -41,7 +41,8 @@ else
   RELEASE_VERSION="$(git rev-parse HEAD)"
 fi
 
-echo "1/3 Building the three web apps locally..."
+echo "1/3 Building the API and three web apps locally..."
+pnpm --filter @star-monsters/api build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/design-lab build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/parent-admin build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/super-admin build

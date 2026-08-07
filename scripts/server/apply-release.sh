@@ -23,8 +23,10 @@ NGINX_PERFORMANCE_CONF="${NGINX_PERFORMANCE_CONF:-/etc/nginx/conf.d/star-monster
 
 cd "$PROJECT_ROOT"
 
-# Dependencies are installed only when the lockfile changes. The API is built on
-# Linux so Prisma's native engine always matches the server architecture.
+# Dependencies are installed only when the lockfile changes. The API's
+# platform-neutral JavaScript is compiled on the developer machine because the
+# production server has limited memory. Prisma's native engine is still
+# generated on Linux below so it always matches the server architecture.
 LOCKFILE_HASH="$(sha256sum pnpm-lock.yaml | awk '{print $1}')"
 STAMP_FILE=".deploy-pnpm-lock.sha256"
 if [[ ! -f "$STAMP_FILE" ]] || [[ "$(cat "$STAMP_FILE")" != "$LOCKFILE_HASH" ]]; then
@@ -39,7 +41,11 @@ fi
 # schema that is about to be deployed.
 corepack pnpm --filter @star-monsters/api db:generate
 corepack pnpm --filter @star-monsters/api db:deploy
-corepack pnpm --filter @star-monsters/api build
+if [[ ! -f apps/api/dist/src/server.js ]]; then
+  echo "Missing apps/api/dist/src/server.js from the uploaded release."
+  echo "Run the local production deploy script so the API is compiled before upload."
+  exit 1
+fi
 
 API_RUN_USER="$(systemctl show "$API_SERVICE" -p User --value)"
 if [[ -z "$API_RUN_USER" ]]; then
