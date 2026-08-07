@@ -9,7 +9,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input, select, textarea { font: inherit; }
-button { color: inherit; }
+button { color: #243654; }
 button,
 [role="button"],
 input[type="button"],
