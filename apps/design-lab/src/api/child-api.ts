@@ -768,7 +768,7 @@ export type FootprintResponse = {
 };
 
 export type ChildLeaderboardEntry = {
-  rank: number;
+  rank: number | null;
   displayName: string;
   stars: number;
   completedTasks: number;
@@ -792,7 +792,7 @@ export type ChildLeaderboardEntry = {
 export type ChildLeaderboard = {
   entries: ChildLeaderboardEntry[];
   self: {
-    rank: number;
+    rank: number | null;
     stars: number;
     completedTasks: number;
     totalParticipants: number;

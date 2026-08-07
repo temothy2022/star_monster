@@ -5470,28 +5470,13 @@ input[type="reset"] {
   box-shadow: 0 8px 24px rgba(37, 59, 89, 0.1);
 }
 
-.footprints-leaderboard__header {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.footprints-leaderboard__header h1 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 30px;
-}
-
 .footprints-leaderboard__tabs {
   display: grid;
   height: 40px;
   flex: 0 0 40px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
-  margin-top: 12px;
+  margin-top: 0;
   padding: 3px;
   border: 2px solid var(--progress-ink);
   border-radius: 14px;
@@ -5564,6 +5549,7 @@ input[type="reset"] {
 .footprints-leaderboard__rank--1 { background: #ffd85b; }
 .footprints-leaderboard__rank--2 { background: #dfe7ee; }
 .footprints-leaderboard__rank--3 { background: #eab287; }
+.footprints-leaderboard__rank--unlisted { font-size: 12px; letter-spacing: 0; }
 
 .footprints-leaderboard__avatar {
   position: relative;
@@ -5736,10 +5722,6 @@ input[type="reset"] {
     padding: 14px;
   }
 
-  .footprints-leaderboard__header h1 {
-    font-size: 19px;
-  }
-
   .footprints-leaderboard__row {
     grid-template-columns: 26px 43px minmax(0, 1fr) auto;
     gap: 5px;
@@ -5762,16 +5744,10 @@ input[type="reset"] {
     padding-bottom: 12px;
   }
 
-  .footprints-leaderboard__header h1 {
-    margin-top: 0;
-    font-size: 19px;
-    line-height: 26px;
-  }
-
   .footprints-leaderboard__tabs {
     height: 36px;
     flex-basis: 36px;
-    margin-top: 8px;
+    margin-top: 0;
   }
 
   .footprints-leaderboard__row {
@@ -5817,11 +5793,6 @@ input[type="reset"] {
     flex: 0 0 auto;
     padding: 14px;
     border-radius: 22px;
-  }
-
-  .footprints-leaderboard__header h1 {
-    font-size: 20px;
-    line-height: 27px;
   }
 
   .footprints-leaderboard__row {
@@ -7088,7 +7059,7 @@ input[type="reset"] {
   }
 }
 
-/* 航图：复用全局底部导航，页面主体独立滚动。 */
+/* 航图从星宠小屋进入，页面主体独立滚动。 */
 html:has(.planet-map-page),
 body:has(.planet-map-page),
 #root:has(.planet-map-page) {
@@ -7112,7 +7083,7 @@ body:has(.planet-map-page),
 .planet-map-scroll {
   width: 100%;
   height: 100%;
-  padding: 26px 32px 118px;
+  padding: 26px 32px 34px;
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
@@ -7130,7 +7101,28 @@ body:has(.planet-map-page),
   align-items: center;
   gap: 20px;
   padding-bottom: 24px;
+  flex-wrap: wrap;
 }
+
+.planet-map-back {
+  display: inline-flex;
+  min-width: 148px;
+  height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-right: auto;
+  padding: 0 18px 0 13px;
+  border: 2px solid #253b59;
+  border-radius: 999px;
+  color: #253b59;
+  background: #fffdf7;
+  box-shadow: 0 4px 0 rgba(37, 59, 89, 0.16);
+  font: 700 17px/1 var(--sm-font-sans);
+}
+
+.planet-map-back > span { margin-top: -3px; font-size: 31px; font-weight: 500; line-height: .7; }
+.planet-map-back:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(37, 59, 89, 0.16); }
 
 .planet-map-counter {
   display: flex;
@@ -7412,12 +7404,14 @@ body:has(.planet-map-page),
 
 @media (max-width: 650px) {
   .planet-map-scroll {
-    padding: 18px 18px 108px;
+    padding: 18px;
   }
 
   .planet-map-summary {
     gap: 10px;
   }
+
+  .planet-map-back { width: 100%; height: 50px; justify-content: flex-start; }
 
   .planet-map-counter {
     min-width: 0;
@@ -11723,7 +11717,7 @@ body:has(.footprints-page),
   display: none !important;
   background: transparent !important;
 }
-/* Pet growth hidden preview: /#pet-growth */
+/* 星宠小屋 */
 .pet-growth-page {
   --pet-ink: #4f3d36;
   --pet-orange: #f4773c;
@@ -11785,65 +11779,12 @@ body:has(.footprints-page),
   position: absolute;
   inset: max(18px, env(safe-area-inset-top)) clamp(18px, 2.6vw, 38px) auto;
   z-index: 6;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 18px;
   pointer-events: none;
 }
-
-.pet-back-button {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 52px;
-  padding: 0 18px 0 13px;
-  border: 2px solid rgb(95 67 48 / 24%);
-  border-radius: 8px;
-  background: rgb(255 244 213 / 88%);
-  color: var(--pet-ink);
-  font: inherit;
-  font-weight: 800;
-  font-size: 18px;
-  box-shadow: 0 5px 0 rgb(102 67 42 / 18%), 0 10px 22px rgb(94 61 39 / 12%);
-  backdrop-filter: blur(10px);
-  pointer-events: auto;
-}
-
-.pet-back-button > span { font-size: 32px; line-height: .7; }
-.pet-back-button:active { transform: translateY(3px); box-shadow: 0 2px 0 rgb(102 67 42 / 18%); }
-
-.pet-level-card {
-  min-width: clamp(250px, 29vw, 390px);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 14px 9px 10px;
-  border: 2px solid rgb(95 67 48 / 18%);
-  border-radius: 8px;
-  background: rgb(255 244 213 / 86%);
-  box-shadow: 0 7px 20px rgb(82 55 37 / 14%);
-  backdrop-filter: blur(10px);
-}
-
-.pet-level-card > span {
-  display: grid;
-  place-items: center;
-  min-width: 60px;
-  height: 42px;
-  padding: 0 8px;
-  border-radius: 8px;
-  color: white;
-  background: #5d8f69;
-  font-size: 17px;
-  font-weight: 900;
-}
-
-.pet-level-card > div { flex: 1; display: grid; gap: 6px; }
-.pet-level-card strong { font-size: 16px; }
-.pet-level-card i { height: 9px; overflow: hidden; border-radius: 10px; background: rgb(101 78 58 / 16%); }
-.pet-level-card b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f49a3c, #ffc14b); transition: width 500ms ease; }
 
 .pet-star-balance {
   justify-self: end;
@@ -11994,7 +11935,7 @@ body:has(.footprints-page),
   position: absolute;
   z-index: 5;
   left: clamp(18px, 2.6vw, 38px);
-  top: clamp(98px, 15vh, 136px);
+  top: max(18px, env(safe-area-inset-top));
   width: clamp(220px, 20vw, 286px);
   padding: 16px 17px 14px;
   border: 2px solid rgb(95 67 48 / 18%);
@@ -12016,10 +11957,55 @@ body:has(.footprints-page),
 .pet-status-card__title small { color: #8e765f; font-size: 12px; font-weight: 800; }
 .pet-status-card__title strong { font-size: 20px; }
 .pet-status-card__title > span { padding: 5px 8px; border-radius: 8px; background: #e0edd8; color: #4f7958; font-size: 12px; font-weight: 900; }
+.pet-growth-progress { display: grid; gap: 6px; margin: -2px 0 14px; padding: 9px 10px; border-radius: 8px; background: rgb(255 255 255 / 38%); }
+.pet-growth-progress > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pet-growth-progress strong { min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.pet-growth-progress span { color: #66806b; font-size: 11px; font-weight: 900; }
+.pet-growth-progress > i { height: 9px; overflow: hidden; border-radius: 10px; background: rgb(101 78 58 / 16%); }
+.pet-growth-progress > i > b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #f49a3c, #ffc14b); transition: width 500ms ease; }
 .pet-status-card .pet-meter { margin-bottom: 13px; }
 .pet-status-card .pet-meter__label { margin-bottom: 6px; font-size: 14px; }
 .pet-status-card .pet-meter__track { height: 11px; background: rgb(105 80 59 / 15%); }
 .pet-status-card .pet-spend-note { margin-top: 4px; padding: 8px 10px; background: rgb(255 255 255 / 37%); }
+
+.pet-map-entry {
+  position: absolute;
+  z-index: 5;
+  left: clamp(18px, 2.6vw, 38px);
+  top: clamp(274px, 40vh, 344px);
+  display: grid;
+  width: clamp(220px, 20vw, 286px);
+  min-height: 96px;
+  grid-template-columns: 70px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px 8px;
+  overflow: hidden;
+  border: 2px solid rgb(61 62 108 / 32%);
+  border-radius: 8px;
+  color: #fffdf2;
+  background: linear-gradient(145deg, rgb(52 69 120 / 95%), rgb(80 71 128 / 94%));
+  box-shadow: 0 6px 0 rgb(49 45 82 / 24%), 0 15px 28px rgb(52 43 75 / 19%);
+  text-align: left;
+  backdrop-filter: blur(10px);
+}
+
+.pet-map-entry::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 16% 28%, rgb(255 226 127 / 16%), transparent 42%); pointer-events: none; }
+.pet-map-entry:active { transform: translateY(3px); box-shadow: 0 3px 0 rgb(49 45 82 / 24%), 0 9px 18px rgb(52 43 75 / 18%); }
+.pet-map-entry__sky { position: relative; z-index: 1; width: 66px; height: 70px; }
+.pet-map-entry__sky img { position: absolute; object-fit: contain; filter: drop-shadow(0 5px 5px rgb(23 28 62 / 32%)); }
+.pet-map-entry__sky img:first-child { left: 2px; bottom: 2px; width: 48px; height: 48px; animation: pet-map-planet-float 3.4s ease-in-out infinite; }
+.pet-map-entry__sky img:nth-child(2) { right: -2px; top: 0; width: 38px; height: 38px; animation: pet-map-planet-float 4.1s ease-in-out -1.8s infinite; }
+.pet-map-entry__sky i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #ffe39a; box-shadow: 0 0 7px #ffe39a; }
+.pet-map-entry__sky i:nth-of-type(1) { left: 8px; top: 7px; }
+.pet-map-entry__sky i:nth-of-type(2) { right: 6px; bottom: 13px; }
+.pet-map-entry__sky i:nth-of-type(3) { left: 31px; top: 30px; width: 3px; height: 3px; }
+.pet-map-entry__copy { position: relative; z-index: 1; display: grid; min-width: 0; }
+.pet-map-entry__copy small { color: #ffd783; font-size: 10px; font-weight: 900; }
+.pet-map-entry__copy strong { font-size: 18px; line-height: 1.35; }
+.pet-map-entry__copy em { overflow: hidden; color: rgb(255 255 255 / 76%); font-size: 10px; font-style: normal; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.pet-map-entry__arrow { position: relative; z-index: 1; font-size: 30px; font-weight: 400; line-height: 1; }
+@keyframes pet-map-planet-float { 50% { transform: translateY(-4px) rotate(2deg); } }
 
 .pet-action-rail {
   position: absolute;
@@ -12224,8 +12210,8 @@ body:has(.footprints-page),
 
 @media (orientation: portrait) and (min-width: 700px) {
   .pet-room-hud { inset-inline: 18px; }
-  .pet-level-card { min-width: 280px; }
-  .pet-status-card { left: 18px; top: 108px; width: 225px; }
+  .pet-status-card { left: 18px; top: max(18px, env(safe-area-inset-top)); width: 225px; }
+  .pet-map-entry { left: 18px; top: 305px; width: 225px; }
   .pet-action-rail { right: 18px; width: 174px; gap: 11px; }
   .pet-action-button { min-height: 70px; grid-template-columns: 42px minmax(0, 1fr); padding-inline: 10px; }
   .pet-action-icon { width: 38px; height: 38px; }
@@ -12233,26 +12219,30 @@ body:has(.footprints-page),
 }
 
 @media (max-width: 699px) {
-  .pet-room-hud { inset: max(10px, env(safe-area-inset-top)) 10px auto; grid-template-columns: auto 1fr auto; gap: 8px; }
-  .pet-back-button { min-width: 46px; min-height: 46px; padding: 0; justify-content: center; }
-  .pet-back-button > span { font-size: 30px; }
-  .pet-back-button > strong { display: none; }
-  .pet-level-card { min-width: 0; padding: 6px 8px; gap: 7px; }
-  .pet-level-card > span { min-width: 42px; height: 32px; font-size: 12px; }
-  .pet-level-card strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-  .pet-level-card i { height: 7px; }
+  .pet-room-hud { inset: max(10px, env(safe-area-inset-top)) 10px auto; }
   .pet-star-balance { min-width: 62px; min-height: 46px; padding: 5px 8px; gap: 5px; }
   .pet-star-balance span { font-size: 21px; }
   .pet-star-balance small { display: none; }
   .pet-star-balance strong { font-size: 16px; }
-  .pet-status-card { left: 10px; top: 78px; width: 162px; padding: 11px; }
+  .pet-status-card { left: 10px; top: max(10px, env(safe-area-inset-top)); width: 162px; padding: 11px; }
   .pet-status-card__title { margin-bottom: 10px; }
   .pet-status-card__title strong { font-size: 15px; }
-  .pet-status-card__title > span { display: none; }
+  .pet-status-card__title > span { padding: 4px 6px; font-size: 10px; }
+  .pet-growth-progress { margin-bottom: 9px; padding: 6px 7px; }
+  .pet-growth-progress strong { font-size: 10px; }
+  .pet-growth-progress span { font-size: 9px; }
+  .pet-growth-progress > i { height: 7px; }
   .pet-status-card .pet-meter { margin-bottom: 9px; }
   .pet-status-card .pet-meter__label { font-size: 11px; }
   .pet-status-card .pet-meter__track { height: 8px; }
   .pet-status-card .pet-spend-note { display: none; }
+  .pet-map-entry { left: 10px; top: 228px; width: 162px; min-height: 76px; grid-template-columns: 48px minmax(0, 1fr) 12px; gap: 5px; padding: 7px 7px 7px 5px; }
+  .pet-map-entry__sky { width: 46px; height: 54px; }
+  .pet-map-entry__sky img:first-child { width: 38px; height: 38px; }
+  .pet-map-entry__sky img:nth-child(2) { width: 29px; height: 29px; }
+  .pet-map-entry__copy strong { font-size: 14px; }
+  .pet-map-entry__copy em { display: none; }
+  .pet-map-entry__arrow { font-size: 23px; }
   .pet-action-rail { right: 10px; top: 50%; width: 130px; gap: 8px; transform: translateY(-36%); }
   .pet-action-button { min-height: 58px; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; padding: 7px; }
   .pet-action-button strong { font-size: 14px; }
@@ -12287,14 +12277,12 @@ body:has(.footprints-page),
 
 @media (max-height: 650px) and (orientation: landscape) {
   .pet-room-hud { inset-block-start: max(9px, env(safe-area-inset-top)); }
-  .pet-back-button { min-height: 44px; }
-  .pet-level-card { padding-block: 6px; }
-  .pet-level-card > span { height: 34px; }
   .pet-star-balance { min-height: 46px; }
-  .pet-status-card { top: 76px; padding: 11px 13px; }
+  .pet-status-card { top: max(9px, env(safe-area-inset-top)); padding: 11px 13px; }
   .pet-status-card__title { margin-bottom: 9px; }
   .pet-status-card .pet-meter { margin-bottom: 8px; }
   .pet-status-card .pet-spend-note { display: none; }
+  .pet-map-entry { top: 240px; min-height: 80px; }
   .pet-action-rail { gap: 8px; transform: translateY(-38%); }
   .pet-action-button { min-height: 58px; }
   .pet-main-figure { top: 52%; width: min(43vh, 260px); transform: translate(-50%, -45%); }

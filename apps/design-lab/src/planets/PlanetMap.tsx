@@ -9,10 +9,6 @@ import {
 import energyIcon from "../assets/onboarding/step4-energy.svg";
 import starIcon from "../assets/onboarding/step4-star.svg";
 import lockIcon from "../assets/planets/lock.svg";
-import {
-  ChildBottomNav,
-  type ChildRoute,
-} from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
 import { PlanetJourneyScreen } from "../onboarding/OnboardingStep4";
 import { PLANET_BY_KEY, type PlanetKey } from "./planet-data";
@@ -27,10 +23,10 @@ function remainingEnergy(
 }
 
 export function PlanetMap({
-  onNavigate,
+  onBack,
   onOpenPlanet,
 }: {
-  onNavigate: (route: ChildRoute) => void;
+  onBack: () => void;
   onOpenPlanet: (planet: PlanetKey) => void;
 }) {
   const [data, setData] = useState<PlanetMapResponse | null>(null);
@@ -77,14 +73,14 @@ export function PlanetMap({
   return (
     <main className="planet-map-page">
       <div className="planet-map-scroll">
-        {!data ? (
-          <ChildDataState
-            error={Boolean(error)}
-            message={error || "正在打开星际航图…"}
-          />
-        ) : (
-          <section className="planet-map-content" aria-label="星际航图">
-            <header className="planet-map-summary">
+        <section className="planet-map-content" aria-label="星际航图">
+          <header className="planet-map-summary">
+            <button className="planet-map-back" type="button" onClick={onBack}>
+              <span aria-hidden="true">‹</span>
+              返回小屋
+            </button>
+            {data && (
+              <>
               <div className="planet-map-counter">
                 <span className="planet-map-counter__icon planet-map-counter__icon--energy">
                   <img src={energyIcon} alt="" />
@@ -103,8 +99,15 @@ export function PlanetMap({
                   <strong>{data.starBalance}</strong>
                 </span>
               </div>
-            </header>
-
+              </>
+            )}
+          </header>
+          {!data ? (
+            <ChildDataState
+              error={Boolean(error)}
+              message={error || "正在打开星际航图…"}
+            />
+          ) : (
             <div className="planet-map-grid">
               {data.planets.map((progress) => {
                 const planet = PLANET_BY_KEY[progress.planet];
@@ -159,10 +162,9 @@ export function PlanetMap({
                 );
               })}
             </div>
-          </section>
-        )}
+          )}
+        </section>
       </div>
-      <ChildBottomNav active="map" onNavigate={onNavigate} />
     </main>
   );
 }

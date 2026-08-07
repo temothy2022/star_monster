@@ -12,7 +12,13 @@ import {
   type PetTrip,
 } from "../api/child-api";
 import { createIdempotencyKey } from "../api/idempotency";
+import { reportChildPageReady } from "../api/performance-telemetry";
+import {
+  ChildBottomNav,
+  type ChildRoute,
+} from "../components/ChildBottomNav";
 import { useMascot } from "../mascots";
+import { PLANET_BY_KEY } from "../planets/planet-data";
 import returnEnvelope from "../assets/pet/pet-return-envelope.webp";
 
 const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
@@ -166,7 +172,7 @@ function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; m
   );
 }
 
-export function PetGrowthPage({ onBack }: { onBack: () => void }) {
+export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) => void }) {
   const { mascot } = useMascot();
   const [state, setState] = useState<PetGrowthState | null>(null);
   const [error, setError] = useState("");
@@ -202,6 +208,9 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (state) reportChildPageReady("pet-growth", "/api/child/pet");
+  }, [state]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
@@ -386,7 +395,7 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
   }
 
   if (!state) {
-    return <main className="pet-growth-page pet-growth-page--loading"><div className="pet-loading"><i /><span>{error || "正在打开星宠小屋…"}</span><button type="button" onClick={() => void load()}>重新加载</button></div></main>;
+    return <main className="pet-growth-page pet-growth-page--loading"><div className="pet-loading"><i /><span>{error || "正在打开星宠小屋…"}</span><button type="button" onClick={() => void load()}>重新加载</button></div><ChildBottomNav active="pet" onNavigate={onNavigate} /></main>;
   }
 
   const trip = state.currentTrip;
@@ -402,20 +411,29 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
       <section className="pet-growth-stage">
         <div className="pet-room-backdrop" />
         <header className="pet-room-hud">
-          <button className="pet-back-button" type="button" onClick={onBack} aria-label="返回任务列表"><span aria-hidden="true">‹</span><strong>返回</strong></button>
-          <div className="pet-level-card">
-            <span>Lv.{state.pet.level}</span>
-            <div><strong>{mascot.name}的成长进度</strong><i><b style={{ width: `${levelProgress}%` }} /></i></div>
-          </div>
           <div className="pet-star-balance" aria-label={`当前有 ${state.wallet.starBalance} 颗星`}><span>★</span><div><small>我的星星</small><strong>{state.wallet.starBalance}</strong></div></div>
         </header>
 
         <section className="pet-status-card" aria-label="星宠状态">
-          <div className="pet-status-card__title"><div><small>成长阶段</small><strong>{state.pet.growthStage === "BABY" ? "幼年伙伴" : state.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong></div><span>第 {state.pet.level} 级</span></div>
+          <div className="pet-status-card__title"><div><small>成长阶段</small><strong>{state.pet.growthStage === "BABY" ? "幼年伙伴" : state.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong></div><span>Lv.{state.pet.level}</span></div>
+          <div className="pet-growth-progress" aria-label={`${mascot.name}的成长进度 ${Math.round(levelProgress)}%`}>
+            <div><strong>{mascot.name}的成长进度</strong><span>{Math.round(levelProgress)}%</span></div>
+            <i><b style={{ width: `${levelProgress}%` }} /></i>
+          </div>
           <Meter label="饱食度" value={state.pet.satiety} tone="#f59a55" />
           <Meter label="饮水状态" value={state.pet.hydration} tone="#55b9d6" />
           <div className="pet-spend-note">今日已使用 <strong>{state.wallet.dailySpent}</strong> 颗星{state.wallet.dailySpendLimitStars !== null && <> / {state.wallet.dailySpendLimitStars}</>}</div>
         </section>
+
+        <button className="pet-map-entry" type="button" onClick={() => onNavigate("map")} aria-label="打开星际航图">
+          <span className="pet-map-entry__sky" aria-hidden="true">
+            <img src={PLANET_BY_KEY.EARTH.image} alt="" />
+            <img src={PLANET_BY_KEY.SATURN.image} alt="" />
+            <i /><i /><i />
+          </span>
+          <span className="pet-map-entry__copy"><small>探索宇宙</small><strong>星际航图</strong><em>看看点亮了哪些星球</em></span>
+          <span className="pet-map-entry__arrow" aria-hidden="true">›</span>
+        </button>
 
         <aside className="pet-action-rail" aria-label="星宠操作">
           <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation)} onClick={() => setTravelOpen(true)}>
@@ -498,6 +516,7 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
         </div>
       )}
       {postcard && <Postcard trip={postcard} mascotImage={mascot.activityImages.travel} mascotName={mascot.name} onClose={() => setPostcard(null)} />}
+      <ChildBottomNav active="pet" onNavigate={onNavigate} />
     </main>
   );
 }

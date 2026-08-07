@@ -893,7 +893,7 @@ export function App() {
   if (route === "map") {
     return (
       <PlanetMap
-        onNavigate={navigate}
+        onBack={() => navigate("pet-growth")}
         onOpenPlanet={(planet) => navigate(PLANET_ROUTE_BY_KEY[planet])}
       />
     );
@@ -918,7 +918,7 @@ export function App() {
   }
 
   if (route === "pet-growth") {
-    return <PetGrowthPage onBack={() => navigate("tasks-partial")} />;
+    return <PetGrowthPage onNavigate={navigate} />;
   }
 
   if (route === "hanzi-home") {

@@ -3,7 +3,7 @@ import navMap from "./assets/nav-map.svg";
 import navTask from "./assets/nav-task.svg";
 import navWish from "./assets/nav-wish.svg";
 
-export type KidDockItem = "tasks" | "map" | "wishes" | "footprints";
+export type KidDockItem = "tasks" | "pet" | "wishes" | "footprints";
 
 export interface KidDockProps {
   active?: KidDockItem;
@@ -12,7 +12,7 @@ export interface KidDockProps {
 
 const items: Array<{ id: KidDockItem; label: string; icon: string; node: string }> = [
   { id: "tasks", label: "任务", icon: navTask, node: "1:1488" },
-  { id: "map", label: "航图", icon: navMap, node: "1:1493" },
+  { id: "pet", label: "星宠", icon: navMap, node: "1:1493" },
   { id: "wishes", label: "星愿", icon: navWish, node: "1:1498" },
   { id: "footprints", label: "足迹", icon: navFootprint, node: "1:1503" }
 ];

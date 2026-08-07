@@ -7,9 +7,10 @@ import { markChildNavigation } from "../api/performance-telemetry";
 export type ChildRoute =
   | "tasks-partial"
   | "map"
+  | "pet-growth"
   | "wishes-requested"
   | "footprints";
-export type ChildNavItem = "tasks" | "map" | "wish" | "footprints";
+export type ChildNavItem = "tasks" | "pet" | "wish" | "footprints";
 
 export function ChildBottomNav({
   active,
@@ -20,7 +21,7 @@ export function ChildBottomNav({
 }) {
   const items = [
     { key: "tasks", label: "任务", icon: navTasks, route: "tasks-partial" as const },
-    { key: "map", label: "航图", icon: navMap, route: "map" as const },
+    { key: "pet", label: "星宠", icon: navMap, route: "pet-growth" as const },
     { key: "wish", label: "星愿", icon: navWish, route: "wishes-requested" as const },
     { key: "footprints", label: "足迹", icon: navFootprints, route: "footprints" as const },
   ];

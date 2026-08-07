@@ -26,6 +26,7 @@ export type MotivationalLeaderboardInput = {
   completedTasks: number;
   petType: LeaderboardPetType | null;
   goalStars: number;
+  maxAvailableStars?: number;
   completionRate: number;
   dailyGoalStars?: number;
   seed: string;
@@ -222,6 +223,10 @@ export function buildMotivationalLeaderboard(
   const stars = Math.max(0, Math.round(input.stars));
   const completedTasks = Math.max(0, Math.round(input.completedTasks));
   const goalStars = Math.max(1, Math.round(input.goalStars));
+  const maxAvailableStars = Math.max(
+    stars,
+    Math.max(0, Math.round(input.maxAvailableStars ?? goalStars)),
+  );
   const dailyGoalStars = Math.max(
     1,
     Math.round(input.dailyGoalStars ?? goalStars),
@@ -260,7 +265,10 @@ export function buildMotivationalLeaderboard(
     );
     return {
       displayName: identity.displayName,
-      stars: Math.max(0, progress.stars + competitorStarDelta),
+      stars: Math.min(
+        maxAvailableStars,
+        Math.max(0, progress.stars + competitorStarDelta),
+      ),
       completedTasks: progress.completedTasks,
       petType: identity.petType,
       flagKey: identity.flagKey,
@@ -268,7 +276,7 @@ export function buildMotivationalLeaderboard(
     };
   });
 
-  const entries = [
+  const rankedEntries = [
     ...competitors,
     {
       displayName: input.nickname?.trim() || "我",
@@ -292,17 +300,22 @@ export function buildMotivationalLeaderboard(
     })
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 
-  const selfEntry = entries.find((entry) => entry.isSelf)!;
-  const selfRank = selfEntry.rank;
-  const childAbove = selfRank > 1 ? entries[selfRank - 2] : null;
+  const selfPosition = rankedEntries.findIndex((entry) => entry.isSelf);
+  const unlisted =
+    stars < 3 && competitors.every((competitor) => competitor.stars > stars);
+  const entries = rankedEntries.map((entry) =>
+    entry.isSelf && unlisted ? { ...entry, rank: null } : entry,
+  );
+  const selfEntry = entries[selfPosition]!;
+  const childAbove = selfPosition > 0 ? rankedEntries[selfPosition - 1] : null;
   return {
     entries,
     self: {
-      rank: selfRank,
+      rank: selfEntry.rank,
       stars,
       completedTasks,
       totalParticipants: participantCount,
-      inTopTen: selfRank <= 10,
+      inTopTen: selfEntry.rank !== null && selfEntry.rank <= 10,
       starsToNextRank: childAbove
         ? Math.max(1, childAbove.stars - stars)
         : 0,

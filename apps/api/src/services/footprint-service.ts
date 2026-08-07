@@ -129,6 +129,19 @@ export async function getFootprints(
       (task) => task.attempts.length > 0,
     ).length;
     const completedAttempts = periodTasks.flatMap((task) => task.attempts);
+    const maxAvailableStars = periodTasks.reduce((sum, task) => {
+      const earnedStars = task.attempts.reduce(
+        (taskSum, attempt) =>
+          taskSum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
+        0,
+      );
+      const configuredMaximum =
+        task.baseStarsSnapshot +
+        (task.earlyBonusEnabledSnapshot
+          ? (task.earlyBonusStarsSnapshot ?? 0)
+          : 0);
+      return sum + Math.max(earnedStars, configuredMaximum);
+    }, 0);
     return {
       stars: completedAttempts.reduce(
         (sum, attempt) =>
@@ -136,6 +149,7 @@ export async function getFootprints(
         0,
       ),
       completedTasks: completedAttempts.length,
+      maxAvailableStars,
       completionRate:
         periodTasks.length > 0
           ? completedTaskSnapshots / periodTasks.length

@@ -177,12 +177,18 @@ function getFootprintSpeech({
       "你站在榜首啦，稳定完成比冲得快更重要。",
       "领航员也要一步一步走，保持自己的节奏！",
     );
-  } else if (self && self.rank <= 3) {
+  } else if (self && self.rank !== null && self.rank <= 3) {
     messages.push(
       `冲进前三啦，你现在是第 ${self.rank} 名！`,
       "离榜首很近了，认真完成下一个任务吧。",
       "前三名的星光真亮，保持这个好节奏！",
       `第 ${self.rank} 名正在发光，每一步都算数。`,
+    );
+  } else if (self?.rank === null) {
+    messages.push(
+      "先收集三颗星，名字就有机会出现在榜单上！",
+      "榜单正在等你，完成眼前的小任务就能向前一步。",
+      "现在还没上榜没关系，第一颗星就是新的开始！",
     );
   } else if (self && self.starsToNextRank <= 3) {
     messages.push(
@@ -628,11 +634,7 @@ function FootprintLeaderboard({
 }) {
   const leaderboard = leaderboards[period];
   return (
-    <aside className="footprints-leaderboard" aria-labelledby="footprints-leaderboard-title">
-      <header className="footprints-leaderboard__header">
-        <h1 id="footprints-leaderboard-title">全球小朋友榜</h1>
-      </header>
-
+    <aside className="footprints-leaderboard" aria-label="小朋友排行榜">
       <div className="footprints-leaderboard__tabs" aria-label="排行榜周期">
         <button
           type="button"
@@ -658,8 +660,8 @@ function FootprintLeaderboard({
             className={`footprints-leaderboard__row${entry.isSelf ? " footprints-leaderboard__row--self" : ""}`}
             key={`${period}-${entry.displayName}-${entry.flagKey}`}
           >
-            <span className={`footprints-leaderboard__rank footprints-leaderboard__rank--${Math.min(entry.rank, 4)}`}>
-              {entry.rank}
+            <span className={`footprints-leaderboard__rank footprints-leaderboard__rank--${Math.min(entry.rank ?? 4, 4)}${entry.rank === null ? " footprints-leaderboard__rank--unlisted" : ""}`}>
+              {entry.rank ?? "..."}
             </span>
             <span className="footprints-leaderboard__avatar" aria-hidden="true">
               <img className="footprints-leaderboard__pet" src={MASCOTS[entry.petType].images.neutral} alt="" />

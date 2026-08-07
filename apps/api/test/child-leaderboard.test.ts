@@ -8,6 +8,7 @@ const baseInput = {
   completedTasks: 0,
   petType: "DOUYA" as const,
   goalStars: 12,
+  maxAvailableStars: 12,
   completionRate: 0,
   dailyGoalStars: 12,
   seed: "2026-08-03",
@@ -20,9 +21,10 @@ describe("孩子激励排行榜", () => {
     const self = result.entries.find((entry) => entry.isSelf);
 
     expect(result.entries).toHaveLength(12);
-    expect(result.entries.map((entry) => entry.rank)).toEqual(
-      Array.from({ length: 12 }, (_, index) => index + 1),
-    );
+    expect(result.entries.map((entry) => entry.rank)).toEqual([
+      ...Array.from({ length: 11 }, (_, index) => index + 1),
+      null,
+    ]);
     expect(self).toMatchObject({ displayName: "了了", flagKey: "CHINA" });
     expect(new Set(result.entries.filter((entry) => !entry.isSelf).map((entry) => entry.petType)).size).toBe(5);
     expect(
@@ -75,6 +77,41 @@ describe("孩子激励排行榜", () => {
     );
   });
 
+  it("今日榜和本周榜的虚拟星星都不会超过孩子可获得的总数", () => {
+    const daily = buildMotivationalLeaderboard({
+      ...baseInput,
+      maxAvailableStars: 7,
+      competitorGrowthPercent: 200,
+      competitorStarDelta: 50,
+    });
+    const weekly = buildMotivationalLeaderboard({
+      ...baseInput,
+      goalStars: 60,
+      maxAvailableStars: 23,
+      competitorGrowthPercent: 200,
+      competitorStarDelta: 50,
+      scoreDays: Array.from({ length: 5 }, (_, index) => ({
+        seed: `2026-08-${String(index + 3).padStart(2, "0")}`,
+        elapsedMinutes: 24 * 60,
+      })),
+    });
+
+    expect(daily.entries.filter((entry) => !entry.isSelf).every((entry) => entry.stars <= 7)).toBe(true);
+    expect(weekly.entries.filter((entry) => !entry.isSelf).every((entry) => entry.stars <= 23)).toBe(true);
+  });
+
+  it("少于三颗星且落后于全部对手时显示未上榜", () => {
+    const unlisted = buildMotivationalLeaderboard({
+      ...baseInput,
+      stars: 2,
+    });
+
+    expect(unlisted.entries.filter((entry) => !entry.isSelf).every((entry) => entry.stars > 2)).toBe(true);
+    expect(unlisted.self.rank).toBeNull();
+    expect(unlisted.self.inTopTen).toBe(false);
+    expect(unlisted.entries.find((entry) => entry.isSelf)?.rank).toBeNull();
+  });
+
   it("家长调整今日对手星星后仍保留真实得星的递增过程", () => {
     const morning = buildMotivationalLeaderboard({
       ...baseInput,
@@ -122,9 +159,11 @@ describe("孩子激励排行榜", () => {
     const quarter = buildMotivationalLeaderboard({ ...baseInput, stars: 3 });
     const half = buildMotivationalLeaderboard({ ...baseInput, stars: 6 });
     const goal = buildMotivationalLeaderboard({ ...baseInput, stars: 12 });
+    const quarterRank = quarter.self.rank ?? Number.POSITIVE_INFINITY;
+    const halfRank = half.self.rank ?? Number.POSITIVE_INFINITY;
 
-    expect(quarter.self.rank).toBeGreaterThanOrEqual(half.self.rank);
-    expect(half.self.rank).toBeGreaterThan(goal.self.rank);
+    expect(quarterRank).toBeGreaterThanOrEqual(halfRank);
+    expect(halfRank).toBeGreaterThan(goal.self.rank!);
     expect(goal.self.rank).toBeLessThanOrEqual(2);
   });
 
@@ -149,7 +188,7 @@ describe("孩子激励排行榜", () => {
     });
 
     expect(ranks.filter((rank) => rank === 1).length).toBeGreaterThanOrEqual(70);
-    expect(ranks.every((rank) => rank >= 1 && rank <= 3)).toBe(true);
+    expect(ranks.every((rank) => rank !== null && rank >= 1 && rank <= 3)).toBe(true);
     expect(first).toEqual(second);
   });
 

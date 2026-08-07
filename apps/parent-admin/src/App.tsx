@@ -2377,7 +2377,7 @@ function LeaderboardSettings({ child }: { child: Child }) {
 
   return (
     <div className="admin-stack leaderboard-settings">
-      <Panel title="全球小朋友榜设置">
+      <Panel title="排行榜设置">
         {loading ? <div className="empty-state">正在读取排行榜设置…</div> : (
           <form className="leaderboard-settings__form" onSubmit={save}>
             <label className="leaderboard-setting-control">
@@ -2398,11 +2398,11 @@ function LeaderboardSettings({ child }: { child: Child }) {
         )}
         {message ? <Notice kind={message.includes("失败") ? "error" : "info"}>{message}</Notice> : null}
       </Panel>
-      <Panel title={preview ? `当前榜单预览 · 第 ${preview.self.rank} 名` : "当前榜单预览"}>
+      <Panel title={preview ? `当前榜单预览 · ${preview.self.rank === null ? "未上榜" : `第 ${preview.self.rank} 名`}` : "当前榜单预览"}>
         <div className="leaderboard-preview-list">
           {preview?.entries.map((entry) => (
             <div className={`leaderboard-preview-row${entry.isSelf ? " leaderboard-preview-row--self" : ""}`} key={`${entry.displayName}-${entry.rank}`}>
-              <strong>{entry.rank}</strong>
+              <strong>{entry.rank ?? "..."}</strong>
               <span>{entry.displayName}{entry.isSelf ? "（我的孩子）" : ""}</span>
               <b>★ {entry.stars}</b>
             </div>

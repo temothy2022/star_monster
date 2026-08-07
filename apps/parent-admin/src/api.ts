@@ -39,14 +39,14 @@ export type PetGrowthSummary = {
 
 export type LeaderboardPreview = {
   entries: Array<{
-    rank: number;
+    rank: number | null;
     displayName: string;
     stars: number;
     completedTasks: number;
     isSelf: boolean;
   }>;
   self: {
-    rank: number;
+    rank: number | null;
     stars: number;
     completedTasks: number;
     totalParticipants: number;

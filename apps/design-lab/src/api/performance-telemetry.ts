@@ -30,6 +30,7 @@ let metricFlushInProgress = false;
 
 const MAIN_READ_PATHS = new Set([
   "/api/child/tasks/today",
+  "/api/child/pet",
   "/api/child/planets",
   "/api/child/wishes",
   "/api/child/footprints",
@@ -67,6 +68,7 @@ export function normalizeApiPath(path: string) {
 function operationFor(path: string) {
   const operations: Record<string, string> = {
     "/api/child/tasks/today": "load_tasks",
+    "/api/child/pet": "load_pet_growth",
     "/api/child/planets": "load_planets",
     "/api/child/wishes": "load_wishes",
     "/api/child/footprints": "load_footprints",
