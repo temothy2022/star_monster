@@ -12065,10 +12065,10 @@ body:has(.footprints-page),
 
 .pet-album { padding: clamp(20px, 3vw, 34px); }
 .pet-album__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.pet-album__grid button { overflow: hidden; display: grid; grid-template-rows: 150px auto auto; padding: 0 0 13px; border: 1px solid #e8ddd1; border-radius: 8px; background: white; color: var(--pet-ink); text-align: left; }
-.pet-album__grid img { width: 100%; height: 100%; object-fit: cover; }
-.pet-album__grid span { padding: 12px 12px 2px; font-size: 17px; font-weight: 900; }
-.pet-album__grid small { padding: 0 12px; color: #8c786b; }
+.pet-album__grid button { --pet-album-image-height: 150px; overflow: hidden; display: grid; grid-template-rows: var(--pet-album-image-height) auto auto; align-content: start; min-height: 0; padding: 0 0 13px; border: 1px solid #e8ddd1; border-radius: 8px; background: white; color: var(--pet-ink); text-align: left; }
+.pet-album__grid img { display: block; grid-row: 1; width: 100%; height: var(--pet-album-image-height); min-width: 0; min-height: 0; object-fit: cover; }
+.pet-album__grid span { grid-row: 2; padding: 12px 12px 2px; font-size: 17px; font-weight: 900; line-height: 1.2; overflow-wrap: anywhere; }
+.pet-album__grid small { grid-row: 3; padding: 0 12px; color: #8c786b; line-height: 1.3; }
 .pet-album__empty { min-height: 330px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #8c786b; }
 .pet-album__empty span { font-size: 64px; color: #d0b79c; }
 .pet-album__empty strong { font-size: 22px; color: var(--pet-ink); }
@@ -12157,7 +12157,7 @@ body:has(.footprints-page),
   .pet-travel-options small { grid-column: 2; grid-row: 2; align-self: start; text-align: left; }
   .pet-trip-price { grid-column: 3; grid-row: 1 / 3; align-self: center; }
   .pet-album__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-  .pet-album__grid button { grid-template-rows: 110px auto auto; }
+  .pet-album__grid button { --pet-album-image-height: 110px; }
   .pet-postcard { display: block; }
   .pet-postcard__image-wrap { min-height: 280px; height: 42dvh; }
   .pet-postcard__content { padding: 24px 20px; }
@@ -12186,46 +12186,167 @@ body:has(.footprints-page),
 }
 
 @media (orientation: portrait) and (min-width: 700px) and (max-width: 1024px) {
+  .pet-room-hud {
+    inset: max(20px, env(safe-area-inset-top)) 22px auto;
+  }
+
+  .pet-star-balance {
+    min-width: 132px;
+    min-height: 62px;
+    padding: 8px 17px;
+  }
+
+  .pet-star-balance span {
+    font-size: 32px;
+  }
+
+  .pet-star-balance small {
+    font-size: 12px;
+  }
+
+  .pet-star-balance strong {
+    font-size: 24px;
+  }
+
   .pet-status-card {
-    left: 20px;
-    top: max(20px, env(safe-area-inset-top));
-    width: 300px;
-    padding: 17px 18px 15px;
+    left: 22px;
+    top: max(22px, env(safe-area-inset-top));
+    width: 340px;
+    padding: 20px 21px 18px;
+  }
+
+  .pet-status-card__title {
+    margin-bottom: 17px;
+  }
+
+  .pet-status-card__title small {
+    font-size: 14px;
   }
 
   .pet-status-card__title strong {
-    font-size: 21px;
+    font-size: 24px;
+  }
+
+  .pet-status-card__title > span {
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+
+  .pet-growth-progress {
+    gap: 8px;
+    margin-bottom: 17px;
+    padding: 11px 12px;
+  }
+
+  .pet-growth-progress strong {
+    font-size: 14px;
+  }
+
+  .pet-growth-progress span {
+    font-size: 13px;
+  }
+
+  .pet-growth-progress > i {
+    height: 11px;
+  }
+
+  .pet-status-card .pet-meter {
+    margin-bottom: 16px;
+  }
+
+  .pet-status-card .pet-meter__label {
+    margin-bottom: 7px;
+    font-size: 16px;
+  }
+
+  .pet-status-card .pet-meter__track {
+    height: 13px;
   }
 
   .pet-map-entry {
-    top: max(88px, calc(env(safe-area-inset-top) + 72px));
-    right: 20px;
+    top: max(100px, calc(env(safe-area-inset-top) + 82px));
+    right: 22px;
     left: auto;
-    width: 270px;
-    min-height: 104px;
+    width: 310px;
+    min-height: 122px;
+    grid-template-columns: 82px minmax(0, 1fr) 20px;
+    gap: 10px;
+    padding: 12px 14px 12px 9px;
+  }
+
+  .pet-map-entry__sky {
+    width: 78px;
+    height: 82px;
+  }
+
+  .pet-map-entry__sky img:first-child {
+    width: 58px;
+    height: 58px;
+  }
+
+  .pet-map-entry__sky img:nth-child(2) {
+    width: 45px;
+    height: 45px;
+  }
+
+  .pet-map-entry__copy small {
+    font-size: 12px;
+  }
+
+  .pet-map-entry__copy strong {
+    font-size: 21px;
+  }
+
+  .pet-map-entry__copy em {
+    font-size: 12px;
+  }
+
+  .pet-map-entry__arrow {
+    font-size: 34px;
   }
 
   .pet-main-figure {
     left: 50%;
-    top: 50%;
-    width: min(52vw, 410px);
+    top: 51%;
+    width: min(61vw, 500px);
+  }
+
+  .pet-main-figure p,
+  .pet-care-progress {
+    max-width: min(74vw, 560px);
+    padding: 13px 22px;
+    font-size: 20px;
   }
 
   .pet-action-rail {
-    right: 20px;
-    bottom: calc(96px + env(safe-area-inset-bottom));
-    left: 20px;
+    right: 22px;
+    bottom: calc(100px + env(safe-area-inset-bottom));
+    left: 22px;
     top: auto;
     width: auto;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
+    gap: 14px;
     transform: none;
   }
 
   .pet-action-button {
-    min-height: 76px;
-    grid-template-columns: 42px minmax(0, 1fr);
-    padding: 10px 12px;
+    min-height: 94px;
+    grid-template-columns: 50px minmax(0, 1fr);
+    gap: 11px;
+    padding: 12px 14px;
+  }
+
+  .pet-action-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .pet-action-button strong {
+    font-size: 18px;
+  }
+
+  .pet-action-button small {
+    font-size: 12px;
   }
 
   .pet-growth-page--travel .pet-status-card,
