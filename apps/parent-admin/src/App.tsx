@@ -2056,16 +2056,13 @@ function Redemptions({ child }: { child: Child }) {
   const [error, setError] = useState("");
   async function load() { setItems((await parentApi.redemptions(child.id)).redemptions); }
   useEffect(() => { void load(); }, [child.id]);
-  async function update(item: Redemption, status: "ARRANGED" | "COMPLETED" | "CANCELLED") {
-    let reason: string | undefined;
-    if (status === "CANCELLED") {
-      reason = window.prompt("请输入取消原因，星星会自动退还") ?? undefined;
-      if (!reason) return;
-    }
-    try { await parentApi.updateRedemption(child.id, item.id, status, reason); await load(); }
+  async function refund(item: Redemption) {
+    const reason = window.prompt("请输入退款原因，星星会自动退还") ?? undefined;
+    if (!reason) return;
+    try { await parentApi.updateRedemption(child.id, item.id, "CANCELLED", reason); await load(); }
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "处理失败"); }
   }
-  return <Panel title="兑换申请">{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap"><table><thead><tr><th>星愿</th><th>花费</th><th>申请时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.titleSnapshot}</td><td>★ {item.costStarsSnapshot}</td><td>{formatDate(item.requestedAt)}</td><td><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "PENDING" ? "待安排" : item.status === "ARRANGED" ? "已安排" : item.status === "COMPLETED" ? "已完成" : "已取消"}</span></td><td className="table-actions">{item.status === "PENDING" && <button onClick={() => void update(item, "ARRANGED")}>标记已安排</button>}{item.status === "ARRANGED" && <button onClick={() => void update(item, "COMPLETED")}>完成</button>}{!["COMPLETED","CANCELLED"].includes(item.status) && <button className="danger-text" onClick={() => void update(item, "CANCELLED")}>取消并退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换申请</div>}</div></Panel>;
+  return <Panel title="兑换记录">{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.titleSnapshot}</td><td>★ {item.costStarsSnapshot}</td><td>{formatDate(item.requestedAt)}</td><td><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div></Panel>;
 }
 
 function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {

@@ -256,7 +256,7 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
     <Panel title="凑十训练设置">
       {loading ? <div className="empty-state">正在读取设置…</div> : <form className="admin-form" onSubmit={save}>
         <label>每日题量<input type="number" min={1} max={50} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
-        <label>每题时间（秒）<input type="number" min={2} max={30} value={settings.secondsPerQuestion} onChange={(event) => setSettings({ ...settings, secondsPerQuestion: Number(event.target.value) })} /></label>
+        <label>每题时间（秒）<input type="number" min={2} max={30} step={0.1} inputMode="decimal" value={settings.secondsPerQuestion} onChange={(event) => setSettings({ ...settings, secondsPerQuestion: Number(event.target.value) })} /></label>
         <label>达标正确率（%）<input type="number" min={1} max={100} value={settings.passAccuracyPercent} onChange={(event) => setSettings({ ...settings, passAccuracyPercent: Number(event.target.value) })} /></label>
         <div className="field-span admin-help">未在规定时间内作答或选错均计为错误；最终正确率低于达标值时，本次任务不获得星星。请在“任务配置”中新建“凑十训练任务”。</div>
         <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>

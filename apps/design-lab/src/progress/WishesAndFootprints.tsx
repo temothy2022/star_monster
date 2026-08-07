@@ -322,7 +322,7 @@ export function WishesRequested({
               : wish.unavailableReason === "OUT_OF_STOCK"
                 ? "已兑完"
                 : wish.canRedeem
-                  ? "申请星愿"
+                  ? "兑换星愿"
                   : "余额不足",
     })) ?? [];
 
@@ -335,7 +335,7 @@ export function WishesRequested({
       setWishData(await getChildWishes());
       setSelectedWish(null);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "申请没有完成，请再试一次");
+      setError(reason instanceof Error ? reason.message : "兑换没有完成，请再试一次");
     } finally {
       setSubmitting(false);
     }
@@ -387,7 +387,7 @@ export function WishesRequested({
           <button
             className="wish-confirm-backdrop"
             type="button"
-            aria-label="取消申请星愿"
+            aria-label="取消兑换星愿"
             disabled={submitting}
             onClick={() => setSelectedWish(null)}
           />
@@ -401,7 +401,7 @@ export function WishesRequested({
               <div className="wish-confirm-sheet__icon"><img src={confirmStar} alt="" /></div>
               <h2 id="wish-confirm-title">
                 <span className="wish-confirm-sheet__title--desktop">
-                  使用 {selectedWish.display.cost} 颗星申请{selectedWish.display.title}？
+                  使用 {selectedWish.display.cost} 颗星兑换{selectedWish.display.title}？
                 </span>
                 <span className="wish-confirm-sheet__title--mobile">是否确认兑换？</span>
               </h2>
@@ -410,7 +410,7 @@ export function WishesRequested({
               <div className="wish-confirm-sheet__actions">
                 <button type="button" disabled={submitting} onClick={() => setSelectedWish(null)}>取消</button>
                 <button type="button" disabled={submitting} onClick={() => void confirmWish()}>
-                  {submitting ? "申请中…" : "确认申请"}
+                  {submitting ? "兑换中…" : "确认兑换"}
                 </button>
               </div>
             </div>

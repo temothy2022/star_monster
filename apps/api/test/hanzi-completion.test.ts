@@ -22,6 +22,7 @@ describe("hanzi completion planning", () => {
         { characterId: "review-b", known: false },
       ],
       learnedCharacterIds: ["new-a", "new-b"],
+      masteredCharacterIds: ["new-b"],
       answers: [
         { questionIndex: 0, selectedCharacterId: "new-a" },
         { questionIndex: 1, selectedCharacterId: "other-b" },
@@ -32,6 +33,7 @@ describe("hanzi completion planning", () => {
       { characterId: "review-b", known: false },
     ]);
     expect(plan.remainingNewCharacterIds).toEqual(["new-b"]);
+    expect(plan.masteredCharacterIds).toEqual(["new-b"]);
     expect(plan.remainingAnswers).toEqual([
       {
         questionIndex: 1,
@@ -48,6 +50,7 @@ describe("hanzi completion planning", () => {
         ...baseInput,
         reviewAnswers: [],
         learnedCharacterIds: ["new-a"],
+        masteredCharacterIds: [],
         answers: [],
       }),
     ).toThrow("还有汉字没有完成复习");
@@ -59,10 +62,23 @@ describe("hanzi completion planning", () => {
         ...baseInput,
         reviewAnswers: [{ characterId: "review-b", known: true }],
         learnedCharacterIds: ["new-a", "new-b"],
+        masteredCharacterIds: [],
         answers: [
           { questionIndex: 1, selectedCharacterId: "not-an-option" },
         ],
       }),
     ).toThrow("听句答案不在题目选项中");
+  });
+
+  it("rejects mastered characters outside the current new-character set", () => {
+    expect(() =>
+      planHanziCompletion({
+        ...baseInput,
+        reviewAnswers: [{ characterId: "review-b", known: true }],
+        learnedCharacterIds: ["new-a", "new-b"],
+        masteredCharacterIds: ["other-a"],
+        answers: [{ questionIndex: 1, selectedCharacterId: "new-b" }],
+      }),
+    ).toThrow("已掌握汉字不在本次新字中");
   });
 });

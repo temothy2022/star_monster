@@ -575,7 +575,7 @@ model MakeTenLearningSettings {
   id                  String   @id @default(cuid())
   childId             String   @unique
   questionsPerDay     Int      @default(20)
-  secondsPerQuestion  Int      @default(5)
+  secondsPerQuestion  Float    @default(5)
   passAccuracyPercent Int      @default(80)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -588,7 +588,7 @@ model MakeTenLearningSession {
   childId             String
   taskAttemptId       String   @unique
   sessionDate         DateTime @db.Date
-  secondsPerQuestion  Int
+  secondsPerQuestion  Float
   passAccuracyPercent Int
   questions           Json
   answers             Json

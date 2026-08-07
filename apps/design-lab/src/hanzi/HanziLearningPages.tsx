@@ -190,7 +190,6 @@ function HanziCardBackFace() {
         <img src={testGeneratedHanziImage} alt="汉字含义测试图" />
       </div>
       <div className="hanzi-card-back__bottom">
-        <strong>高高的大山</strong>
         <span><PlayIcon />听一听</span>
       </div>
     </>
@@ -403,7 +402,6 @@ export function HanziNewMeaning({ onNavigate }: { onNavigate: Navigate }) {
           <div className="hanzi-meaning-panel">
             <div className="hanzi-meaning-panel__character">
               <strong>山</strong>
-              <span>高高的大山</span>
             </div>
             <div className="hanzi-meaning-vocabulary">
               {["山顶", "山水", "高山"].map((word) => (

@@ -362,6 +362,7 @@ export async function finalizeHanziLearningSession(
   input: {
     reviewAnswers: Array<{ characterId: string; known: boolean }>;
     learnedCharacterIds: string[];
+    masteredCharacterIds: string[];
     answers: Array<{
       questionIndex: number;
       selectedCharacterId: string;

@@ -22,6 +22,7 @@ const finalizeSchema = z.object({
     )
     .max(50),
   learnedCharacterIds: z.array(z.string().min(1)).max(20),
+  masteredCharacterIds: z.array(z.string().min(1)).max(20).default([]),
   answers: z
     .array(
       z.object({

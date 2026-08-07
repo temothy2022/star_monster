@@ -29,10 +29,12 @@ export function MakeTenExperience({
   const [session, setSession] = useState<MakeTenLearningSession | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
+  const [paused, setPaused] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const submittingRef = useRef(false);
   const feedbackTimerRef = useRef<number | null>(null);
+  const remainingMsRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +70,7 @@ export function MakeTenExperience({
         setFeedback(null);
         setBusy(false);
         submittingRef.current = false;
-      }, 1500);
+      }, correct ? 1500 : 3000);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "答案提交失败");
       setFeedback(null);
@@ -78,12 +80,19 @@ export function MakeTenExperience({
   }, [feedback, question, session]);
 
   useEffect(() => {
-    if (!session || !question || feedback || session.completedAt) return;
+    if (!session || session.completedAt) return;
     const duration = session.secondsPerQuestion * 1000;
-    const deadline = performance.now() + duration;
+    remainingMsRef.current = duration;
     setRemainingMs(duration);
+    setPaused(false);
+  }, [session?.completedAt, session?.currentIndex, session?.secondsPerQuestion]);
+
+  useEffect(() => {
+    if (!session || !question || feedback || session.completedAt || paused) return;
+    const deadline = performance.now() + remainingMsRef.current;
     const timer = window.setInterval(() => {
       const remaining = Math.max(0, deadline - performance.now());
+      remainingMsRef.current = remaining;
       setRemainingMs(remaining);
       if (remaining <= 0) {
         window.clearInterval(timer);
@@ -91,7 +100,7 @@ export function MakeTenExperience({
       }
     }, 50);
     return () => window.clearInterval(timer);
-  }, [feedback, question, session?.completedAt, session?.currentIndex, session?.secondsPerQuestion, submit]);
+  }, [feedback, paused, question, session?.completedAt, session?.currentIndex, session?.secondsPerQuestion, submit]);
 
   useEffect(() => () => {
     if (feedbackTimerRef.current !== null) window.clearTimeout(feedbackTimerRef.current);
@@ -125,19 +134,28 @@ export function MakeTenExperience({
     <button className="clock-back-button" type="button" onClick={onExit} aria-label="返回任务列表"><img src={backIcon} alt="" aria-hidden="true" /></button>
     <header className="make-ten-header">
       <div><span>数字好朋友</span><h1>{session.completedAt ? "今天的凑十训练完成啦" : `第 ${Math.min(session.currentIndex + 1, session.totalQuestions)} 题`}</h1></div>
-      {!session.completedAt ? <div className="make-ten-total-progress"><span style={{ width: `${progress}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div> : null}
+      {!session.completedAt ? <div className="make-ten-header__actions">
+        <button
+          className="make-ten-pause-button"
+          type="button"
+          disabled={Boolean(feedback)}
+          aria-pressed={paused}
+          onClick={() => setPaused((current) => !current)}
+        >{paused ? "继续" : "暂停"}</button>
+        <div className="make-ten-total-progress"><span style={{ width: `${progress}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div>
+      </div> : null}
     </header>
 
     {!session.completedAt && question ? <section className={`make-ten-workspace${feedback ? " make-ten-workspace--feedback" : ""}`}>
       <div className="make-ten-timer" aria-label={`本题剩余 ${Math.ceil(remainingMs / 1000)} 秒`}><span style={{ width: `${feedback ? 0 : timerProgress}%` }} /></div>
-      <div className="make-ten-equation"><strong>{question.target}</strong><span>+</span><span className="make-ten-blank">?</span><span>=</span><strong>10</strong></div>
+      <div className="make-ten-equation"><strong>{question.target}</strong><span>+</span><span className={`make-ten-blank${feedback && !feedback.correct ? " make-ten-blank--answer" : ""}`}>{feedback && !feedback.correct ? feedback.answer : "?"}</span><span>=</span><strong>10</strong></div>
       <p>谁是 {question.target} 的好朋友？</p>
       <div className="make-ten-options">
         {Array.from({ length: 9 }, (_, index) => index + 1).map((value) => <button
           type="button"
           key={value}
           disabled={busy}
-          className={feedback?.selectedNumber === value ? "selected" : ""}
+          className={`${feedback?.selectedNumber === value ? "selected" : ""}${feedback && !feedback.correct && feedback.answer === value ? " correct-answer" : ""}`}
           onClick={() => void submit(value)}
         >{value}</button>)}
       </div>
@@ -145,6 +163,7 @@ export function MakeTenExperience({
         <strong>{feedback.correct ? "答对啦！" : feedback.timedOut ? "时间到" : "再想一想"}</strong>
         {!feedback.correct ? <span>正确答案是 {feedback.answer}</span> : <span>{question.target} + {feedback.answer} = 10</span>}
       </div> : null}
+      {paused && !feedback ? <div className="make-ten-pause-layer" role="status"><strong>暂停中</strong><span>家长讲解后，点击“继续”恢复倒计时</span></div> : null}
       {error ? <div className="clock-learning-error">{error}</div> : null}
     </section> : null}
 

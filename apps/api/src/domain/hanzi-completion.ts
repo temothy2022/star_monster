@@ -24,6 +24,7 @@ export function planHanziCompletion(input: {
   questionIndex: number;
   reviewAnswers: HanziReviewAnswer[];
   learnedCharacterIds: string[];
+  masteredCharacterIds: string[];
   answers: HanziQuestionAnswer[];
 }) {
   const reviewAnswers = new Map<string, HanziReviewAnswer>();
@@ -52,6 +53,19 @@ export function planHanziCompletion(input: {
     });
 
   const learnedCharacterIds = new Set(input.learnedCharacterIds);
+  const newCharacterIds = new Set(input.newCharacterIds);
+  const masteredCharacterIds = new Set(input.masteredCharacterIds);
+  if (
+    [...masteredCharacterIds].some(
+      (characterId) => !newCharacterIds.has(characterId),
+    )
+  ) {
+    throw new HttpError(
+      400,
+      "HANZI_MASTERED_INVALID",
+      "已掌握汉字不在本次新字中",
+    );
+  }
   const remainingNewCharacterIds = input.newCharacterIds.slice(input.newIndex);
   if (
     input.newCharacterIds.some((characterId) => !learnedCharacterIds.has(characterId))
@@ -102,6 +116,7 @@ export function planHanziCompletion(input: {
   return {
     remainingReviewAnswers,
     remainingNewCharacterIds,
+    masteredCharacterIds: [...masteredCharacterIds],
     remainingAnswers,
     additionalCorrect: remainingAnswers.filter((answer) => answer.correct)
       .length,

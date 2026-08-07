@@ -101,7 +101,7 @@ const clockSettingsSchema = z.object({
 });
 const makeTenSettingsSchema = z.object({
   questionsPerDay: z.number().int().min(1).max(50),
-  secondsPerQuestion: z.number().int().min(2).max(30),
+  secondsPerQuestion: z.number().min(2).max(30),
   passAccuracyPercent: z.number().int().min(1).max(100),
 });
 const hanziLibraryQuery = z.object({

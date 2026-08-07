@@ -130,6 +130,13 @@ export async function redeemWish(
         }
       }
 
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "WishReward"
+        WHERE "id" = ${wishRewardId}
+        FOR UPDATE
+      `;
+
       const [child, wish] = await Promise.all([
         tx.childProfile.findUnique({ where: { id: childId } }),
         tx.wishReward.findFirst({
@@ -201,10 +208,9 @@ export async function redeemWish(
           redemptionTypeSnapshot: wish.redemptionType,
           recurrenceKindSnapshot: wish.recurrenceKind,
           recurrenceIntervalDaysSnapshot: wish.recurrenceIntervalDays,
+          status: "COMPLETED",
+          completedAt: now,
         },
-      });
-      await tx.activeWishRedemptionSlot.create({
-        data: { wishRewardId: wish.id, redemptionId: redemption.id },
       });
       const updatedChild = await tx.childProfile.update({
         where: { id: childId },
@@ -239,6 +245,12 @@ export async function updateRedemptionStatus(input: {
 }) {
   return prisma.$transaction(
     async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id"
+        FROM "WishRedemption"
+        WHERE "id" = ${input.redemptionId}
+        FOR UPDATE
+      `;
       const redemption = await tx.wishRedemption.findFirst({
         where: { id: input.redemptionId, childId: input.childId },
       });
@@ -246,7 +258,10 @@ export async function updateRedemptionStatus(input: {
         throw new HttpError(404, "REDEMPTION_NOT_FOUND", "没有找到兑换记录");
       }
       if (redemption.status === input.status) return redemption;
-      if (redemption.status === "COMPLETED" || redemption.status === "CANCELLED") {
+      if (
+        redemption.status === "CANCELLED" ||
+        (redemption.status === "COMPLETED" && input.status !== "CANCELLED")
+      ) {
         throw new HttpError(409, "REDEMPTION_FINAL", "兑换记录已经结束");
       }
 
@@ -315,7 +330,7 @@ export async function updateRedemptionStatus(input: {
           type: "WISH_REFUND",
           amount: redemption.costStarsSnapshot,
           balanceAfter: child.starBalance,
-          reason: `取消兑换：${redemption.titleSnapshot}`,
+          reason: `星愿退款：${redemption.titleSnapshot}`,
           referenceId: redemption.id,
           idempotencyKey: `wish:${redemption.id}:refund`,
         },

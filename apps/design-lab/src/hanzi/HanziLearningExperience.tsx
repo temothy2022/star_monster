@@ -42,6 +42,7 @@ type FlowTransitionAction =
   | "review-unknown"
   | "review-continue"
   | "new-next"
+  | "new-mastered"
   | `answer:${string}`
   | "question-continue";
 
@@ -209,6 +210,7 @@ type HanziLocalDraft = {
   questionIndex: number;
   consolidationCorrect: number;
   consolidationTotal: number;
+  masteredNewCharacterIds: string[];
   answerSelections: Record<string, string>;
 };
 
@@ -229,10 +231,20 @@ function phaseForLocalProgress(
 function restoreLocalDraft(session: HanziLearningSession) {
   try {
     const raw = window.localStorage.getItem(draftKey(session.id));
-    if (!raw) return { session, answerSelections: {} as Record<string, string> };
+    if (!raw) {
+      return {
+        session,
+        masteredNewCharacterIds: [],
+        answerSelections: {} as Record<string, string>,
+      };
+    }
     const draft = JSON.parse(raw) as Partial<HanziLocalDraft>;
     if (draft.version !== 1 || draft.sessionId !== session.id) {
-      return { session, answerSelections: {} as Record<string, string> };
+      return {
+        session,
+        masteredNewCharacterIds: [],
+        answerSelections: {} as Record<string, string>,
+      };
     }
     const reviewIndex = Math.min(
       session.reviewCharacterIds.length,
@@ -247,6 +259,7 @@ function restoreLocalDraft(session: HanziLearningSession) {
       Math.max(session.questionIndex, Number(draft.questionIndex) || 0),
     );
     const validReviewIds = new Set(session.reviewCharacterIds);
+    const validNewIds = new Set(session.newCharacterIds);
     const reviewKnownIds = [
       ...new Set([
         ...session.reviewKnownIds,
@@ -298,6 +311,13 @@ function restoreLocalDraft(session: HanziLearningSession) {
     };
     return {
       session: restored,
+      masteredNewCharacterIds: [
+        ...new Set(
+          (draft.masteredNewCharacterIds ?? []).filter((id) =>
+            validNewIds.has(id),
+          ),
+        ),
+      ],
       answerSelections:
         draft.answerSelections &&
         typeof draft.answerSelections === "object"
@@ -305,12 +325,17 @@ function restoreLocalDraft(session: HanziLearningSession) {
           : {},
     };
   } catch {
-    return { session, answerSelections: {} as Record<string, string> };
+    return {
+      session,
+      masteredNewCharacterIds: [],
+      answerSelections: {} as Record<string, string>,
+    };
   }
 }
 
 function saveLocalDraft(
   session: HanziLearningSession,
+  masteredNewCharacterIds: string[],
   answerSelections: Record<string, string>,
 ) {
   const draft: HanziLocalDraft = {
@@ -323,6 +348,7 @@ function saveLocalDraft(
     questionIndex: session.questionIndex,
     consolidationCorrect: session.consolidationCorrect,
     consolidationTotal: session.consolidationTotal,
+    masteredNewCharacterIds,
     answerSelections,
   };
   try {
@@ -476,6 +502,7 @@ export function HanziLearningExperience({
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
   const [pendingSession, setPendingSession] = useState<HanziLearningSession | null>(null);
   const [answerSelections, setAnswerSelections] = useState<Record<string, string>>({});
+  const [masteredNewCharacterIds, setMasteredNewCharacterIds] = useState<string[]>([]);
   const [assetProgress, setAssetProgress] = useState({
     total: 0,
     completed: 0,
@@ -552,6 +579,7 @@ export function HanziLearningExperience({
         if (cancelled) return;
         const restored = restoreLocalDraft(loaded);
         setSession(restored.session);
+        setMasteredNewCharacterIds(restored.masteredNewCharacterIds);
         setAnswerSelections(restored.answerSelections);
         setStarted(false);
         reportChildPageReady(
@@ -593,8 +621,8 @@ export function HanziLearningExperience({
 
   useEffect(() => {
     if (!session || session.phase === "COMPLETED") return;
-    saveLocalDraft(session, answerSelections);
-  }, [answerSelections, session]);
+    saveLocalDraft(session, masteredNewCharacterIds, answerSelections);
+  }, [answerSelections, masteredNewCharacterIds, session]);
 
   useEffect(() => {
     if (!session || preloadedSessionId.current === session.id) return;
@@ -653,6 +681,7 @@ export function HanziLearningExperience({
               : false,
         })),
         learnedCharacterIds: [],
+        masteredCharacterIds: [],
         answers: [],
       },
       requestAbort.current.signal,
@@ -859,6 +888,26 @@ export function HanziLearningExperience({
     );
   }
 
+  function markNewCharacterMastered() {
+    if (!newCharacter || busy || flowTransitionRef.current) return;
+    const optimisticSession = advanceNewCharacterLocally(session!);
+    queueFlowTransition(
+      "new-mastered",
+      () => {
+        stopActiveSpeech();
+        setError("");
+        playEntryForSession(optimisticSession);
+      },
+      () => {
+        setMasteredNewCharacterIds((current) => [
+          ...new Set([...current, newCharacter.id]),
+        ]);
+        setSession(optimisticSession);
+        setNewStep(0);
+      },
+    );
+  }
+
   function selectAnswer(characterId: string) {
     if (!question || answerFeedback || flowTransitionRef.current) return;
     const locallyCorrect = characterId === question.targetId;
@@ -971,6 +1020,7 @@ export function HanziLearningExperience({
                 : false,
           })),
           learnedCharacterIds: session!.newCharacterIds,
+          masteredCharacterIds: masteredNewCharacterIds,
           answers: Object.entries(answerSelections).map(
             ([questionIndex, selectedCharacterId]) => ({
               questionIndex: Number(questionIndex),
@@ -1195,7 +1245,6 @@ export function HanziLearningExperience({
                 onError={handleCharacterImageError}
               />
               <div className="hanzi-card-back__bottom">
-                <strong>{reviewCharacter.meaning}</strong>
                 <span><PlayIcon />听一听</span>
               </div>
             </span>
@@ -1318,7 +1367,7 @@ export function HanziLearningExperience({
                 />
               </div>
               <div className="hanzi-meaning-panel">
-                <div className="hanzi-meaning-panel__character"><strong>{newCharacter.character}</strong><span>{newCharacter.meaning}</span></div>
+                <div className="hanzi-meaning-panel__character"><strong>{newCharacter.character}</strong></div>
                 <button
                   className="hanzi-meaning-sentence"
                   disabled={Boolean(flowTransition)}
@@ -1335,6 +1384,14 @@ export function HanziLearningExperience({
         )}
         {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
         <footer className="hanzi-new-word-footer">
+          <button
+            className="hanzi-mastered-button"
+            disabled={busy || Boolean(flowTransition)}
+            type="button"
+            onClick={markNewCharacterMastered}
+          >
+            我已经认识
+          </button>
           <button
             className={
               flowTransition === "new-next"

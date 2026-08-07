@@ -505,6 +505,7 @@ export async function finalizeHanziSession(
   input: {
     reviewAnswers: HanziReviewAnswer[];
     learnedCharacterIds: string[];
+    masteredCharacterIds: string[];
     answers: HanziQuestionAnswer[];
   },
   config: AppConfig,
@@ -609,16 +610,28 @@ export async function finalizeHanziSession(
         }
       }
 
+      const masteredCharacterIds = new Set(plan.masteredCharacterIds);
       for (const characterId of plan.remainingNewCharacterIds) {
+        const mastered = masteredCharacterIds.has(characterId);
         await tx.hanziLearningProgress.upsert({
           where: { childId_characterId: { childId, characterId } },
-          update: {},
+          update: mastered
+            ? {
+                status: "MASTERED",
+                learnedDate: today,
+                reviewStage: HANZI_REVIEW_STAGE_COUNT,
+                nextReviewDate: null,
+                isDifficult: false,
+                consecutiveWrong: 0,
+              }
+            : {},
           create: {
             childId,
             characterId,
+            status: mastered ? "MASTERED" : "LEARNING",
             learnedDate: today,
-            reviewStage: 0,
-            nextReviewDate: firstHanziReviewDate(today),
+            reviewStage: mastered ? HANZI_REVIEW_STAGE_COUNT : 0,
+            nextReviewDate: mastered ? null : firstHanziReviewDate(today),
           },
         });
       }
