@@ -156,6 +156,18 @@ export type MinimaxConfig = {
   configured: boolean;
 };
 
+export type MascotDialogue = {
+  id: string;
+  key: string;
+  context: "START" | "PROGRESS" | "COMPLETE" | "EMPTY" | "GENERAL";
+  text: string;
+  audioUrl: string | null;
+  isEnabled: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
@@ -202,6 +214,9 @@ export const staffApi = {
 };
 
 export const adminApi = {
+  mascotDialogues: () => api<{ dialogues: MascotDialogue[] }>("/api/admin/mascot-dialogues"),
+  updateMascotDialogue: (id: string, data: Partial<Pick<MascotDialogue, "text" | "context" | "isEnabled" | "sortOrder">>) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  generateMascotDialogueAudio: (id: string) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}/generate-audio`, { method: "POST" }),
   hanziCharacters: (query: { q?: string; page?: number; pageSize?: number; includeDisabled?: boolean } = {}) => {
     const search = new URLSearchParams();
     if (query.q) search.set("q", query.q);

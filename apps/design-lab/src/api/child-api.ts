@@ -187,6 +187,16 @@ export type TodayTaskExperience = {
   tasks: DailyTask[];
   active: TaskAttempt | null;
   timedOutAttemptId: string | null;
+  mascotContext: "START" | "PROGRESS" | "COMPLETE" | "EMPTY";
+  mascotDialogues: MascotDialogue[];
+};
+
+export type MascotDialogue = {
+  id: string;
+  key: string;
+  context: "START" | "PROGRESS" | "COMPLETE" | "EMPTY" | "GENERAL";
+  text: string;
+  audioUrl: string | null;
 };
 
 export async function getTodayTasks(signal?: AbortSignal) {

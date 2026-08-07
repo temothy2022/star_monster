@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { adminApi, type HanziResource, type MinimaxConfig, type PoemResource } from "./api";
+import { adminApi, type HanziResource, type MascotDialogue, type MinimaxConfig, type PoemResource } from "./api";
 
 function Notice({ children, error = false }: { children: ReactNode; error?: boolean }) {
   return <div className={`admin-notice${error ? " admin-notice--error" : ""}`}>{children}</div>;
@@ -85,7 +85,94 @@ function MinimaxSettings() {
   return <section className="admin-panel"><header className="admin-panel__header"><h2>MiniMax 配置</h2></header><form className="admin-form" onSubmit={save}><label className="field-span">{config?.configured ? `替换密钥（当前末四位 ${config.apiKeyLastFour}）` : "MiniMax API Key"}<input type="password" autoComplete="off" value={apiKey} required={!config?.configured} onChange={(event) => setApiKey(event.target.value)} placeholder={config?.configured ? "留空则保留当前密钥" : "sk-api-..."} /></label><label className="checkbox"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />启用全平台图片和音频自动生成</label>{message ? <div className="field-span"><Notice>{message}</Notice></div> : null}<div className="form-actions field-span"><button type="button" className="ghost-button" disabled={!config?.configured || busy} onClick={() => void test()}>测试连接</button><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存配置"}</button></div></form><p className="admin-help">密钥加密保存在服务端，只供超级后台资源管理使用。生成操作会写入审计日志。</p></section>;
 }
 
+const DIALOGUE_CONTEXT_LABELS: Record<MascotDialogue["context"], string> = {
+  START: "准备开始",
+  PROGRESS: "进行途中",
+  COMPLETE: "全部完成",
+  EMPTY: "暂无任务",
+  GENERAL: "通用鼓励",
+};
+
+function MascotDialogueLibrary() {
+  const [items, setItems] = useState<MascotDialogue[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function load() {
+    try {
+      setItems((await adminApi.mascotDialogues()).dialogues);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "星宠对话读取失败");
+    }
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  function replace(updated: MascotDialogue) {
+    setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
+  }
+
+  async function save(item: MascotDialogue) {
+    setBusyId(item.id); setMessage("");
+    try {
+      replace((await adminApi.updateMascotDialogue(item.id, {
+        text: item.text,
+        context: item.context,
+        isEnabled: item.isEnabled,
+        sortOrder: item.sortOrder,
+      })).dialogue);
+      setMessage("对话内容已保存；文字改变后需要重新生成语音");
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "保存失败");
+    } finally { setBusyId(null); }
+  }
+
+  async function generate(id: string) {
+    setBusyId(id); setMessage("");
+    try {
+      replace((await adminApi.generateMascotDialogueAudio(id)).dialogue);
+      setMessage("MiniMax 语音已生成");
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "语音生成失败");
+    } finally { setBusyId(null); }
+  }
+
+  async function generateMissing() {
+    const missing = items.filter((item) => item.isEnabled && !item.audioUrl);
+    if (!missing.length) { setMessage("所有启用对话都已有语音"); return; }
+    setBulkBusy(true); setMessage(`准备生成 ${missing.length} 条语音…`);
+    let completed = 0; let failed = 0;
+    for (const item of missing) {
+      setBusyId(item.id);
+      try {
+        replace((await adminApi.generateMascotDialogueAudio(item.id)).dialogue);
+        completed += 1;
+      } catch {
+        failed += 1;
+      }
+      setMessage(`已处理 ${completed + failed}/${missing.length}，成功 ${completed} 条${failed ? `，失败 ${failed} 条` : ""}`);
+    }
+    setBusyId(null); setBulkBusy(false);
+  }
+
+  return <div className="admin-stack">
+    <section className="admin-panel">
+      <header className="admin-panel__header"><div><h2>任务页星宠对话</h2><p>孩子点击星宠时展示并播放已生成的语音。</p></div><button type="button" className="primary-button" disabled={bulkBusy || Boolean(busyId)} onClick={() => void generateMissing()}>{bulkBusy ? "批量生成中…" : "生成全部缺失语音"}</button></header>
+      {message ? <Notice>{message}</Notice> : null}
+      <div className="mascot-dialogue-grid">
+        {items.map((item) => <article className="mascot-dialogue-card" key={item.id}>
+          <div className="mascot-dialogue-card__meta"><span>{DIALOGUE_CONTEXT_LABELS[item.context]}</span><small>{item.audioUrl ? "已有 MiniMax 语音" : "缺少语音"}</small></div>
+          <textarea maxLength={40} value={item.text} onChange={(event) => setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, text: event.target.value } : entry))} />
+          <div className="mascot-dialogue-card__settings"><select value={item.context} onChange={(event) => setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, context: event.target.value as MascotDialogue["context"] } : entry))}>{Object.entries(DIALOGUE_CONTEXT_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input aria-label="排序" type="number" min={0} max={10000} value={item.sortOrder} onChange={(event) => setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, sortOrder: Number(event.target.value) } : entry))} /><label className="checkbox"><input type="checkbox" checked={item.isEnabled} onChange={(event) => setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isEnabled: event.target.checked } : entry))} />启用</label></div>
+          <div className="list-card__actions">{item.audioUrl ? <AudioButton label="试听语音" url={item.audioUrl} fallbackText={item.text} /> : null}<button type="button" className="ghost-button" disabled={bulkBusy || busyId === item.id} onClick={() => void generate(item.id)}>{busyId === item.id ? "生成中…" : item.audioUrl ? "重新生成" : "生成语音"}</button><button type="button" className="primary-button" disabled={bulkBusy || busyId === item.id} onClick={() => void save(item)}>保存</button></div>
+        </article>)}
+      </div>
+    </section>
+  </div>;
+}
+
 export function LearningResources() {
-  const [tab, setTab] = useState<"hanzi" | "poems" | "minimax">("hanzi");
-  return <div className="admin-stack"><div className="super-toolbar"><button className={tab === "hanzi" ? "primary-button" : "ghost-button"} onClick={() => setTab("hanzi")}>汉字库</button><button className={tab === "poems" ? "primary-button" : "ghost-button"} onClick={() => setTab("poems")}>古诗库</button><button className={tab === "minimax" ? "primary-button" : "ghost-button"} onClick={() => setTab("minimax")}>MiniMax 配置</button></div>{tab === "hanzi" ? <HanziLibrary /> : tab === "poems" ? <PoemLibrary /> : <MinimaxSettings />}</div>;
+  const [tab, setTab] = useState<"hanzi" | "poems" | "mascot" | "minimax">("hanzi");
+  return <div className="admin-stack"><div className="super-toolbar resource-tabs"><button className={tab === "hanzi" ? "primary-button" : "ghost-button"} onClick={() => setTab("hanzi")}>汉字库</button><button className={tab === "poems" ? "primary-button" : "ghost-button"} onClick={() => setTab("poems")}>古诗库</button><button className={tab === "mascot" ? "primary-button" : "ghost-button"} onClick={() => setTab("mascot")}>星宠对话</button><button className={tab === "minimax" ? "primary-button" : "ghost-button"} onClick={() => setTab("minimax")}>MiniMax 配置</button></div>{tab === "hanzi" ? <HanziLibrary /> : tab === "poems" ? <PoemLibrary /> : tab === "mascot" ? <MascotDialogueLibrary /> : <MinimaxSettings />}</div>;
 }

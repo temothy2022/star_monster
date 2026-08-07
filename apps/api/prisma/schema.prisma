@@ -192,11 +192,11 @@ model Family {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  users             User[]
-  children          ChildProfile[]
-  aiConfig          FamilyAiConfig?
-  minimaxConfig     FamilyMinimaxConfig?
-  aiRecommendations AiRecommendation[]
+  users               User[]
+  children            ChildProfile[]
+  aiConfig            FamilyAiConfig?
+  minimaxConfig       FamilyMinimaxConfig?
+  aiRecommendations   AiRecommendation[]
   weeklyGrowthReports WeeklyGrowthReport[]
 
   @@index([status])
@@ -255,33 +255,34 @@ model ChildProfile {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  family             Family                   @relation(fields: [familyId], references: [id], onDelete: Restrict)
-  sessions           ChildSession[]
-  taskTemplates      TaskTemplate[]
-  dailyTasks         DailyTask[]
-  taskAttempts       TaskAttempt[]
-  activeTaskSlot     ActiveTaskSlot?
-  starLedger         StarLedger[]
-  wishRewards        WishReward[]
-  redemptions        WishRedemption[]
-  schedulePreference ChildSchedulePreference?
-  availabilitySlots  ChildAvailabilitySlot[]
-  aiRecommendations  AiRecommendation[]
-  weeklyGrowthReports WeeklyGrowthReport[]
-  planetProgress     PlanetProgress[]
-  hanziSettings      HanziLearningSettings?
-  hanziProgress      HanziLearningProgress[]
-  hanziSessions      HanziLearningSession[]
-  clockSettings      ClockLearningSettings?
-  clockSessions      ClockLearningSession[]
-  makeTenSettings    MakeTenLearningSettings?
-  makeTenSessions    MakeTenLearningSession[]
+  family                  Family                    @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  sessions                ChildSession[]
+  taskTemplates           TaskTemplate[]
+  dailyTasks              DailyTask[]
+  taskAttempts            TaskAttempt[]
+  activeTaskSlot          ActiveTaskSlot?
+  starLedger              StarLedger[]
+  wishRewards             WishReward[]
+  redemptions             WishRedemption[]
+  schedulePreference      ChildSchedulePreference?
+  availabilitySlots       ChildAvailabilitySlot[]
+  aiRecommendations       AiRecommendation[]
+  weeklyGrowthReports     WeeklyGrowthReport[]
+  planetProgress          PlanetProgress[]
+  hanziSettings           HanziLearningSettings?
+  hanziProgress           HanziLearningProgress[]
+  hanziSessions           HanziLearningSession[]
+  clockSettings           ClockLearningSettings?
+  clockSessions           ClockLearningSession[]
+  makeTenSettings         MakeTenLearningSettings?
+  makeTenSessions         MakeTenLearningSession[]
   makeTenQuestionAttempts MakeTenQuestionAttempt[]
   makeTenFactProgress     MakeTenFactProgress[]
-  poemSettings       PoemLearningSettings?
-  poemProgress       PoemLearningProgress[]
-  poemSessions       PoemLearningSession[]
-  performanceMetrics ChildPerformanceMetric[]
+  poemSettings            PoemLearningSettings?
+  poemProgress            PoemLearningProgress[]
+  poemSessions            PoemLearningSession[]
+  performanceMetrics      ChildPerformanceMetric[]
+  leaderboardSettings     ChildLeaderboardSettings?
 
   @@index([familyId, status])
 }
@@ -383,6 +384,32 @@ model SystemMinimaxConfig {
   updatedByUserId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model MascotDialogue {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  context   String
+  text      String
+  audioUrl  String?
+  isEnabled Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([context, isEnabled, sortOrder])
+}
+
+model ChildLeaderboardSettings {
+  id                       String    @id @default(cuid())
+  childId                  String    @unique
+  competitorGrowthPercent  Int       @default(100)
+  dailyCompetitorStarDelta Int       @default(0)
+  dailyAdjustmentDate      DateTime? @db.Date
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
 }
 
 model ChildSchedulePreference {
@@ -585,19 +612,19 @@ model ClockLearningSettings {
 }
 
 model ClockLearningSession {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   childId        String
-  taskAttemptId  String   @unique
-  sessionDate    DateTime @db.Date
+  taskAttemptId  String    @unique
+  sessionDate    DateTime  @db.Date
   minuteStep     Int
   questions      Json
   answers        Json
-  currentIndex   Int      @default(0)
-  correctCount   Int      @default(0)
+  currentIndex   Int       @default(0)
+  correctCount   Int       @default(0)
   totalQuestions Int
   completedAt    DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
   taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
@@ -619,24 +646,24 @@ model MakeTenLearningSettings {
 }
 
 model MakeTenLearningSession {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   childId             String
-  taskAttemptId       String   @unique
-  sessionDate         DateTime @db.Date
+  taskAttemptId       String    @unique
+  sessionDate         DateTime  @db.Date
   secondsPerQuestion  Float
   passAccuracyPercent Int
   questions           Json
   answers             Json
-  currentIndex        Int      @default(0)
-  correctCount        Int      @default(0)
+  currentIndex        Int       @default(0)
+  correctCount        Int       @default(0)
   totalQuestions      Int
   passed              Boolean?
   completedAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
-  taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+  child            ChildProfile             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt      TaskAttempt              @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
   questionAttempts MakeTenQuestionAttempt[]
 
   @@index([childId, completedAt])
@@ -737,18 +764,18 @@ model PoemLearningProgress {
 }
 
 model PoemLearningSession {
-  id                 String          @id @default(cuid())
-  childId            String
-  taskAttemptId      String          @unique
-  sessionDate        DateTime        @db.Date
-  kind               PoemSessionKind
-  poemIds            String[]        @default([])
-  currentIndex       Int             @default(0)
-  completedPoemIds   String[]        @default([])
-  forgottenPoemIds   String[]        @default([])
-  completedAt        DateTime?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  id               String          @id @default(cuid())
+  childId          String
+  taskAttemptId    String          @unique
+  sessionDate      DateTime        @db.Date
+  kind             PoemSessionKind
+  poemIds          String[]        @default([])
+  currentIndex     Int             @default(0)
+  completedPoemIds String[]        @default([])
+  forgottenPoemIds String[]        @default([])
+  completedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
   taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
@@ -773,14 +800,14 @@ model TaskAttempt {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  child        ChildProfile          @relation(fields: [childId], references: [id], onDelete: Cascade)
-  dailyTask    DailyTask             @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
-  reward       StarLedger?
-  activeSlot   ActiveTaskSlot?
-  hanziSession HanziLearningSession?
-  clockSession ClockLearningSession?
+  child          ChildProfile            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dailyTask      DailyTask               @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
+  reward         StarLedger?
+  activeSlot     ActiveTaskSlot?
+  hanziSession   HanziLearningSession?
+  clockSession   ClockLearningSession?
   makeTenSession MakeTenLearningSession?
-  poemSession  PoemLearningSession?
+  poemSession    PoemLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])
   @@index([childId, status])

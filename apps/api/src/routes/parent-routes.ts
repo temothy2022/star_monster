@@ -27,6 +27,10 @@ import {
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
 import { getGrowthAnalytics } from "../services/growth-analytics-service.js";
+import {
+  getChildLeaderboardSettings,
+  getFootprints,
+} from "../services/footprint-service.js";
 import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
@@ -108,6 +112,10 @@ const makeTenSettingsSchema = z.object({
   questionsPerDay: z.number().int().min(1).max(50),
   secondsPerQuestion: z.number().min(2).max(30),
   passAccuracyPercent: z.number().int().min(1).max(100),
+});
+const leaderboardSettingsSchema = z.object({
+  competitorGrowthPercent: z.number().int().min(25).max(200),
+  dailyCompetitorStarDelta: z.number().int().min(-50).max(50),
 });
 const hanziLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
@@ -628,6 +636,55 @@ export async function registerParentRoutes(
       return updated;
     });
     return { child };
+  });
+
+  app.get("/api/parent/children/:id/leaderboard/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+    const [settings, footprints] = await Promise.all([
+      getChildLeaderboardSettings(id, today),
+      getFootprints(id, config),
+    ]);
+    return { settings, preview: footprints.leaderboards.daily };
+  });
+
+  app.patch("/api/parent/children/:id/leaderboard/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    const { user, child } = await requireOwnedChild(request, reply, config, id);
+    const input = leaderboardSettingsSchema.parse(request.body);
+    const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+    await prisma.$transaction(async (tx) => {
+      await tx.childLeaderboardSettings.upsert({
+        where: { childId: id },
+        create: {
+          childId: id,
+          competitorGrowthPercent: input.competitorGrowthPercent,
+          dailyCompetitorStarDelta: input.dailyCompetitorStarDelta,
+          dailyAdjustmentDate: today,
+        },
+        update: {
+          competitorGrowthPercent: input.competitorGrowthPercent,
+          dailyCompetitorStarDelta: input.dailyCompetitorStarDelta,
+          dailyAdjustmentDate: today,
+        },
+      });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId: child.familyId,
+        action: "CHILD_LEADERBOARD_SETTINGS_UPDATE",
+        resourceType: "ChildLeaderboardSettings",
+        resourceId: id,
+        metadata: input,
+        ipAddress: request.ip,
+      });
+    });
+    const [settings, footprints] = await Promise.all([
+      getChildLeaderboardSettings(id, today),
+      getFootprints(id, config),
+    ]);
+    return { settings, preview: footprints.leaderboards.daily };
   });
 
   app.get("/api/parent/children/:id/devices", async (request, reply) => {

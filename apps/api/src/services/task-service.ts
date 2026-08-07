@@ -448,7 +448,7 @@ export async function getTodayTaskExperience(
   const streakLookback = new Date(today);
   streakLookback.setUTCDate(streakLookback.getUTCDate() - 400);
 
-  const [child, tasks, activeSlot, scoredDays, completedStars] = await Promise.all([
+  const [child, tasks, activeSlot, scoredDays, completedStars, mascotDialogues] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { dailyStarGoal: true, starBalance: true },
@@ -525,6 +525,11 @@ export async function getTodayTaskExperience(
       },
       _sum: { baseStarsAwarded: true, bonusStarsAwarded: true },
     }),
+    prisma.mascotDialogue.findMany({
+      where: { isEnabled: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, key: true, context: true, text: true, audioUrl: true },
+    }),
   ]);
 
   const taskStarsEarnedToday =
@@ -537,6 +542,19 @@ export async function getTodayTaskExperience(
     ...task,
     completedAttemptCount: _count.attempts,
   }));
+  const completedCount = tasks.reduce(
+    (sum, task) => sum + task._count.attempts,
+    0,
+  );
+  const pendingCount = tasks.filter((task) => task.status !== "COMPLETED").length;
+  const mascotContext =
+    tasks.length === 0
+      ? "EMPTY"
+      : pendingCount === 0
+        ? "COMPLETE"
+        : completedCount > 0
+          ? "PROGRESS"
+          : "START";
 
   const activeAttempt = activeSlot?.attempt;
   const activeRemaining =
@@ -559,6 +577,11 @@ export async function getTodayTaskExperience(
     dailyStarGoal: child.dailyStarGoal,
     starBalance: child.starBalance,
     tasks: serializedTasks,
+    mascotDialogues: mascotDialogues.filter(
+      (dialogue) =>
+        dialogue.context === mascotContext || dialogue.context === "GENERAL",
+    ),
+    mascotContext,
     active: activeAttempt
       ? {
           ...activeAttempt,

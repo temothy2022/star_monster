@@ -21,6 +21,35 @@ export type Child = {
   lastLoginAt: string | null;
 };
 
+export type LeaderboardSettings = {
+  competitorGrowthPercent: number;
+  dailyCompetitorStarDelta: number;
+  dailyAdjustmentDate: string | null;
+};
+
+export type LeaderboardPreview = {
+  entries: Array<{
+    rank: number;
+    displayName: string;
+    stars: number;
+    completedTasks: number;
+    isSelf: boolean;
+  }>;
+  self: {
+    rank: number;
+    stars: number;
+    completedTasks: number;
+    totalParticipants: number;
+    inTopTen: boolean;
+    starsToNextRank: number;
+  };
+};
+
+export type LeaderboardSettingsResponse = {
+  settings: LeaderboardSettings;
+  preview: LeaderboardPreview;
+};
+
 export type TaskTemplate = {
   id: string;
   title: string;
@@ -530,6 +559,13 @@ export const parentApi = {
   children: () => api<{ children: Child[] }>("/api/parent/children"),
   updateChild: (id: string, data: Record<string, unknown>) =>
     api<{ child: Child }>(`/api/parent/children/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  leaderboardSettings: (childId: string) =>
+    api<LeaderboardSettingsResponse>(`/api/parent/children/${childId}/leaderboard/settings`),
+  updateLeaderboardSettings: (childId: string, data: Pick<LeaderboardSettings, "competitorGrowthPercent" | "dailyCompetitorStarDelta">) =>
+    api<LeaderboardSettingsResponse>(`/api/parent/children/${childId}/leaderboard/settings`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),

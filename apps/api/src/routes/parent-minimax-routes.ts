@@ -39,6 +39,15 @@ const poemGenerateParams = z.object({
   id: z.string().min(1),
   kind: z.enum(["image", "audio"]),
 });
+const mascotDialogueParams = z.object({ id: z.string().min(1) });
+const mascotDialoguePatchSchema = z.object({
+  text: z.string().trim().min(2).max(40).optional(),
+  context: z.enum(["START", "PROGRESS", "COMPLETE", "EMPTY", "GENERAL"]).optional(),
+  isEnabled: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(10_000).optional(),
+}).refine((input) => Object.keys(input).length > 0, {
+  message: "至少提交一项修改",
+});
 const generationLocks = new Set<string>();
 
 async function adminUser(
@@ -106,6 +115,97 @@ export async function registerAdminMinimaxRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ) {
+  app.get("/api/admin/mascot-dialogues", async (request, reply) => {
+    await adminUser(request, reply, config);
+    return {
+      dialogues: await prisma.mascotDialogue.findMany({
+        orderBy: [{ context: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+      }),
+    };
+  });
+
+  app.patch("/api/admin/mascot-dialogues/:id", async (request, reply) => {
+    const { id } = mascotDialogueParams.parse(request.params);
+    const { user } = await adminUser(request, reply, config);
+    const input = mascotDialoguePatchSchema.parse(request.body);
+    const existing = await prisma.mascotDialogue.findUnique({ where: { id } });
+    if (!existing) {
+      throw new HttpError(404, "MASCOT_DIALOGUE_NOT_FOUND", "没有找到这条星宠对话");
+    }
+    const dialogue = await prisma.$transaction(async (tx) => {
+      const updated = await tx.mascotDialogue.update({
+        where: { id },
+        data: {
+          ...input,
+          ...(input.text !== undefined && input.text !== existing.text
+            ? { audioUrl: null }
+            : {}),
+        },
+      });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        action: "MASCOT_DIALOGUE_UPDATE",
+        resourceType: "MascotDialogue",
+        resourceId: id,
+        metadata: input,
+        ipAddress: request.ip,
+      });
+      return updated;
+    });
+    return { dialogue };
+  });
+
+  app.post("/api/admin/mascot-dialogues/:id/generate-audio", async (request, reply) => {
+    const { id } = mascotDialogueParams.parse(request.params);
+    const { user } = await adminUser(request, reply, config);
+    const existing = await prisma.mascotDialogue.findUnique({ where: { id } });
+    if (!existing) {
+      throw new HttpError(404, "MASCOT_DIALOGUE_NOT_FOUND", "没有找到这条星宠对话");
+    }
+    enforceMiniMaxLimit(user.id, "mascot-dialogue", 60);
+    const credentials = await minimaxCredentials(config);
+    return withGenerationLock(`mascot-dialogue:${id}`, async () => {
+      const generated = await generateMiniMaxSpeech({
+        ...credentials,
+        text: existing.text,
+        config,
+      });
+      const stored = await storeGeneratedPoemMedia({
+        uploadDir: config.POEM_ASSET_UPLOAD_DIR,
+        poemId: `mascot-${existing.key}`,
+        kind: "audio",
+        data: generated,
+      });
+      try {
+        const dialogue = await prisma.$transaction(async (tx) => {
+          const updated = await tx.mascotDialogue.update({
+            where: { id },
+            data: { audioUrl: stored.publicUrl },
+          });
+          await writeAudit(tx, {
+            actorType: "USER",
+            actorId: user.id,
+            action: "MASCOT_DIALOGUE_AUDIO_GENERATED",
+            resourceType: "MascotDialogue",
+            resourceId: id,
+            metadata: {
+              key: existing.key,
+              fileName: stored.fileName,
+              provider: "MINIMAX",
+            },
+            ipAddress: request.ip,
+          });
+          return updated;
+        });
+        return { dialogue };
+      } catch (error) {
+        if (stored.created) await unlink(stored.filePath).catch(() => undefined);
+        throw error;
+      }
+    });
+  });
+
   app.get("/api/admin/minimax/config", async (request, reply) => {
     await adminUser(request, reply, config);
     const stored = await prisma.systemMinimaxConfig.findUnique({

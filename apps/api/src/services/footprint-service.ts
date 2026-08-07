@@ -11,6 +11,27 @@ import {
   buildMotivationalLeaderboard,
 } from "../domain/child-leaderboard.js";
 
+export async function getChildLeaderboardSettings(
+  childId: string,
+  today: Date,
+) {
+  const stored = await prisma.childLeaderboardSettings.findUnique({
+    where: { childId },
+  });
+  const adjustmentIsCurrent =
+    stored?.dailyAdjustmentDate != null &&
+    businessDateKey(stored.dailyAdjustmentDate) === businessDateKey(today);
+  return {
+    competitorGrowthPercent: stored?.competitorGrowthPercent ?? 100,
+    dailyCompetitorStarDelta: adjustmentIsCurrent
+      ? stored.dailyCompetitorStarDelta
+      : 0,
+    dailyAdjustmentDate: adjustmentIsCurrent
+      ? businessDateKey(stored.dailyAdjustmentDate!)
+      : null,
+  };
+}
+
 export async function getFootprints(
   childId: string,
   config: AppConfig,
@@ -34,7 +55,7 @@ export async function getFootprints(
   const todayKey = businessDateKey(today);
   const weekStartKey = businessDateKey(weekStart);
   const currentMinute = businessMinuteOfDayAt(now, config.APP_TIME_ZONE);
-  const [tasks, child] = await Promise.all([
+  const [tasks, child, leaderboardSettings] = await Promise.all([
     prisma.dailyTask.findMany({
       where: {
         childId,
@@ -55,6 +76,7 @@ export async function getFootprints(
       where: { id: childId },
       select: { dailyStarGoal: true, nickname: true, petType: true },
     }),
+    getChildLeaderboardSettings(childId, today),
   ]);
 
   const totals = new Map<string, number>();
@@ -150,6 +172,8 @@ export async function getFootprints(
         dailyGoalStars: child.dailyStarGoal,
         seed: weekStartKey,
         scoreDays: [{ seed: todayKey, elapsedMinutes: currentMinute }],
+        competitorGrowthPercent: leaderboardSettings.competitorGrowthPercent,
+        competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
       }),
       weekly: buildMotivationalLeaderboard({
         childId,
@@ -160,6 +184,8 @@ export async function getFootprints(
         dailyGoalStars: child.dailyStarGoal,
         seed: weekStartKey,
         scoreDays: weeklyScoreDays,
+        competitorGrowthPercent: leaderboardSettings.competitorGrowthPercent,
+        competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
       }),
     },
   };

@@ -30,6 +30,7 @@ import {
   markChildPlanetNotified,
   type ChildPlanet,
   type DailyTask,
+  type MascotDialogue,
   type TaskAttempt,
   type TodayTaskExperience,
 } from "../api/child-api";
@@ -78,34 +79,37 @@ const TASK_ACCENT_COLORS: Record<DailyTask["categorySnapshot"], string> = {
   OTHER: "#9CA3AF",
 };
 
-function MascotSpeech({ lines }: { lines: [string, string] }) {
+function MascotSpeech({ text }: { text: string }) {
   return (
     <div
       className="task-speech-bubble"
-      aria-label={lines.join("，")}
+      aria-label={text}
       aria-live="polite"
     >
-      {lines.map((line, lineIndex) => {
-        const delayOffset = lineIndex === 0 ? 0 : Array.from(lines[0]).length + 2;
-        return (
-          <span className="task-speech-bubble__line" aria-hidden="true" key={line}>
-            {Array.from(line).map((character, characterIndex) => (
-              <span
-                className="task-speech-bubble__character"
-                key={`${character}-${characterIndex}`}
-                style={{
-                  animationDelay: `${(delayOffset + characterIndex) * 55}ms`,
-                }}
-              >
-                {character === " " ? "\u00a0" : character}
-              </span>
-            ))}
+      <span className="task-speech-bubble__line" aria-hidden="true">
+        {Array.from(text).map((character, characterIndex) => (
+          <span
+            className="task-speech-bubble__character"
+            key={`${character}-${characterIndex}`}
+            style={{ animationDelay: `${characterIndex * 48}ms` }}
+          >
+            {character === " " ? "\u00a0" : character}
           </span>
-        );
-      })}
+        ))}
+      </span>
     </div>
   );
 }
+
+const FALLBACK_MASCOT_DIALOGUES: Record<
+  TodayTaskExperience["mascotContext"],
+  string[]
+> = {
+  START: ["选一个喜欢的任务，我们一起出发吧！", "准备好了吗？今天也会很有趣！"],
+  PROGRESS: ["做得真稳，休息一下再继续吧！", "保持自己的节奏，你正在变得更厉害。"],
+  COMPLETE: ["今天的探险很精彩，你认真完成了！", "你坚持到了最后，我真为你开心！"],
+  EMPTY: ["今天轻松一点，去看看你的星愿吧！", "暂时没有新任务，我们一起放松一下。"],
+};
 
 function DailyProgress({ earned, total }: { earned: number; total: number }) {
   const radius = 55;
@@ -135,36 +139,105 @@ function ProgressColumn({
   earned,
   goal,
   balance,
-  tasks,
-  streakDays,
+  mascotContext,
+  dialogues,
 }: {
   earned: number;
   goal: number;
   balance: number;
-  tasks: TaskItem[];
-  streakDays: number;
+  mascotContext: TodayTaskExperience["mascotContext"];
+  dialogues: MascotDialogue[];
 }) {
   const { mascot } = useMascot();
-  const completedCount = tasks.filter((task) => task.status === "completed").length;
-  const repeatedCompletionCount = tasks.reduce(
-    (sum, task) => sum + task.repeatCompletionCount,
-    0,
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCacheRef = useRef(new Map<string, HTMLAudioElement>());
+  const playbackTokenRef = useRef(0);
+  const lastTapAtRef = useRef(0);
+  const lastSpokenIdRef = useRef<string | null>(null);
+  const candidates = useMemo(() => {
+    const withAudio = dialogues.filter((dialogue) => Boolean(dialogue.audioUrl));
+    return withAudio.length > 0 ? withAudio : dialogues;
+  }, [dialogues]);
+  const fallbackText = FALLBACK_MASCOT_DIALOGUES[mascotContext][0];
+  const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(
+    () => candidates[0] ?? null,
   );
-  const pendingCount = tasks.length - completedCount;
-  const encouragement: [string, string] =
-    tasks.length === 0
-      ? ["今天没有任务哦～", "去星愿看看惊喜吧！"]
-      : pendingCount === 0
-        ? ["今天的任务都完成啦！", "你真的太棒了！"]
-        : goal > 0 && earned >= goal
-          ? ["今日星星目标达成！", "剩下的也轻松完成～"]
-            : completedCount + repeatedCompletionCount > 0 && pendingCount === 1
-            ? ["只剩最后一个任务啦！", "再加把劲就完成了～"]
-            : completedCount + repeatedCompletionCount > 0
-              ? [`今天已经完成 ${completedCount + repeatedCompletionCount} 次！`, "继续保持这个节奏吧～"]
-              : streakDays > 2
-                ? [`已经连续 ${streakDays} 天啦！`, "今天也一起加油吧～"]
-                : ["今天的探险开始啦～", "选一个任务出发吧！"];
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  useEffect(() => {
+    setSelectedDialogue((current) =>
+      candidates.find((dialogue) => dialogue.id === current?.id) ??
+      candidates[0] ??
+      null,
+    );
+    for (const dialogue of candidates) {
+      if (!dialogue.audioUrl || audioCacheRef.current.has(dialogue.audioUrl)) continue;
+      const audio = new Audio(dialogue.audioUrl);
+      audio.preload = "auto";
+      audioCacheRef.current.set(dialogue.audioUrl, audio);
+    }
+  }, [candidates]);
+
+  useEffect(() => () => {
+    playbackTokenRef.current += 1;
+    audioRef.current?.pause();
+    audioRef.current = null;
+  }, []);
+
+  async function speak() {
+    const now = performance.now();
+    if (now - lastTapAtRef.current < 350) return;
+    lastTapAtRef.current = now;
+
+    const active = audioRef.current;
+    if (active) {
+      active.currentTime = 0;
+      if (active.paused) {
+        void active.play().catch(() => undefined);
+      }
+      return;
+    }
+
+    const currentIndex = candidates.findIndex(
+      (dialogue) => dialogue.id === lastSpokenIdRef.current,
+    );
+    const dialogue = lastSpokenIdRef.current == null
+      ? selectedDialogue ?? candidates[0] ?? null
+      : candidates[(currentIndex + 1) % Math.max(1, candidates.length)] ?? null;
+    if (!dialogue) return;
+    setSelectedDialogue(dialogue);
+    lastSpokenIdRef.current = dialogue.id;
+    if (!dialogue.audioUrl) return;
+
+    const token = ++playbackTokenRef.current;
+    const cached = audioCacheRef.current.get(dialogue.audioUrl);
+    const audio = cached ?? new Audio(dialogue.audioUrl);
+    if (!cached) {
+      audio.preload = "auto";
+      audioCacheRef.current.set(dialogue.audioUrl, audio);
+    }
+    audioRef.current = audio;
+    audio.currentTime = 0;
+    setIsSpeaking(true);
+    audio.onended = () => {
+      if (playbackTokenRef.current !== token) return;
+      audioRef.current = null;
+      setIsSpeaking(false);
+    };
+    audio.onerror = () => {
+      if (playbackTokenRef.current !== token) return;
+      audioRef.current = null;
+      setIsSpeaking(false);
+    };
+    try {
+      await audio.play();
+    } catch {
+      if (playbackTokenRef.current === token) {
+        audioRef.current = null;
+        setIsSpeaking(false);
+      }
+    }
+  }
 
   return (
     <aside className="task-progress-column">
@@ -180,13 +253,19 @@ function ProgressColumn({
       </section>
       <section className="task-mascot-area" aria-label={`${mascot.name}的鼓励`}>
         <div className="task-mascot-area__glow" />
-        <div className="task-mascot-figure">
+        <button
+          className={`task-mascot-figure${isSpeaking ? " task-mascot-figure--speaking" : ""}`}
+          type="button"
+          aria-label={`点击让${mascot.name}说话`}
+          aria-pressed={isSpeaking}
+          onClick={() => void speak()}
+        >
           <MascotSpeech
-            key={encouragement.join("|")}
-            lines={encouragement}
+            key={selectedDialogue?.id ?? `${mascotContext}-fallback`}
+            text={selectedDialogue?.text ?? fallbackText}
           />
           <img className="task-mascot-area__image" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
-        </div>
+        </button>
       </section>
     </aside>
   );
@@ -559,8 +638,8 @@ export function TaskExperience({
             earned={experience.earnedToday}
             goal={experience.dailyStarGoal}
             balance={experience.starBalance}
-            tasks={tasks}
-            streakDays={experience.streakDays}
+            mascotContext={experience.mascotContext}
+            dialogues={experience.mascotDialogues}
           />
           {effectiveView === "empty" ? (
             <EmptyTaskPanel />

@@ -75,6 +75,49 @@ describe("孩子激励排行榜", () => {
     );
   });
 
+  it("家长调整今日对手星星后仍保留真实得星的递增过程", () => {
+    const morning = buildMotivationalLeaderboard({
+      ...baseInput,
+      competitorStarDelta: 4,
+      scoreDays: [{ seed: "2026-08-07", elapsedMinutes: 8 * 60 }],
+    });
+    const evening = buildMotivationalLeaderboard({
+      ...baseInput,
+      competitorStarDelta: 4,
+      scoreDays: [{ seed: "2026-08-07", elapsedMinutes: 21 * 60 }],
+    });
+    const morningStars = new Map(
+      morning.entries.map((entry) => [entry.displayName, entry.stars]),
+    );
+
+    expect(morning.self.stars).toBe(0);
+    expect(
+      evening.entries
+        .filter((entry) => !entry.isSelf)
+        .every((entry) => entry.stars >= (morningStars.get(entry.displayName) ?? 0)),
+    ).toBe(true);
+  });
+
+  it("对手增长速度可调且默认百分比保持原结果", () => {
+    const defaults = buildMotivationalLeaderboard(baseInput);
+    const explicitDefaults = buildMotivationalLeaderboard({
+      ...baseInput,
+      competitorGrowthPercent: 100,
+      competitorStarDelta: 0,
+    });
+    const slower = buildMotivationalLeaderboard({
+      ...baseInput,
+      competitorGrowthPercent: 50,
+    });
+    const opponentStars = (result: typeof defaults) =>
+      result.entries
+        .filter((entry) => !entry.isSelf)
+        .reduce((sum, entry) => sum + entry.stars, 0);
+
+    expect(explicitDefaults).toEqual(defaults);
+    expect(opponentStars(slower)).toBeLessThan(opponentStars(defaults));
+  });
+
   it("孩子获得更多星星后排名自然提升", () => {
     const quarter = buildMotivationalLeaderboard({ ...baseInput, stars: 3 });
     const half = buildMotivationalLeaderboard({ ...baseInput, stars: 6 });

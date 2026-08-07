@@ -1307,22 +1307,37 @@ input[type="reset"] {
   top: -44px;
   right: -36px;
   display: flex;
-  width: 172.5px;
-  height: 76px;
-  flex-direction: column;
+  width: clamp(178px, 17vw, 216px);
+  min-height: 76px;
+  max-height: 116px;
   justify-content: center;
-  padding: 0 18px;
+  padding: 12px 18px;
   border: 2px solid var(--task-ink);
   border-radius: 20px 20px 20px 0;
   background: var(--task-surface);
   box-shadow: 0 8px 24px rgba(37, 59, 89, 0.1);
   font-size: 14px;
   line-height: 20px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.task-speech-bubble::after {
+  position: absolute;
+  bottom: -12px;
+  left: -2px;
+  width: 18px;
+  height: 18px;
+  border-bottom: 2px solid var(--task-ink);
+  border-left: 2px solid var(--task-ink);
+  background: var(--task-surface);
+  content: "";
+  transform: skewY(-34deg);
 }
 
 .task-speech-bubble__line {
   display: block;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .task-speech-bubble__character {
@@ -1345,6 +1360,21 @@ input[type="reset"] {
   left: 50%;
   width: min(294px, 86%);
   transform: translateX(-58%);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.task-mascot-figure--speaking .task-mascot-area__image {
+  animation: task-mascot-speaking 720ms ease-in-out infinite alternate;
+}
+
+@keyframes task-mascot-speaking {
+  to { transform: translateY(-4px) rotate(1deg); }
 }
 
 .task-mascot-area__image {

@@ -34,6 +34,8 @@ export type MotivationalLeaderboardInput = {
     elapsedMinutes: number;
   }>;
   participantCount?: number;
+  competitorGrowthPercent?: number;
+  competitorStarDelta?: number;
 };
 
 const PET_TYPES: LeaderboardPetType[] = [
@@ -109,12 +111,14 @@ function virtualDayTarget({
   virtualIndex,
   competitorCount,
   dailyGoalStars,
+  competitorGrowthPercent,
 }: {
   childId: string;
   daySeed: string;
   virtualIndex: number;
   competitorCount: number;
   dailyGoalStars: number;
+  competitorGrowthPercent: number;
 }) {
   const basePercent =
     50 + stableHash(`${childId}:${daySeed}:${virtualIndex}:target`) % 45;
@@ -126,7 +130,12 @@ function virtualDayTarget({
     hasChallenger && virtualIndex === challengerIndex
       ? 104 + stableHash(`${childId}:${daySeed}:challenger-score`) % 5
       : basePercent;
-  return Math.max(1, Math.round((dailyGoalStars * percent) / 100));
+  return Math.max(
+    1,
+    Math.round(
+      (dailyGoalStars * percent * competitorGrowthPercent) / 10_000,
+    ),
+  );
 }
 
 function virtualDayProgress({
@@ -137,6 +146,7 @@ function virtualDayProgress({
   competitorCount,
   dailyGoalStars,
   elapsedMinutes,
+  competitorGrowthPercent,
 }: {
   childId: string;
   identitySeed: string;
@@ -145,6 +155,7 @@ function virtualDayProgress({
   competitorCount: number;
   dailyGoalStars: number;
   elapsedMinutes: number;
+  competitorGrowthPercent: number;
 }) {
   const targetStars = virtualDayTarget({
     childId,
@@ -152,6 +163,7 @@ function virtualDayProgress({
     virtualIndex,
     competitorCount,
     dailyGoalStars,
+    competitorGrowthPercent,
   });
   const desiredEvents =
     4 + stableHash(`${childId}:${daySeed}:${virtualIndex}:event-count`) % 4;
@@ -218,6 +230,14 @@ export function buildMotivationalLeaderboard(
     { seed: input.seed, elapsedMinutes: MINUTES_PER_DAY },
   ];
   const competitorCount = participantCount - 1;
+  const competitorGrowthPercent = Math.min(
+    200,
+    Math.max(25, Math.round(input.competitorGrowthPercent ?? 100)),
+  );
+  const competitorStarDelta = Math.min(
+    50,
+    Math.max(-50, Math.round(input.competitorStarDelta ?? 0)),
+  );
   const competitors = Array.from({ length: competitorCount }, (_, virtualIndex) => {
     const identity = virtualIdentity(input.seed, virtualIndex);
     const progress = scoreDays.reduce(
@@ -230,6 +250,7 @@ export function buildMotivationalLeaderboard(
           competitorCount,
           dailyGoalStars,
           elapsedMinutes: day.elapsedMinutes,
+          competitorGrowthPercent,
         });
         summary.stars += dayProgress.stars;
         summary.completedTasks += dayProgress.completedTasks;
@@ -239,7 +260,7 @@ export function buildMotivationalLeaderboard(
     );
     return {
       displayName: identity.displayName,
-      stars: progress.stars,
+      stars: Math.max(0, progress.stars + competitorStarDelta),
       completedTasks: progress.completedTasks,
       petType: identity.petType,
       flagKey: identity.flagKey,

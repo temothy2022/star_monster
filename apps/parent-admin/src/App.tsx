@@ -19,6 +19,8 @@ import {
   type HanziLearningSettings,
   type HanziMediaKind,
   type LedgerEntry,
+  type LeaderboardPreview,
+  type LeaderboardSettings as LeaderboardSettingsValue,
   type PlanetKey,
   type PlanetSetting,
   type PoemLearningSettings,
@@ -58,6 +60,7 @@ type Section =
   | "stars"
   | "planets"
   | "ai"
+  | "leaderboard"
   | "profile"
   | "settings";
 
@@ -74,6 +77,7 @@ const SECTION_LABELS: Record<Section, string> = {
   stars: "星星流水",
   planets: "航图规则",
   ai: "AI 助手",
+  leaderboard: "排行榜设置",
   profile: "孩子档案",
   settings: "登录设备",
 };
@@ -115,6 +119,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     label: "智能与设置",
     items: [
       { key: "ai", label: "AI 助手", icon: "✦" },
+      { key: "leaderboard", label: "排行榜设置", icon: "榜" },
       { key: "profile", label: "孩子档案", icon: "档" },
       { key: "settings", label: "登录设备", icon: "⚙" },
     ],
@@ -2316,6 +2321,96 @@ function Settings({ child }: { child: Child }) {
   );
 }
 
+function LeaderboardSettings({ child }: { child: Child }) {
+  const [settings, setSettings] = useState<LeaderboardSettingsValue>({
+    competitorGrowthPercent: 100,
+    dailyCompetitorStarDelta: 0,
+    dailyAdjustmentDate: null,
+  });
+  const [preview, setPreview] = useState<LeaderboardPreview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setMessage("");
+    void parentApi.leaderboardSettings(child.id)
+      .then((result) => {
+        if (cancelled) return;
+        setSettings(result.settings);
+        setPreview(result.preview);
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setMessage(reason instanceof Error ? reason.message : "排行榜设置读取失败");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [child.id]);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setMessage("");
+    try {
+      const result = await parentApi.updateLeaderboardSettings(child.id, {
+        competitorGrowthPercent: settings.competitorGrowthPercent,
+        dailyCompetitorStarDelta: settings.dailyCompetitorStarDelta,
+      });
+      setSettings(result.settings);
+      setPreview(result.preview);
+      setMessage("排行榜设置已保存，孩子端下次刷新后生效");
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "排行榜设置保存失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="admin-stack leaderboard-settings">
+      <Panel title="全球小朋友榜设置">
+        {loading ? <div className="empty-state">正在读取排行榜设置…</div> : (
+          <form className="leaderboard-settings__form" onSubmit={save}>
+            <label className="leaderboard-setting-control">
+              <span><strong>对手得星速度</strong><small>调整虚拟小朋友随时间增长的速度，原有活动时间和递增过程保持不变。</small></span>
+              <output>{settings.competitorGrowthPercent}%</output>
+              <input type="range" min={25} max={200} step={5} value={settings.competitorGrowthPercent} onChange={(event) => setSettings({ ...settings, competitorGrowthPercent: Number(event.target.value) })} />
+            </label>
+            <label className="leaderboard-setting-control">
+              <span><strong>今日对手星星修正</strong><small>统一增加或减少今天对手的星星，用于微调当前排名；上海时间 00:00 自动清零。</small></span>
+              <output>{settings.dailyCompetitorStarDelta > 0 ? "+" : ""}{settings.dailyCompetitorStarDelta}</output>
+              <input type="range" min={-50} max={50} step={1} value={settings.dailyCompetitorStarDelta} onChange={(event) => setSettings({ ...settings, dailyCompetitorStarDelta: Number(event.target.value) })} />
+            </label>
+            <div className="form-actions">
+              <button className="primary-button" disabled={saving}>{saving ? "保存中…" : "保存并刷新预览"}</button>
+              <button type="button" className="ghost-button" disabled={saving} onClick={() => setSettings({ ...settings, competitorGrowthPercent: 100, dailyCompetitorStarDelta: 0 })}>恢复默认参数</button>
+            </div>
+          </form>
+        )}
+        {message ? <Notice kind={message.includes("失败") ? "error" : "info"}>{message}</Notice> : null}
+      </Panel>
+      <Panel title={preview ? `当前榜单预览 · 第 ${preview.self.rank} 名` : "当前榜单预览"}>
+        <div className="leaderboard-preview-list">
+          {preview?.entries.map((entry) => (
+            <div className={`leaderboard-preview-row${entry.isSelf ? " leaderboard-preview-row--self" : ""}`} key={`${entry.displayName}-${entry.rank}`}>
+              <strong>{entry.rank}</strong>
+              <span>{entry.displayName}{entry.isSelf ? "（我的孩子）" : ""}</span>
+              <b>★ {entry.stars}</b>
+            </div>
+          ))}
+          {!preview && !loading ? <div className="empty-state">暂无榜单数据</div> : null}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
 function RewardsHub({
   child,
   activeSection,
@@ -2497,6 +2592,7 @@ export function App() {
             {section === "poems" && <ParentPoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
+            {section === "leaderboard" && <LeaderboardSettings child={selectedChild} />}
             {section === "profile" && <div className="admin-stack"><ChildProfileSettings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} /></div>}
             {section === "settings" && <Settings child={selectedChild} />}
           </>}

@@ -26,9 +26,20 @@
 .super-create-result code { padding: 5px 8px; border-radius: 7px; color: #233653; background: white; font-size: 18px; font-weight: 700; letter-spacing: .12em; }
 .super-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
 .super-toolbar input { max-width: 360px; }
+.resource-tabs { justify-content: flex-start; flex-wrap: wrap; }
+.mascot-dialogue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.mascot-dialogue-card { display: grid; gap: 12px; padding: 16px; border: 1px solid #dce1e8; border-radius: 14px; background: #fffdfa; }
+.mascot-dialogue-card__meta, .mascot-dialogue-card__settings { display: flex; align-items: center; gap: 10px; }
+.mascot-dialogue-card__meta { justify-content: space-between; }
+.mascot-dialogue-card__meta span { color: #d65f2d; font-weight: 700; }
+.mascot-dialogue-card__meta small { color: #7b8699; }
+.mascot-dialogue-card textarea { width: 100%; min-height: 76px; resize: vertical; }
+.mascot-dialogue-card__settings select { min-width: 120px; }
+.mascot-dialogue-card__settings input[type="number"] { width: 86px; }
 .super-metric-wide { grid-column: span 2; }
 .audit-json { display: block; max-width: 300px; overflow: hidden; color: #7b8699; font-family: ui-monospace, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 980px) {
   .super-family-card__body { grid-template-columns: 1fr; }
+  .mascot-dialogue-grid { grid-template-columns: 1fr; }
 }
