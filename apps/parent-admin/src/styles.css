@@ -1562,3 +1562,44 @@ td { font-size: 13px; }
   display: none !important;
   background: transparent !important;
 }
+.pet-config-form { display: grid; gap: 18px; }
+.pet-config-form fieldset { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 18px; border: 1px solid #dde3ea; border-radius: 8px; }
+.pet-config-form legend { padding: 0 8px; color: #52647d; font-weight: 800; }
+.pet-config-form label,
+.pet-destination-card__fields label { display: grid; gap: 7px; color: #52647d; font-size: 13px; font-weight: 700; }
+.pet-destination-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.pet-destination-card { overflow: hidden; display: grid; gap: 16px; padding: 16px; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; }
+.pet-destination-card > img { width: 100%; aspect-ratio: 4 / 2.25; object-fit: cover; border-radius: 6px; }
+.pet-destination-card__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pet-destination-card__fields .field-span { grid-column: 1 / -1; }
+.pet-destination-audio { width: 100%; min-height: 44px; }
+.pet-destination-audio--missing { padding: 10px 12px; border-radius: 6px; background: #fff4df; color: #916326; font-size: 13px; }
+.pet-destination-card textarea { min-height: 78px; }
+.parent-pet-overview { display: grid; grid-template-columns: 1.1fr 1fr 1fr .9fr; align-items: center; gap: 18px; }
+.parent-pet-overview__level { display: flex; align-items: center; gap: 12px; }
+.parent-pet-overview__level > span { display: grid; place-items: center; min-width: 62px; height: 50px; border-radius: 8px; color: #fff; background: #5f9068; font-weight: 900; }
+.parent-pet-overview__level > div { display: grid; gap: 4px; }
+.parent-pet-overview__level small { color: #778294; }
+.parent-pet-overview__meter { display: grid; grid-template-columns: 1fr auto; gap: 7px; }
+.parent-pet-overview__meter i { grid-column: 1 / -1; height: 9px; overflow: hidden; border-radius: 10px; background: #ecedf0; }
+.parent-pet-overview__meter b { display: block; height: 100%; border-radius: inherit; background: #f59a55; }
+.parent-pet-overview__meter--water b { background: #55b9d6; }
+.parent-pet-overview__trip { display: grid; gap: 5px; padding: 12px; border-radius: 8px; background: #f5f7f4; }
+.parent-pet-overview__trip span { color: #778294; font-size: 12px; }
+.parent-pet-overview__settings { grid-column: 1 / -1; display: flex; align-items: end; gap: 14px; padding-top: 14px; border-top: 1px solid #e7e9ed; }
+.parent-pet-overview__settings > label:not(.checkbox) { display: grid; gap: 6px; }
+.parent-pet-overview__settings input[type="number"] { width: 150px; }
+
+@media (max-width: 900px) {
+  .pet-config-form fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pet-destination-grid { grid-template-columns: 1fr; }
+  .parent-pet-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .pet-config-form fieldset,
+  .pet-destination-card__fields,
+  .parent-pet-overview { grid-template-columns: 1fr; }
+  .parent-pet-overview__settings { display: grid; align-items: stretch; }
+  .parent-pet-overview__settings input[type="number"] { width: 100%; }
+}

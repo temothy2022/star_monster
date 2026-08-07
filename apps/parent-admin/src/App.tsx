@@ -147,6 +147,9 @@ const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
   PLANET_BONUS: "星球点亮奖",
   WISH_SPEND: "兑换支出",
   WISH_REFUND: "兑换退款",
+  PET_CARE_SPEND: "星宠照顾",
+  PET_TRAVEL_SPEND: "星宠旅行",
+  PET_REFUND: "星宠退款",
   MANUAL_ADJUSTMENT: "手动调整"
 };
 

@@ -104,6 +104,11 @@ const PlanetMap = lazy(() =>
     default: module.PlanetMap,
   })),
 );
+const PetGrowthPage = lazy(() =>
+  import("./pet/PetGrowthPage").then((module) => ({
+    default: module.PetGrowthPage,
+  })),
+);
 const PlanetJourneyPage = lazy(() =>
   import("./planets/PlanetMap").then((module) => ({
     default: module.PlanetJourneyPage,
@@ -211,6 +216,7 @@ type AppRoute =
   | "planet-neptune"
   | "wishes-requested"
   | "footprints"
+  | "pet-growth"
   | "hanzi-home"
   | "hanzi-review-front"
   | "hanzi-card-back"
@@ -274,6 +280,7 @@ function readRouteFromHash(): AppRoute {
     "planet-neptune",
     "wishes-requested",
     "footprints",
+    "pet-growth",
     "hanzi-home",
     "hanzi-review-front",
     "hanzi-card-back",
@@ -328,6 +335,7 @@ function childPageTitle(route: AppRoute) {
   if (route === "make-ten-session") return "凑十训练";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
+  if (route === "pet-growth") return "星宠小屋";
 
   const titles: Partial<Record<AppRoute, string>> = {
     login: "孩子登录",
@@ -907,6 +915,10 @@ export function App() {
 
   if (route === "footprints") {
     return <Footprints onNavigate={navigate} />;
+  }
+
+  if (route === "pet-growth") {
+    return <PetGrowthPage onBack={() => navigate("tasks-partial")} />;
   }
 
   if (route === "hanzi-home") {

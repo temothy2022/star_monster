@@ -1,1 +1,1 @@
-{"root":["./src/aiassistant.tsx","./src/app.tsx","./src/growthoverview.tsx","./src/learninglibraries.tsx","./src/api.ts","./src/main.tsx","./vite.config.ts"],"version":"5.9.3"}
+{"root":["./src/aiassistant.tsx","./src/app.tsx","./src/growthoverview.tsx","./src/learninglibraries.tsx","./src/api.ts","./src/main.tsx","./src/version-refresh.ts","./vite.config.ts"],"version":"5.9.3"}

@@ -50,6 +50,10 @@ API_RUN_GROUP="$(id -gn "$API_RUN_USER")"
 sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$HANZI_UPLOAD_DIR"
 sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$POEM_UPLOAD_DIR"
 
+# Destination narration is generated once from the system MiniMax account.
+# The script only processes missing rows, so interrupted releases resume safely.
+sudo -u "$API_RUN_USER" bash -lc "cd '$PROJECT_ROOT/apps/api' && '$PROJECT_ROOT/apps/api/node_modules/.bin/tsx' prisma/generate-pet-destination-audio.ts"
+
 # If Nginx already serves the workspace dist directory, rsync has uploaded the
 # files into place. A separate web root is also supported for future migrations.
 sync_static() {

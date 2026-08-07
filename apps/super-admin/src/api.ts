@@ -168,6 +168,24 @@ export type MascotDialogue = {
   updatedAt: string;
 };
 
+export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";
+export type PetGrowthConfig = {
+  id: string;
+  feedCostStars: number; feedRestore: number; feedExperience: number;
+  drinkCostStars: number; drinkRestore: number; drinkExperience: number;
+  satietyDecayMinutes: number; hydrationDecayMinutes: number;
+  nearbyCostStars: number; nearbyDurationMinutes: number; nearbyExperience: number;
+  chinaCostStars: number; chinaDurationMinutes: number; chinaExperience: number;
+  worldCostStars: number; worldDurationMinutes: number; worldExperience: number;
+  updatedAt: string;
+};
+export type PetDestination = {
+  id: string; slug: string; name: string; city: string; country: string;
+  tier: PetTravelTier; introduction: string; funFact: string;
+  imageUrl: string; audioUrl: string | null; weight: number;
+  sortOrder: number; isEnabled: boolean; createdAt: string; updatedAt: string;
+};
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
@@ -214,6 +232,10 @@ export const staffApi = {
 };
 
 export const adminApi = {
+  petGrowth: () => api<{ config: PetGrowthConfig; destinations: PetDestination[] }>("/api/admin/pet-growth"),
+  updatePetGrowthConfig: (data: Omit<PetGrowthConfig, "id" | "updatedAt">) => api<{ config: PetGrowthConfig }>("/api/admin/pet-growth/config", { method: "PUT", body: JSON.stringify(data) }),
+  createPetDestination: (data: Omit<PetDestination, "id" | "createdAt" | "updatedAt">) => api<{ destination: PetDestination }>("/api/admin/pet-growth/destinations", { method: "POST", body: JSON.stringify(data) }),
+  updatePetDestination: (id: string, data: Partial<Omit<PetDestination, "id" | "createdAt" | "updatedAt">>) => api<{ destination: PetDestination }>(`/api/admin/pet-growth/destinations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   mascotDialogues: () => api<{ dialogues: MascotDialogue[] }>("/api/admin/mascot-dialogues"),
   updateMascotDialogue: (id: string, data: Partial<Pick<MascotDialogue, "text" | "context" | "isEnabled" | "sortOrder">>) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   generateMascotDialogueAudio: (id: string) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}/generate-audio`, { method: "POST" }),

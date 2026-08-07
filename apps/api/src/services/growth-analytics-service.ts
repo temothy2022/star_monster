@@ -240,8 +240,12 @@ export async function getGrowthAnalyticsForRange(
     if (ledger.type === "TASK_REWARD_REVERSAL") {
       daily.rewardStarsReversed += Math.abs(ledger.amount);
     }
-    if (ledger.type === "WISH_SPEND") daily.starsSpent += Math.abs(ledger.amount);
-    if (ledger.type === "WISH_REFUND") daily.starsRefunded += Math.max(0, ledger.amount);
+    if (["WISH_SPEND", "PET_CARE_SPEND", "PET_TRAVEL_SPEND"].includes(ledger.type)) {
+      daily.starsSpent += Math.abs(ledger.amount);
+    }
+    if (["WISH_REFUND", "PET_REFUND"].includes(ledger.type)) {
+      daily.starsRefunded += Math.max(0, ledger.amount);
+    }
   }
 
   const spendingByCategory = new Map(

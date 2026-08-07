@@ -3,6 +3,7 @@ import {
   parentApi,
   type Child,
   type GrowthAnalytics,
+  type PetGrowthSummary,
   type WeeklyGrowthReport,
 } from "./api";
 
@@ -36,6 +37,50 @@ function DashboardSection({
       {children}
     </section>
   );
+}
+
+function PetGrowthOverview({ childId }: { childId: string }) {
+  const [data, setData] = useState<PetGrowthSummary | null>(null);
+  const [travelEnabled, setTravelEnabled] = useState(true);
+  const [limit, setLimit] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null); setMessage("");
+    void parentApi.petGrowth(childId).then((result) => {
+      if (cancelled) return;
+      setData(result);
+      setTravelEnabled(result.travelEnabled);
+      setLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
+    }).catch((reason) => { if (!cancelled) setMessage(reason instanceof Error ? reason.message : "星宠状态读取失败"); });
+    return () => { cancelled = true; };
+  }, [childId]);
+
+  async function save() {
+    setBusy(true); setMessage("");
+    try {
+      await parentApi.updatePetGrowthSettings(childId, {
+        travelEnabled,
+        dailySpendLimitStars: limit.trim() ? Number(limit) : null,
+      });
+      setMessage("星宠消费设置已保存");
+      setData(await parentApi.petGrowth(childId));
+    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "设置保存失败"); }
+    finally { setBusy(false); }
+  }
+
+  return <DashboardSection title="星宠成长" subtitle="查看星宠状态、旅行收藏和今天的星星消费">
+    {data ? <div className="parent-pet-overview">
+      <div className="parent-pet-overview__level"><span>Lv.{data.pet.level}</span><div><strong>{data.pet.growthStage === "BABY" ? "幼年伙伴" : data.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong><small>{data.postcards.length} 张旅行明信片</small></div></div>
+      <div className="parent-pet-overview__meter"><span>饱食度</span><i><b style={{ width: `${data.pet.satiety}%` }} /></i><strong>{data.pet.satiety}</strong></div>
+      <div className="parent-pet-overview__meter parent-pet-overview__meter--water"><span>饮水状态</span><i><b style={{ width: `${data.pet.hydration}%` }} /></i><strong>{data.pet.hydration}</strong></div>
+      <div className="parent-pet-overview__trip"><span>{data.currentTrip ? data.currentTrip.status === "TRAVELING" ? "旅行中" : "旅行归来" : "当前在家"}</span><strong>{data.currentTrip?.destinationName ?? `今天已消费 ${data.wallet.dailySpent} 星`}</strong></div>
+      <div className="parent-pet-overview__settings"><label className="checkbox"><input type="checkbox" checked={travelEnabled} onChange={(event) => setTravelEnabled(event.target.checked)} />允许星宠旅行</label><label>每日消费上限<input type="number" min={0} max={10000} value={limit} onChange={(event) => setLimit(event.target.value)} placeholder="不限制" /></label><button className="primary-button" type="button" disabled={busy} onClick={() => void save()}>{busy ? "保存中…" : "保存"}</button></div>
+    </div> : <div className="empty-state">{message || "正在读取星宠状态…"}</div>}
+    {data && message ? <div className="admin-notice">{message}</div> : null}
+  </DashboardSection>;
 }
 
 function percent(value: number | null) {
@@ -378,6 +423,8 @@ export function GrowthOverview({ child }: { child: Child }) {
       <DashboardSection title="专项学习掌握度" subtitle="直观看孩子在汉字、古诗、凑十和时钟训练中的当前状态">
         {learning ? <LearningMastery learning={learning} /> : <div className="empty-state">{learningError || "正在读取学习状态…"}</div>}
       </DashboardSection>
+
+      <PetGrowthOverview childId={child.id} />
 
       <div className="metric-grid growth-metrics">
         <article><span>任务完成率</span><strong>{summary ? percent(summary.completionRate) : "—"}</strong><small>{completionDescription}</small></article>

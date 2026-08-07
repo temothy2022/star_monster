@@ -27,6 +27,14 @@ export type LeaderboardSettings = {
   dailyAdjustmentDate: string | null;
 };
 
+export type PetGrowthSummary = {
+  pet: { petType: string; nickname: string | null; level: number; experience: number; growthStage: "BABY" | "GROWING" | "MATURE"; satiety: number; hydration: number; currentLevelStart: number; nextLevelExperience: number | null };
+  wallet: { starBalance: number; dailySpent: number; dailySpendLimitStars: number | null };
+  travelEnabled: boolean;
+  currentTrip: null | { id: string; status: string; destinationName: string; city: string; country: string; returnsAt: string };
+  postcards: Array<{ id: string; destinationName: string; city: string; country: string; imageUrl: string; revealedAt: string | null }>;
+};
+
 export type LeaderboardPreview = {
   entries: Array<{
     rank: number;
@@ -331,6 +339,9 @@ export type LedgerEntry = {
     | "PLANET_BONUS"
     | "WISH_SPEND"
     | "WISH_REFUND"
+    | "PET_CARE_SPEND"
+    | "PET_TRAVEL_SPEND"
+    | "PET_REFUND"
     | "MANUAL_ADJUSTMENT";
   amount: number;
   balanceAfter: number;
@@ -556,6 +567,8 @@ export const staffApi = {
 };
 
 export const parentApi = {
+  petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
+  updatePetGrowthSettings: (childId: string, data: { travelEnabled: boolean; dailySpendLimitStars: number | null }) => api<{ settings: { travelEnabled: boolean; dailySpendLimitStars: number | null } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
   updateChild: (id: string, data: Record<string, unknown>) =>
     api<{ child: Child }>(`/api/parent/children/${id}`, {

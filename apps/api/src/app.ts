@@ -12,6 +12,8 @@ import { registerChildClockRoutes } from "./routes/child-clock-routes.js";
 import { registerChildMakeTenRoutes } from "./routes/child-make-ten-routes.js";
 import { registerChildPoemRoutes } from "./routes/child-poem-routes.js";
 import { registerChildProgressRoutes } from "./routes/child-progress-routes.js";
+import { registerChildPetRoutes } from "./routes/child-pet-routes.js";
+import { registerPetManagementRoutes } from "./routes/pet-management-routes.js";
 import { registerSuperAdminRoutes } from "./routes/super-admin-routes.js";
 import { registerAdminLearningResourceRoutes } from "./routes/admin-learning-resource-routes.js";
 import { registerParentRoutes } from "./routes/parent-routes.js";
@@ -112,11 +114,13 @@ export async function buildApp(config: AppConfig) {
   await registerHanziMediaRoutes(app, config);
   await registerPoemMediaRoutes(app, config);
   await registerChildProgressRoutes(app, config);
+  await registerChildPetRoutes(app, config);
   await registerSuperAdminRoutes(app, config);
   await registerAdminLearningResourceRoutes(app, config);
   await registerParentRoutes(app, config);
   await registerParentAiRoutes(app, config);
   await registerAdminMinimaxRoutes(app, config);
+  await registerPetManagementRoutes(app, config);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

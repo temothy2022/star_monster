@@ -25,6 +25,30 @@ enum PetType {
   SHANSHAN
 }
 
+enum PetGrowthStage {
+  BABY
+  GROWING
+  MATURE
+}
+
+enum PetCareKind {
+  FEED
+  DRINK
+}
+
+enum PetTravelTier {
+  NEARBY
+  CHINA
+  WORLD
+}
+
+enum PetTripStatus {
+  TRAVELING
+  RETURNED
+  REVEALED
+  CANCELLED
+}
+
 enum TaskCategory {
   READING
   MATH
@@ -112,6 +136,9 @@ enum StarLedgerType {
   PLANET_BONUS
   WISH_SPEND
   WISH_REFUND
+  PET_CARE_SPEND
+  PET_TRAVEL_SPEND
+  PET_REFUND
   MANUAL_ADJUSTMENT
 }
 
@@ -283,8 +310,127 @@ model ChildProfile {
   poemSessions            PoemLearningSession[]
   performanceMetrics      ChildPerformanceMetric[]
   leaderboardSettings     ChildLeaderboardSettings?
+  petGrowthProfile        PetGrowthProfile?
+  petCareActions          PetCareAction[]
+  petTrips                PetTrip[]
 
   @@index([familyId, status])
+}
+
+model PetGrowthProfile {
+  id                   String         @id @default(cuid())
+  childId              String         @unique
+  level                Int            @default(1)
+  experience           Int            @default(0)
+  growthStage          PetGrowthStage @default(BABY)
+  satiety              Int            @default(78)
+  hydration            Int            @default(82)
+  satietySettledAt     DateTime       @default(now())
+  hydrationSettledAt   DateTime       @default(now())
+  travelEnabled        Boolean        @default(true)
+  dailySpendLimitStars Int?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  child       ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  careActions PetCareAction[]
+  trips       PetTrip[]
+}
+
+model PetCareAction {
+  id              String      @id @default(cuid())
+  childId         String
+  profileId       String
+  kind            PetCareKind
+  itemKey         String
+  starsSpent      Int
+  statusBefore    Int
+  statusAfter     Int
+  experienceAdded Int
+  idempotencyKey  String      @unique
+  createdAt       DateTime    @default(now())
+
+  child   ChildProfile     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  profile PetGrowthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([childId, createdAt])
+}
+
+model PetTravelDestination {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  name         String
+  city         String
+  country      String
+  tier         PetTravelTier
+  introduction String
+  funFact      String
+  imageUrl     String
+  audioUrl     String?
+  weight       Int           @default(100)
+  sortOrder    Int           @default(0)
+  isEnabled    Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  trips PetTrip[]
+
+  @@index([tier, isEnabled, sortOrder])
+}
+
+model PetTrip {
+  id                      String        @id @default(cuid())
+  childId                 String
+  profileId               String
+  destinationId           String
+  status                  PetTripStatus @default(TRAVELING)
+  tierSnapshot            PetTravelTier
+  destinationNameSnapshot String
+  citySnapshot            String
+  countrySnapshot         String
+  introductionSnapshot    String
+  funFactSnapshot         String
+  imageUrlSnapshot        String
+  audioUrlSnapshot        String?
+  costStars               Int
+  experienceRewardSnapshot Int
+  experienceAwarded       Int           @default(0)
+  departedAt              DateTime      @default(now())
+  returnsAt               DateTime
+  returnedAt              DateTime?
+  revealedAt              DateTime?
+  idempotencyKey          String        @unique
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  child       ChildProfile         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  profile     PetGrowthProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  destination PetTravelDestination @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+
+  @@index([childId, status, departedAt])
+  @@index([destinationId, departedAt])
+}
+
+model PetGrowthConfig {
+  id                    String   @id @default("global")
+  feedCostStars         Int      @default(2)
+  feedRestore           Int      @default(28)
+  feedExperience        Int      @default(6)
+  drinkCostStars        Int      @default(1)
+  drinkRestore          Int      @default(32)
+  drinkExperience       Int      @default(4)
+  satietyDecayMinutes   Int      @default(120)
+  hydrationDecayMinutes Int      @default(90)
+  nearbyCostStars       Int      @default(3)
+  nearbyDurationMinutes Int      @default(2)
+  nearbyExperience      Int      @default(12)
+  chinaCostStars        Int      @default(10)
+  chinaDurationMinutes  Int      @default(30)
+  chinaExperience       Int      @default(24)
+  worldCostStars        Int      @default(18)
+  worldDurationMinutes  Int      @default(120)
+  worldExperience       Int      @default(40)
+  updatedAt             DateTime @updatedAt
 }
 
 model ChildSession {

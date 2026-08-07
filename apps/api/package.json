@@ -16,6 +16,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "poem:import": "tsx prisma/import-poems.ts",
     "poem:import-assets": "tsx prisma/import-poem-assets.ts",
+    "pet:generate-audio": "tsx prisma/generate-pet-destination-audio.ts",
     "performance:export": "node --import tsx prisma/export-performance-metrics.ts"
   },
   "dependencies": {

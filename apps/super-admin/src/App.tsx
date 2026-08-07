@@ -9,16 +9,23 @@ import {
 } from "./api";
 import { PerformanceMonitoring } from "./PerformanceMonitoring";
 import { LearningResources } from "./LearningResources";
+import { PetGrowthManagement } from "./PetGrowthManagement";
 
-type Section = "metrics" | "performance" | "families" | "resources" | "audit";
+type Section = "metrics" | "performance" | "families" | "resources" | "pet-growth" | "audit";
 
 const SECTION_LABELS: Record<Section, string> = {
   metrics: "运营概览",
   performance: "性能诊断",
   families: "家庭与账号",
   resources: "学习资源",
+  "pet-growth": "星宠成长",
   audit: "审计日志",
 };
+
+function readSection(): Section {
+  const candidate = window.location.hash.slice(1) as Section;
+  return candidate in SECTION_LABELS ? candidate : "metrics";
+}
 
 function Panel({
   title,
@@ -161,7 +168,7 @@ function AuditView() {
 
 export function App() {
   const [user, setUser] = useState<StaffUser | null | undefined>(undefined);
-  const [section, setSection] = useState<Section>("metrics");
+  const [section, setSection] = useState<Section>(readSection);
   const [error, setError] = useState("");
   useEffect(() => {
     document.title = user === null
@@ -170,6 +177,9 @@ export function App() {
         ? "星宠-超级后台"
         : `星宠-${SECTION_LABELS[section]}`;
   }, [section, user]);
+  useEffect(() => {
+    window.history.replaceState({ section }, "", `#${section}`);
+  }, [section]);
   useEffect(() => { void staffApi.me().then(({ user: current }) => current.role === "SUPER_ADMIN" ? setUser(current) : setUser(null)).catch(() => setUser(null)); }, []);
   useEffect(() => {
     const handleUnhandled = (event: PromiseRejectionEvent) => {
@@ -182,5 +192,5 @@ export function App() {
   if (user === undefined) return <main className="admin-loading">正在进入超级后台…</main>;
   if (!user) return <Login onLogin={setUser} />;
   const labels = SECTION_LABELS;
-  return <div className="admin-app super-app"><aside className="admin-sidebar"><div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>超级管理后台</small></div></div><nav><button className={section === "metrics" ? "active" : ""} onClick={() => setSection("metrics")}><span>▦</span>运营概览</button><button className={section === "performance" ? "active" : ""} onClick={() => setSection("performance")}><span>◷</span>性能诊断</button><button className={section === "families" ? "active" : ""} onClick={() => setSection("families")}><span>♟</span>家庭与账号</button><button className={section === "resources" ? "active" : ""} onClick={() => setSection("resources")}><span>✎</span>学习资源</button><button className={section === "audit" ? "active" : ""} onClick={() => setSection("audit")}><span>≡</span>审计日志</button></nav><div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div></aside><main className="admin-main"><header className="admin-topbar"><div><p>超级后台 / {labels[section]}</p><h1>{labels[section]}</h1></div><div className="topbar-balance"><span>系统状态</span><strong>● 正常</strong></div></header><div className="admin-content">{error && <div className="admin-notice admin-notice--error" onClick={() => setError("")}>{error} · 点击关闭</div>}{section === "metrics" && <MetricsView />}{section === "performance" && <PerformanceMonitoring />}{section === "families" && <FamiliesView />}{section === "resources" && <LearningResources />}{section === "audit" && <AuditView />}</div></main></div>;
+  return <div className="admin-app super-app"><aside className="admin-sidebar"><div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>超级管理后台</small></div></div><nav><button className={section === "metrics" ? "active" : ""} onClick={() => setSection("metrics")}><span>▦</span>运营概览</button><button className={section === "performance" ? "active" : ""} onClick={() => setSection("performance")}><span>◷</span>性能诊断</button><button className={section === "families" ? "active" : ""} onClick={() => setSection("families")}><span>♟</span>家庭与账号</button><button className={section === "resources" ? "active" : ""} onClick={() => setSection("resources")}><span>✎</span>学习资源</button><button className={section === "pet-growth" ? "active" : ""} onClick={() => setSection("pet-growth")}><span>✦</span>星宠成长</button><button className={section === "audit" ? "active" : ""} onClick={() => setSection("audit")}><span>≡</span>审计日志</button></nav><div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div></aside><main className="admin-main"><header className="admin-topbar"><div><p>超级后台 / {labels[section]}</p><h1>{labels[section]}</h1></div><div className="topbar-balance"><span>系统状态</span><strong>● 正常</strong></div></header><div className="admin-content">{error && <div className="admin-notice admin-notice--error" onClick={() => setError("")}>{error} · 点击关闭</div>}{section === "metrics" && <MetricsView />}{section === "performance" && <PerformanceMonitoring />}{section === "families" && <FamiliesView />}{section === "resources" && <LearningResources />}{section === "pet-growth" && <PetGrowthManagement />}{section === "audit" && <AuditView />}</div></main></div>;
 }

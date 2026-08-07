@@ -111,6 +111,81 @@ export async function getChildProfile() {
   return result.child;
 }
 
+export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";
+export type PetTrip = {
+  id: string;
+  status: "TRAVELING" | "RETURNED" | "REVEALED" | "CANCELLED";
+  tier: PetTravelTier;
+  destinationName: string;
+  city: string;
+  country: string;
+  introduction: string;
+  funFact: string;
+  imageUrl: string;
+  audioUrl: string | null;
+  costStars: number;
+  departedAt: string;
+  returnsAt: string;
+  returnedAt: string | null;
+  revealedAt: string | null;
+};
+
+export type PetGrowthState = {
+  pet: {
+    petType: PetType;
+    nickname: string | null;
+    level: number;
+    experience: number;
+    growthStage: "BABY" | "GROWING" | "MATURE";
+    satiety: number;
+    hydration: number;
+    currentLevelStart: number;
+    nextLevelExperience: number | null;
+  };
+  wallet: {
+    starBalance: number;
+    dailySpent: number;
+    dailySpendLimitStars: number | null;
+  };
+  travelEnabled: boolean;
+  travelOptions: Array<{
+    tier: PetTravelTier;
+    costStars: number;
+    durationMinutes: number;
+    experience: number;
+  }>;
+  careOptions: {
+    feed: { costStars: number; restore: number; experience: number };
+    drink: { costStars: number; restore: number; experience: number };
+  };
+  currentTrip: PetTrip | null;
+  postcards: PetTrip[];
+};
+
+export function getPetGrowth(signal?: AbortSignal) {
+  return request<PetGrowthState>("/api/child/pet", { cache: "no-store", signal });
+}
+
+export function careForPet(kind: "feed" | "drink", idempotencyKey: string) {
+  return request<PetGrowthState>(`/api/child/pet/${kind}`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey }),
+  });
+}
+
+export function startPetTrip(tier: PetTravelTier, idempotencyKey: string) {
+  return request<PetGrowthState>("/api/child/pet/trips", {
+    method: "POST",
+    body: JSON.stringify({ tier, idempotencyKey }),
+  });
+}
+
+export function revealPetTrip(tripId: string) {
+  return request<PetGrowthState>(`/api/child/pet/trips/${tripId}/reveal`, {
+    method: "POST",
+  });
+}
+
 export async function saveOnboarding(input: {
   petType?: PetType;
   nickname?: string;
