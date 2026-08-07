@@ -7,8 +7,6 @@ import {
 } from "react";
 import balanceStar from "../assets/task-list/semantic/balance-star.png";
 import streakFlame from "../assets/task-list/semantic/streak-flame.png";
-import pendingIcon from "../assets/task-list/semantic/section-pending.png";
-import completeIcon from "../assets/task-list/semantic/section-complete.png";
 import bookIcon from "../assets/task-list/semantic/task-book.png";
 import trainingIcon from "../assets/task-list/semantic/task-training.png";
 import mathIcon from "../assets/task-list/semantic/task-math.png";
@@ -277,8 +275,7 @@ function TaskListPanel({
         )}
       </header>
       <div className="task-list-panel__scroll">
-        <section className="task-section" aria-labelledby="pending-title">
-          <h3 id="pending-title"><img src={pendingIcon} alt="" />待完成任务</h3>
+        <section className="task-section">
           <div className="task-section__cards">
             {pendingTasks.map((task) => (
               <PendingTaskCard
@@ -291,15 +288,11 @@ function TaskListPanel({
           </div>
         </section>
         {completedTasks.length > 0 && (
-          <>
-            <div className="task-section-divider" />
-            <section className="task-section task-section--completed" aria-labelledby="completed-title">
-              <h3 id="completed-title"><img src={completeIcon} alt="" />已完成</h3>
-              <div className="task-section__cards">
-                {completedTasks.map((task) => <CompletedTaskCard key={task.id} task={task} />)}
-              </div>
-            </section>
-          </>
+          <section className="task-section">
+            <div className="task-section__cards">
+              {completedTasks.map((task) => <CompletedTaskCard key={task.id} task={task} />)}
+            </div>
+          </section>
         )}
       </div>
     </section>
