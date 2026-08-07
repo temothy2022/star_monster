@@ -7,7 +7,11 @@ import { prisma } from "../lib/prisma.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
 import { isScheduledForDate } from "../domain/task-rules.js";
 import { clockMastery } from "../domain/clock-learning.js";
-import { makeTenMastery } from "../domain/make-ten-learning.js";
+import {
+  makeTenFactAssessment,
+  makeTenMastery,
+  makeTenQuestionWeight,
+} from "../domain/make-ten-learning.js";
 import { requireParent } from "../services/auth-service.js";
 import {
   abandonTask,
@@ -1011,7 +1015,7 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     const recentFrom = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [settings, allTime, recent] = await Promise.all([
+    const [settings, allTime, recent, factProgress] = await Promise.all([
       prisma.makeTenLearningSettings.upsert({
         where: { childId: id },
         update: {},
@@ -1027,12 +1031,19 @@ export async function registerParentRoutes(
         _count: { _all: true },
         _sum: { correctCount: true, totalQuestions: true },
       }),
+      prisma.makeTenFactProgress.findMany({
+        where: { childId: id },
+        orderBy: { target: "asc" },
+      }),
     ]);
     const totalQuestions = allTime._sum.totalQuestions ?? 0;
     const correctAnswers = allTime._sum.correctCount ?? 0;
     const recentQuestions = recent._sum.totalQuestions ?? 0;
     const recentCorrect = recent._sum.correctCount ?? 0;
     const accuracy = totalQuestions ? correctAnswers / totalQuestions : null;
+    const progressByTarget = new Map(
+      factProgress.map((progress) => [progress.target, progress]),
+    );
     return {
       settings,
       stats: {
@@ -1042,6 +1053,39 @@ export async function registerParentRoutes(
         accuracy,
         recentAccuracy: recentQuestions ? recentCorrect / recentQuestions : null,
         mastery: makeTenMastery(accuracy),
+        facts: Array.from({ length: 9 }, (_, index) => index + 1).map(
+          (target) => {
+            const progress = progressByTarget.get(target);
+            const attemptCount = progress?.attemptCount ?? 0;
+            return {
+              target,
+              answer: 10 - target,
+              attemptCount,
+              correctCount: progress?.correctCount ?? 0,
+              accuracy:
+                progress && attemptCount > 0
+                  ? progress.correctCount / attemptCount
+                  : null,
+              averageResponseMs:
+                progress && attemptCount > 0
+                  ? Math.round(progress.totalResponseMs / attemptCount)
+                  : null,
+              recentAccuracy: progress?.recentAccuracy ?? null,
+              recentResponseMs: progress?.recentResponseMs != null
+                ? Math.round(progress.recentResponseMs)
+                : null,
+              consecutiveWrong: progress?.consecutiveWrong ?? 0,
+              priority: makeTenFactAssessment(
+                progress,
+                settings.secondsPerQuestion,
+              ),
+              questionWeight: makeTenQuestionWeight(
+                progress,
+                settings.secondsPerQuestion,
+              ),
+            };
+          },
+        ),
       },
     };
   });

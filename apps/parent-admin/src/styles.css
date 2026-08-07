@@ -1108,6 +1108,13 @@ td { font-size: 13px; }
 .clock-mastery__ring span { position: relative; z-index: 1; font-size: 25px; font-weight: 800; }
 .clock-mastery strong { font-size: 22px; }
 .clock-mastery p { margin: 7px 0 0; color: #7d8796; }
+.make-ten-adaptive-help { margin: 0 0 14px; }
+.make-ten-fact-table strong { white-space: nowrap; }
+.make-ten-fact-priority { display: inline-flex; min-height: 28px; align-items: center; padding: 0 10px; border-radius: 8px; color: #526274; background: #eef1f4; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.make-ten-fact-priority--focus { color: #a13d32; background: #ffebe7; }
+.make-ten-fact-priority--slow { color: #8a5b12; background: #fff2cf; }
+.make-ten-fact-priority--strong { color: #28725f; background: #e3f5ee; }
+.make-ten-fact-priority--practicing { color: #32647f; background: #e8f3f8; }
 
 @media (max-width: 1180px) {
   .admin-two-column { grid-template-columns: 1fr; }

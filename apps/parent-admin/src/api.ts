@@ -84,7 +84,26 @@ export type MakeTenLearningSettings = {
   passAccuracyPercent: number;
 };
 
-export type MakeTenLearningStats = ClockLearningStats;
+export type MakeTenFactStats = {
+  target: number;
+  answer: number;
+  attemptCount: number;
+  correctCount: number;
+  accuracy: number | null;
+  averageResponseMs: number | null;
+  recentAccuracy: number | null;
+  recentResponseMs: number | null;
+  consecutiveWrong: number;
+  priority: {
+    level: "NO_DATA" | "FOCUS" | "SLOW" | "STRONG" | "PRACTICING";
+    label: string;
+  };
+  questionWeight: number;
+};
+
+export type MakeTenLearningStats = ClockLearningStats & {
+  facts: MakeTenFactStats[];
+};
 
 export type HanziCharacterResource = {
   id: string;

@@ -3,6 +3,7 @@ import {
   parentApi,
   type Child,
   type ClockLearningSettings,
+  type MakeTenLearningStats,
   type MakeTenLearningSettings,
   type HanziCharacterResource,
   type HanziLearningSettings,
@@ -225,6 +226,7 @@ const DEFAULT_MAKE_TEN_SETTINGS: MakeTenLearningSettings = {
 
 export function ParentMakeTenLearning({ child }: { child: Child }) {
   const [settings, setSettings] = useState(DEFAULT_MAKE_TEN_SETTINGS);
+  const [stats, setStats] = useState<MakeTenLearningStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -233,7 +235,10 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
     setLoading(true);
     setError("");
     void parentApi.makeTenSettings(child.id)
-      .then((result) => setSettings(result.settings))
+      .then((result) => {
+        setSettings(result.settings);
+        setStats(result.stats);
+      })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "凑十训练设置加载失败"))
       .finally(() => setLoading(false));
   }, [child.id]);
@@ -245,6 +250,9 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
     try {
       const result = await parentApi.updateMakeTenSettings(child.id, settings);
       setSettings(result.settings);
+      const refreshed = await parentApi.makeTenSettings(child.id);
+      setSettings(refreshed.settings);
+      setStats(refreshed.stats);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "凑十训练设置保存失败");
     } finally {
@@ -262,6 +270,27 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
         <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
       </form>}
       {error ? <Notice error>{error}</Notice> : null}
+    </Panel>
+    <Panel title="各数字掌握情况">
+      <p className="admin-help make-ten-adaptive-help">系统会综合正确率和有效答题时间自动调整出题概率。答得慢或容易答错的组合会更常出现，熟练组合仍会少量复习。</p>
+      <div className="table-wrap">
+        <table className="make-ten-fact-table">
+          <thead><tr><th>组合</th><th>答题数</th><th>正确率</th><th>平均用时</th><th>近期用时</th><th>训练策略</th></tr></thead>
+          <tbody>
+            {stats?.facts.map((fact) => (
+              <tr key={fact.target}>
+                <td><strong>{fact.target} + {fact.answer} = 10</strong></td>
+                <td>{fact.attemptCount}</td>
+                <td>{fact.accuracy === null ? "—" : `${Math.round(fact.accuracy * 100)}%`}</td>
+                <td>{fact.averageResponseMs === null ? "—" : `${(fact.averageResponseMs / 1000).toFixed(1)} 秒`}</td>
+                <td>{fact.recentResponseMs === null ? "—" : `${(fact.recentResponseMs / 1000).toFixed(1)} 秒`}</td>
+                <td><span className={`make-ten-fact-priority make-ten-fact-priority--${fact.priority.level.toLowerCase()}`}>{fact.priority.label}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!stats ? <div className="empty-state">正在读取训练数据…</div> : null}
+      </div>
     </Panel>
   </div>;
 }

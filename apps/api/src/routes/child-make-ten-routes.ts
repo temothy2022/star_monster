@@ -24,6 +24,7 @@ export async function registerChildMakeTenRoutes(app: FastifyInstance, config: A
       questionIndex: z.number().int().min(0).max(50),
       selectedNumber: z.number().int().min(1).max(9).nullable(),
       timedOut: z.boolean().default(false),
+      responseMs: z.number().int().min(0).max(60_000).optional(),
     }).parse(request.body);
     return answerMakeTenQuestion(child.id, id, input);
   });

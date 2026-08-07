@@ -59,9 +59,27 @@ export async function registerChildProgressRoutes(
   });
 
   app.get("/api/child/footprints", async (request, reply) => {
+    const startedAt = performance.now();
     const { child } = await requireChild(request, reply, config);
+    const authenticatedAt = performance.now();
     const { date } = footprintQuery.parse(request.query);
-    return getFootprints(child.id, config, date);
+    const result = await getFootprints(child.id, config, date);
+    const completedAt = performance.now();
+    if (completedAt - startedAt >= 200) {
+      request.log.warn(
+        {
+          event: "slow_child_read_detail",
+          requestId: request.id,
+          operation: "load_footprints",
+          childId: child.id,
+          totalMs: Math.round(completedAt - startedAt),
+          authMs: Math.round(authenticatedAt - startedAt),
+          queryMs: Math.round(completedAt - authenticatedAt),
+        },
+        "slow child footprints read",
+      );
+    }
+    return result;
   });
 
   app.get("/api/child/planets", async (request, reply) => {

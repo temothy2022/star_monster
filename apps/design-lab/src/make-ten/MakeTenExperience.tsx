@@ -57,6 +57,16 @@ export function MakeTenExperience({
     setBusy(true);
     setError("");
     const correct = !timedOut && selectedNumber === 10 - question.target;
+    const durationMs = session.secondsPerQuestion * 1000;
+    const responseMs = timedOut
+      ? Math.round(durationMs)
+      : Math.max(
+          0,
+          Math.min(
+            Math.round(durationMs),
+            Math.round(durationMs - remainingMsRef.current),
+          ),
+        );
     setFeedback({ selectedNumber, correct, timedOut, answer: 10 - question.target });
     playAnswerSound(correct);
     try {
@@ -64,6 +74,7 @@ export function MakeTenExperience({
         questionIndex: session.currentIndex,
         selectedNumber,
         timedOut,
+        responseMs,
       });
       feedbackTimerRef.current = window.setTimeout(() => {
         setSession(result.session);
@@ -134,7 +145,12 @@ export function MakeTenExperience({
     <button className="clock-back-button" type="button" onClick={onExit} aria-label="返回任务列表"><img src={backIcon} alt="" aria-hidden="true" /></button>
     <header className="make-ten-header">
       <div><span>数字好朋友</span><h1>{session.completedAt ? "今天的凑十训练完成啦" : `第 ${Math.min(session.currentIndex + 1, session.totalQuestions)} 题`}</h1></div>
-      {!session.completedAt ? <div className="make-ten-header__actions">
+      {!session.completedAt ? <div className="make-ten-total-progress"><span style={{ width: `${progress}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div> : null}
+    </header>
+
+    {!session.completedAt && question ? <section className={`make-ten-workspace${feedback ? " make-ten-workspace--feedback" : ""}`}>
+      <div className="make-ten-timer-row">
+        <div className="make-ten-timer" aria-label={`本题剩余 ${Math.ceil(remainingMs / 1000)} 秒`}><span style={{ width: `${feedback ? 0 : timerProgress}%` }} /></div>
         <button
           className="make-ten-pause-button"
           type="button"
@@ -142,12 +158,7 @@ export function MakeTenExperience({
           aria-pressed={paused}
           onClick={() => setPaused((current) => !current)}
         >{paused ? "继续" : "暂停"}</button>
-        <div className="make-ten-total-progress"><span style={{ width: `${progress}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div>
-      </div> : null}
-    </header>
-
-    {!session.completedAt && question ? <section className={`make-ten-workspace${feedback ? " make-ten-workspace--feedback" : ""}`}>
-      <div className="make-ten-timer" aria-label={`本题剩余 ${Math.ceil(remainingMs / 1000)} 秒`}><span style={{ width: `${feedback ? 0 : timerProgress}%` }} /></div>
+      </div>
       <div className="make-ten-equation"><strong>{question.target}</strong><span>+</span><span className={`make-ten-blank${feedback && !feedback.correct ? " make-ten-blank--answer" : ""}`}>{feedback && !feedback.correct ? feedback.answer : "?"}</span><span>=</span><strong>10</strong></div>
       <p>谁是 {question.target} 的好朋友？</p>
       <div className="make-ten-options">
@@ -172,7 +183,7 @@ export function MakeTenExperience({
       <h2>{session.correctCount} / {session.totalQuestions} 题答对</h2>
       <strong>正确率 {accuracy}%</strong>
       <p>{session.passed ? `达到 ${session.passAccuracyPercent}% 的目标，本次可以获得任务星星。` : `本次没有达到 ${session.passAccuracyPercent}% 的目标，继续练熟后再来挑战。`}</p>
-      <button type="button" className="clock-primary-button" disabled={busy} onClick={() => void finish()}>{busy ? "完成中…" : session.passed ? "领取任务星星" : "返回任务列表"}</button>
+      <button type="button" className="make-ten-result-button" disabled={busy} onClick={() => void finish()}>{busy ? "完成中…" : session.passed ? "领取任务星星" : "返回任务列表"}</button>
       {error ? <div className="clock-learning-error">{error}</div> : null}
     </section> : null}
   </main>;

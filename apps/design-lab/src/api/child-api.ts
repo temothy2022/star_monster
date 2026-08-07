@@ -455,6 +455,7 @@ export type MakeTenAnswer = {
   selectedNumber: number | null;
   correct: boolean;
   timedOut: boolean;
+  responseMs: number | null;
   answeredAt: string;
 };
 
@@ -481,7 +482,12 @@ export async function startMakeTenSession(attemptId: string) {
 
 export async function submitMakeTenAnswer(
   sessionId: string,
-  input: { questionIndex: number; selectedNumber: number | null; timedOut: boolean },
+  input: {
+    questionIndex: number;
+    selectedNumber: number | null;
+    timedOut: boolean;
+    responseMs: number;
+  },
 ) {
   return request<{
     session: MakeTenLearningSession;
@@ -651,6 +657,44 @@ export type FootprintResponse = {
     totalStars: number;
     completedAt: string;
   }>;
+  leaderboards: {
+    daily: ChildLeaderboard;
+    weekly: ChildLeaderboard;
+  };
+};
+
+export type ChildLeaderboardEntry = {
+  rank: number;
+  displayName: string;
+  stars: number;
+  completedTasks: number;
+  petType: "DOUYA" | "PAOPAO" | "TUANTUAN" | "MILU" | "SHANSHAN";
+  flagKey:
+    | "CHINA"
+    | "JAPAN"
+    | "KOREA"
+    | "SINGAPORE"
+    | "UNITED_KINGDOM"
+    | "FRANCE"
+    | "GERMANY"
+    | "ITALY"
+    | "CANADA"
+    | "AUSTRALIA"
+    | "BRAZIL"
+    | "UNITED_STATES";
+  isSelf: boolean;
+};
+
+export type ChildLeaderboard = {
+  entries: ChildLeaderboardEntry[];
+  self: {
+    rank: number;
+    stars: number;
+    completedTasks: number;
+    totalParticipants: number;
+    inTopTen: boolean;
+    starsToNextRank: number;
+  } | null;
 };
 
 export async function getChildFootprints(

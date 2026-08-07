@@ -267,6 +267,8 @@ model ChildProfile {
   clockSessions      ClockLearningSession[]
   makeTenSettings    MakeTenLearningSettings?
   makeTenSessions    MakeTenLearningSession[]
+  makeTenQuestionAttempts MakeTenQuestionAttempt[]
+  makeTenFactProgress     MakeTenFactProgress[]
   poemSettings       PoemLearningSettings?
   poemProgress       PoemLearningProgress[]
   poemSessions       PoemLearningSession[]
@@ -602,9 +604,50 @@ model MakeTenLearningSession {
 
   child       ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
   taskAttempt TaskAttempt  @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+  questionAttempts MakeTenQuestionAttempt[]
 
   @@index([childId, completedAt])
   @@index([childId, sessionDate])
+}
+
+model MakeTenQuestionAttempt {
+  id             String   @id @default(cuid())
+  childId        String
+  sessionId      String
+  questionIndex  Int
+  target         Int
+  selectedNumber Int?
+  correct        Boolean
+  timedOut       Boolean
+  responseMs     Int
+  answeredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  child   ChildProfile           @relation(fields: [childId], references: [id], onDelete: Cascade)
+  session MakeTenLearningSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionIndex])
+  @@index([childId, target, answeredAt])
+}
+
+model MakeTenFactProgress {
+  id               String    @id @default(cuid())
+  childId          String
+  target           Int
+  attemptCount     Int       @default(0)
+  correctCount     Int       @default(0)
+  totalResponseMs  Int       @default(0)
+  recentAccuracy   Float?
+  recentResponseMs Float?
+  consecutiveWrong Int       @default(0)
+  lastAnsweredAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, target])
+  @@index([childId, lastAnsweredAt])
 }
 
 model Poem {

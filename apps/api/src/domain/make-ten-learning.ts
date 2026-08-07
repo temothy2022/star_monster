@@ -7,7 +7,18 @@ export type MakeTenAnswer = {
   selectedNumber: number | null;
   correct: boolean;
   timedOut: boolean;
+  responseMs: number | null;
   answeredAt: string;
+};
+
+export type MakeTenFactSnapshot = {
+  target: number;
+  attemptCount: number;
+  correctCount: number;
+  totalResponseMs: number;
+  recentAccuracy: number | null;
+  recentResponseMs: number | null;
+  consecutiveWrong: number;
 };
 
 function shuffle<T>(items: T[], random: () => number): T[] {
@@ -32,6 +43,110 @@ export function generateMakeTenQuestions(
     targets.push(...cycle);
   }
   return targets.slice(0, safeCount).map((target) => ({ target }));
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+export function makeTenQuestionWeight(
+  fact: MakeTenFactSnapshot | undefined,
+  secondsPerQuestion: number,
+) {
+  const attemptCount = Math.max(0, fact?.attemptCount ?? 0);
+  const lifetimeAccuracy = fact
+    ? (fact.correctCount + 2) / (attemptCount + 4)
+    : 0.5;
+  const effectiveAccuracy = clamp(
+    lifetimeAccuracy * 0.55 +
+      (fact?.recentAccuracy ?? lifetimeAccuracy) * 0.45,
+    0,
+    1,
+  );
+  const lifetimeResponseMs =
+    fact && attemptCount > 0
+      ? fact.totalResponseMs / attemptCount
+      : secondsPerQuestion * 700;
+  const effectiveResponseMs =
+    lifetimeResponseMs * 0.45 +
+    (fact?.recentResponseMs ?? lifetimeResponseMs) * 0.55;
+  const responseRatio = clamp(
+    effectiveResponseMs / Math.max(1000, secondsPerQuestion * 1000),
+    0,
+    1.4,
+  );
+  const uncertainty = 1 / Math.sqrt(attemptCount + 1);
+  const wrongStreak = Math.min(3, Math.max(0, fact?.consecutiveWrong ?? 0));
+
+  return (
+    0.4 +
+    (1 - effectiveAccuracy) * 2.4 +
+    responseRatio +
+    uncertainty * 0.7 +
+    wrongStreak * 0.22
+  );
+}
+
+export function generateAdaptiveMakeTenQuestions(
+  count: number,
+  facts: MakeTenFactSnapshot[],
+  secondsPerQuestion: number,
+  random: () => number = Math.random,
+): MakeTenQuestion[] {
+  const safeCount = Math.max(1, Math.min(50, Math.round(count)));
+  const factsByTarget = new Map(facts.map((fact) => [fact.target, fact]));
+  const questions: MakeTenQuestion[] = [];
+
+  while (questions.length < safeCount) {
+    const previousTarget = questions.at(-1)?.target;
+    const candidates = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+      .filter((target) => target !== previousTarget)
+      .map((target) => ({
+        target,
+        weight: makeTenQuestionWeight(
+          factsByTarget.get(target),
+          secondsPerQuestion,
+        ),
+      }));
+    const totalWeight = candidates.reduce(
+      (total, candidate) => total + candidate.weight,
+      0,
+    );
+    let selection = clamp(random(), 0, 0.999999999) * totalWeight;
+    let chosen = candidates.at(-1)!;
+    for (const candidate of candidates) {
+      selection -= candidate.weight;
+      if (selection < 0) {
+        chosen = candidate;
+        break;
+      }
+    }
+    questions.push({ target: chosen.target });
+  }
+
+  return questions;
+}
+
+export function makeTenFactAssessment(
+  fact: MakeTenFactSnapshot | undefined,
+  secondsPerQuestion: number,
+) {
+  if (!fact || fact.attemptCount === 0) {
+    return { level: "NO_DATA" as const, label: "等待积累" };
+  }
+  const accuracy = fact.correctCount / fact.attemptCount;
+  const responseMs =
+    fact.recentResponseMs ?? fact.totalResponseMs / fact.attemptCount;
+  if (accuracy < 0.7 || fact.consecutiveWrong >= 2) {
+    return { level: "FOCUS" as const, label: "重点练习" };
+  }
+  if (responseMs > secondsPerQuestion * 700) {
+    return { level: "SLOW" as const, label: "需要提速" };
+  }
+  if (accuracy >= 0.9 && responseMs <= secondsPerQuestion * 500) {
+    return { level: "STRONG" as const, label: "已经熟练" };
+  }
+  return { level: "PRACTICING" as const, label: "继续巩固" };
 }
 
 export function makeTenAnswer(target: number): number {

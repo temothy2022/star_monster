@@ -1,6 +1,7 @@
 import { Prisma, type MakeTenLearningSession } from "@prisma/client";
 import type { AppConfig } from "../config.js";
 import {
+  generateAdaptiveMakeTenQuestions,
   generateMakeTenQuestions,
   isMakeTenAnswerCorrect,
   makeTenPassed,
@@ -38,6 +39,10 @@ function answersFromJson(value: Prisma.JsonValue): MakeTenAnswer[] {
       selectedNumber: item.selectedNumber,
       correct: item.correct,
       timedOut: item.timedOut,
+      responseMs:
+        typeof item.responseMs === "number"
+          ? Math.max(0, Math.round(item.responseMs))
+          : null,
       answeredAt: item.answeredAt,
     }];
   });
@@ -83,12 +88,21 @@ export async function startMakeTenSession(
   });
   if (existing) return { session: serializeSession(existing) };
 
-  const settings = await prisma.makeTenLearningSettings.upsert({
-    where: { childId },
-    update: {},
-    create: { childId },
-  });
-  const questions = generateMakeTenQuestions(settings.questionsPerDay);
+  const [settings, factProgress] = await Promise.all([
+    prisma.makeTenLearningSettings.upsert({
+      where: { childId },
+      update: {},
+      create: { childId },
+    }),
+    prisma.makeTenFactProgress.findMany({ where: { childId } }),
+  ]);
+  const questions = factProgress.length
+    ? generateAdaptiveMakeTenQuestions(
+        settings.questionsPerDay,
+        factProgress,
+        settings.secondsPerQuestion,
+      )
+    : generateMakeTenQuestions(settings.questionsPerDay);
   try {
     const session = await prisma.makeTenLearningSession.create({
       data: {
@@ -115,7 +129,12 @@ export async function startMakeTenSession(
 export async function answerMakeTenQuestion(
   childId: string,
   sessionId: string,
-  input: { questionIndex: number; selectedNumber: number | null; timedOut: boolean },
+  input: {
+    questionIndex: number;
+    selectedNumber: number | null;
+    timedOut: boolean;
+    responseMs?: number;
+  },
 ) {
   const now = new Date();
   return prisma.$transaction(async (tx) => {
@@ -131,11 +150,22 @@ export async function answerMakeTenQuestion(
       throw new HttpError(409, "MAKE_TEN_QUESTION_OUT_OF_ORDER", "请按顺序完成凑十题目");
     }
 
+    const timeLimitMs = Math.max(
+      1,
+      Math.round(session.secondsPerQuestion * 1000),
+    );
+    const responseMs = input.timedOut
+      ? timeLimitMs
+      : Math.max(
+          0,
+          Math.min(timeLimitMs, Math.round(input.responseMs ?? timeLimitMs)),
+        );
     const answer: MakeTenAnswer = {
       questionIndex: input.questionIndex,
       selectedNumber: input.timedOut ? null : input.selectedNumber,
       correct: !input.timedOut && isMakeTenAnswerCorrect(question.target, input.selectedNumber),
       timedOut: input.timedOut,
+      responseMs,
       answeredAt: now.toISOString(),
     };
     const nextIndex = session.currentIndex + 1;
@@ -153,12 +183,67 @@ export async function answerMakeTenQuestion(
         completedAt: completed ? now : null,
       },
     });
-    const updated = await tx.makeTenLearningSession.findUniqueOrThrow({ where: { id: session.id } });
     if (updatedCount.count === 0) {
+      const updated = await tx.makeTenLearningSession.findUniqueOrThrow({ where: { id: session.id } });
       const savedAnswer = answersFromJson(updated.answers).find((item) => item.questionIndex === input.questionIndex);
       if (savedAnswer) return { session: serializeSession(updated), answer: savedAnswer, question };
       throw new HttpError(409, "MAKE_TEN_QUESTION_OUT_OF_ORDER", "请按顺序完成凑十题目");
     }
+
+    await tx.makeTenQuestionAttempt.create({
+      data: {
+        childId,
+        sessionId: session.id,
+        questionIndex: input.questionIndex,
+        target: question.target,
+        selectedNumber: answer.selectedNumber,
+        correct: answer.correct,
+        timedOut: answer.timedOut,
+        responseMs,
+        answeredAt: now,
+      },
+    });
+
+    const currentProgress = await tx.makeTenFactProgress.findUnique({
+      where: { childId_target: { childId, target: question.target } },
+    });
+    const answerScore = answer.correct ? 1 : 0;
+    if (currentProgress) {
+      await tx.makeTenFactProgress.update({
+        where: { id: currentProgress.id },
+        data: {
+          attemptCount: { increment: 1 },
+          correctCount: { increment: answerScore },
+          totalResponseMs: { increment: responseMs },
+          recentAccuracy:
+            (currentProgress.recentAccuracy ?? answerScore) * 0.75 +
+            answerScore * 0.25,
+          recentResponseMs:
+            (currentProgress.recentResponseMs ?? responseMs) * 0.75 +
+            responseMs * 0.25,
+          consecutiveWrong: answer.correct
+            ? 0
+            : currentProgress.consecutiveWrong + 1,
+          lastAnsweredAt: now,
+        },
+      });
+    } else {
+      await tx.makeTenFactProgress.create({
+        data: {
+          childId,
+          target: question.target,
+          attemptCount: 1,
+          correctCount: answerScore,
+          totalResponseMs: responseMs,
+          recentAccuracy: answerScore,
+          recentResponseMs: responseMs,
+          consecutiveWrong: answer.correct ? 0 : 1,
+          lastAnsweredAt: now,
+        },
+      });
+    }
+
+    const updated = await tx.makeTenLearningSession.findUniqueOrThrow({ where: { id: session.id } });
     return { session: serializeSession(updated), answer, question };
   });
 }
