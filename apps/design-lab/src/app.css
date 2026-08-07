@@ -6113,7 +6113,6 @@ input[type="reset"] {
   .footprints-page .footprints-day--selected {
     height: 78px;
     min-height: 78px;
-    transform: translateY(-2px);
   }
 
   .footprints-page .footprints-day > span {
@@ -6664,7 +6663,6 @@ input[type="reset"] {
   .footprints-day--selected {
     height: 78px;
     min-height: 78px;
-    transform: translateY(-2px);
   }
 
   .footprints-day > span {
@@ -11102,7 +11100,7 @@ body:has(.footprints-page),
 
 .footprints-day--selected {
   height: 128px;
-  margin-top: -8px;
+  margin-top: 0;
   background: var(--progress-orange);
   box-shadow: 0 6px 0 rgba(37, 59, 89, 0.2);
 }
