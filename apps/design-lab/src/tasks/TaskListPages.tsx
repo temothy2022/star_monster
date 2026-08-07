@@ -250,7 +250,6 @@ function ProgressColumn({
       <section className="task-progress-card" aria-labelledby="daily-progress-title">
         <div className="task-progress-card__decoration" />
         <h2 id="daily-progress-title">今日一共赚了</h2>
-        <p>加油！争取将今天所有的收集完成哦！</p>
         <DailyProgress earned={earned} total={goal} />
         <div className="task-balance">
           <div className="task-balance__value"><img src={balanceStar} alt="星星" /><strong>{balance}</strong></div>
