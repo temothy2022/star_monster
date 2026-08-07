@@ -178,6 +178,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [careAnimation, setCareAnimation] = useState<{ kind: CareKind; startedAt: number } | null>(null);
+  const [careConfirm, setCareConfirm] = useState<CareKind | null>(null);
   const [roomNotice, setRoomNotice] = useState<RoomNotice | null>(null);
   const [travelOpen, setTravelOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
@@ -337,6 +338,16 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     }, ROOM_NOTICE_MS);
   }
 
+  function requestCare(kind: CareKind) {
+    if (busy || careAnimation || !state) return;
+    const status = kind === "feed" ? state.pet.satiety : state.pet.hydration;
+    if (status >= 100) {
+      showRoomNotice(kind === "feed" ? "星宠现在吃得很饱" : "星宠现在不渴");
+      return;
+    }
+    setCareConfirm(kind);
+  }
+
   async function care(kind: CareKind) {
     if (busy || careAnimation || !state) return;
     const status = kind === "feed" ? state.pet.satiety : state.pet.hydration;
@@ -349,6 +360,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       const result = await careForPet(kind, actionKey(kind));
       setState(result);
       setError("");
+      setCareConfirm(null);
       const startedAt = Date.now();
       setCareAnimation({ kind, startedAt });
       if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
@@ -357,6 +369,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
         careTimerRef.current = null;
       }, CARE_ANIMATION_MS);
     } catch (reason) {
+      setCareConfirm(null);
       setTravelOpen(false);
       showRoomNotice(reason instanceof ApiError ? reason.message : "照顾星宠没有完成");
     } finally {
@@ -405,6 +418,15 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const levelProgress = state.pet.nextLevelExperience === null
     ? 100
     : Math.min(100, Math.max(0, ((state.pet.experience - state.pet.currentLevelStart) / levelRange) * 100));
+  const careConfirmation = careConfirm
+    ? {
+        kind: careConfirm,
+        title: careConfirm === "feed" ? `给${mascot.name}喂点心吗？` : `给${mascot.name}喂水吗？`,
+        description: careConfirm === "feed" ? "香香的小点心会补充饱食度" : "清凉的水会补充饮水状态",
+        actionText: careConfirm === "feed" ? "确认喂点心" : "确认喂水",
+        costStars: state.careOptions[careConfirm].costStars,
+      }
+    : null;
 
   return (
     <main className={`pet-growth-page pet-growth-page--${trip ? "travel" : "home"}`}>
@@ -439,10 +461,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation)} onClick={() => setTravelOpen(true)}>
             <span className="pet-action-icon pet-action-icon--travel" aria-hidden="true">✦</span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "去看看远方" : "旅行已关闭"}</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--feed" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => void care("feed")}>
+          <button className="pet-action-button pet-action-button--feed" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => requestCare("feed")}>
             <span className="pet-action-icon pet-action-icon--snack" aria-hidden="true"><i /></span><div><strong>{busy === "feed" ? "准备点心…" : careAnimation?.kind === "feed" ? "正在吃点心" : "喂点心"}</strong><small>使用 {state.careOptions.feed.costStars} 颗星</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => void care("drink")}>
+          <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => requestCare("drink")}>
             <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><i /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
           </button>
           <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(busy) || Boolean(careAnimation)} onClick={() => setAlbumOpen(true)}>
@@ -489,6 +511,37 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           </>
         )}
       </section>
+
+      {careConfirmation && (
+        <div className="pet-modal pet-care-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="pet-care-confirm-title">
+          <button
+            className="pet-modal__backdrop"
+            type="button"
+            aria-label="取消照顾星宠"
+            disabled={busy === careConfirmation.kind}
+            onClick={() => setCareConfirm(null)}
+          />
+          <section className={`pet-care-confirm pet-care-confirm--${careConfirmation.kind}`}>
+            <div className={`pet-care-confirm__icon pet-care-confirm__icon--${careConfirmation.kind}`} aria-hidden="true">
+              <span className={`pet-action-icon ${careConfirmation.kind === "feed" ? "pet-action-icon--snack" : "pet-action-icon--water"}`}><i /></span>
+            </div>
+            <small>照顾星宠</small>
+            <h2 id="pet-care-confirm-title">{careConfirmation.title}</h2>
+            <p>{careConfirmation.description}</p>
+            <div className="pet-care-confirm__cost">
+              <span><b>★</b> 本次使用 <strong>{careConfirmation.costStars}</strong> 颗星</span>
+              <small>当前余额 {state.wallet.starBalance} 颗星</small>
+            </div>
+            {state.wallet.starBalance < careConfirmation.costStars && <div className="pet-care-confirm__warning">星星余额不足，暂时不能进行这次照顾</div>}
+            <div className="pet-care-confirm__actions">
+              <button type="button" disabled={busy === careConfirmation.kind} onClick={() => setCareConfirm(null)}>再等等</button>
+              <button type="button" disabled={Boolean(busy) || state.wallet.starBalance < careConfirmation.costStars} onClick={() => void care(careConfirmation.kind)}>
+                {busy === careConfirmation.kind ? "正在准备…" : careConfirmation.actionText}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {travelOpen && (
         <div className="pet-modal" role="dialog" aria-modal="true" aria-label="选择旅行">

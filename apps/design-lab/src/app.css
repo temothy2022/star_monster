@@ -12025,6 +12025,176 @@ body:has(.footprints-page),
 
 .pet-modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: clamp(16px, 4vw, 48px); }
 .pet-modal__backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgba(65, 49, 40, .54); backdrop-filter: blur(6px); }
+.pet-care-confirm {
+  --pet-care-confirm-color: #ee7b3d;
+  --pet-care-confirm-shadow: #bd592d;
+  position: relative;
+  z-index: 1;
+  width: min(430px, calc(100vw - 32px));
+  padding: 30px 30px 26px;
+  border: 2px solid rgb(107 76 55 / 18%);
+  border-radius: 8px;
+  color: var(--pet-ink);
+  background: #fffaf0;
+  box-shadow: 0 9px 0 rgb(87 59 42 / 18%), 0 24px 60px rgb(50 34 26 / 28%);
+  text-align: center;
+  animation: pet-care-confirm-in 220ms ease-out both;
+}
+
+.pet-care-confirm--drink {
+  --pet-care-confirm-color: #49a9c5;
+  --pet-care-confirm-shadow: #2f7890;
+  background: #f4fcfc;
+}
+
+@keyframes pet-care-confirm-in {
+  from { opacity: 0; transform: translateY(14px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+
+.pet-care-confirm__icon {
+  width: 84px;
+  height: 84px;
+  display: grid;
+  margin: -5px auto 13px;
+  place-items: center;
+  border: 2px solid rgb(107 76 55 / 12%);
+  border-radius: 50%;
+  background: #ffedc8;
+  box-shadow: inset 0 -7px 0 rgb(167 102 52 / 8%);
+}
+
+.pet-care-confirm__icon--drink {
+  background: #ddf4f7;
+  box-shadow: inset 0 -7px 0 rgb(50 130 151 / 8%);
+}
+
+.pet-care-confirm__icon .pet-action-icon {
+  width: 56px;
+  height: 56px;
+  background: rgb(255 255 255 / 72%);
+}
+
+.pet-care-confirm__icon .pet-action-icon--snack i {
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  height: 17px;
+}
+
+.pet-care-confirm__icon .pet-action-icon--snack i::before {
+  top: -15px;
+  width: 21px;
+  height: 15px;
+}
+
+.pet-care-confirm__icon .pet-action-icon--water i {
+  width: 24px;
+  height: 32px;
+}
+
+.pet-care-confirm > small {
+  color: #9a7560;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.pet-care-confirm h2 {
+  margin: 5px 0 7px;
+  font-size: 27px;
+  line-height: 1.3;
+}
+
+.pet-care-confirm > p {
+  margin: 0;
+  color: #7c695f;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.pet-care-confirm__cost {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0 18px;
+  padding: 11px 14px;
+  border: 2px solid rgb(117 81 52 / 12%);
+  border-radius: 8px;
+  background: rgb(255 237 181 / 58%);
+  text-align: left;
+}
+
+.pet-care-confirm--drink .pet-care-confirm__cost {
+  background: rgb(211 241 245 / 65%);
+}
+
+.pet-care-confirm__cost > span {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.pet-care-confirm__cost b {
+  color: #f1a817;
+  font-size: 21px;
+}
+
+.pet-care-confirm__cost strong {
+  color: #8b5d17;
+  font-size: 20px;
+}
+
+.pet-care-confirm__cost small {
+  color: #876f62;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pet-care-confirm__warning {
+  margin: -7px 0 14px;
+  color: #b54f32;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.pet-care-confirm__actions {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: 12px;
+}
+
+.pet-care-confirm__actions button {
+  min-height: 54px;
+  border: 2px solid #765848;
+  border-radius: 8px;
+  color: #5f493d;
+  background: #fffdf7;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 5px 0 rgb(92 64 48 / 20%);
+}
+
+.pet-care-confirm__actions button:last-child {
+  border-color: var(--pet-care-confirm-shadow);
+  color: white;
+  background: var(--pet-care-confirm-color);
+  box-shadow: 0 5px 0 var(--pet-care-confirm-shadow);
+}
+
+.pet-care-confirm__actions button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 rgb(92 64 48 / 20%);
+}
+
+.pet-care-confirm__actions button:disabled {
+  opacity: .55;
+}
+
 .pet-travel-sheet,
 .pet-album,
 .pet-postcard { position: relative; width: min(920px, 92vw); max-height: min(760px, 88dvh); overflow: auto; border: 1px solid rgba(255,255,255,.8); border-radius: 8px; background: #fffdf8; box-shadow: 0 28px 70px rgba(46, 32, 24, .28); }
