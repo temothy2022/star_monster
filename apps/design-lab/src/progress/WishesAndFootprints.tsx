@@ -1,10 +1,6 @@
 import {
   useEffect,
-  useMemo,
-  useRef,
   useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import balanceStar from "@star-monsters/assets/icons/wishes/balance-star.svg";
 import costStar from "@star-monsters/assets/icons/wishes/cost-star.svg";
@@ -31,7 +27,7 @@ import canadaFlag from "@star-monsters/assets/images/footprints/flags/canada.web
 import australiaFlag from "@star-monsters/assets/images/footprints/flags/australia.webp?no-inline";
 import brazilFlag from "@star-monsters/assets/images/footprints/flags/brazil.webp?no-inline";
 import unitedStatesFlag from "@star-monsters/assets/images/footprints/flags/united-states.webp?no-inline";
-import { MASCOTS, useMascot } from "../mascots";
+import { MASCOTS } from "../mascots";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
@@ -44,7 +40,6 @@ import {
   getChildWishes,
   redeemChildWish,
   type ChildWish,
-  type ChildLeaderboard,
   type ChildLeaderboardEntry,
   type FootprintResponse,
 } from "../api/child-api";
@@ -92,11 +87,6 @@ function nextDateText(date: string | null) {
 
 type LeaderboardPeriod = "daily" | "weekly";
 
-type FootprintSpeech = {
-  messages: string[];
-  celebrating: boolean;
-};
-
 const FLAG_IMAGES: Record<ChildLeaderboardEntry["flagKey"], string> = {
   CHINA: chinaFlag,
   JAPAN: japanFlag,
@@ -111,106 +101,6 @@ const FLAG_IMAGES: Record<ChildLeaderboardEntry["flagKey"], string> = {
   BRAZIL: brazilFlag,
   UNITED_STATES: unitedStatesFlag,
 };
-
-const EMPTY_CHILD_LEADERBOARD: ChildLeaderboard = {
-  entries: [],
-  self: null,
-};
-
-function getFootprintSpeech({
-  stars,
-  taskCount,
-  isToday,
-  leaderboard,
-  period,
-}: {
-  stars: number;
-  taskCount: number;
-  isToday: boolean;
-  leaderboard: ChildLeaderboard;
-  period: LeaderboardPeriod;
-}): FootprintSpeech {
-  const messages: string[] = [];
-  const self = leaderboard.self;
-
-  if (taskCount === 0 && isToday) {
-    messages.push(
-      "今天的第一颗星，还在等你出发！",
-      "先完成一个小任务，排名就会动起来啦。",
-      "不用一次做很多，先迈出第一步吧！",
-      "星星雷达已经打开，等你点亮今天！",
-      "挑一个最容易开始的任务，我们马上行动。",
-      "今天的足迹还是空白，一颗星就能让它发光！",
-    );
-  }
-
-  if (taskCount === 0) {
-    messages.push(
-      "这一天暂时没有足迹，新的探险继续加油！",
-      "休息也是补充能量，准备好再出发吧。",
-      "这页还没有星星，下一次一定更闪亮！",
-    );
-  }
-
-  if (taskCount > 0) {
-    messages.push(
-      `已经完成 ${taskCount} 个任务，收获 ${stars} 颗星！`,
-      `今天留下了 ${taskCount} 个认真行动的足迹。`,
-      `每完成一次，星星能量就增加一点！`,
-      `看得见的进步，就是这 ${stars} 颗星。`,
-    );
-  }
-
-  if (stars >= 10 || taskCount >= 4) {
-    messages.push(
-      `能量大爆发，${stars} 颗星全部装进口袋！`,
-      "一个接一个完成，今天的行动力满满！",
-      "坚持到这里很了不起，给自己鼓掌吧！",
-      "足迹越来越亮，你的努力都被看见啦。",
-    );
-  }
-
-  if (self?.rank === 1) {
-    messages.push(
-      period === "daily" ? "你现在是今日领航员，继续稳稳向前！" : "你正在领跑本周榜，坚持特别有力量！",
-      "第一名不是终点，把今天的计划认真完成吧。",
-      "你站在榜首啦，稳定完成比冲得快更重要。",
-      "领航员也要一步一步走，保持自己的节奏！",
-    );
-  } else if (self && self.rank !== null && self.rank <= 3) {
-    messages.push(
-      `冲进前三啦，你现在是第 ${self.rank} 名！`,
-      "离榜首很近了，认真完成下一个任务吧。",
-      "前三名的星光真亮，保持这个好节奏！",
-      `第 ${self.rank} 名正在发光，每一步都算数。`,
-    );
-  } else if (self?.rank === null) {
-    messages.push(
-      "先收集三颗星，名字就有机会出现在榜单上！",
-      "榜单正在等你，完成眼前的小任务就能向前一步。",
-      "现在还没上榜没关系，第一颗星就是新的开始！",
-    );
-  } else if (self && self.starsToNextRank <= 3) {
-    messages.push(
-      `再得 ${self.starsToNextRank} 颗星，就有机会前进一名！`,
-      "前面的伙伴已经不远了，先完成眼前这一项。",
-      "排名马上会动起来，认真完成比着急更重要。",
-      "只差一点点啦，选一个合适的任务继续吧！",
-    );
-  } else if (self) {
-    messages.push(
-      `你现在排第 ${self.rank} 名，每颗星都能推动排名。`,
-      `距离前一名还差 ${self.starsToNextRank} 颗星，慢慢追上去！`,
-      "不用和别人比速度，只要比刚才的自己多走一步。",
-      "把今天该做的事情完成，排名自然会向前。",
-    );
-  }
-
-  return {
-    messages: Array.from(new Set(messages)),
-    celebrating: stars >= 8 || taskCount >= 3 || (self?.rank ?? 99) <= 3,
-  };
-}
 
 function RequestedWishCard({
   wish,
@@ -438,191 +328,6 @@ export function WishesRequested({
   );
 }
 
-const FLOATING_MASCOT_POSITION_KEY = "star-monsters:footprints-mascot-position";
-
-function clampMascotPosition(position: { x: number; y: number }) {
-  const size = window.innerWidth <= 600 ? 76 : 112;
-  const bottomSpace = window.innerWidth <= 600 ? 104 : 116;
-  const pageWidth = Math.min(window.innerWidth, 1280);
-  const pageLeft = Math.max(0, (window.innerWidth - pageWidth) / 2);
-  return {
-    x: Math.min(
-      Math.max(pageLeft + 10, position.x),
-      Math.max(pageLeft + 10, pageLeft + pageWidth - size - 10),
-    ),
-    y: Math.min(
-      Math.max(70, position.y),
-      Math.max(70, window.innerHeight - size - bottomSpace),
-    ),
-  };
-}
-
-function initialMascotPosition() {
-  try {
-    const stored = window.localStorage.getItem(FLOATING_MASCOT_POSITION_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored) as { x?: unknown; y?: unknown };
-      if (typeof parsed.x === "number" && typeof parsed.y === "number") {
-        return clampMascotPosition({ x: parsed.x, y: parsed.y });
-      }
-    }
-  } catch {
-    // A saved drag position is optional; invalid local data falls back safely.
-  }
-  const pageWidth = Math.min(window.innerWidth, 1280);
-  const pageLeft = Math.max(0, (window.innerWidth - pageWidth) / 2);
-  return clampMascotPosition({
-    x: pageLeft + pageWidth - 144,
-    y: window.innerHeight - 264,
-  });
-}
-
-function FloatingFootprintMascot({
-  mascot,
-  speech,
-}: {
-  mascot: {
-    name: string;
-    images: { neutral: string; celebrate: string };
-  };
-  speech: FootprintSpeech;
-}) {
-  const [position, setPosition] = useState(initialMascotPosition);
-  const positionRef = useRef(position);
-  const dragRef = useRef<{
-    pointerId: number;
-    offsetX: number;
-    offsetY: number;
-  } | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [speechVisible, setSpeechVisible] = useState(false);
-  const [messageIndex, setMessageIndex] = useState(0);
-  const messageSignature = speech.messages.join("|");
-  const message = speech.messages[messageIndex % Math.max(1, speech.messages.length)] ?? "一起出发吧！";
-
-  useEffect(() => {
-    const onResize = () => {
-      const next = clampMascotPosition(positionRef.current);
-      positionRef.current = next;
-      setPosition(next);
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  useEffect(() => {
-    let showTimer = 0;
-    let hideTimer = 0;
-    let cycle = 0;
-    let cancelled = false;
-
-    const revealAfter = (delay: number) => {
-      showTimer = window.setTimeout(() => {
-        if (cancelled) return;
-        setMessageIndex(cycle % Math.max(1, speech.messages.length));
-        cycle += 1;
-        setSpeechVisible(true);
-        hideTimer = window.setTimeout(() => {
-          setSpeechVisible(false);
-          revealAfter(13_000 + (cycle % 4) * 2_400);
-        }, 5_400);
-      }, delay);
-    };
-
-    revealAfter(800);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(showTimer);
-      window.clearTimeout(hideTimer);
-    };
-  }, [messageSignature, speech.messages.length]);
-
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    event.preventDefault();
-    dragRef.current = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - positionRef.current.x,
-      offsetY: event.clientY - positionRef.current.y,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
-    setSpeechVisible(false);
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const next = clampMascotPosition({
-      x: event.clientX - drag.offsetX,
-      y: event.clientY - drag.offsetY,
-    });
-    positionRef.current = next;
-    setPosition(next);
-  };
-
-  const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
-    dragRef.current = null;
-    setDragging(false);
-    try {
-      window.localStorage.setItem(
-        FLOATING_MASCOT_POSITION_KEY,
-        JSON.stringify(positionRef.current),
-      );
-    } catch {
-      // Dragging must still work when Safari blocks local storage.
-    }
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  return (
-    <div
-      className={[
-        "footprints-floating-mascot",
-        position.x > window.innerWidth / 2 ? "footprints-floating-mascot--right" : "",
-        dragging ? "footprints-floating-mascot--dragging" : "",
-      ].filter(Boolean).join(" ")}
-      style={{
-        "--footprint-mascot-x": `${position.x}px`,
-        "--footprint-mascot-y": `${position.y}px`,
-      } as CSSProperties}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={finishDrag}
-      onPointerCancel={finishDrag}
-      aria-label={`星宠${mascot.name}，可以拖动位置`}
-    >
-      <div
-        className={`footprints-floating-speech${speechVisible && !dragging ? " footprints-floating-speech--visible" : ""}`}
-        aria-live="polite"
-        aria-hidden={!speechVisible || dragging}
-      >
-        <p aria-label={message}>
-          {Array.from(message).map((character, index) => (
-            <span
-              aria-hidden="true"
-              key={`${message}-${index}`}
-              style={{ "--speech-character-index": index } as CSSProperties}
-            >
-              {character}
-            </span>
-          ))}
-        </p>
-      </div>
-      <img
-        src={speech.celebrating ? mascot.images.celebrate : mascot.images.neutral}
-        alt=""
-        decoding="async"
-        draggable={false}
-      />
-    </div>
-  );
-}
-
 function FootprintLeaderboard({
   leaderboards,
   period,
@@ -686,10 +391,10 @@ export function Footprints({
 }: {
   onNavigate: (route: ChildRoute) => void;
 }) {
-  const { mascot } = useMascot();
   const [footprints, setFootprints] = useState<FootprintResponse | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | undefined>();
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<LeaderboardPeriod>("daily");
+  const [mobilePanel, setMobilePanel] = useState<"records" | "leaderboard">("records");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -778,34 +483,6 @@ export function Footprints({
         timeZone: "UTC",
       }).format(new Date(`${activeDay.date}T00:00:00.000Z`))
     : "Today";
-  const activeStars =
-    footprints?.days.find((day) => day.date === activeDate)?.stars ?? 0;
-  const today = new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "Asia/Shanghai",
-  }).format(new Date());
-  const activeLeaderboard =
-    footprints?.leaderboards[leaderboardPeriod] ?? EMPTY_CHILD_LEADERBOARD;
-  const speech = useMemo(
-    () => getFootprintSpeech({
-      stars: activeStars,
-      taskCount: displayedTasks.length,
-      isToday: activeDate === today,
-      leaderboard: activeLeaderboard,
-      period: leaderboardPeriod,
-    }),
-    [
-      activeDate,
-      activeStars,
-      activeLeaderboard,
-      displayedTasks.length,
-      leaderboardPeriod,
-      today,
-    ],
-  );
-
   if (!footprints) {
     return (
       <main className="footprints-page">
@@ -821,7 +498,11 @@ export function Footprints({
   return (
     <main className="footprints-page">
       <section className="footprints-main">
-        <div className="footprints-layout">
+        <div className="footprints-mobile-tabs" aria-label="足迹内容">
+          <button type="button" className={mobilePanel === "records" ? "is-active" : ""} aria-pressed={mobilePanel === "records"} onClick={() => setMobilePanel("records")}>得星记录</button>
+          <button type="button" className={mobilePanel === "leaderboard" ? "is-active" : ""} aria-pressed={mobilePanel === "leaderboard"} onClick={() => setMobilePanel("leaderboard")}>小朋友榜</button>
+        </div>
+        <div className={`footprints-layout footprints-layout--${mobilePanel}`}>
           <FootprintLeaderboard
             leaderboards={footprints.leaderboards}
             period={leaderboardPeriod}
@@ -879,7 +560,6 @@ export function Footprints({
           </div>
         </div>
       </section>
-      <FloatingFootprintMascot mascot={mascot} speech={speech} />
       <ChildBottomNav active="footprints" onNavigate={onNavigate} />
     </main>
   );
