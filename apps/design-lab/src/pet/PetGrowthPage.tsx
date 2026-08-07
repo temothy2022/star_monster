@@ -11,11 +11,12 @@ import {
 } from "../api/child-api";
 import { createIdempotencyKey } from "../api/idempotency";
 import { useMascot } from "../mascots";
+import returnEnvelope from "../assets/pet/pet-return-envelope.webp";
 
-const TIER_COPY: Record<PetTravelTier, { name: string; note: string; icon: string }> = {
-  NEARBY: { name: "附近散步", note: "很快回来", icon: "🧺" },
-  CHINA: { name: "中国旅行", note: "发现山河故事", icon: "🧳" },
-  WORLD: { name: "世界旅行", note: "认识远方风景", icon: "🌍" },
+const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
+  NEARBY: { name: "附近散步", note: "发现身边的小惊喜" },
+  CHINA: { name: "中国旅行", note: "去看看祖国的山河" },
+  WORLD: { name: "世界旅行", note: "认识更远的风景" },
 };
 
 const CARE_ANIMATION_MS = 3_000;
@@ -42,20 +43,27 @@ function formatCountdown(returnsAt: string, now: number) {
   return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
-function Meter({ label, value, tone, icon }: { label: string; value: number; tone: string; icon: string }) {
+function Meter({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="pet-meter">
-      <div className="pet-meter__label"><span>{icon} {label}</span><strong>{value}</strong></div>
+      <div className="pet-meter__label"><span>{label}</span><strong>{value}</strong></div>
       <div className="pet-meter__track"><i style={{ width: `${value}%`, background: tone }} /></div>
     </div>
   );
 }
 
-function Postcard({ trip, onClose }: { trip: PetTrip; onClose: () => void }) {
+function Postcard({ trip, mascotImage, mascotName, onClose }: { trip: PetTrip; mascotImage: string; mascotName: string; onClose: () => void }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [speaking, setSpeaking] = useState(false);
 
   function speak() {
+    if (speaking) {
+      audioRef.current?.pause();
+      if (audioRef.current) audioRef.current.currentTime = 0;
+      window.speechSynthesis?.cancel();
+      setSpeaking(false);
+      return;
+    }
     audioRef.current?.pause();
     window.speechSynthesis?.cancel();
     setSpeaking(true);
@@ -78,6 +86,7 @@ function Postcard({ trip, onClose }: { trip: PetTrip; onClose: () => void }) {
       setSpeaking(false);
       return;
     }
+    setSpeaking(true);
     const utterance = new SpeechSynthesisUtterance(
       `${trip.destinationName}。${trip.introduction}。你知道吗？${trip.funFact}`,
     );
@@ -99,7 +108,8 @@ function Postcard({ trip, onClose }: { trip: PetTrip; onClose: () => void }) {
       <article className="pet-postcard">
         <button className="pet-postcard__close" type="button" onClick={onClose} aria-label="关闭明信片">×</button>
         <div className="pet-postcard__image-wrap">
-          <img src={trip.imageUrl} alt={trip.destinationName} />
+          <img className="pet-postcard__destination" src={trip.imageUrl} alt={trip.destinationName} />
+          <img className="pet-postcard__travel-mascot" src={mascotImage} alt={`${mascotName}在${trip.destinationName}旅行`} />
           <span>旅行明信片</span>
         </div>
         <div className="pet-postcard__content">
@@ -108,7 +118,7 @@ function Postcard({ trip, onClose }: { trip: PetTrip; onClose: () => void }) {
           <p>{trip.introduction}</p>
           <div className="pet-postcard__fact"><strong>有趣的小知识</strong>{trip.funFact}</div>
           <button className={`pet-audio-button${speaking ? " is-speaking" : ""}`} type="button" onClick={speak}>
-            <span>{speaking ? "◼" : "▶"}</span>{speaking ? "正在讲给你听" : "听听这个地方"}
+            <span className="pet-audio-icon" aria-hidden="true"><i /><b /></span>{speaking ? "正在讲给你听" : "听听这个地方"}
           </button>
         </div>
       </article>
@@ -272,8 +282,8 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
 
         <section className="pet-status-card" aria-label="星宠状态">
           <div className="pet-status-card__title"><div><small>成长阶段</small><strong>{state.pet.growthStage === "BABY" ? "幼年伙伴" : state.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong></div><span>第 {state.pet.level} 级</span></div>
-          <Meter label="饱食度" value={state.pet.satiety} tone="#f59a55" icon="●" />
-          <Meter label="饮水状态" value={state.pet.hydration} tone="#55b9d6" icon="◆" />
+          <Meter label="饱食度" value={state.pet.satiety} tone="#f59a55" />
+          <Meter label="饮水状态" value={state.pet.hydration} tone="#55b9d6" />
           <div className="pet-spend-note">今日已使用 <strong>{state.wallet.dailySpent}</strong> 颗星{state.wallet.dailySpendLimitStars !== null && <> / {state.wallet.dailySpendLimitStars}</>}</div>
         </section>
 
@@ -304,10 +314,15 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
           </div>
         ) : trip?.status === "RETURNED" ? (
           <div className="pet-return-scene">
-            <div className="pet-return-card"><img src={trip.imageUrl} alt="神秘旅行明信片" /></div>
-            <img className="pet-return-mascot" src={mascot.images.celebrate} alt={`${mascot.name}旅行归来`} />
-            <h1>{mascot.name}回来啦！</h1>
-            <button type="button" disabled={busy === "reveal"} onClick={() => void reveal()}>{busy === "reveal" ? "正在打开…" : "拆开明信片"}</button>
+            <div className="pet-return-envelope-wrap">
+              <i className="pet-return-spark pet-return-spark--one" />
+              <i className="pet-return-spark pet-return-spark--two" />
+              <img className="pet-return-envelope" src={returnEnvelope} alt="一封装着旅行明信片的信" />
+              <img className="pet-return-mascot" src={mascot.images.celebrate} alt={`${mascot.name}旅行归来`} />
+            </div>
+            <p className="pet-return-eyebrow">旅行邮差送来了一封信</p>
+            <h1>{mascot.name}带着明信片回来啦</h1>
+            <button className="pet-return-open" type="button" disabled={busy === "reveal"} onClick={() => void reveal()}><span aria-hidden="true"><i /></span>{busy === "reveal" ? "正在拆开…" : "拆开明信片"}</button>
           </div>
         ) : (
           <>
@@ -334,7 +349,7 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
             <div className="pet-travel-options">
               {state.travelOptions.map((option) => {
                 const copy = TIER_COPY[option.tier];
-                return <button key={option.tier} type="button" disabled={Boolean(busy) || state.wallet.starBalance < option.costStars} onClick={() => void depart(option.tier)}><span>{copy.icon}</span><strong>{copy.name}</strong><small>{copy.note} · {formatDuration(option.durationMinutes)}</small><b>★ {option.costStars}</b></button>;
+                return <button className={`pet-trip-option pet-trip-option--${option.tier.toLowerCase()}`} key={option.tier} type="button" disabled={Boolean(busy) || state.wallet.starBalance < option.costStars} onClick={() => void depart(option.tier)}><span className={`pet-trip-icon pet-trip-icon--${option.tier.toLowerCase()}`} aria-hidden="true"><i /><b /></span><strong>{copy.name}</strong><small>{copy.note}<em>{formatDuration(option.durationMinutes)}</em></small><b className="pet-trip-price">★ {option.costStars}</b></button>;
               })}
             </div>
           </section>
@@ -350,7 +365,7 @@ export function PetGrowthPage({ onBack }: { onBack: () => void }) {
           </section>
         </div>
       )}
-      {postcard && <Postcard trip={postcard} onClose={() => setPostcard(null)} />}
+      {postcard && <Postcard trip={postcard} mascotImage={mascot.activityImages.travel} mascotName={mascot.name} onClose={() => setPostcard(null)} />}
     </main>
   );
 }
