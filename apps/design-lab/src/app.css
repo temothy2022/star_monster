@@ -2,6 +2,11 @@
   box-sizing: border-box;
 }
 
+:root {
+  --app-visible-height: 100dvh;
+  --app-visible-width: 100vw;
+}
+
 html:has(.clock-learning-page),
 body:has(.clock-learning-page),
 #root:has(.clock-learning-page) {
@@ -13664,5 +13669,724 @@ body,
     min-width: 0;
     padding: 0 4px;
     font-size: clamp(15px, 4.4vw, 18px);
+  }
+}
+
+/*
+ * iPad Safari keeps browser chrome inside the screen while standalone mode does
+ * not. visualViewport feeds these pages the actually tappable height so fixed
+ * controls do not end up underneath the browser toolbar.
+ */
+html,
+body,
+#root {
+  height: var(--app-visible-height, 100dvh);
+  min-height: 0;
+}
+
+.clock-learning-page,
+.make-ten-page,
+.poem-page,
+.task-page,
+.planet-map-page,
+.planet-journey-loading,
+.untimed-page,
+.timed-page,
+.wishes-page,
+.footprints-page,
+.requested-wishes-frame,
+.pet-growth-page,
+.hanzi-page,
+.onboarding-viewport {
+  height: var(--app-visible-height, 100dvh);
+}
+
+.clock-learning-workspace {
+  height: calc(var(--app-visible-height, 100dvh) - 142px);
+}
+
+.clock-learning-loading,
+.make-ten-loading {
+  min-height: calc(var(--app-visible-height, 100dvh) - 60px);
+}
+
+.make-ten-workspace {
+  min-height: calc(var(--app-visible-height, 100dvh) - 142px);
+}
+
+.footprints-main {
+  height: calc(var(--app-visible-height, 100dvh) - 84px);
+}
+
+.pet-travel-sheet,
+.pet-album,
+.pet-postcard {
+  max-height: calc(var(--app-visible-height, 100dvh) - 16px);
+}
+
+.planet-unlock-modal {
+  height: min(724px, calc(var(--app-visible-height, 100dvh) - 74px));
+  max-height: calc(var(--app-visible-height, 100dvh) - 74px);
+}
+
+.untimed-abandon-dialog {
+  height: min(619.19px, calc(var(--app-visible-height, 100dvh) - 32px));
+}
+
+.timed-complete-modal {
+  height: min(565px, calc(var(--app-visible-height, 100dvh) - 48px));
+}
+
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 780px) {
+  .clock-learning-page,
+  .make-ten-page,
+  .poem-page,
+  .hanzi-page,
+  .timed-page {
+    min-height: 0;
+  }
+
+  .clock-learning-page,
+  .make-ten-page {
+    padding: max(8px, env(safe-area-inset-top)) 28px
+      max(10px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .clock-back-button {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(14px, env(safe-area-inset-left));
+    width: 46px;
+    height: 46px;
+    border-radius: 18px;
+  }
+
+  .clock-learning-header,
+  .make-ten-header {
+    min-height: 50px;
+    padding-left: 54px;
+  }
+
+  .clock-learning-header span,
+  .make-ten-header span {
+    font-size: 13px;
+  }
+
+  .clock-learning-header h1,
+  .make-ten-header h1 {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+
+  .clock-learning-progress,
+  .make-ten-total-progress {
+    width: min(220px, 28%);
+    height: 13px;
+  }
+
+  .clock-learning-progress strong,
+  .make-ten-total-progress strong {
+    top: -23px;
+    font-size: 12px;
+  }
+
+  .clock-learning-workspace {
+    height: calc(var(--app-visible-height, 100dvh) - 70px);
+    min-height: 0;
+    margin-top: 2px;
+    grid-template-columns: minmax(300px, 1fr) minmax(300px, 0.9fr);
+    gap: clamp(22px, 4vw, 44px);
+  }
+
+  .clock-learning-workspace--question {
+    padding-bottom: 62px;
+  }
+
+  .clock-face {
+    width: min(52vw, 340px, calc(var(--app-visible-height, 100dvh) - 210px));
+    border-width: 10px;
+  }
+
+  .clock-face__number {
+    font-size: 21px;
+  }
+
+  .clock-learning-clock-column {
+    gap: 8px;
+  }
+
+  .clock-digital-time {
+    padding: 7px 18px;
+    font-size: 23px;
+  }
+
+  .clock-learning-prompt,
+  .clock-feedback {
+    padding: 20px 22px;
+    border-width: 4px;
+    border-radius: 20px;
+  }
+
+  .clock-learning-prompt h2,
+  .clock-feedback h2 {
+    margin-top: 11px;
+    font-size: 22px;
+  }
+
+  .clock-learning-prompt p {
+    margin-bottom: 14px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .clock-answer-steppers {
+    margin: 14px 0 16px;
+  }
+
+  .clock-stepper > div {
+    min-height: 50px;
+  }
+
+  .clock-primary-button {
+    min-height: 52px;
+  }
+
+  .clock-learning-submit-zone {
+    bottom: 2px;
+  }
+
+  .clock-learning-question-count {
+    right: 14px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .clock-result,
+  .make-ten-result {
+    margin-top: 74px;
+    padding: 28px 34px;
+  }
+
+  .make-ten-workspace {
+    min-height: calc(var(--app-visible-height, 100dvh) - 70px);
+    margin-top: 2px;
+    padding: 6px 34px max(10px, env(safe-area-inset-bottom));
+    align-content: center;
+  }
+
+  .make-ten-timer-row {
+    margin-bottom: 8px;
+  }
+
+  .make-ten-equation {
+    min-height: 94px;
+    gap: clamp(14px, 3vw, 30px);
+    font-size: clamp(38px, 6vw, 58px);
+  }
+
+  .make-ten-equation strong,
+  .make-ten-blank {
+    width: 82px;
+    height: 82px;
+    border-width: 5px;
+    border-radius: 17px;
+  }
+
+  .make-ten-workspace > p {
+    margin: 7px 0 10px;
+    font-size: 18px;
+  }
+
+  .make-ten-options {
+    gap: 8px;
+  }
+
+  .make-ten-options button {
+    border-width: 3px;
+    border-radius: 13px;
+    font-size: clamp(23px, 2.7vw, 32px);
+  }
+
+  .make-ten-feedback {
+    min-width: 250px;
+    margin-top: 10px;
+    padding: 8px 22px;
+  }
+
+  .make-ten-feedback strong {
+    font-size: 23px;
+  }
+
+  .make-ten-feedback span {
+    font-size: 15px;
+  }
+
+  .hanzi-page {
+    min-height: 0;
+  }
+
+  .hanzi-page--review {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--review .hanzi-flow-header,
+  .hanzi-page--coach .hanzi-flow-header {
+    width: min(1060px, calc(100% - 40px));
+    margin-top: max(8px, env(safe-area-inset-top));
+  }
+
+  .hanzi-page--review .hanzi-flow-header__top,
+  .hanzi-page--coach .hanzi-flow-header__top {
+    grid-template-columns: 140px minmax(0, 1fr) 210px;
+  }
+
+  .hanzi-page--review .hanzi-back-button,
+  .hanzi-page--coach .hanzi-back-button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    border-radius: 17px;
+  }
+
+  .hanzi-page--review .hanzi-flow-header h1,
+  .hanzi-page--coach .hanzi-flow-header h1 {
+    font-size: 26px;
+    line-height: 44px;
+  }
+
+  .hanzi-page--review .hanzi-flow-header__top > span,
+  .hanzi-page--coach .hanzi-flow-header__top > span {
+    margin-right: 50px;
+    font-size: 18px;
+    white-space: nowrap;
+  }
+
+  .hanzi-page--review .hanzi-progress-track,
+  .hanzi-page--coach .hanzi-progress-track {
+    width: min(700px, calc(100% - 120px));
+    height: 12px;
+    margin-top: 7px;
+  }
+
+  .hanzi-page--review .hanzi-more-button,
+  .hanzi-page--coach .hanzi-more-button,
+  .hanzi-page--runtime-new .hanzi-more-button,
+  .hanzi-page--listen-challenge .hanzi-more-button,
+  .hanzi-page--listen-wrong .hanzi-more-button {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    width: 44px;
+    height: 44px;
+  }
+
+  .hanzi-review-canvas {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: center;
+    padding: 6px 24px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-review-card {
+    width: min(
+      460px,
+      calc(var(--app-visible-height, 100dvh) - 190px),
+      calc(100vw - 80px)
+    );
+    align-self: center;
+  }
+
+  .hanzi-review-card p {
+    bottom: 20px;
+    font-size: 20px;
+  }
+
+  .hanzi-hint-chip {
+    top: 17px;
+    right: 17px;
+    padding: 7px 15px;
+    font-size: 14px;
+  }
+
+  .hanzi-review-card .hanzi-character-box span {
+    font-size: clamp(96px, 15vw, 148px);
+  }
+
+  .hanzi-review-card__face--back .hanzi-character-box {
+    top: 20px;
+    width: 190px;
+    height: 104px;
+  }
+
+  .hanzi-review-card__face--back .hanzi-character-box span {
+    font-size: 76px;
+  }
+
+  .hanzi-review-card__face--back .hanzi-runtime-default-image {
+    width: 112px;
+    height: 74px;
+  }
+
+  .hanzi-card-back__bottom {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .hanzi-review-actions {
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .hanzi-review-actions button {
+    width: min(240px, 31vw);
+    height: 54px;
+    font-size: 23px;
+  }
+
+  .hanzi-page--coach .hanzi-coach-card {
+    top: 122px;
+    width: min(620px, calc(100% - 80px));
+    height: min(350px, calc(var(--app-visible-height, 100dvh) - 230px));
+    padding: 42px 40px 24px;
+  }
+
+  .hanzi-page--coach .hanzi-coach-card__spark {
+    top: -34px;
+    width: 68px;
+    height: 68px;
+    font-size: 31px;
+  }
+
+  .hanzi-page--coach .hanzi-coach-card h1 {
+    margin-bottom: 8px;
+    font-size: 21px;
+  }
+
+  .hanzi-page--coach .hanzi-character-box {
+    width: 150px;
+  }
+
+  .hanzi-page--coach .hanzi-character-box span {
+    font-size: 108px;
+  }
+
+  .hanzi-page--coach .hanzi-coach-audio {
+    height: 46px;
+    margin-top: 10px;
+  }
+
+  .hanzi-page--coach .hanzi-bottom-action {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--coach .hanzi-bottom-action button {
+    min-width: 260px;
+    height: 54px;
+    font-size: 24px;
+  }
+
+  .hanzi-page.hanzi-page--runtime-new {
+    min-height: 0;
+    row-gap: 6px;
+    padding: max(7px, env(safe-area-inset-top)) 0
+      max(7px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-header__top {
+    height: 44px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-progress {
+    height: 11px;
+    margin-top: 6px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-indicators {
+    height: 34px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-pill,
+  .hanzi-page--runtime-new .hanzi-step-pill b {
+    height: 32px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-pill b {
+    width: 32px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-footer {
+    height: 54px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-card__content > .hanzi-character-box,
+  .hanzi-page--runtime-new .hanzi-sound-character .hanzi-character-box {
+    width: clamp(145px, 24dvh, 190px);
+    height: clamp(145px, 24dvh, 190px);
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-image-only {
+    height: min(340px, calc(100% - 12px));
+  }
+
+  .hanzi-page--listen-challenge,
+  .hanzi-page--listen-wrong {
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+    gap: 8px;
+    padding: max(58px, calc(env(safe-area-inset-top) + 50px)) 0
+      max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--listen-challenge > .hanzi-back-button,
+  .hanzi-page--listen-wrong > .hanzi-back-button {
+    top: max(8px, env(safe-area-inset-top));
+    left: max(14px, env(safe-area-inset-left));
+    width: 44px;
+    height: 44px;
+  }
+
+  .hanzi-listen-shell,
+  .hanzi-listen-shell--answered {
+    width: min(900px, calc(100% - 80px));
+    margin-top: 0;
+  }
+
+  .hanzi-listen-title {
+    gap: 20px;
+    margin-bottom: 14px;
+  }
+
+  .hanzi-listen-title h1 {
+    margin-bottom: 2px;
+    font-size: 27px;
+    line-height: 34px;
+  }
+
+  .hanzi-listen-title p {
+    font-size: 17px;
+  }
+
+  .hanzi-listen-play {
+    width: 62px;
+    height: 62px;
+  }
+
+  .hanzi-listen-sentence {
+    min-height: 104px;
+    padding: 20px 34px;
+  }
+
+  .hanzi-listen-sentence p {
+    font-size: clamp(28px, 3.5vw, 40px);
+  }
+
+  .hanzi-listen-blank {
+    width: 62px;
+    height: 62px;
+    font-size: 34px;
+  }
+
+  .hanzi-listen-options {
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .hanzi-listen-options button {
+    width: 82px;
+    height: 82px;
+    border-radius: 18px;
+    font-size: 43px;
+  }
+
+  .hanzi-listen-next {
+    width: 230px;
+    height: 54px;
+    font-size: 22px;
+  }
+
+  .hanzi-listen-wrong__content .hanzi-listen-sentence {
+    min-height: 96px;
+    margin-top: 6px;
+    padding: 16px 24px;
+  }
+
+  .hanzi-listen-wrong__content .hanzi-listen-options {
+    margin-top: 14px;
+  }
+
+  .hanzi-listen-feedback {
+    height: 56px;
+    margin-top: 14px;
+    font-size: 19px;
+  }
+
+  .hanzi-page--result {
+    min-height: 0;
+    padding: 24px 48px 18px;
+  }
+
+  .hanzi-result-medal {
+    width: 76px;
+    height: 76px;
+    font-size: 40px;
+  }
+
+  .hanzi-result-header h1 {
+    font-size: 28px;
+    line-height: 36px;
+  }
+
+  .hanzi-result-grid {
+    gap: 16px;
+  }
+
+  .hanzi-result-grid article {
+    min-height: 190px;
+    padding: 20px;
+  }
+
+  .hanzi-result-footer button {
+    height: 56px;
+    font-size: 23px;
+  }
+
+  .poem-page--runtime {
+    min-height: 0;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .poem-page--runtime .poem-page__recitation-column {
+    padding-bottom: 8px;
+  }
+
+  .poem-page--runtime .poem-page__complete,
+  .poem-runtime__review-actions .poem-page__complete {
+    margin-top: 8px;
+  }
+
+  .untimed-page,
+  .untimed-scene,
+  .timed-page,
+  .wishes-page,
+  .footprints-page,
+  .requested-wishes-frame,
+  .pet-growth-page,
+  .task-page,
+  .planet-map-page,
+  .planet-journey-loading {
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+  }
+
+  .task-main {
+    top: 14px;
+    bottom: calc(94px + env(safe-area-inset-bottom));
+  }
+
+  .task-dock,
+  .child-bottom-nav {
+    bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  .footprints-main {
+    height: calc(var(--app-visible-height, 100dvh) - 76px);
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .requested-wishes-header {
+    height: 92px;
+    align-items: center;
+    padding: 12px 24px;
+  }
+
+  .requested-wishes-balance {
+    height: 58px;
+    padding-inline: 20px;
+  }
+
+  .requested-wishes-balance strong {
+    font-size: 23px;
+  }
+
+  .requested-wishes-message {
+    height: 54px;
+    font-size: 20px;
+  }
+
+  .requested-wishes-grid {
+    top: 92px;
+    right: 28px;
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    left: 28px;
+    grid-auto-rows: min(410px, 100%);
+    gap: 14px;
+  }
+
+  .requested-wish-card {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .requested-wish-card__image {
+    height: 132px;
+    flex-basis: 132px;
+  }
+
+  .requested-wish-card__button,
+  .requested-wish-card__redeemed,
+  .requested-wish-card__redeemed strong {
+    height: 52px;
+    flex-basis: 52px;
+    font-size: 19px;
+  }
+
+  .timed-page--active {
+    min-height: 0;
+  }
+
+  .timed-active-card {
+    top: clamp(76px, 13dvh, 92px);
+    bottom: 18px;
+  }
+
+  .timed-active-card {
+    --timed-active-scale: 0.88;
+  }
+
+  .untimed-active-card {
+    max-height: calc(var(--app-visible-height, 100dvh) - 96px);
+    padding: 26px 36px;
+  }
+
+  .untimed-active-card__reward {
+    height: 132px;
+    padding-bottom: 14px;
+  }
+
+  .untimed-active-card > p {
+    margin-top: 16px;
+  }
+
+  .planet-map-scroll {
+    padding-top: 12px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (orientation: portrait) and (min-width: 700px) and (max-width: 900px) {
+  .hanzi-flow-header__top {
+    grid-template-columns: 170px minmax(0, 1fr) 170px;
+  }
+
+  .hanzi-flow-header__top > span {
+    margin-right: 60px;
+    font-size: 20px;
+    white-space: nowrap;
   }
 }

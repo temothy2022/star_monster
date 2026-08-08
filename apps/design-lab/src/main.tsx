@@ -4,9 +4,11 @@ import "@star-monsters/ui/styles.css";
 import { App } from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { MascotProvider } from "./mascots";
+import { installVisibleViewport } from "./visible-viewport";
 import { installVersionRefresh } from "./version-refresh";
 import "./app.css";
 
+installVisibleViewport();
 installVersionRefresh();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
