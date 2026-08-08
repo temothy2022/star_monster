@@ -55,7 +55,7 @@ export async function getFootprints(
   const todayKey = businessDateKey(today);
   const weekStartKey = businessDateKey(weekStart);
   const currentMinute = businessMinuteOfDayAt(now, config.APP_TIME_ZONE);
-  const [tasks, child, leaderboardSettings] = await Promise.all([
+  const [tasks, child, leaderboardSettings, rewardLedgers] = await Promise.all([
     prisma.dailyTask.findMany({
       where: {
         childId,
@@ -74,9 +74,27 @@ export async function getFootprints(
     }),
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
-      select: { dailyStarGoal: true, nickname: true, petType: true },
+      select: {
+        dailyStarGoal: true,
+        dailyGoalBonusEnabled: true,
+        dailyGoalBonusStars: true,
+        nickname: true,
+        petType: true,
+      },
     }),
     getChildLeaderboardSettings(childId, today),
+    prisma.starLedger.findMany({
+      where: {
+        childId,
+        createdAt: {
+          gte: addBusinessDays(weekStart, -1),
+          lt: addBusinessDays(today, 2),
+        },
+        type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS"] },
+      },
+      select: { type: true, amount: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   const totals = new Map<string, number>();
@@ -90,13 +108,24 @@ export async function getFootprints(
     totals.set(key, (totals.get(key) ?? 0) + taskStars);
   }
 
+  const rewardTotals = new Map<string, number>();
+  for (const ledger of rewardLedgers) {
+    const key = businessDateKey(
+      businessDateAt(ledger.createdAt, config.APP_TIME_ZONE),
+    );
+    if (key < weekStartKey || key > todayKey) continue;
+    rewardTotals.set(key, (rewardTotals.get(key) ?? 0) + ledger.amount);
+  }
+
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = addBusinessDays(weekStart, index);
     const key = businessDateKey(date);
     return {
       date: key,
       isFuture: date > today,
-      stars: date > today ? null : (totals.get(key) ?? 0),
+      stars: date > today
+        ? null
+        : (totals.get(key) ?? 0) + (rewardTotals.get(key) ?? 0),
     };
   });
 
@@ -159,6 +188,15 @@ export async function getFootprints(
 
   const dailyStats = summarizePeriod(today, today);
   const weeklyStats = summarizePeriod(weekStart, today);
+  const dailyRewardStars = rewardTotals.get(todayKey) ?? 0;
+  const weeklyRewardStars = Array.from(rewardTotals.entries())
+    .filter(([date]) => date >= weekStartKey && date <= todayKey)
+    .reduce((sum, [, stars]) => sum + stars, 0);
+  dailyStats.stars += dailyRewardStars;
+  weeklyStats.stars += weeklyRewardStars;
+  const dailyGoalBonusPotential = child.dailyGoalBonusEnabled
+    ? child.dailyGoalBonusStars
+    : 0;
   const elapsedWeekDays =
     Math.floor((today.getTime() - weekStart.getTime()) / 86_400_000) + 1;
   const weeklyScoreDays = Array.from({ length: elapsedWeekDays }, (_, index) => {
@@ -184,6 +222,7 @@ export async function getFootprints(
         petType: child.petType,
         goalStars: child.dailyStarGoal,
         dailyGoalStars: child.dailyStarGoal,
+        maxAvailableStars: dailyStats.maxAvailableStars + dailyGoalBonusPotential,
         seed: weekStartKey,
         scoreDays: [{ seed: todayKey, elapsedMinutes: currentMinute }],
         competitorGrowthPercent: leaderboardSettings.competitorGrowthPercent,
@@ -196,6 +235,8 @@ export async function getFootprints(
         petType: child.petType,
         goalStars: child.dailyStarGoal * elapsedWeekDays,
         dailyGoalStars: child.dailyStarGoal,
+        maxAvailableStars:
+          weeklyStats.maxAvailableStars + dailyGoalBonusPotential * elapsedWeekDays,
         seed: weekStartKey,
         scoreDays: weeklyScoreDays,
         competitorGrowthPercent: leaderboardSettings.competitorGrowthPercent,
