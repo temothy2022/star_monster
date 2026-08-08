@@ -4492,15 +4492,6 @@ input[type="reset"] {
   line-height: 1;
 }
 
-.hanzi-page--runtime-new .hanzi-new-word-footer .hanzi-mastered-button {
-  width: clamp(180px, 24vw, 240px);
-  border-color: rgb(91 70 60 / 45%);
-  color: #5b463c;
-  background: rgb(255 255 255 / 86%);
-  box-shadow: 0 4px 0 rgb(91 70 60 / 14%);
-  font-size: clamp(18px, 2.6dvh, 24px);
-}
-
 .hanzi-page--runtime-new .hanzi-shape-card__label {
   top: clamp(14px, 2.4dvh, 24px);
   left: clamp(16px, 2.8dvh, 28px);
@@ -9210,8 +9201,7 @@ body:has(.untimed-page),
   cursor: pointer;
 }
 
-.untimed-more-menu__panel button:first-child {
-  height: 64px;
+.untimed-more-menu__panel button:not(:last-child) {
   border-bottom: 2px solid #dfc0b4;
 }
 
@@ -9227,6 +9217,7 @@ body:has(.untimed-page),
 }
 
 .untimed-more-menu__icon--pause { background: rgba(255, 122, 61, 0.2); }
+.untimed-more-menu__icon--mastered { background: #4fa87d; }
 .untimed-more-menu__icon img { width: 20px; height: 20px; }
 
 .untimed-more-menu > p {

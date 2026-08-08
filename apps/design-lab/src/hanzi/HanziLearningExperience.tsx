@@ -1354,7 +1354,11 @@ export function HanziLearningExperience({
           </div>
           <div className="hanzi-new-word-progress"><span style={{ width: `${overallProgress}%` }} /></div>
         </header>
-        <HanziTaskControls onAbandon={abandonLearning} />
+        <HanziTaskControls
+          onAbandon={abandonLearning}
+          onMarkMastered={markNewCharacterMastered}
+          markMasteredDisabled={busy || Boolean(flowTransition)}
+        />
         <div className="hanzi-step-indicators" aria-label="认识新字步骤">
           {["看字形", "听读音", "想意思"].map((label, index) => (
             <div className={`hanzi-step-pill${index === newStep ? " hanzi-step-pill--active" : ""}${index < newStep ? " hanzi-step-pill--done" : ""}`} key={label}>
@@ -1423,14 +1427,6 @@ export function HanziLearningExperience({
         )}
         {error ? <p className="hanzi-runtime-error" role="alert">{error}</p> : null}
         <footer className="hanzi-new-word-footer">
-          <button
-            className="hanzi-mastered-button"
-            disabled={busy || Boolean(flowTransition)}
-            type="button"
-            onClick={markNewCharacterMastered}
-          >
-            我已经认识
-          </button>
           <button
             className={
               flowTransition === "new-next"

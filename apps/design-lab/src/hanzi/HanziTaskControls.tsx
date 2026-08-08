@@ -1,13 +1,18 @@
 import { useState } from "react";
 import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
 import cancelIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
+import checkIcon from "@star-monsters/assets/icons/icon-check.svg";
 import { AbandonDialog } from "../tasks/TaskOverlays";
 
 export function HanziTaskControls({
   onAbandon,
+  onMarkMastered,
+  markMasteredDisabled = false,
   experienceName = "汉字学习",
 }: {
   onAbandon: () => void;
+  onMarkMastered?: () => void;
+  markMasteredDisabled?: boolean;
   experienceName?: string;
 }) {
   const [overlay, setOverlay] = useState<"menu" | "abandon" | null>(null);
@@ -36,6 +41,21 @@ export function HanziTaskControls({
             onClick={(event) => event.stopPropagation()}
           >
             <div className="untimed-more-menu__panel">
+              {onMarkMastered ? (
+                <button
+                  disabled={markMasteredDisabled}
+                  type="button"
+                  onClick={() => {
+                    setOverlay(null);
+                    onMarkMastered();
+                  }}
+                >
+                  <span className="untimed-more-menu__icon untimed-more-menu__icon--mastered">
+                    <img src={checkIcon} alt="" />
+                  </span>
+                  <span>这个字已掌握</span>
+                </button>
+              ) : null}
               <button type="button" onClick={() => setOverlay("abandon")}>
                 <span className="untimed-more-menu__icon">
                   <img src={cancelIcon} alt="" />
