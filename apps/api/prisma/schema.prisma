@@ -138,6 +138,7 @@ enum StarLedgerType {
   WISH_REFUND
   PET_CARE_SPEND
   PET_TRAVEL_SPEND
+  PET_ROOM_THEME_SPEND
   PET_REFUND
   MANUAL_ADJUSTMENT
 }
@@ -313,6 +314,7 @@ model ChildProfile {
   petGrowthProfile        PetGrowthProfile?
   petCareActions          PetCareAction[]
   petTrips                PetTrip[]
+  petRoomThemeUnlocks     PetRoomThemeUnlock[]
 
   @@index([familyId, status])
 }
@@ -329,12 +331,51 @@ model PetGrowthProfile {
   hydrationSettledAt   DateTime       @default(now())
   travelEnabled        Boolean        @default(true)
   dailySpendLimitStars Int?
+  equippedRoomThemeId  String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  child       ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
-  careActions PetCareAction[]
-  trips       PetTrip[]
+  child             ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  equippedRoomTheme PetRoomTheme?   @relation(fields: [equippedRoomThemeId], references: [id], onDelete: SetNull)
+  careActions       PetCareAction[]
+  trips             PetTrip[]
+}
+
+model PetRoomTheme {
+  id                      String   @id
+  key                     String   @unique
+  name                    String
+  description             String
+  priceStars              Int
+  backgroundLandscapeUrl  String
+  backgroundTabletUrl     String
+  backgroundPhoneUrl      String
+  previewUrl              String
+  ambience                Json
+  sortOrder               Int      @default(0)
+  isEnabled               Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  equippedProfiles PetGrowthProfile[]
+  unlocks         PetRoomThemeUnlock[]
+
+  @@index([isEnabled, sortOrder])
+}
+
+model PetRoomThemeUnlock {
+  id                 String   @id @default(cuid())
+  childId            String
+  themeId            String
+  priceStarsSnapshot Int
+  idempotencyKey     String   @unique
+  purchasedAt        DateTime @default(now())
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  theme PetRoomTheme @relation(fields: [themeId], references: [id], onDelete: Restrict)
+
+  @@unique([childId, themeId])
+  @@index([childId, purchasedAt])
 }
 
 model PetCareAction {

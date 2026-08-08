@@ -4,6 +4,7 @@ import {
   petDialogueContext,
   petGrowthStageForLevel,
   petLevelFromExperience,
+  parsePetRoomAmbience,
   settledPetStatus,
 } from "../src/services/pet-growth-service.js";
 
@@ -61,5 +62,16 @@ describe("pet growth rules", () => {
       .toBe("PET_TASK_PROGRESS");
     expect(petDialogueContext({ satiety: 80, hydration: 80, totalTasks: 4, completedTasks: 4 }))
       .toBe("PET_TASK_COMPLETE");
+  });
+
+  it("keeps only valid room ambience layers from database configuration", () => {
+    expect(parsePetRoomAmbience([
+      { imageUrl: "/clouds.webp", motion: "DRIFT", placement: "TOP" },
+      null,
+      { imageUrl: 42, motion: "FLY", placement: "UPPER_RIGHT" },
+    ])).toEqual([
+      { imageUrl: "/clouds.webp", motion: "DRIFT", placement: "TOP" },
+    ]);
+    expect(parsePetRoomAmbience("not-an-array")).toEqual([]);
   });
 });

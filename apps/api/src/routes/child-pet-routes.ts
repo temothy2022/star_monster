@@ -5,7 +5,9 @@ import { requireChild } from "../services/auth-service.js";
 import {
   careForPet,
   getPetGrowthState,
+  purchasePetRoomTheme,
   revealPetTrip,
+  selectPetRoomTheme,
   startPetTrip,
 } from "../services/pet-growth-service.js";
 
@@ -16,6 +18,7 @@ const travelSchema = actionSchema.extend({
   tier: z.enum(["NEARBY", "CHINA", "WORLD"]),
 });
 const tripParams = z.object({ id: z.string().min(1) });
+const roomThemeParams = z.object({ key: z.string().trim().min(1).max(64) });
 
 export async function registerChildPetRoutes(app: FastifyInstance, config: AppConfig) {
   app.get("/api/child/pet", async (request, reply) => {
@@ -45,5 +48,18 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
     const { child } = await requireChild(request, reply, config);
     const { id } = tripParams.parse(request.params);
     return revealPetTrip(child.id, id, config);
+  });
+
+  app.post("/api/child/pet/room-themes/:key/purchase", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { key } = roomThemeParams.parse(request.params);
+    const { idempotencyKey } = actionSchema.parse(request.body);
+    return purchasePetRoomTheme({ childId: child.id, themeKey: key, idempotencyKey, appConfig: config });
+  });
+
+  app.post("/api/child/pet/room-themes/:key/select", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { key } = roomThemeParams.parse(request.params);
+    return selectPetRoomTheme({ childId: child.id, themeKey: key, appConfig: config });
   });
 }

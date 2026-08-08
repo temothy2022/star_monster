@@ -343,6 +343,7 @@ export type LedgerEntry = {
     | "WISH_REFUND"
     | "PET_CARE_SPEND"
     | "PET_TRAVEL_SPEND"
+    | "PET_ROOM_THEME_SPEND"
     | "PET_REFUND"
     | "MANUAL_ADJUSTMENT";
   amount: number;

@@ -240,7 +240,7 @@ export async function getGrowthAnalyticsForRange(
     if (ledger.type === "TASK_REWARD_REVERSAL") {
       daily.rewardStarsReversed += Math.abs(ledger.amount);
     }
-    if (["WISH_SPEND", "PET_CARE_SPEND", "PET_TRAVEL_SPEND"].includes(ledger.type)) {
+    if (["WISH_SPEND", "PET_CARE_SPEND", "PET_TRAVEL_SPEND", "PET_ROOM_THEME_SPEND"].includes(ledger.type)) {
       daily.starsSpent += Math.abs(ledger.amount);
     }
     if (["WISH_REFUND", "PET_REFUND"].includes(ledger.type)) {

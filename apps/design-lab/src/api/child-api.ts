@@ -207,11 +207,31 @@ export type PetGrowthState = {
     mediaUrl: string;
     updatedAt: string;
   }>;
+  roomThemes: PetRoomTheme[];
+  equippedRoomThemeKey: string | null;
   dialogueContext?: PetDialogueContext;
   dialogues?: MascotDialogue[];
   taskProgress?: { total: number; completed: number };
   currentTrip: PetTrip | null;
   postcards: PetTrip[];
+};
+
+export type PetRoomTheme = {
+  key: string;
+  name: string;
+  description: string;
+  priceStars: number;
+  backgroundLandscapeUrl: string;
+  backgroundTabletUrl: string;
+  backgroundPhoneUrl: string;
+  previewUrl: string;
+  ambience: Array<{
+    imageUrl: string;
+    motion: "DRIFT" | "FLY" | "FLOAT" | "FALL" | "TWINKLE" | "RISE" | "SWIM" | "COMET" | "ORBIT";
+    placement: "TOP" | "UPPER_RIGHT" | "CENTER" | "BOTTOM_LEFT";
+  }>;
+  isOwned: boolean;
+  isEquipped: boolean;
 };
 
 export function getPetGrowth(signal?: AbortSignal) {
@@ -234,6 +254,19 @@ export function startPetTrip(tier: PetTravelTier, idempotencyKey: string) {
 
 export function revealPetTrip(tripId: string) {
   return request<PetGrowthState>(`/api/child/pet/trips/${tripId}/reveal`, {
+    method: "POST",
+  });
+}
+
+export function purchasePetRoomTheme(themeKey: string, idempotencyKey: string) {
+  return request<PetGrowthState>(`/api/child/pet/room-themes/${encodeURIComponent(themeKey)}/purchase`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey }),
+  });
+}
+
+export function selectPetRoomTheme(themeKey: string) {
+  return request<PetGrowthState>(`/api/child/pet/room-themes/${encodeURIComponent(themeKey)}/select`, {
     method: "POST",
   });
 }

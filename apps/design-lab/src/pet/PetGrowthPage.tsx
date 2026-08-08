@@ -3,11 +3,14 @@ import {
   ApiError,
   careForPet,
   getPetGrowth,
+  purchasePetRoomTheme,
   revealPetTrip,
+  selectPetRoomTheme,
   startPetTrip,
   type MascotDialogue,
   type PetDialogueContext,
   type PetGrowthState,
+  type PetRoomTheme,
   type PetTravelTier,
   type PetTrip,
 } from "../api/child-api";
@@ -43,8 +46,23 @@ const CARE_ANIMATION_MS = 3_000;
 const ROOM_NOTICE_MS = 2_000;
 const PET_SOUND_STORAGE_KEY = "star-monsters:pet-sound-enabled";
 const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
+const ROOM_DECOR_ENTRY_IMAGE = "/pet-assets/v1/ui/room-decor-entry.webp";
 type CareKind = "feed" | "drink";
 type RoomNotice = { id: number; message: string };
+
+const FALLBACK_ROOM_THEME: PetRoomTheme = {
+  key: "sunny-garden",
+  name: "阳光花园小屋",
+  description: "暖暖阳光照进熟悉的小屋",
+  priceStars: 0,
+  backgroundLandscapeUrl: "/pet-assets/v1/scenes/pet-room.webp",
+  backgroundTabletUrl: "/pet-assets/v1/scenes/pet-room.webp",
+  backgroundPhoneUrl: "/pet-assets/v1/scenes/pet-room.webp",
+  previewUrl: "/pet-assets/v1/scenes/pet-room.webp",
+  ambience: [],
+  isOwned: true,
+  isEquipped: true,
+};
 
 function initialPetSoundEnabled() {
   try {
@@ -201,6 +219,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [roomNotice, setRoomNotice] = useState<RoomNotice | null>(null);
   const [travelOpen, setTravelOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
+  const [themeShopOpen, setThemeShopOpen] = useState(false);
+  const [themePreviewKey, setThemePreviewKey] = useState<string | null>(null);
+  const [themePurchaseConfirm, setThemePurchaseConfirm] = useState<PetRoomTheme | null>(null);
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(null);
   const [dialogueSpeaking, setDialogueSpeaking] = useState(false);
@@ -543,11 +564,52 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     }
   }
 
+  async function applyRoomTheme(theme: PetRoomTheme) {
+    if (busy || theme.isEquipped) return;
+    if (!theme.isOwned) {
+      setThemePurchaseConfirm(theme);
+      return;
+    }
+    setBusy(`theme-select-${theme.key}`);
+    try {
+      setState(await selectPetRoomTheme(theme.key));
+      setThemePreviewKey(theme.key);
+      showRoomNotice(`已经换成${theme.name}`);
+    } catch (reason) {
+      showRoomNotice(reason instanceof ApiError ? reason.message : "小屋背景暂时无法切换");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function purchaseRoomTheme(theme: PetRoomTheme) {
+    if (busy || theme.isOwned) return;
+    setBusy(`theme-purchase-${theme.key}`);
+    try {
+      setState(await purchasePetRoomTheme(theme.key, actionKey(`room-theme-${theme.key}`)));
+      setThemePurchaseConfirm(null);
+      setThemePreviewKey(theme.key);
+      showRoomNotice(`${theme.name}已经永久解锁`);
+    } catch (reason) {
+      setThemePurchaseConfirm(null);
+      showRoomNotice(reason instanceof ApiError ? reason.message : "小屋背景没有解锁成功");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (!state) {
     return <main className="pet-growth-page pet-growth-page--loading"><div className="pet-loading"><i /><span>{error || "正在打开星宠小屋…"}</span><button type="button" onClick={() => void load()}>重新加载</button></div><ChildBottomNav active="pet" onNavigate={onNavigate} /></main>;
   }
 
   const trip = state.currentTrip;
+  const roomThemes = state.roomThemes?.length ? state.roomThemes : [FALLBACK_ROOM_THEME];
+  const equippedRoomTheme = roomThemes.find((theme) => theme.isEquipped)
+    ?? roomThemes.find((theme) => theme.key === state.equippedRoomThemeKey)
+    ?? roomThemes[0]
+    ?? FALLBACK_ROOM_THEME;
+  const displayedRoomTheme = roomThemes.find((theme) => theme.key === themePreviewKey)
+    ?? equippedRoomTheme;
   const levelRange = state.pet.nextLevelExperience === null
     ? 1
     : Math.max(1, state.pet.nextLevelExperience - state.pet.currentLevelStart);
@@ -569,7 +631,22 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       onPointerDownCapture={stopEntrySound}
     >
       <section className="pet-growth-stage">
-        <div className="pet-room-backdrop" />
+        <picture className="pet-room-backdrop" key={displayedRoomTheme.key}>
+          <source media="(max-width: 699px) and (orientation: portrait)" srcSet={displayedRoomTheme.backgroundPhoneUrl} />
+          <source media="(orientation: portrait)" srcSet={displayedRoomTheme.backgroundTabletUrl} />
+          <img src={displayedRoomTheme.backgroundLandscapeUrl} alt="" aria-hidden="true" decoding="async" />
+        </picture>
+        <div className="pet-room-ambience" aria-hidden="true">
+          {displayedRoomTheme.ambience.map((item, index) => (
+            <img
+              className={`pet-room-ambience__item pet-room-ambience__item--${item.motion.toLowerCase()} pet-room-ambience__item--${item.placement.toLowerCase().replace("_", "-")}`}
+              src={item.imageUrl}
+              alt=""
+              decoding="async"
+              key={`${displayedRoomTheme.key}-${item.imageUrl}-${index}`}
+            />
+          ))}
+        </div>
         <header className="pet-room-hud">
           <button
             className={`pet-sound-toggle${soundEnabled ? " is-enabled" : " is-muted"}`}
@@ -614,6 +691,17 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           </button>
           <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => requestCare("drink")}>
             <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><i /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
+          </button>
+          <button
+            className="pet-action-button pet-action-button--decorate"
+            type="button"
+            disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)}
+            onClick={() => {
+              setThemePreviewKey(equippedRoomTheme.key);
+              setThemeShopOpen(true);
+            }}
+          >
+            <span className="pet-action-icon pet-action-icon--decorate" aria-hidden="true"><img src={ROOM_DECOR_ENTRY_IMAGE} alt="" /></span><div><strong>布置小屋</strong><small>{equippedRoomTheme.name}</small></div>
           </button>
           <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => setAlbumOpen(true)}>
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><i /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
@@ -710,6 +798,70 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <header><div><small>{mascot.name}的旅行足迹</small><h2>明信片册</h2></div><button type="button" onClick={() => setAlbumOpen(false)} aria-label="关闭">×</button></header>
             {state.postcards.length ? <div className="pet-album__grid">{state.postcards.map((item) => <button type="button" key={item.id} onClick={() => setPostcard(item)}><img src={item.imageUrl} alt={item.destinationName} loading="lazy" decoding="async" /><span>{item.destinationName}</span><small>{item.city} · {item.country}</small></button>)}</div> : <div className="pet-album__empty"><span>✉</span><strong>还没有明信片</strong><p>准备一次旅行，星宠回来时会带来第一张收藏。</p></div>}
           </section>
+        </div>
+      )}
+      {themeShopOpen && (
+        <div className="pet-modal" role="dialog" aria-modal="true" aria-label="布置小屋">
+          <button className="pet-modal__backdrop" type="button" aria-label="关闭" onClick={() => { setThemeShopOpen(false); setThemePreviewKey(null); }} />
+          <article className="pet-theme-shop">
+            <header className="pet-theme-shop__header">
+              <div><small>用星星装点自己的空间</small><h2>布置小屋</h2></div>
+              <div className="pet-theme-shop__balance"><span>★</span>{state.wallet.starBalance}</div>
+              <button type="button" onClick={() => { setThemeShopOpen(false); setThemePreviewKey(null); }} aria-label="关闭">×</button>
+            </header>
+            <div className="pet-theme-shop__preview">
+              <picture>
+                <source media="(orientation: portrait)" srcSet={displayedRoomTheme.backgroundTabletUrl} />
+                <img src={displayedRoomTheme.backgroundLandscapeUrl} alt={`${displayedRoomTheme.name}预览`} decoding="async" />
+              </picture>
+              <div><small>{displayedRoomTheme.isOwned ? "已经拥有" : "预览中"}</small><strong>{displayedRoomTheme.name}</strong><span>{displayedRoomTheme.description}</span></div>
+            </div>
+            <div className="pet-theme-shop__grid" role="list" aria-label="小屋背景列表">
+              {roomThemes.map((theme) => (
+                <button
+                  className={`pet-theme-card${theme.key === displayedRoomTheme.key ? " is-selected" : ""}${theme.isEquipped ? " is-equipped" : ""}`}
+                  type="button"
+                  role="listitem"
+                  onClick={() => setThemePreviewKey(theme.key)}
+                  key={theme.key}
+                >
+                  <img src={theme.previewUrl} alt="" loading="lazy" decoding="async" />
+                  <span><strong>{theme.name}</strong><small>{theme.isEquipped ? "使用中" : theme.isOwned ? "已拥有" : `★ ${theme.priceStars}`}</small></span>
+                </button>
+              ))}
+            </div>
+            <footer className="pet-theme-shop__footer">
+              <div><strong>{displayedRoomTheme.name}</strong><span>{displayedRoomTheme.isOwned ? "永久拥有，可随时切换" : `需要 ${displayedRoomTheme.priceStars} 颗星永久解锁`}</span></div>
+              <button
+                type="button"
+                disabled={displayedRoomTheme.isEquipped || Boolean(busy)}
+                onClick={() => void applyRoomTheme(displayedRoomTheme)}
+              >
+                {busy?.includes(displayedRoomTheme.key)
+                  ? "正在布置…"
+                  : displayedRoomTheme.isEquipped
+                    ? "正在使用"
+                    : displayedRoomTheme.isOwned
+                      ? "使用这个背景"
+                      : `用 ${displayedRoomTheme.priceStars} 星解锁`}
+              </button>
+            </footer>
+          </article>
+        </div>
+      )}
+      {themePurchaseConfirm && (
+        <div className="pet-modal pet-modal--theme-confirm" role="dialog" aria-modal="true" aria-label="确认解锁小屋背景">
+          <button className="pet-modal__backdrop" type="button" aria-label="取消" onClick={() => setThemePurchaseConfirm(null)} />
+          <article className="pet-theme-confirm">
+            <img src={themePurchaseConfirm.previewUrl} alt={themePurchaseConfirm.name} />
+            <small>永久收藏</small>
+            <h2>确认解锁{themePurchaseConfirm.name}？</h2>
+            <p>需要使用 <strong>★ {themePurchaseConfirm.priceStars}</strong>，解锁后可以一直使用。</p>
+            <div>
+              <button type="button" disabled={Boolean(busy)} onClick={() => setThemePurchaseConfirm(null)}>再想想</button>
+              <button type="button" disabled={Boolean(busy)} onClick={() => void purchaseRoomTheme(themePurchaseConfirm)}>{busy ? "正在解锁…" : "确认解锁"}</button>
+            </div>
+          </article>
         </div>
       )}
       {postcard && <Postcard trip={postcard} mascotImage={mascot.activityImages.travel} mascotName={mascot.name} soundEnabled={soundEnabled} onClose={() => setPostcard(null)} />}

@@ -63,6 +63,8 @@ const IMPORTANT_MUTATIONS = new Set([
   "give_pet_water",
   "start_pet_trip",
   "reveal_postcard",
+  "purchase_pet_room_theme",
+  "select_pet_room_theme",
 ]);
 
 function now() {
@@ -99,6 +101,10 @@ export function normalizeApiPath(path: string) {
     .replace(
       /^\/api\/child\/pet\/trips\/[^/]+\/reveal$/,
       "/api/child/pet/trips/:id/reveal",
+    )
+    .replace(
+      /^\/api\/child\/pet\/room-themes\/[^/]+\/(purchase|select)$/,
+      "/api/child/pet/room-themes/:key/$1",
     )
     .replace(
       /^\/api\/child\/planets\/[^/]+\/(celebrated|notified)$/,
@@ -139,6 +145,8 @@ function operationFor(path: string) {
     "/api/child/pet/drink": "give_pet_water",
     "/api/child/pet/trips": "start_pet_trip",
     "/api/child/pet/trips/:id/reveal": "reveal_postcard",
+    "/api/child/pet/room-themes/:key/purchase": "purchase_pet_room_theme",
+    "/api/child/pet/room-themes/:key/select": "select_pet_room_theme",
     "/api/child/planets/:planet/celebrated": "celebrate_planet",
     "/api/child/planets/:planet/notified": "acknowledge_planet",
   };
