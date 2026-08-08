@@ -33,6 +33,7 @@ import {
 } from "./api";
 import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
+import { PetManagement } from "./PetManagement";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
@@ -49,6 +50,7 @@ import venusPlanet from "@star-monsters/assets/images/planets/venus.webp";
 
 type Section =
   | "overview"
+  | "pet"
   | "history"
   | "tasks"
   | "hanzi"
@@ -66,6 +68,7 @@ type Section =
 
 const SECTION_LABELS: Record<Section, string> = {
   overview: "成长总览",
+  pet: "星宠管理",
   history: "任务记录",
   tasks: "任务配置",
   hanzi: "汉字学习",
@@ -89,7 +92,7 @@ type NavItem = {
 };
 
 const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
-  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: "⌂" }] },
+  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: "⌂" }, { key: "pet", label: "星宠管理", icon: "✦" }] },
   {
     label: "任务中心",
     items: [
@@ -182,14 +185,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   CHINESE: "语文",
   ENGLISH: "英语",
   OTHER: "综合任务",
-};
-
-const PET_LABELS: Record<string, string> = {
-  DOUYA: "豆芽",
-  PAOPAO: "泡泡",
-  TUANTUAN: "团团",
-  MILU: "米露",
-  SHANSHAN: "闪闪",
 };
 
 function formatDate(value: string | null | undefined) {
@@ -2202,14 +2197,12 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
   const [dailyStarGoal, setDailyStarGoal] = useState(child.dailyStarGoal);
   const [dailyGoalBonusEnabled, setDailyGoalBonusEnabled] = useState(child.dailyGoalBonusEnabled);
   const [dailyGoalBonusStars, setDailyGoalBonusStars] = useState(child.dailyGoalBonusStars || 1);
-  const [pet, setPet] = useState(child.petType ?? "TUANTUAN");
   const [message, setMessage] = useState("");
   useEffect(() => {
     setNickname(child.nickname ?? "");
     setDailyStarGoal(child.dailyStarGoal);
     setDailyGoalBonusEnabled(child.dailyGoalBonusEnabled);
     setDailyGoalBonusStars(child.dailyGoalBonusStars || 1);
-    setPet(child.petType ?? "TUANTUAN");
   }, [child.id]);
 
   async function save(event: FormEvent) {
@@ -2219,7 +2212,6 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
       dailyStarGoal,
       dailyGoalBonusEnabled,
       dailyGoalBonusStars: dailyGoalBonusEnabled ? dailyGoalBonusStars : 0,
-      petType: pet
     });
     setMessage("孩子档案与每日达标奖已保存");
     onChanged();
@@ -2235,12 +2227,6 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
         <label>
           每日星星目标
           <input type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} />
-        </label>
-        <label>
-          星宠
-          <select value={pet} onChange={(event) => setPet(event.target.value)}>
-            {Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
         </label>
         <label>
           达标后额外奖励
@@ -2600,6 +2586,7 @@ export function App() {
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
             {section === "overview" && <GrowthOverview child={selectedChild} />}
+            {section === "pet" && <PetManagement child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
             {section === "hanzi" && <ParentHanziLearning child={selectedChild} />}

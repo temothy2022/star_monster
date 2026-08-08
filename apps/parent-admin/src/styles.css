@@ -1589,17 +1589,40 @@ td { font-size: 13px; }
 .parent-pet-overview__settings { grid-column: 1 / -1; display: flex; align-items: end; gap: 14px; padding-top: 14px; border-top: 1px solid #e7e9ed; }
 .parent-pet-overview__settings > label:not(.checkbox) { display: grid; gap: 6px; }
 .parent-pet-overview__settings input[type="number"] { width: 150px; }
+.pet-management { gap: 18px; }
+.pet-management-section { overflow: hidden; }
+.parent-pet-settings-form { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; padding-top: 16px; margin-top: 16px; border-top: 1px solid #e7e9ed; }
+.parent-pet-settings-form label:not(.checkbox) { display: grid; gap: 6px; color: #52647d; font-size: 13px; font-weight: 700; }
+.parent-pet-settings-form select,
+.parent-pet-settings-form input[type="number"] { min-width: 160px; }
+.pet-room-theme-admin-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pet-room-theme-admin-card { overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; }
+.pet-room-theme-admin-card > img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: #f7f3e9; }
+.pet-room-theme-admin-card__body { display: grid; align-content: start; gap: 10px; padding: 14px; }
+.pet-room-theme-admin-card__body > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pet-room-theme-admin-card__body strong { color: #263a5b; font-size: 16px; }
+.pet-room-theme-admin-card__body span { flex: 0 0 auto; color: #6b8d72; font-size: 12px; font-weight: 700; }
+.pet-room-theme-admin-card__body p { min-height: 40px; margin: 0; color: #778294; font-size: 13px; line-height: 1.6; }
+.pet-room-theme-admin-card__body label { display: flex; align-items: center; gap: 8px; color: #52647d; font-size: 13px; font-weight: 700; }
+.pet-room-theme-admin-card__body input[type="number"] { min-width: 0; flex: 1; }
+.pet-room-theme-admin-card__body em { color: #e47e35; font-style: normal; }
+.pet-room-theme-admin-card__body .secondary-button { width: 100%; }
 
 @media (max-width: 900px) {
   .pet-config-form fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pet-destination-grid { grid-template-columns: 1fr; }
   .parent-pet-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pet-room-theme-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 600px) {
   .pet-config-form fieldset,
   .pet-destination-card__fields,
   .parent-pet-overview { grid-template-columns: 1fr; }
+  .pet-room-theme-admin-grid { grid-template-columns: 1fr; }
+  .parent-pet-settings-form { display: grid; align-items: stretch; }
+  .parent-pet-settings-form select,
+  .parent-pet-settings-form input[type="number"] { width: 100%; }
   .parent-pet-overview__settings { display: grid; align-items: stretch; }
   .parent-pet-overview__settings input[type="number"] { width: 100%; }
 }

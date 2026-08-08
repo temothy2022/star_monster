@@ -226,6 +226,7 @@ model Family {
   minimaxConfig       FamilyMinimaxConfig?
   aiRecommendations   AiRecommendation[]
   weeklyGrowthReports WeeklyGrowthReport[]
+  petRoomThemeSettings FamilyPetRoomThemeSetting[]
 
   @@index([status])
 }
@@ -359,8 +360,24 @@ model PetRoomTheme {
 
   equippedProfiles PetGrowthProfile[]
   unlocks         PetRoomThemeUnlock[]
+  familySettings  FamilyPetRoomThemeSetting[]
 
   @@index([isEnabled, sortOrder])
+}
+
+model FamilyPetRoomThemeSetting {
+  id         String       @id @default(cuid())
+  familyId   String
+  themeId    String
+  priceStars Int
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  theme  PetRoomTheme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, themeId])
+  @@index([familyId])
 }
 
 model PetRoomThemeUnlock {

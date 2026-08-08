@@ -118,6 +118,30 @@ async function getPetConfig(client: Prisma.TransactionClient | typeof prisma = p
   });
 }
 
+async function getFamilyRoomThemePrices(
+  client: Prisma.TransactionClient | typeof prisma,
+  familyId: string,
+) {
+  const settings = await client.familyPetRoomThemeSetting.findMany({
+    where: { familyId },
+    select: { themeId: true, priceStars: true },
+  });
+  return new Map(settings.map((setting) => [setting.themeId, setting.priceStars]));
+}
+
+async function getRoomThemePrice(
+  client: Prisma.TransactionClient | typeof prisma,
+  familyId: string,
+  themeId: string,
+  fallback: number,
+) {
+  const setting = await client.familyPetRoomThemeSetting.findUnique({
+    where: { familyId_themeId: { familyId, themeId } },
+    select: { priceStars: true },
+  });
+  return setting?.priceStars ?? fallback;
+}
+
 async function ensureProfile(
   client: Prisma.TransactionClient | typeof prisma,
   childId: string,
@@ -261,7 +285,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
   const [child, profile, config, currentTrip, postcards, tasks, mascotAssets, roomThemes, roomThemeUnlocks] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
-      select: { nickname: true, petType: true, starBalance: true },
+      select: { nickname: true, petType: true, starBalance: true, familyId: true },
     }),
     prisma.petGrowthProfile.findUniqueOrThrow({ where: { childId } }),
     getPetConfig(),
@@ -296,6 +320,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       select: { themeId: true },
     }),
   ]);
+  const familyRoomThemePrices = await getFamilyRoomThemePrices(prisma, child.familyId);
   const petType = child.petType ?? "TUANTUAN";
   const completedTasks = tasks.filter(
     (task) => task.status === "COMPLETED" || task._count.attempts > 0,
@@ -323,9 +348,13 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
     petSpentToday(tx, childId, now, appConfig),
   );
   const unlockedRoomThemeIds = new Set(roomThemeUnlocks.map((unlock) => unlock.themeId));
-  const equippedRoomTheme = roomThemes.find((theme) => theme.id === profile.equippedRoomThemeId)
-    ?? roomThemes.find((theme) => theme.priceStars === 0)
-    ?? roomThemes[0];
+  const serializedRoomThemes = roomThemes.map((theme) => ({
+    ...theme,
+    priceStars: familyRoomThemePrices.get(theme.id) ?? theme.priceStars,
+  }));
+  const equippedRoomTheme = serializedRoomThemes.find((theme) => theme.id === profile.equippedRoomThemeId)
+    ?? serializedRoomThemes.find((theme) => theme.priceStars === 0)
+    ?? serializedRoomThemes[0];
   return {
     pet: {
       petType,
@@ -367,7 +396,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
         mediaUrl: asset.mediaUrl,
         updatedAt: asset.updatedAt,
       })),
-    roomThemes: roomThemes.map((theme) => ({
+    roomThemes: serializedRoomThemes.map((theme) => ({
       key: theme.key,
       name: theme.name,
       description: theme.description,
@@ -427,8 +456,13 @@ export async function purchasePetRoomTheme(input: {
       where: { key: input.themeKey, isEnabled: true },
     });
     if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "这个小屋背景暂时不可用");
+    const child = await tx.childProfile.findUniqueOrThrow({
+      where: { id: input.childId },
+      select: { familyId: true, starBalance: true },
+    });
+    const priceStars = await getRoomThemePrice(tx, child.familyId, theme.id, theme.priceStars);
     const profile = await ensureProfile(tx, input.childId);
-    if (theme.priceStars === 0) {
+    if (priceStars === 0) {
       await tx.petGrowthProfile.update({
         where: { id: profile.id },
         data: { equippedRoomThemeId: theme.id },
@@ -445,18 +479,14 @@ export async function purchasePetRoomTheme(input: {
       });
       return;
     }
-    const child = await tx.childProfile.findUniqueOrThrow({
-      where: { id: input.childId },
-      select: { starBalance: true },
-    });
-    if (child.starBalance < theme.priceStars) {
+    if (child.starBalance < priceStars) {
       throw new HttpError(409, "INSUFFICIENT_STARS", "星星余额不足");
     }
     await assertSpendAllowed({
       client: tx,
       childId: input.childId,
       limit: profile.dailySpendLimitStars,
-      cost: theme.priceStars,
+      cost: priceStars,
       now,
       config: input.appConfig,
     });
@@ -464,13 +494,13 @@ export async function purchasePetRoomTheme(input: {
       data: {
         childId: input.childId,
         themeId: theme.id,
-        priceStarsSnapshot: theme.priceStars,
+        priceStarsSnapshot: priceStars,
         idempotencyKey: input.idempotencyKey,
       },
     });
     const updatedChild = await tx.childProfile.update({
       where: { id: input.childId },
-      data: { starBalance: { decrement: theme.priceStars } },
+      data: { starBalance: { decrement: priceStars } },
       select: { starBalance: true },
     });
     await tx.petGrowthProfile.update({
@@ -481,7 +511,7 @@ export async function purchasePetRoomTheme(input: {
       data: {
         childId: input.childId,
         type: "PET_ROOM_THEME_SPEND",
-        amount: -theme.priceStars,
+        amount: -priceStars,
         balanceAfter: updatedChild.starBalance,
         reason: `购买小屋背景：${theme.name}`,
         referenceId: unlock.id,
@@ -498,6 +528,10 @@ export async function selectPetRoomTheme(input: {
   appConfig: AppConfig;
 }) {
   await prisma.$transaction(async (tx) => {
+    const child = await tx.childProfile.findUniqueOrThrow({
+      where: { id: input.childId },
+      select: { familyId: true },
+    });
     await refreshTripStatus(tx, input.childId, new Date());
     const activeTrip = await tx.petTrip.findFirst({
       where: { childId: input.childId, status: { in: ["TRAVELING", "RETURNED"] } },
@@ -508,7 +542,8 @@ export async function selectPetRoomTheme(input: {
       where: { key: input.themeKey, isEnabled: true },
     });
     if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "这个小屋背景暂时不可用");
-    if (theme.priceStars > 0) {
+    const priceStars = await getRoomThemePrice(tx, child.familyId, theme.id, theme.priceStars);
+    if (priceStars > 0) {
       const owned = await tx.petRoomThemeUnlock.findUnique({
         where: { childId_themeId: { childId: input.childId, themeId: theme.id } },
         select: { id: true },

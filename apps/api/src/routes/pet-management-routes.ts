@@ -50,6 +50,9 @@ const parentSettingsSchema = z.object({
   travelEnabled: z.boolean(),
   dailySpendLimitStars: z.number().int().min(0).max(10000).nullable(),
 });
+const parentRoomThemePatchSchema = z.object({
+  priceStars: z.number().int().min(0).max(10000),
+});
 
 async function ownedChild(user: { familyId: string | null }, childId: string) {
   const child = await prisma.childProfile.findFirst({
@@ -139,5 +142,30 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
       ipAddress: request.ip,
     });
     return { settings: { travelEnabled: profile.travelEnabled, dailySpendLimitStars: profile.dailySpendLimitStars } };
+  });
+
+  app.patch("/api/parent/pet-growth/themes/:key", async (request, reply) => {
+    const { user } = await requireParent(request, reply, config);
+    const { key } = z.object({ key: z.string().trim().min(1).max(64) }).parse(request.params);
+    const input = parentRoomThemePatchSchema.parse(request.body);
+    const theme = await prisma.petRoomTheme.findUnique({ where: { key } });
+    if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "没有找到这个小屋背景");
+    if (!user.familyId) throw new HttpError(403, "PARENT_FAMILY_REQUIRED", "当前账号没有绑定家庭");
+    const updated = await prisma.familyPetRoomThemeSetting.upsert({
+      where: { familyId_themeId: { familyId: user.familyId, themeId: theme.id } },
+      update: input,
+      create: { familyId: user.familyId, themeId: theme.id, ...input },
+    });
+    await writeAudit(prisma, {
+      actorType: "USER",
+      actorId: user.id,
+      familyId: user.familyId ?? undefined,
+      action: "PET_ROOM_THEME_UPDATE",
+      resourceType: "PetRoomTheme",
+      resourceId: theme.id,
+      metadata: { priceStars: updated.priceStars },
+      ipAddress: request.ip,
+    });
+    return { theme: updated };
   });
 }

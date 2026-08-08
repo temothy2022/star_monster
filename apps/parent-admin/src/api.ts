@@ -33,6 +33,15 @@ export type PetGrowthSummary = {
   pet: { petType: string; nickname: string | null; level: number; experience: number; growthStage: "BABY" | "GROWING" | "MATURE"; satiety: number; hydration: number; currentLevelStart: number; nextLevelExperience: number | null };
   wallet: { starBalance: number; dailySpent: number; dailySpendLimitStars: number | null };
   travelEnabled: boolean;
+  roomThemes: Array<{
+    key: string;
+    name: string;
+    description: string;
+    priceStars: number;
+    previewUrl: string;
+    isOwned: boolean;
+    isEquipped: boolean;
+  }>;
   currentTrip: null | { id: string; status: string; destinationName: string; city: string; country: string; returnsAt: string };
   postcards: Array<{ id: string; destinationName: string; city: string; country: string; imageUrl: string; revealedAt: string | null }>;
 };
@@ -572,6 +581,7 @@ export const staffApi = {
 export const parentApi = {
   petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
   updatePetGrowthSettings: (childId: string, data: { travelEnabled: boolean; dailySpendLimitStars: number | null }) => api<{ settings: { travelEnabled: boolean; dailySpendLimitStars: number | null } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
+  updatePetRoomTheme: (key: string, data: { priceStars: number }) => api<{ theme: { key: string; priceStars: number } }>(`/api/parent/pet-growth/themes/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(data) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
   updateChild: (id: string, data: Record<string, unknown>) =>
     api<{ child: Child }>(`/api/parent/children/${id}`, {
