@@ -22,10 +22,10 @@ const themes = [
   { key: "snow-lodge", ambience: ["snowflakes", "warm-sparkles"] },
   { key: "starlight-camp", ambience: ["stars", "comet"] },
   { key: "lunar-station", ambience: ["planets", "satellite"] },
-  { key: "osaka-castle", ambience: [] },
-  { key: "great-wall", ambience: [] },
-  { key: "basketball-court", ambience: [] },
-  { key: "space-guardian", ambience: [] },
+  { key: "osaka-castle", ambience: [], backgroundPosition: sharp.gravity.west },
+  { key: "great-wall", ambience: [], backgroundPosition: sharp.gravity.west },
+  { key: "basketball-court", ambience: [], backgroundPosition: sharp.gravity.west },
+  { key: "space-guardian", ambience: [], backgroundPosition: sharp.gravity.center },
 ];
 
 function run(command, args) {
@@ -39,8 +39,8 @@ function run(command, args) {
   });
 }
 
-async function writeBackgroundVariants(source, outputDir) {
-  const common = { fit: "cover", position: sharp.strategy.attention, withoutEnlargement: false };
+async function writeBackgroundVariants(source, outputDir, backgroundPosition = sharp.strategy.attention) {
+  const common = { fit: "cover", position: backgroundPosition, withoutEnlargement: false };
   await Promise.all([
     sharp(source).resize(1920, 1200, common).webp({ quality: 78, effort: 6, smartSubsample: true }).toFile(resolve(outputDir, "background-landscape.webp")),
     sharp(source).resize(1536, 2048, common).webp({ quality: 76, effort: 6, smartSubsample: true }).toFile(resolve(outputDir, "background-tablet.webp")),
@@ -102,7 +102,7 @@ try {
       }
     }
     await mkdir(outputDir, { recursive: true });
-    await writeBackgroundVariants(background, outputDir);
+    await writeBackgroundVariants(background, outputDir, theme.backgroundPosition);
     await writeAmbienceVariants(theme, outputDir);
     console.log(`Prepared ${theme.key}`);
   }
