@@ -14527,3 +14527,473 @@ body,
     white-space: nowrap;
   }
 }
+
+/* Shared reward celebration for timed and untimed task completion. */
+.task-reward-page {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: var(--app-visible-height, 100dvh);
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  padding: max(18px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+    max(22px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  color: #253b59;
+  background: #eedfc8;
+}
+
+.task-reward-page__background {
+  position: absolute;
+  inset: -20px;
+  z-index: -3;
+  width: calc(100% + 40px);
+  height: calc(100% + 40px);
+  object-fit: cover;
+  filter: blur(10px) saturate(0.86);
+  opacity: 0.68;
+  transform: scale(1.04);
+}
+
+.task-reward-page__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: rgba(37, 59, 89, 0.52);
+}
+
+.task-reward-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.task-reward-confetti i {
+  position: absolute;
+  top: -32px;
+  left: var(--confetti-left);
+  width: 12px;
+  height: 24px;
+  border: 2px solid #253b59;
+  border-radius: 4px;
+  background: var(--confetti-color);
+  opacity: 0;
+  animation: task-reward-confetti-fall 2.8s var(--confetti-delay) cubic-bezier(0.2, 0.6, 0.35, 1) forwards;
+}
+
+.task-reward-confetti i:nth-child(1) { --confetti-left: 7%; --confetti-color: #fec73c; --confetti-delay: 0.08s; transform: rotate(16deg); }
+.task-reward-confetti i:nth-child(2) { --confetti-left: 16%; --confetti-color: #58b9e8; --confetti-delay: 0.36s; transform: rotate(-22deg); }
+.task-reward-confetti i:nth-child(3) { --confetti-left: 27%; --confetti-color: #ff7a3d; --confetti-delay: 0.16s; transform: rotate(35deg); }
+.task-reward-confetti i:nth-child(4) { --confetti-left: 38%; --confetti-color: #8fd39c; --confetti-delay: 0.54s; transform: rotate(-15deg); }
+.task-reward-confetti i:nth-child(5) { --confetti-left: 47%; --confetti-color: #ffabca; --confetti-delay: 0.24s; transform: rotate(27deg); }
+.task-reward-confetti i:nth-child(6) { --confetti-left: 58%; --confetti-color: #fec73c; --confetti-delay: 0.62s; transform: rotate(-35deg); }
+.task-reward-confetti i:nth-child(7) { --confetti-left: 67%; --confetti-color: #58b9e8; --confetti-delay: 0.12s; transform: rotate(20deg); }
+.task-reward-confetti i:nth-child(8) { --confetti-left: 76%; --confetti-color: #ff7a3d; --confetti-delay: 0.44s; transform: rotate(-28deg); }
+.task-reward-confetti i:nth-child(9) { --confetti-left: 87%; --confetti-color: #8fd39c; --confetti-delay: 0.3s; transform: rotate(12deg); }
+.task-reward-confetti i:nth-child(10) { --confetti-left: 94%; --confetti-color: #ffabca; --confetti-delay: 0.7s; transform: rotate(-18deg); }
+
+.task-reward-modal {
+  position: relative;
+  display: grid;
+  width: min(680px, calc(100vw - 40px));
+  max-height: calc(var(--app-visible-height, 100dvh) - 36px);
+  justify-items: center;
+  overflow: hidden;
+  padding: 26px 38px 24px;
+  border: 3px solid #253b59;
+  border-radius: 24px;
+  background: #fffaf0;
+  box-shadow: 0 9px 0 #253b59, 0 28px 64px rgba(17, 31, 51, 0.34);
+  text-align: center;
+  animation: task-reward-modal-arrive 0.58s cubic-bezier(0.18, 0.88, 0.32, 1.24) both;
+}
+
+.task-reward-modal__eyebrow {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 18px;
+  border: 2px solid #253b59;
+  border-radius: 999px;
+  background: #ffe9a8;
+  color: #9b4c13;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 22px;
+}
+
+.task-reward-modal h1 {
+  margin: 10px 0 0;
+  color: #253b59;
+  font-size: 38px;
+  font-weight: 900;
+  line-height: 1.18;
+}
+
+.task-reward-modal__encouragement {
+  margin: 7px 0 0;
+  color: #66748a;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 26px;
+}
+
+.task-reward-stage {
+  position: relative;
+  width: 342px;
+  height: 250px;
+  margin: -2px 0 -4px;
+}
+
+.task-reward-stage__halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 330px;
+  height: 330px;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+  animation: task-reward-halo-arrive 0.9s 0.12s cubic-bezier(0.18, 0.88, 0.32, 1.18) both,
+    task-reward-halo-float 4.2s 1.05s ease-in-out infinite;
+}
+
+.task-reward-stage__mascot {
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 8px rgba(37, 59, 89, 0.22));
+  transform: translateX(-50%);
+  animation: task-reward-mascot-arrive 0.7s 0.22s cubic-bezier(0.18, 0.88, 0.32, 1.25) both,
+    task-reward-mascot-bounce 2.8s 1s ease-in-out infinite;
+}
+
+.task-reward-stage__orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 2px dashed rgba(77, 168, 232, 0.78);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.task-reward-stage__orbit::after {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #253b59;
+  border-radius: 50%;
+  background: #fec73c;
+  content: "";
+}
+
+.task-reward-stage__orbit--one {
+  width: 240px;
+  height: 102px;
+  animation: task-reward-orbit-one 6s linear infinite;
+}
+
+.task-reward-stage__orbit--two {
+  width: 290px;
+  height: 128px;
+  border-color: rgba(255, 122, 61, 0.64);
+  animation: task-reward-orbit-two 8s linear infinite;
+}
+
+.task-reward-stage__orbit--two::after {
+  top: auto;
+  right: 26px;
+  bottom: -8px;
+  left: auto;
+  width: 12px;
+  height: 12px;
+  background: #58b9e8;
+}
+
+.task-reward-total {
+  position: relative;
+  display: inline-flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  padding: 7px 24px 8px;
+  border: 3px solid #253b59;
+  border-radius: 18px;
+  background: #fff0b8;
+  box-shadow: 0 6px 0 #253b59;
+  color: #7b4a16;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 24px;
+  animation: task-reward-total-pop 0.62s 0.55s cubic-bezier(0.18, 0.88, 0.32, 1.28) both;
+}
+
+.task-reward-total strong {
+  color: #e75f25;
+  font-size: 50px;
+  font-weight: 900;
+  line-height: 54px;
+}
+
+.task-reward-total img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  animation: task-reward-star-pulse 1.7s 1.1s ease-in-out infinite;
+}
+
+.task-reward-breakdown {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  margin-top: 14px;
+  padding: 6px 15px;
+  border: 2px solid #d7dee8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #56667c;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.task-reward-breakdown strong { color: #e75f25; }
+
+.task-reward-breakdown i {
+  width: 1px;
+  height: 18px;
+  background: #d7dee8;
+}
+
+.task-reward-breakdown__bonus {
+  color: #9b4c13;
+}
+
+.task-reward-modal__task {
+  max-width: 100%;
+  margin: 12px 0 0;
+  overflow: hidden;
+  color: #647187;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-reward-modal__continue {
+  display: inline-flex;
+  width: min(300px, 100%);
+  height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  border: 3px solid #253b59;
+  border-radius: 15px;
+  background: #ff7a3d;
+  box-shadow: 0 7px 0 #253b59;
+  color: #253b59;
+  font-family: inherit;
+  font-size: 21px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.task-reward-modal__continue img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.task-reward-modal__continue:hover { background: #ff8c57; }
+.task-reward-modal__continue:active { transform: translateY(5px); box-shadow: 0 2px 0 #253b59; }
+.task-reward-modal__continue:focus-visible { outline: 4px solid #58b9e8; outline-offset: 4px; }
+
+@keyframes task-reward-modal-arrive {
+  0% { opacity: 0; transform: translateY(30px) scale(0.88); }
+  70% { opacity: 1; transform: translateY(-4px) scale(1.015); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes task-reward-halo-arrive {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.34) rotate(-18deg); }
+  75% { opacity: 1; transform: translate(-50%, -50%) scale(1.08) rotate(3deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+}
+
+@keyframes task-reward-halo-float {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-2deg); }
+  50% { transform: translate(-50%, calc(-50% - 5px)) rotate(2deg); }
+}
+
+@keyframes task-reward-mascot-arrive {
+  0% { opacity: 0; transform: translateX(-50%) translateY(30px) scale(0.62); }
+  72% { opacity: 1; transform: translateX(-50%) translateY(-8px) scale(1.08); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes task-reward-mascot-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-7px); }
+}
+
+@keyframes task-reward-total-pop {
+  0% { opacity: 0; transform: scale(0.58); }
+  72% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes task-reward-star-pulse {
+  0%, 100% { transform: rotate(-5deg) scale(1); }
+  50% { transform: rotate(5deg) scale(1.13); }
+}
+
+@keyframes task-reward-orbit-one {
+  from { transform: translate(-50%, -50%) rotate(-10deg); }
+  to { transform: translate(-50%, -50%) rotate(350deg); }
+}
+
+@keyframes task-reward-orbit-two {
+  from { transform: translate(-50%, -50%) rotate(24deg); }
+  to { transform: translate(-50%, -50%) rotate(-336deg); }
+}
+
+@keyframes task-reward-confetti-fall {
+  0% { opacity: 0; translate: 0 -20px; }
+  12% { opacity: 1; }
+  100% { opacity: 0; translate: var(--confetti-drift, 18px) calc(var(--app-visible-height, 100dvh) + 60px); rotate: 320deg; }
+}
+
+@media (max-width: 699px) {
+  .task-reward-page {
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .task-reward-modal {
+    width: min(440px, calc(100vw - 24px));
+    max-height: calc(var(--app-visible-height, 100dvh) - 24px);
+    padding: 20px 18px 19px;
+    border-radius: 20px;
+  }
+
+  .task-reward-modal__eyebrow {
+    min-height: 32px;
+    padding: 3px 14px;
+    font-size: 14px;
+  }
+
+  .task-reward-modal h1 {
+    margin-top: 8px;
+    font-size: 29px;
+  }
+
+  .task-reward-modal__encouragement {
+    margin-top: 5px;
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  .task-reward-stage {
+    width: 250px;
+    height: 204px;
+    margin-top: -4px;
+  }
+
+  .task-reward-stage__halo { width: 252px; height: 252px; }
+  .task-reward-stage__mascot { bottom: 5px; width: 154px; height: 154px; }
+  .task-reward-stage__orbit--one { width: 180px; height: 76px; }
+  .task-reward-stage__orbit--two { width: 220px; height: 98px; }
+
+  .task-reward-total {
+    min-height: 62px;
+    gap: 8px;
+    padding: 5px 18px 6px;
+    font-size: 16px;
+  }
+
+  .task-reward-total strong { font-size: 43px; line-height: 47px; }
+  .task-reward-total img { width: 34px; height: 34px; }
+  .task-reward-breakdown { margin-top: 12px; font-size: 13px; }
+  .task-reward-modal__task { margin-top: 10px; font-size: 14px; }
+  .task-reward-modal__continue { height: 54px; margin-top: 13px; font-size: 19px; }
+}
+
+@media (orientation: landscape) and (max-height: 700px) {
+  .task-reward-modal {
+    grid-template-areas:
+      "eyebrow stage"
+      "title stage"
+      "encouragement stage"
+      "total stage"
+      "breakdown task"
+      "continue continue";
+    grid-template-columns: minmax(250px, 0.95fr) minmax(270px, 1.05fr);
+    column-gap: 22px;
+    width: min(820px, calc(100vw - 32px));
+    max-height: calc(var(--app-visible-height, 100dvh) - 24px);
+    padding: 20px 30px 18px;
+  }
+
+  .task-reward-modal__eyebrow { grid-area: eyebrow; }
+  .task-reward-modal h1 { grid-area: title; font-size: 31px; }
+  .task-reward-modal__encouragement { grid-area: encouragement; font-size: 15px; }
+  .task-reward-stage { grid-area: stage; width: 300px; height: 258px; margin: 0; align-self: center; }
+  .task-reward-stage__halo { width: 300px; height: 300px; }
+  .task-reward-stage__mascot { width: 178px; height: 178px; }
+  .task-reward-stage__orbit--one { width: 210px; height: 88px; }
+  .task-reward-stage__orbit--two { width: 260px; height: 112px; }
+  .task-reward-total { grid-area: total; margin-top: 10px; }
+  .task-reward-breakdown { grid-area: breakdown; margin-top: 12px; }
+  .task-reward-modal__task { grid-area: task; align-self: center; margin-top: 12px; }
+  .task-reward-modal__continue { grid-area: continue; height: 52px; margin-top: 13px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .task-reward-modal {
+    grid-template-areas:
+      "eyebrow stage"
+      "title stage"
+      "total stage"
+      "breakdown task"
+      "continue continue";
+    padding: 14px 24px 13px;
+  }
+
+  .task-reward-modal__encouragement { display: none; }
+  .task-reward-stage { width: 246px; height: 202px; }
+  .task-reward-stage__halo { width: 242px; height: 242px; }
+  .task-reward-stage__mascot { width: 146px; height: 146px; }
+  .task-reward-stage__orbit--one { width: 172px; height: 72px; }
+  .task-reward-stage__orbit--two { width: 212px; height: 90px; }
+  .task-reward-total { min-height: 58px; }
+  .task-reward-total strong { font-size: 40px; line-height: 44px; }
+  .task-reward-breakdown { min-height: 34px; margin-top: 8px; }
+  .task-reward-modal__task { margin-top: 8px; }
+  .task-reward-modal__continue { height: 48px; margin-top: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-reward-modal,
+  .task-reward-stage__halo,
+  .task-reward-stage__mascot,
+  .task-reward-stage__orbit,
+  .task-reward-total,
+  .task-reward-total img,
+  .task-reward-confetti i {
+    animation: none;
+  }
+}

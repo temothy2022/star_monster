@@ -4,12 +4,6 @@ import ongoingStar from "@star-monsters/assets/icons/wishes/star.svg";
 import backIcon from "@star-monsters/assets/icons/untimed-task/back.svg";
 import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
 import completeBackground from "@star-monsters/assets/icons/untimed-task/complete-bg.svg";
-import completeSpark from "@star-monsters/assets/icons/untimed-task/complete-spark.svg";
-import outlineStar from "@star-monsters/assets/icons/untimed-task/outline-star.svg";
-import heartIcon from "@star-monsters/assets/icons/untimed-task/heart.svg";
-import centerStar from "@star-monsters/assets/icons/untimed-task/star-center.svg";
-import bookIcon from "@star-monsters/assets/icons/untimed-task/book.svg";
-import arrowIcon from "@star-monsters/assets/icons/untimed-task/arrow.svg";
 import { useMascot } from "../mascots";
 import {
   playCompletionSound,
@@ -21,6 +15,10 @@ import {
   MoreMenu,
   type UntimedOverlay,
 } from "./TaskOverlays";
+import {
+  TaskCompletionRewardModal,
+  taskCompletionRewardHalo,
+} from "./TaskCompletionRewardModal";
 
 type ActiveTaskProps = {
   onBack: () => void;
@@ -56,12 +54,7 @@ export function UntimedTaskActive({
     const preload = () => {
       [
         completeBackground,
-        completeSpark,
-        outlineStar,
-        heartIcon,
-        centerStar,
-        bookIcon,
-        arrowIcon,
+        taskCompletionRewardHalo,
       ].forEach((src) => {
         const image = new Image();
         image.decoding = "async";
@@ -158,32 +151,14 @@ export function UntimedTaskComplete({
   }, []);
 
   return (
-    <main className="untimed-page untimed-page--complete">
-      <img className="untimed-complete-bg" src={completeBackground} alt="" />
-      <span className="untimed-complete-blob untimed-complete-blob--left" />
-      <span className="untimed-complete-blob untimed-complete-blob--right" />
-
-      <section className="untimed-complete-card" aria-labelledby="untimed-complete-title">
-        <img className="untimed-complete-card__spark" src={completeSpark} alt="" />
-        <img className="untimed-complete-card__outline-star" src={outlineStar} alt="" />
-        <img className="untimed-complete-card__heart" src={heartIcon} alt="" />
-
-        <h1 id="untimed-complete-title">任务已完成！</h1>
-        <div className="untimed-complete-card__stars" aria-label={`获得 ${rewardStars} 颗星星`}>
-          {Array.from({ length: rewardStars }, (_, index) => (
-            <img key={index} src={centerStar} alt="" />
-          ))}
-        </div>
-        <div className="untimed-complete-card__badge">
-          <img src={bookIcon} alt="" />
-          <span>{taskTitle}</span>
-        </div>
-        <img className="untimed-complete-card__mascot" src={mascot.images.celebrate} alt={`庆祝的${mascot.name}`} />
-        <button type="button" onClick={onContinue}>
-          <span>继续</span>
-          <img src={arrowIcon} alt="" />
-        </button>
-      </section>
-    </main>
+    <TaskCompletionRewardModal
+      title="太棒了，完成啦！"
+      taskTitle={taskTitle}
+      baseStars={rewardStars}
+      mascotImage={mascot.images.celebrate}
+      mascotName={mascot.name}
+      backgroundImage={completeBackground}
+      onContinue={onContinue}
+    />
   );
 }

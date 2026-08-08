@@ -865,6 +865,7 @@ export function App() {
   if (route === "timed-complete") {
     return (
       <TimedTaskComplete
+        taskTitle={lastCompletion?.taskTitle}
         baseStars={lastCompletion?.baseStars}
         bonusStars={lastCompletion?.bonusStars}
         onBack={() => navigate("tasks-partial")}

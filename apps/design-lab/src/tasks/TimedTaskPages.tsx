@@ -4,9 +4,6 @@ import bonusStarIcon from "@star-monsters/assets/icons/timed-task/start-icon-4.s
 import startCloseIcon from "@star-monsters/assets/icons/timed-task/start-icon-5.svg";
 import startArrowIcon from "@star-monsters/assets/icons/timed-task/start-icon-2.svg";
 import completeBackground from "@star-monsters/assets/images/timed-task/complete-bg.jpeg";
-import completeCheckIcon from "@star-monsters/assets/icons/timed-task/complete-icon-2.svg";
-import completeLightningIcon from "@star-monsters/assets/icons/timed-task/complete-icon-1.svg";
-import completeArrowIcon from "@star-monsters/assets/icons/timed-task/complete-icon-4.svg";
 import timeoutCloseIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-1.svg";
 import retryIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-2.svg";
 import raceIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-5.svg";
@@ -24,6 +21,10 @@ import {
   prepareCompletionSound,
 } from "../audio/completion-sound";
 import { LoadingDots } from "../components/LoadingDots";
+import {
+  TaskCompletionRewardModal,
+  taskCompletionRewardHalo,
+} from "./TaskCompletionRewardModal";
 
 type TimedTaskProps = {
   onBack: () => void;
@@ -93,9 +94,7 @@ export function TimedTaskActive({
     const preload = () => {
       [
         completeBackground,
-        completeCheckIcon,
-        completeLightningIcon,
-        completeArrowIcon,
+        taskCompletionRewardHalo,
       ].forEach((src) => {
         const image = new Image();
         image.decoding = "async";
@@ -243,7 +242,8 @@ export function TimedTaskComplete({
   onBack,
   baseStars = 2,
   bonusStars = 1,
-}: TimedTaskProps & { baseStars?: number; bonusStars?: number }) {
+  taskTitle,
+}: TimedTaskProps & { baseStars?: number; bonusStars?: number; taskTitle?: string }) {
   const { mascot } = useMascot();
 
   useEffect(() => {
@@ -251,33 +251,16 @@ export function TimedTaskComplete({
   }, [bonusStars]);
 
   return (
-    <main className="timed-page timed-page--complete">
-      <img className="timed-complete-background" src={completeBackground} alt="" />
-      <span className="timed-complete-wash" />
-
-      <section className="timed-complete-modal" aria-labelledby="timed-complete-title">
-        <h1 id="timed-complete-title">{bonusStars > 0 ? "速度惊人！" : "完成任务！"}</h1>
-        <img className="timed-complete-mascot" src={mascot.images.celebrate} alt={`高兴庆祝的${mascot.name}`} />
-
-        <div className="timed-reward-pills">
-          <div className="timed-reward-pill timed-reward-pill--task">
-            <img src={completeCheckIcon} alt="" />
-            <strong>任务 +{baseStars}</strong>
-          </div>
-          {bonusStars > 0 && (
-            <div className="timed-reward-pill timed-reward-pill--bonus">
-              <img src={completeLightningIcon} alt="" />
-              <strong>加奖 +{bonusStars}</strong>
-            </div>
-          )}
-        </div>
-
-        <button className="timed-primary-button timed-primary-button--orange" type="button" onClick={onBack}>
-          <span>继续</span>
-          <img src={completeArrowIcon} alt="" />
-        </button>
-      </section>
-    </main>
+    <TaskCompletionRewardModal
+      title={bonusStars > 0 ? "速度惊人！" : "太棒了，完成啦！"}
+      taskTitle={taskTitle}
+      baseStars={baseStars}
+      bonusStars={bonusStars}
+      mascotImage={mascot.images.celebrate}
+      mascotName={mascot.name}
+      backgroundImage={completeBackground}
+      onContinue={onBack}
+    />
   );
 }
 
