@@ -19,6 +19,13 @@ type GrowthRange = {
   days: number;
 };
 type WishCategoryValue = (typeof WISH_CATEGORIES)[number];
+type SpendingCategoryValue = WishCategoryValue | "PET_CARE" | "PET_TRAVEL" | "PET_ROOM_THEME";
+
+const PET_SPENDING_CATEGORY_LABELS: Record<Exclude<SpendingCategoryValue, WishCategoryValue>, string> = {
+  PET_CARE: "星宠照顾",
+  PET_TRAVEL: "星宠旅行",
+  PET_ROOM_THEME: "小屋背景",
+};
 
 function clampRate(completed: number, scheduled: number) {
   return scheduled > 0 ? Math.min(1, completed / scheduled) : 0;
@@ -94,7 +101,7 @@ export async function getGrowthAnalyticsForRange(
     }),
     prisma.starLedger.findMany({
       where: { childId, createdAt: broadCreatedAtRange },
-      select: { type: true, amount: true, createdAt: true },
+      select: { type: true, amount: true, createdAt: true, reason: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.wishRedemption.findMany({
@@ -248,20 +255,30 @@ export async function getGrowthAnalyticsForRange(
     }
   }
 
-  const spendingByCategory = new Map(
-    WISH_CATEGORIES.map((category) => [
+  const spendingByCategory = new Map<
+    SpendingCategoryValue,
+    { category: SpendingCategoryValue; label: string; redemptionCount: number; starsSpent: number }
+  >();
+  for (const category of WISH_CATEGORIES) {
+    spendingByCategory.set(category, {
       category,
-      {
-        category,
-        label: WISH_CATEGORY_LABELS[category],
-        redemptionCount: 0,
-        starsSpent: 0,
-      },
-    ]),
-  );
+      label: WISH_CATEGORY_LABELS[category],
+      redemptionCount: 0,
+      starsSpent: 0,
+    });
+  }
+  for (const [category, label] of Object.entries(PET_SPENDING_CATEGORY_LABELS)) {
+    const petCategory = category as Exclude<SpendingCategoryValue, WishCategoryValue>;
+    spendingByCategory.set(petCategory, {
+      category: petCategory,
+      label,
+      redemptionCount: 0,
+      starsSpent: 0,
+    });
+  }
   const spendingByTitle = new Map<
     string,
-    { title: string; category: WishCategoryValue; redemptionCount: number; starsSpent: number }
+    { title: string; category: SpendingCategoryValue; redemptionCount: number; starsSpent: number }
   >();
   for (const redemption of redemptions) {
     if (!redemption.completedAt) continue;
@@ -284,6 +301,34 @@ export async function getGrowthAnalyticsForRange(
     title.redemptionCount += 1;
     title.starsSpent += redemption.costStarsSnapshot;
     spendingByTitle.set(redemption.titleSnapshot, title);
+  }
+
+  for (const ledger of ledgers) {
+    const petCategory = ledger.type === "PET_CARE_SPEND"
+      ? "PET_CARE"
+      : ledger.type === "PET_TRAVEL_SPEND"
+        ? "PET_TRAVEL"
+        : ledger.type === "PET_ROOM_THEME_SPEND"
+          ? "PET_ROOM_THEME"
+          : null;
+    if (!petCategory) continue;
+    const dateKey = ledgerDateKey(ledger.createdAt, timeZone);
+    if (dateKey < fromKey || dateKey > toKey) continue;
+    const category = spendingByCategory.get(petCategory);
+    if (category) {
+      category.redemptionCount += 1;
+      category.starsSpent += Math.abs(ledger.amount);
+    }
+    const title = ledger.reason || PET_SPENDING_CATEGORY_LABELS[petCategory];
+    const item = spendingByTitle.get(title) ?? {
+      title,
+      category: petCategory,
+      redemptionCount: 0,
+      starsSpent: 0,
+    };
+    item.redemptionCount += 1;
+    item.starsSpent += Math.abs(ledger.amount);
+    spendingByTitle.set(title, item);
   }
 
   const daily = Array.from(dailyByDate.values());
@@ -326,6 +371,9 @@ export async function getGrowthAnalyticsForRange(
   const spendingItems = Array.from(spendingByTitle.values()).sort(
     (left, right) => right.starsSpent - left.starsSpent,
   );
+  const preferredWishCategory = spending.find((item) =>
+    WISH_CATEGORIES.includes(item.category as WishCategoryValue),
+  )?.category as WishCategoryValue | undefined;
   const scheduledTasks = dailyTasks.length;
   const completedTasks = daily.reduce(
     (sum, item) => sum + item.completedTasks,
@@ -402,7 +450,7 @@ export async function getGrowthAnalyticsForRange(
     insights: {
       strongTaskIds: strongTasks,
       focusTaskIds: focusTasks,
-      preferredWishCategory: spending[0]?.category ?? null,
+      preferredWishCategory: preferredWishCategory ?? null,
     },
   };
 }

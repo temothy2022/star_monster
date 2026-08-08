@@ -414,7 +414,7 @@ export type GrowthAnalytics = {
     averageMinutes: number | null;
   }>;
   spending: Array<{
-    category: "SPORTS" | "TELEVISION" | "TOYS";
+    category: "SPORTS" | "TELEVISION" | "TOYS" | "PET_CARE" | "PET_TRAVEL" | "PET_ROOM_THEME";
     label: string;
     redemptionCount: number;
     starsSpent: number;
@@ -422,7 +422,7 @@ export type GrowthAnalytics = {
   }>;
   spendingItems: Array<{
     title: string;
-    category: "SPORTS" | "TELEVISION" | "TOYS";
+    category: "SPORTS" | "TELEVISION" | "TOYS" | "PET_CARE" | "PET_TRAVEL" | "PET_ROOM_THEME";
     redemptionCount: number;
     starsSpent: number;
   }>;

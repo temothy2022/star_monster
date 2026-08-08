@@ -185,7 +185,7 @@ const SPENDING_ITEM_COLORS = [
 
 function SpendingPreference({ analytics }: { analytics: GrowthAnalytics }) {
   if (!analytics.spendingItems.length) {
-    return <div className="empty-state">这个时间范围内还没有星愿消费</div>;
+    return <div className="empty-state">这个时间范围内还没有星星消费</div>;
   }
   const totalSpent = analytics.spendingItems.reduce(
     (sum, item) => sum + item.starsSpent,
@@ -383,9 +383,9 @@ export function GrowthOverview({ child }: { child: Child }) {
 
       <div className="metric-grid growth-metrics">
         <article><span>任务完成率</span><strong>{summary ? percent(summary.completionRate) : "—"}</strong><small>{completionDescription}</small></article>
-        <article><span>活跃天数</span><strong>{summary?.activeDays ?? "—"}</strong><small>完成任务或兑换星愿</small></article>
+        <article><span>活跃天数</span><strong>{summary?.activeDays ?? "—"}</strong><small>完成任务、兑换星愿或使用星宠功能</small></article>
         <article><span>任务与奖励所得</span><strong>{summary ? summary.taskStarsEarned + summary.bonusStarsEarned : "—"}</strong><small>当前余额 {child.starBalance} 星</small></article>
-        <article><span>星愿消费</span><strong>{summary?.starsSpent ?? "—"}</strong><small className={netTone}>本期净变化 {summary ? `${summary.netStars >= 0 ? "+" : ""}${summary.netStars}` : "—"}</small></article>
+        <article><span>星星消费</span><strong>{summary?.starsSpent ?? "—"}</strong><small className={netTone}>本期净变化 {summary ? `${summary.netStars >= 0 ? "+" : ""}${summary.netStars}` : "—"}</small></article>
       </div>
 
       {analytics ? <>
@@ -394,9 +394,9 @@ export function GrowthOverview({ child }: { child: Child }) {
         </DashboardSection>
         <div className="growth-chart-grid">
           <DashboardSection title="任务完成趋势" subtitle="按安排日统计，重复完成不会抬高完成率"><ChartLegend items={[{ label: "安排任务", tone: "scheduled" }, { label: "完成任务", tone: "completed" }]} /><ActivityTrend data={analytics.daily} /></DashboardSection>
-          <DashboardSection title="星星获得与消费" subtitle="任务奖励、达标奖励与星愿支出"><ChartLegend items={[{ label: "获得", tone: "earned" }, { label: "消费", tone: "spent" }]} /><StarTrend data={analytics.daily} /></DashboardSection>
+          <DashboardSection title="星星获得与消费" subtitle="任务奖励、达标奖励、星愿与星宠支出"><ChartLegend items={[{ label: "获得", tone: "earned" }, { label: "消费", tone: "spent" }]} /><StarTrend data={analytics.daily} /></DashboardSection>
         </div>
-        <DashboardSection title="星愿消费偏好" subtitle="按具体兑换项目统计，退款项目不会计入"><SpendingPreference analytics={analytics} /></DashboardSection>
+        <DashboardSection title="消费偏好" subtitle="按具体星愿和星宠项目统计，退款项目不会计入"><SpendingPreference analytics={analytics} /></DashboardSection>
       </> : <div className="admin-panel empty-state">正在整理成长数据…</div>}
 
       <WeeklyReportPanel childId={child.id} />
