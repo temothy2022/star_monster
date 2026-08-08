@@ -412,7 +412,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
       <Panel title={`任务明细 · 近 ${days} 天`}>
         {error && <Notice kind="error">{error}</Notice>}
         {loading ? <div className="empty-state">正在读取任务历史…</div> : (
-          <div className="table-wrap">
+          <div className="table-wrap responsive-card-table responsive-card-table--history">
             <table>
               <thead><tr><th>日期</th><th>完成时间</th><th>任务</th><th>分类 / 类型</th><th>结果</th><th>尝试</th><th>完成用时 / 总执行</th><th>奖励</th><th>操作</th></tr></thead>
               <tbody>{tasks.map((task) => {
@@ -428,7 +428,19 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
                       ? " · 已退款"
                     : "";
                 const hasCompletion = task.attempts.some((attempt) => attempt.status === "COMPLETED");
-                return <tr key={task.id}><td>{task.taskDate.slice(0, 10)}</td><td>{task.completedAt ? formatTimeHM(task.completedAt) : "—"}</td><td><strong>{task.titleSnapshot}</strong></td><td>{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td><td><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td><td>{task.attempts.length}</td><td>{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td><td className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td><td>{hasCompletion && taskStars > 0 ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定退款“${task.titleSnapshot}”吗？任务奖励和相关每日达标奖会从可用星星及历史累计星星中扣回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.refundTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days)).then((result) => { setTasks(result.tasks); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务退款失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "退款中…" : "退款"}</button> : "—"}</td></tr>;
+                return (
+                  <tr key={task.id}>
+                    <td data-label="日期">{task.taskDate.slice(0, 10)}</td>
+                    <td data-label="完成时间">{task.completedAt ? formatTimeHM(task.completedAt) : "—"}</td>
+                    <td data-label="任务"><strong>{task.titleSnapshot}</strong></td>
+                    <td data-label="分类 / 类型">{CATEGORY_LABELS[task.categorySnapshot] ?? task.categorySnapshot} · {task.modeSnapshot === "TIMED" ? "限时" : "不限时"}{task.repeatableDailySnapshot ? " · 可重复" : ""}</td>
+                    <td data-label="结果"><span className={`status status--${hasCompletion ? "completed" : task.status === "EXPIRED" ? "cancelled" : "pending"}`}>{outcomeLabel(task)}{exception}</span></td>
+                    <td data-label="尝试次数">{task.attempts.length}</td>
+                    <td data-label="完成 / 总执行">{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td>
+                    <td data-label="奖励" className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td>
+                    <td data-label="操作">{hasCompletion && taskStars > 0 ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定退款“${task.titleSnapshot}”吗？任务奖励和相关每日达标奖会从可用星星及历史累计星星中扣回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.refundTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days)).then((result) => { setTasks(result.tasks); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务退款失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "退款中…" : "退款"}</button> : "—"}</td>
+                  </tr>
+                );
               })}</tbody>
             </table>
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
@@ -1975,7 +1987,7 @@ function Redemptions({ child }: { child: Child }) {
     try { await parentApi.updateRedemption(child.id, item.id, "CANCELLED", reason); await load(); }
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "处理失败"); }
   }
-  return <Panel title="兑换记录">{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.titleSnapshot}</td><td>★ {item.costStarsSnapshot}</td><td>{formatDate(item.requestedAt)}</td><td><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div></Panel>;
+  return <Panel title="兑换记录">{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap responsive-card-table"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td data-label="星愿"><strong>{item.titleSnapshot}</strong></td><td data-label="花费">★ {item.costStarsSnapshot}</td><td data-label="兑换时间">{formatDate(item.requestedAt)}</td><td data-label="状态"><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td data-label="操作" className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div></Panel>;
 }
 
 function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
@@ -1994,7 +2006,7 @@ function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "调整失败"); }
     finally { setBusy(false); }
   }
-  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<input type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td>{formatDate(entry.createdAt)}</td><td>{LEDGER_LABELS[entry.type]}</td><td className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td>{entry.balanceAfter}</td><td>{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
+  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<input type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
 }
 
 function Planets({
