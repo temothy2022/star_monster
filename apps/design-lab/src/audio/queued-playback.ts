@@ -5,6 +5,46 @@ export type PlaybackHandle = {
 
 export type PlaybackFactory = () => PlaybackHandle;
 
+const managedHtmlAudios = new Set<HTMLAudioElement>();
+const mediaSessionActions = [
+  "play",
+  "pause",
+  "seekbackward",
+  "seekforward",
+  "previoustrack",
+  "nexttrack",
+  "skipad",
+  "stop",
+] as const;
+
+/** Safari can keep a stale webpage media control after an audio element ends. */
+export function clearWebMediaSession() {
+  if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+  const mediaSession = navigator.mediaSession;
+  mediaSession.metadata = null;
+  for (const action of mediaSessionActions) {
+    try {
+      mediaSession.setActionHandler(action, null);
+    } catch {
+      // Some Safari versions reject unsupported action names.
+    }
+  }
+}
+
+/** Stop audio created by the shared playback helpers when leaving a feature. */
+export function stopManagedHtmlAudio() {
+  for (const audio of managedHtmlAudios) {
+    audio.pause();
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // Ignore elements that have already been released by the browser.
+    }
+  }
+  managedHtmlAudios.clear();
+  clearWebMediaSession();
+}
+
 /** Keeps one active playback and, while it runs, at most one pending request. */
 export class SinglePendingPlaybackQueue {
   private active: PlaybackHandle | null = null;
@@ -64,6 +104,7 @@ export class SinglePendingPlaybackQueue {
       this.start(next);
       return;
     }
+    clearWebMediaSession();
     this.onPlayingChange?.(false);
   }
 }
@@ -94,6 +135,7 @@ export function createHtmlAudioPlayback(audio: HTMLAudioElement): PlaybackHandle
 
   audio.pause();
   audio.currentTime = 0;
+  managedHtmlAudios.add(audio);
   audio.addEventListener("ended", handleEnded);
   audio.addEventListener("error", handleError);
   void audio.play().catch(settle);

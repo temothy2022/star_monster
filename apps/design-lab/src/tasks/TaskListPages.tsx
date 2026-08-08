@@ -24,6 +24,7 @@ import { useMascot } from "../mascots";
 import {
   createHtmlAudioPlayback,
   SinglePendingPlaybackQueue,
+  stopManagedHtmlAudio,
 } from "../audio/queued-playback";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
@@ -501,6 +502,11 @@ export function TaskExperience({
     setExperience(nextExperience);
     onExperienceChange?.(nextExperience);
   }
+
+  useEffect(() => {
+    stopManagedHtmlAudio();
+    return () => stopManagedHtmlAudio();
+  }, [view]);
 
   useEffect(() => {
     let cancelled = false;
