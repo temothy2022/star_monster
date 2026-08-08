@@ -249,17 +249,22 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   if (!careSoundQueueRef.current) {
     careSoundQueueRef.current = new SinglePendingPlaybackQueue();
   }
-  const uploadedSleepingImage = (state?.mascotAssets ?? []).find(
-    (asset) => asset.slot === "SLEEPING",
-  )?.mediaUrl;
-  const uploadedCelebrateImage = (state?.mascotAssets ?? []).find(
-    (asset) => asset.slot === "CELEBRATE",
-  )?.mediaUrl;
+  const uploadedMascotImages = useMemo(
+    () => new Map((state?.mascotAssets ?? []).map((asset) => [asset.slot, asset.mediaUrl])),
+    [state?.mascotAssets],
+  );
+  const uploadedSleepingImage = uploadedMascotImages.get("SLEEPING");
+  const uploadedCelebrateImage = uploadedMascotImages.get("CELEBRATE");
+  const uploadedNeutralImage = uploadedMascotImages.get("NEUTRAL");
+  const uploadedHungryImage = uploadedMascotImages.get("HUNGRY");
+  const uploadedEatingImage = uploadedMascotImages.get("EATING");
+  const uploadedDrinkingImage = uploadedMascotImages.get("DRINKING");
+  const uploadedTravelImage = uploadedMascotImages.get("TRAVEL");
   const idleMascotImage = useMemo(
     () => (Math.random() < 0.42
       ? uploadedSleepingImage ?? mascot.activityImages.sleeping
-      : mascot.images.neutral),
-    [mascot.activityImages.sleeping, mascot.images.neutral, uploadedSleepingImage],
+      : uploadedNeutralImage ?? mascot.images.neutral),
+    [mascot.activityImages.sleeping, mascot.images.neutral, uploadedNeutralImage, uploadedSleepingImage],
   );
   const celebrateMascotImage = uploadedCelebrateImage ?? mascot.images.celebrate;
 
@@ -462,13 +467,13 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   const moodImage = useMemo(() => {
     if (!state) return mascot.images.neutral;
-    if (careAnimation?.kind === "feed") return mascot.activityImages.eating;
-    if (careAnimation?.kind === "drink") return mascot.activityImages.drinking;
-    if (state.currentTrip?.status === "TRAVELING") return mascot.activityImages.travel;
-    if (state.pet.satiety < 30 || state.pet.hydration < 30) return mascot.activityImages.hungry;
+    if (careAnimation?.kind === "feed") return uploadedEatingImage ?? mascot.activityImages.eating;
+    if (careAnimation?.kind === "drink") return uploadedDrinkingImage ?? mascot.activityImages.drinking;
+    if (state.currentTrip?.status === "TRAVELING") return uploadedTravelImage ?? mascot.activityImages.travel;
+    if (state.pet.satiety < 30 || state.pet.hydration < 30) return uploadedHungryImage ?? mascot.activityImages.hungry;
     if (state.currentTrip) return celebrateMascotImage;
     return idleMascotImage;
-  }, [careAnimation, celebrateMascotImage, idleMascotImage, mascot.activityImages, mascot.images, state]);
+  }, [careAnimation, celebrateMascotImage, idleMascotImage, mascot.activityImages, mascot.images, state, uploadedDrinkingImage, uploadedEatingImage, uploadedHungryImage, uploadedTravelImage]);
 
   function showRoomNotice(message: string) {
     const id = roomNoticeIdRef.current + 1;

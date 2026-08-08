@@ -203,7 +203,7 @@ export type PetGrowthState = {
     drink: { costStars: number; restore: number; experience: number };
   };
   mascotAssets: Array<{
-    slot: "CELEBRATE" | "SLEEPING";
+    slot: "TASK_IDLE" | "NEUTRAL" | "FOCUS" | "CELEBRATE" | "HUNGRY" | "EATING" | "DRINKING" | "TRAVEL" | "SLEEPING";
     mediaUrl: string;
     updatedAt: string;
   }>;

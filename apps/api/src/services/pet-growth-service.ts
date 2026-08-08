@@ -308,7 +308,6 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       },
     }),
     prisma.mascotAsset.findMany({
-      where: { slot: { in: ["CELEBRATE", "SLEEPING"] } },
       select: { petType: true, slot: true, mediaUrl: true, updatedAt: true },
     }),
     prisma.petRoomTheme.findMany({
@@ -392,7 +391,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
     mascotAssets: mascotAssets
       .filter((asset) => asset.petType === petType)
       .map((asset) => ({
-        slot: asset.slot as "CELEBRATE" | "SLEEPING",
+        slot: asset.slot,
         mediaUrl: asset.mediaUrl,
         updatedAt: asset.updatedAt,
       })),
