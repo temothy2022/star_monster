@@ -228,10 +228,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   if (!careSoundQueueRef.current) {
     careSoundQueueRef.current = new SinglePendingPlaybackQueue();
   }
-  const uploadedSleepingImage = state?.mascotAssets.find(
+  const uploadedSleepingImage = (state?.mascotAssets ?? []).find(
     (asset) => asset.slot === "SLEEPING",
   )?.mediaUrl;
-  const uploadedCelebrateImage = state?.mascotAssets.find(
+  const uploadedCelebrateImage = (state?.mascotAssets ?? []).find(
     (asset) => asset.slot === "CELEBRATE",
   )?.mediaUrl;
   const idleMascotImage = useMemo(
@@ -446,7 +446,6 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (state.currentTrip?.status === "TRAVELING") return mascot.activityImages.travel;
     if (state.pet.satiety < 30 || state.pet.hydration < 30) return mascot.activityImages.hungry;
     if (state.currentTrip) return celebrateMascotImage;
-    if (state.pet.satiety > 85 && state.pet.hydration > 85) return celebrateMascotImage;
     return idleMascotImage;
   }, [careAnimation, celebrateMascotImage, idleMascotImage, mascot.activityImages, mascot.images, state]);
 
