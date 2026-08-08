@@ -615,7 +615,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => requestCare("drink")}>
             <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><i /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(busy) || Boolean(careAnimation)} onClick={() => setAlbumOpen(true)}>
+          <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => setAlbumOpen(true)}>
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><i /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
           </button>
         </aside>
