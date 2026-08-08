@@ -523,6 +523,21 @@ export class ApiError extends Error {
 }
 
 export const PARENT_SESSION_EXPIRED_EVENT = "parent-session-expired";
+export const PARENT_FEEDBACK_EVENT = "parent-feedback";
+
+function isMutationRequest(path: string, method: string) {
+  return method !== "GET" && !path.includes("/auth/");
+}
+
+function mutationSuccessText(method: string) {
+  if (method === "DELETE") return "删除成功";
+  if (method === "PATCH" || method === "PUT") return "保存成功";
+  return "操作成功";
+}
+
+function notifyParentFeedback(kind: "success" | "error", text: string) {
+  window.dispatchEvent(new CustomEvent(PARENT_FEEDBACK_EVENT, { detail: { kind, text } }));
+}
 
 function uploadContentType(file: File) {
   if (file.type) return file.type;
@@ -540,32 +555,45 @@ function uploadContentType(file: File) {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const isMutation = isMutationRequest(path, method);
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+  } catch (reason) {
+    if (isMutation) notifyParentFeedback("error", "网络连接失败，保存没有完成");
+    throw reason;
+  }
   const isJson = response.headers.get("content-type")?.includes("application/json");
   if (!response.ok) {
     const body = isJson ? await response.json().catch(() => ({})) : {};
     if (response.status === 401 && path !== "/api/parent/auth/login") {
       window.dispatchEvent(new Event(PARENT_SESSION_EXPIRED_EVENT));
     }
+    const errorMessage = body.error?.message ?? "请求失败，请稍后重试";
+    if (isMutation) notifyParentFeedback("error", errorMessage);
     throw new ApiError(
-      body.error?.message ?? "请求失败，请稍后重试",
+      errorMessage,
       response.status,
       body.error?.code,
     );
   }
   if (!isJson) {
+    if (isMutation) notifyParentFeedback("error", "后台服务尚未启动，请稍后重试");
     throw new ApiError("后台服务尚未启动，请稍后重试", 503, "API_UNAVAILABLE");
   }
-  return response.json();
+  const result = await response.json() as T;
+  if (isMutation) notifyParentFeedback("success", mutationSuccessText(method));
+  return result;
 }
 
 export const staffApi = {

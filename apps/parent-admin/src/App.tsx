@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   ApiError,
+  PARENT_FEEDBACK_EVENT,
   PARENT_SESSION_EXPIRED_EVENT,
   parentApi,
   staffApi,
@@ -276,6 +277,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
   const [password, setPassword] = useState(remembered?.password ?? "");
   const [remember, setRemember] = useState(Boolean(remembered));
   const [error, setError] = useState("");
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -2469,6 +2471,7 @@ export function App() {
   const [selectedChildId, setSelectedChildId] = useState<string>("");
   const [section, setSection] = useState<Section>(() => sectionFromLocation());
   const [error, setError] = useState("");
+  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -2498,6 +2501,22 @@ export function App() {
         return loadChildren();
       })
       .catch(() => setUser(null));
+  }, []);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const handleFeedback = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind: "success" | "error"; text: string }>).detail;
+      if (!detail?.text) return;
+      setFeedback(detail);
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => setFeedback(null), detail.kind === "error" ? 5000 : 2600);
+    };
+    window.addEventListener(PARENT_FEEDBACK_EVENT, handleFeedback);
+    return () => {
+      window.removeEventListener(PARENT_FEEDBACK_EVENT, handleFeedback);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -2550,6 +2569,7 @@ export function App() {
 
   return (
     <div className="admin-app">
+      {feedback ? <div className={`admin-feedback-toast admin-feedback-toast--${feedback.kind}`} role="status">{feedback.text}</div> : null}
       <aside className="admin-sidebar">
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>

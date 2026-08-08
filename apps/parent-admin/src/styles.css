@@ -634,6 +634,9 @@ td { font-size: 13px; }
 .admin-notice { margin: 0 0 14px; padding: 11px 13px; border-radius: 10px; color: #386675; background: #e4f3f7; font-size: 13px; }
 .admin-notice--error { color: #9f3f34; background: #fae2df; }
 .admin-notice--success { color: #277458; background: #ddf2e7; }
+.admin-feedback-toast { position: fixed; top: 20px; right: 24px; z-index: 1000; max-width: min(360px, calc(100vw - 32px)); padding: 12px 18px; border: 1px solid #b8dbc9; border-radius: 10px; color: #21674d; background: #effaf3; box-shadow: 0 10px 28px #24365422; font-size: 14px; font-weight: 800; animation: admin-feedback-toast-in .18s ease-out; }
+.admin-feedback-toast--error { border-color: #efb5ae; color: #9f3f34; background: #fff2f0; }
+@keyframes admin-feedback-toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 .danger-zone { margin-top: 24px; padding-top: 20px; border-top: 1px solid #eaded9; }
 .danger-zone h3 { color: #a4483b; font-size: 15px; }
 .danger-zone p { color: #7c8698; font-size: 13px; }
