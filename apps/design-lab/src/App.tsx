@@ -358,7 +358,11 @@ function childPageTitle(route: AppRoute) {
 }
 
 export function App() {
-  const [route, setRoute] = useState<AppRoute>(readRouteFromHash);
+  const [route, setRoute] = useState<AppRoute>(() => {
+    const initialRoute = readRouteFromHash();
+    markChildNavigation(initialRoute);
+    return initialRoute;
+  });
   const [nickname, setNickname] = useState("");
   const [activeAttempt, setActiveAttempt] = useState<TaskAttempt | null>(null);
   const [taskExperienceCache, setTaskExperienceCache] =
@@ -440,7 +444,7 @@ export function App() {
     reportActionError(reason);
   }
 
-  function leaveLearningAttempt() {
+  function leaveActiveAttempt() {
     const attemptId = activeAttempt?.id;
     if (!attemptId) {
       navigate("tasks-partial");
@@ -614,7 +618,7 @@ export function App() {
     return (
       <HanziLearningExperience
         attemptId={activeAttempt!.id}
-        onExit={leaveLearningAttempt}
+        onExit={leaveActiveAttempt}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,
@@ -631,7 +635,7 @@ export function App() {
     return (
       <ClockLearningExperience
         attemptId={activeAttempt!.id}
-        onExit={leaveLearningAttempt}
+        onExit={leaveActiveAttempt}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,
@@ -648,7 +652,7 @@ export function App() {
     return (
       <MakeTenExperience
         attemptId={activeAttempt!.id}
-        onExit={leaveLearningAttempt}
+        onExit={leaveActiveAttempt}
         onFailed={() => {
           setActiveAttempt(null);
           navigate("tasks-partial");
@@ -669,7 +673,7 @@ export function App() {
     return (
       <PoemLearningExperience
         attemptId={activeAttempt!.id}
-        onExit={leaveLearningAttempt}
+        onExit={leaveActiveAttempt}
         onCompleted={(reward) => {
           setLastCompletion({
             taskTitle: activeAttempt!.dailyTask.titleSnapshot,
@@ -719,16 +723,7 @@ export function App() {
             .catch(handleAttemptActionError);
         }}
         onAbandon={() => {
-          if (!activeAttempt) {
-            navigate("tasks-partial");
-            return;
-          }
-          void abandonAttempt(activeAttempt.id)
-            .then(() => {
-              setActiveAttempt(null);
-              navigate("tasks-partial");
-            })
-            .catch(handleAttemptActionError);
+          leaveActiveAttempt();
         }}
         onComplete={() => {
           if (isCompletingAttempt) return;
@@ -801,16 +796,7 @@ export function App() {
             .catch(handleAttemptActionError);
         }}
         onAbandon={() => {
-          if (!activeAttempt) {
-            navigate("tasks-partial");
-            return;
-          }
-          void abandonAttempt(activeAttempt.id)
-            .then(() => {
-              setActiveAttempt(null);
-              navigate("tasks-partial");
-            })
-            .catch(handleAttemptActionError);
+          leaveActiveAttempt();
         }}
         onComplete={() => {
           if (isCompletingAttempt) return;

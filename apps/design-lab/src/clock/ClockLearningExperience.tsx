@@ -15,6 +15,7 @@ import {
   type ClockQuestion,
 } from "../api/child-api";
 import { playAnswerSound } from "../audio/feedback-sounds";
+import { reportChildPageReady } from "../api/performance-telemetry";
 import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 
 type ClockTime = { hour: number; minute: number; second: number };
@@ -203,6 +204,10 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
         setSession(loaded);
         if (loaded.completedAt) setStage("RESULT");
         else if (loaded.currentIndex > 0) setStage("QUESTION");
+        reportChildPageReady(
+          "clock-session",
+          "/api/child/clock/sessions/start",
+        );
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "时钟学习暂时无法开始");
@@ -260,12 +265,15 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
     : stage === "FEEDBACK" || stage === "RESULT"
       ? session.currentIndex
       : Math.min(session.currentIndex + 1, session.totalQuestions);
+  const displayedQuestionNumber = stage === "FEEDBACK"
+    ? session.currentIndex
+    : Math.min(session.currentIndex + 1, session.totalQuestions);
   return <main className="clock-learning-page" onContextMenu={(event) => event.preventDefault()}>
     <button className="clock-back-button" type="button" onClick={onExit} aria-label="返回任务列表">
       <img src={backIcon} alt="" aria-hidden="true" />
     </button>
     <header className="clock-learning-header">
-      <div><span>时间小课堂</span><h1>{stage === "PRACTICE" ? "拨一拨，认识时间" : stage === "RESULT" ? "今天的练习完成啦" : `第 ${Math.min(session.currentIndex + 1, session.totalQuestions)} 题`}</h1></div>
+      <div><span>时间小课堂</span><h1>{stage === "PRACTICE" ? "拨一拨，认识时间" : stage === "RESULT" ? "今天的练习完成啦" : `第 ${displayedQuestionNumber} 题`}</h1></div>
       {stage !== "PRACTICE" && stage !== "RESULT" ? <div className="clock-learning-progress"><span style={{ width: `${session.currentIndex / session.totalQuestions * 100}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div> : null}
     </header>
 

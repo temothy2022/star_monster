@@ -30,11 +30,13 @@ export function OnboardingViewport({
     if (!viewport.width || !viewport.height) return 1;
     return Math.min(1, viewport.width / designWidth, viewport.height / designHeight);
   });
+  const [compact, setCompact] = useState(() => getViewportSize().width <= 600);
 
   useLayoutEffect(() => {
     const updateScale = () => {
       const viewport = getViewportSize();
       setScale(Math.min(1, viewport.width / designWidth, viewport.height / designHeight));
+      setCompact(viewport.width <= 600);
     };
 
     updateScale();
@@ -48,14 +50,16 @@ export function OnboardingViewport({
   }, [designWidth]);
 
   return (
-    <main className="onboarding-viewport">
+    <main className={`onboarding-viewport${compact ? " onboarding-viewport--compact" : ""}`}>
       <div
         className={className}
         data-reference-node={referenceNode}
         style={{
-          width: designWidth,
-          height: designHeight,
-          transform: `translate(-50%, -50%) scale(${scale})`
+          width: compact ? "100%" : designWidth,
+          height: compact ? "100%" : designHeight,
+          transform: compact
+            ? "translate(-50%, -50%)"
+            : `translate(-50%, -50%) scale(${scale})`
         }}
       >
         {children}
