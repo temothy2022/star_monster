@@ -61,10 +61,17 @@ function separatedSecond(
   return preferred;
 }
 
+function randomDifferentIndex(currentIndex: number, optionCount: number) {
+  const offset = 1 + Math.floor(Math.random() * (optionCount - 1));
+  return (currentIndex + offset) % optionCount;
+}
+
 function initialQuestionTime(question: ClockQuestion, minuteStep: 1 | 5): ClockTime {
   if (question.type === "READ_CLOCK") return { hour: 12, minute: 0, second: 0 };
-  const minute = (question.minute + minuteStep * 2) % 60;
-  const hour = minute < question.minute ? normalizedHour(question.hour + 1) : question.hour;
+  const hour = randomDifferentIndex(normalizedHour(question.hour) - 1, 12) + 1;
+  const minuteSlotCount = 60 / minuteStep;
+  const targetMinuteSlot = Math.round(question.minute / minuteStep) % minuteSlotCount;
+  const minute = randomDifferentIndex(targetMinuteSlot, minuteSlotCount) * minuteStep;
   return {
     hour,
     minute,
