@@ -1,4 +1,5 @@
 import { PlanetKey, Prisma } from "@prisma/client";
+import type { DailyTaskStatus } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -779,12 +780,15 @@ export async function registerParentRoutes(
       const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
       const remainsScheduledToday =
         template.isEnabled && isScheduledForDate(template, today);
+      const todaySnapshotStatuses: DailyTaskStatus[] = template.repeatableDaily
+        ? ["PENDING", "EXPIRED", "COMPLETED"]
+        : ["PENDING", "EXPIRED"];
       await prisma.dailyTask.updateMany({
         where: {
           childId,
           templateId: id,
           taskDate: today,
-          status: { in: ["PENDING", "EXPIRED"] },
+          status: { in: todaySnapshotStatuses },
         },
         data: remainsScheduledToday
           ? {
@@ -806,6 +810,18 @@ export async function registerParentRoutes(
             }
           : { status: "EXPIRED", expiredAt: new Date() },
       });
+      if (!template.repeatableDaily) {
+        await prisma.dailyTask.updateMany({
+          where: {
+            childId,
+            templateId: id,
+            taskDate: today,
+            status: "PENDING",
+            attempts: { some: { status: "COMPLETED" } },
+          },
+          data: { status: "COMPLETED" },
+        });
+      }
       return { template };
     },
   );
