@@ -39,6 +39,8 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
   const [petType, setPetType] = useState(child.petType ?? "TUANTUAN");
   const [travelEnabled, setTravelEnabled] = useState(true);
   const [dailyLimit, setDailyLimit] = useState("");
+  const [satiety, setSatiety] = useState(0);
+  const [hydration, setHydration] = useState(0);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -53,6 +55,8 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       setPetType(result.pet.petType);
       setTravelEnabled(result.travelEnabled);
       setDailyLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
+      setSatiety(result.pet.satiety);
+      setHydration(result.pet.hydration);
       setPrices(Object.fromEntries(result.roomThemes.map((theme) => [theme.key, theme.priceStars])));
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "星宠状态读取失败");
@@ -69,6 +73,8 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       setPetType(result.pet.petType);
       setTravelEnabled(result.travelEnabled);
       setDailyLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
+      setSatiety(result.pet.satiety);
+      setHydration(result.pet.hydration);
       setPrices(Object.fromEntries(result.roomThemes.map((theme) => [theme.key, theme.priceStars])));
     }).catch((reason) => {
       if (!cancelled) setMessage(reason instanceof Error ? reason.message : "星宠状态读取失败");
@@ -87,6 +93,8 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       await parentApi.updatePetGrowthSettings(child.id, {
         travelEnabled,
         dailySpendLimitStars: dailyLimit.trim() ? Number(dailyLimit) : null,
+        satiety: Math.max(0, Math.min(100, Math.round(satiety))),
+        hydration: Math.max(0, Math.min(100, Math.round(hydration))),
       });
       setMessage("星宠设置已保存");
       onChanged();
@@ -98,14 +106,15 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
     }
   }
 
-  async function saveThemePrice(theme: PetGrowthSummary["roomThemes"][number]) {
-    setBusy(`theme-${theme.key}`);
+  async function saveThemePrices() {
+    setBusy("themes");
     setMessage("");
     try {
-      await parentApi.updatePetRoomTheme(theme.key, {
+      await parentApi.updatePetRoomThemes(data?.roomThemes.map((theme) => ({
+        key: theme.key,
         priceStars: Math.max(0, Math.min(10000, Math.round(prices[theme.key] ?? theme.priceStars))),
-      });
-      setMessage(`${theme.name}的价格已保存`);
+      })) ?? []);
+      setMessage("小屋背景价格已统一保存");
       await load();
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "背景价格保存失败");
@@ -132,6 +141,8 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
             <label>当前星宠<select value={petType} onChange={(event) => setPetType(event.target.value)}>{Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="checkbox"><input type="checkbox" checked={travelEnabled} onChange={(event) => setTravelEnabled(event.target.checked)} />允许星宠旅行</label>
             <label>每日星宠消费上限<input type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
+            <label>饱食度<input type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
+            <label>饮水状态<input type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
             <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "settings" ? "保存中…" : "保存星宠设置"}</button>
           </form>
         </> : <div className="empty-state">{message || "暂时没有星宠资料"}</div>}
@@ -146,11 +157,11 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
                 <div><strong>{theme.name}</strong><span>{theme.isEquipped ? "当前使用" : theme.isOwned ? "已解锁" : "未解锁"}</span></div>
                 <p>{theme.description}</p>
                 <label>解锁价格<input type="number" min={0} max={10000} value={prices[theme.key] ?? theme.priceStars} onChange={(event) => setPrices((current) => ({ ...current, [theme.key]: Number(event.target.value) }))} /><em>星</em></label>
-                <button className="secondary-button" type="button" disabled={busy !== null} onClick={() => void saveThemePrice(theme)}>{busy === `theme-${theme.key}` ? "保存中…" : "保存价格"}</button>
               </div>
             </article>
           ))}
         </div> : <div className="empty-state">暂无可配置的小屋背景</div>}
+        {data?.roomThemes.length ? <div className="form-actions pet-room-theme-admin-actions"><button className="primary-button" type="button" disabled={busy !== null} onClick={() => void saveThemePrices()}>{busy === "themes" ? "保存中…" : "保存全部背景价格"}</button></div> : null}
       </PetSection>
       {message ? <div className="admin-notice">{message}</div> : null}
     </div>

@@ -580,8 +580,8 @@ export const staffApi = {
 
 export const parentApi = {
   petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
-  updatePetGrowthSettings: (childId: string, data: { travelEnabled: boolean; dailySpendLimitStars: number | null }) => api<{ settings: { travelEnabled: boolean; dailySpendLimitStars: number | null } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
-  updatePetRoomTheme: (key: string, data: { priceStars: number }) => api<{ theme: { key: string; priceStars: number } }>(`/api/parent/pet-growth/themes/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify(data) }),
+  updatePetGrowthSettings: (childId: string, data: { travelEnabled: boolean; dailySpendLimitStars: number | null; satiety?: number; hydration?: number }) => api<{ settings: { travelEnabled: boolean; dailySpendLimitStars: number | null } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
+  updatePetRoomThemes: (themes: Array<{ key: string; priceStars: number }>) => api<{ themes: Array<{ themeId: string; priceStars: number }> }>("/api/parent/pet-growth/themes", { method: "PATCH", body: JSON.stringify({ themes }) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
   updateChild: (id: string, data: Record<string, unknown>) =>
     api<{ child: Child }>(`/api/parent/children/${id}`, {

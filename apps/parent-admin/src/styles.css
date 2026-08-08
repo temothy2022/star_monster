@@ -1607,6 +1607,7 @@ td { font-size: 13px; }
 .pet-room-theme-admin-card__body input[type="number"] { min-width: 0; flex: 1; }
 .pet-room-theme-admin-card__body em { color: #e47e35; font-style: normal; }
 .pet-room-theme-admin-card__body .secondary-button { width: 100%; }
+.pet-room-theme-admin-actions { justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e7e9ed; }
 
 @media (max-width: 900px) {
   .pet-config-form fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
