@@ -228,10 +228,19 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   if (!careSoundQueueRef.current) {
     careSoundQueueRef.current = new SinglePendingPlaybackQueue();
   }
+  const uploadedSleepingImage = state?.mascotAssets.find(
+    (asset) => asset.slot === "SLEEPING",
+  )?.mediaUrl;
+  const uploadedCelebrateImage = state?.mascotAssets.find(
+    (asset) => asset.slot === "CELEBRATE",
+  )?.mediaUrl;
   const idleMascotImage = useMemo(
-    () => (Math.random() < 0.42 ? mascot.activityImages.sleeping : mascot.images.neutral),
-    [mascot.activityImages.sleeping, mascot.images.neutral],
+    () => (Math.random() < 0.42
+      ? uploadedSleepingImage ?? mascot.activityImages.sleeping
+      : mascot.images.neutral),
+    [mascot.activityImages.sleeping, mascot.images.neutral, uploadedSleepingImage],
   );
+  const celebrateMascotImage = uploadedCelebrateImage ?? mascot.images.celebrate;
 
   const load = useCallback(async (quiet = false) => {
     try {
@@ -436,10 +445,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (careAnimation?.kind === "drink") return mascot.activityImages.drinking;
     if (state.currentTrip?.status === "TRAVELING") return mascot.activityImages.travel;
     if (state.pet.satiety < 30 || state.pet.hydration < 30) return mascot.activityImages.hungry;
-    if (state.currentTrip) return mascot.images.celebrate;
-    if (state.pet.satiety > 85 && state.pet.hydration > 85) return mascot.images.celebrate;
+    if (state.currentTrip) return celebrateMascotImage;
+    if (state.pet.satiety > 85 && state.pet.hydration > 85) return celebrateMascotImage;
     return idleMascotImage;
-  }, [careAnimation, idleMascotImage, mascot.activityImages, mascot.images, state]);
+  }, [careAnimation, celebrateMascotImage, idleMascotImage, mascot.activityImages, mascot.images, state]);
 
   function showRoomNotice(message: string) {
     const id = roomNoticeIdRef.current + 1;
@@ -627,7 +636,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
               <i className="pet-return-spark pet-return-spark--one" />
               <i className="pet-return-spark pet-return-spark--two" />
               <img className="pet-return-envelope" src={returnEnvelope} alt="一封装着旅行明信片的信" />
-              <img className="pet-return-mascot" src={mascot.images.celebrate} alt={`${mascot.name}旅行归来`} />
+              <img className="pet-return-mascot" src={celebrateMascotImage} alt={`${mascot.name}旅行归来`} />
             </div>
             <p className="pet-return-eyebrow">旅行邮差送来了一封信</p>
             <h1>{mascot.name}带着明信片回来啦</h1>

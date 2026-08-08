@@ -202,6 +202,11 @@ export type PetGrowthState = {
     feed: { costStars: number; restore: number; experience: number };
     drink: { costStars: number; restore: number; experience: number };
   };
+  mascotAssets: Array<{
+    slot: "CELEBRATE" | "SLEEPING";
+    mediaUrl: string;
+    updatedAt: string;
+  }>;
   dialogueContext?: PetDialogueContext;
   dialogues?: MascotDialogue[];
   taskProgress?: { total: number; completed: number };

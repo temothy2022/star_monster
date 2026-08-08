@@ -228,7 +228,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
     await settleProfile(tx, childId, now);
     await refreshTripStatus(tx, childId, now);
   });
-  const [child, profile, config, currentTrip, postcards, tasks] = await Promise.all([
+  const [child, profile, config, currentTrip, postcards, tasks, mascotAssets] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { nickname: true, petType: true, starBalance: true },
@@ -253,7 +253,12 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
         },
       },
     }),
+    prisma.mascotAsset.findMany({
+      where: { slot: { in: ["CELEBRATE", "SLEEPING"] } },
+      select: { petType: true, slot: true, mediaUrl: true, updatedAt: true },
+    }),
   ]);
+  const petType = child.petType ?? "TUANTUAN";
   const completedTasks = tasks.filter(
     (task) => task.status === "COMPLETED" || task._count.attempts > 0,
   ).length;
@@ -281,7 +286,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
   );
   return {
     pet: {
-      petType: child.petType ?? "TUANTUAN",
+      petType,
       nickname: child.nickname,
       level: profile.level,
       experience: profile.experience,
@@ -313,6 +318,13 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
         experience: config.drinkExperience,
       },
     },
+    mascotAssets: mascotAssets
+      .filter((asset) => asset.petType === petType)
+      .map((asset) => ({
+        slot: asset.slot as "CELEBRATE" | "SLEEPING",
+        mediaUrl: asset.mediaUrl,
+        updatedAt: asset.updatedAt,
+      })),
     dialogueContext,
     dialogues: contextualDialogues.length > 0
       ? contextualDialogues
