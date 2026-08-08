@@ -319,23 +319,57 @@ async function reconcileTodayTaskSnapshots(
   dueTemplates: TaskTemplate[],
 ): Promise<void> {
   const dailyTasks = await prisma.dailyTask.findMany({
-    where: { childId, taskDate: today, status: "PENDING" },
-    select: { id: true, templateId: true },
+    where: { childId, taskDate: today, status: { not: "EXPIRED" } },
+    select: {
+      id: true,
+      templateId: true,
+      status: true,
+      repeatableDailySnapshot: true,
+      _count: { select: { attempts: { where: { status: "COMPLETED" } } } },
+    },
   });
 
   if (dailyTasks.length === 0) return;
 
-  const dueTemplateIds = new Set(dueTemplates.map((template) => template.id));
+  const dueTemplateMap = new Map(dueTemplates.map((template) => [template.id, template]));
   const staleIds = dailyTasks
-    .filter((dailyTask) => !dueTemplateIds.has(dailyTask.templateId))
+    .filter((dailyTask) => !dueTemplateMap.has(dailyTask.templateId) && dailyTask.status === "PENDING")
     .map((dailyTask) => dailyTask.id);
 
-  if (staleIds.length === 0) return;
+  if (staleIds.length > 0) {
+    await prisma.dailyTask.updateMany({
+      where: { id: { in: staleIds }, status: "PENDING" },
+      data: { status: "EXPIRED", expiredAt: now },
+    });
+  }
 
-  await prisma.dailyTask.updateMany({
-    where: { id: { in: staleIds }, status: "PENDING" },
-    data: { status: "EXPIRED", expiredAt: now },
-  });
+  for (const dailyTask of dailyTasks) {
+    const template = dueTemplateMap.get(dailyTask.templateId);
+    if (!template) continue;
+
+    // A template can be changed after today's snapshot was completed. Re-open
+    // that snapshot on read so the child immediately gets another attempt.
+    if (template.repeatableDaily && dailyTask.status === "COMPLETED") {
+      await prisma.dailyTask.update({
+        where: { id: dailyTask.id },
+        data: { status: "PENDING", repeatableDailySnapshot: true },
+      });
+      continue;
+    }
+
+    // If a repeatable task is changed back to a normal task, keep a completed
+    // attempt represented as completed instead of reopening it indefinitely.
+    if (
+      !template.repeatableDaily &&
+      dailyTask.status === "PENDING" &&
+      dailyTask._count.attempts > 0
+    ) {
+      await prisma.dailyTask.update({
+        where: { id: dailyTask.id },
+        data: { status: "COMPLETED", repeatableDailySnapshot: false },
+      });
+    }
+  }
 }
 
 async function normalizeTodaySystemSnapshots(
