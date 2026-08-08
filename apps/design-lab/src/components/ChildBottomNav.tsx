@@ -2,7 +2,6 @@ import navTasks from "@star-monsters/assets/images/task-list/semantic/nav-tasks.
 import navMap from "@star-monsters/assets/images/task-list/semantic/nav-map.png";
 import navWish from "@star-monsters/assets/images/task-list/semantic/nav-wish.png";
 import navFootprints from "@star-monsters/assets/images/task-list/semantic/nav-trail.png";
-import { markChildNavigation } from "../api/performance-telemetry";
 
 export type ChildRoute =
   | "tasks-partial"
@@ -11,6 +10,18 @@ export type ChildRoute =
   | "wishes-requested"
   | "footprints";
 export type ChildNavItem = "tasks" | "pet" | "wish" | "footprints";
+
+function prefetchRoute(route: ChildRoute) {
+  if (route === "pet-growth") {
+    void import("../pet/PetGrowthPage");
+  } else if (route === "wishes-requested" || route === "footprints") {
+    void import("../progress/WishesAndFootprints");
+  } else if (route === "map") {
+    void import("../planets/PlanetMap");
+  } else {
+    void import("../tasks/TaskListPages");
+  }
+}
 
 export function ChildBottomNav({
   active,
@@ -39,9 +50,11 @@ export function ChildBottomNav({
             ].filter(Boolean).join(" ")}
             type="button"
             aria-current={isActive ? "page" : undefined}
+            onPointerDown={() => prefetchRoute(item.route)}
+            onPointerEnter={() => prefetchRoute(item.route)}
+            onFocus={() => prefetchRoute(item.route)}
             onClick={() => {
               if (isActive) return;
-              markChildNavigation(item.route);
               onNavigate?.(item.route);
             }}
           >

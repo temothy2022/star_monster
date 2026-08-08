@@ -125,4 +125,79 @@ describe("performance metrics", () => {
     expect(result.operations).toEqual([]);
     expect(result.recentSlowEvents).toEqual([]);
   });
+
+  it("keeps slow startup resources out of user-perceived slow events", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "startup-js",
+          kind: "startup",
+          operation: "startup_main_js",
+          totalMs: 2_400,
+          serverMs: null,
+          clientOverheadMs: 2_100,
+          nonApiMs: null,
+        }),
+      ],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.summary.slowPageCount).toBe(0);
+    expect(result.recentSlowEvents).toEqual([]);
+    expect(result.diagnosticOperations).toEqual([
+      expect.objectContaining({ operation: "startup_main_js", samples: 1 }),
+    ]);
+  });
+
+  it("summarizes failed child interactions separately", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "wish-failed",
+          kind: "api",
+          operation: "redeem_wish",
+          method: "POST",
+          status: 500,
+          totalMs: 320,
+          serverMs: 250,
+          clientOverheadMs: 70,
+          nonApiMs: 0,
+        }),
+      ],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.summary.interactionFailureCount).toBe(1);
+    expect(result.summary.interactionFailureRate).toBe(100);
+    expect(result.interactionOperations).toEqual([
+      expect.objectContaining({ operation: "redeem_wish", failureCount: 1 }),
+    ]);
+    expect(result.recentSlowEvents).toEqual([
+      expect.objectContaining({ operation: "redeem_wish", status: 500 }),
+    ]);
+  });
+
+  it("ignores expected unauthenticated session probes", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "session-probe",
+          kind: "api",
+          operation: "child_api_request",
+          path: "/api/child/me",
+          method: "GET",
+          status: 401,
+          totalMs: 20,
+        }),
+      ],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.dataQuality.usableCount).toBe(0);
+    expect(result.dataQuality.ignoredNoiseCount).toBe(1);
+    expect(result.recentSlowEvents).toEqual([]);
+  });
 });

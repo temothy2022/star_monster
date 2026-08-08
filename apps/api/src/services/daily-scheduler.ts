@@ -15,6 +15,7 @@ export function startDailyScheduler(
   let running = false;
   let weeklyReportsRunning = false;
   let lastWeeklyReportSweepDate: string | null = null;
+  let lastCleanupDate: string | null = null;
 
   const maintain = async () => {
     if (running) return;
@@ -38,17 +39,23 @@ export function startDailyScheduler(
         }
       }
 
-      await Promise.all([
-        prisma.childSession.deleteMany({ where: { expiresAt: { lte: now } } }),
-        prisma.userSession.deleteMany({ where: { expiresAt: { lte: now } } }),
-        prisma.childPerformanceMetric.deleteMany({
-          where: {
-            createdAt: {
-              lt: new Date(now.getTime() - PERFORMANCE_RETENTION_MS),
+      const currentDateKey = businessDateKey(
+        businessDateAt(now, config.APP_TIME_ZONE),
+      );
+      if (lastCleanupDate !== currentDateKey) {
+        await Promise.all([
+          prisma.childSession.deleteMany({ where: { expiresAt: { lte: now } } }),
+          prisma.userSession.deleteMany({ where: { expiresAt: { lte: now } } }),
+          prisma.childPerformanceMetric.deleteMany({
+            where: {
+              createdAt: {
+                lt: new Date(now.getTime() - PERFORMANCE_RETENTION_MS),
+              },
             },
-          },
-        }),
-      ]);
+          }),
+        ]);
+        lastCleanupDate = currentDateKey;
+      }
     } catch (error) {
       logger.error({ error }, "每日任务维护程序运行失败");
     } finally {

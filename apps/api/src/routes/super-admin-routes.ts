@@ -61,6 +61,8 @@ const resetPasswordSchema = z.object({
 const idParams = z.object({ id: z.string().min(1) });
 const performanceQuery = z.object({
   days: z.coerce.number().int().min(1).max(30).default(7),
+  familyId: z.string().trim().min(1).optional(),
+  childId: z.string().trim().min(1).optional(),
 });
 
 export async function registerSuperAdminRoutes(
@@ -494,38 +496,65 @@ export async function registerSuperAdminRoutes(
 
   app.get("/api/admin/performance", async (request, reply) => {
     await requireAdmin(request, reply, config);
-    const { days } = performanceQuery.parse(request.query);
+    const { days, familyId, childId } = performanceQuery.parse(request.query);
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
-    const metrics = await prisma.childPerformanceMetric.findMany({
-      where: { createdAt: { gte: from } },
-      orderBy: { createdAt: "desc" },
-      take: 50_000,
-      select: {
-        id: true,
-        childId: true,
-        kind: true,
-        operation: true,
-        path: true,
-        status: true,
-        requestId: true,
-        totalMs: true,
-        serverMs: true,
-        clientOverheadMs: true,
-        apiTotalMs: true,
-        nonApiMs: true,
-        effectiveType: true,
-        connectionRttMs: true,
-        downlinkMbps: true,
-        createdAt: true,
-        child: {
-          select: {
-            nickname: true,
-            family: { select: { name: true } },
+    const metricWhere: Prisma.ChildPerformanceMetricWhereInput = {
+      createdAt: { gte: from },
+      ...(childId
+        ? { childId }
+        : familyId
+          ? { child: { familyId } }
+          : {}),
+    };
+    const [metricsWithSentinel, scopeChildren] = await Promise.all([
+      prisma.childPerformanceMetric.findMany({
+        where: metricWhere,
+        orderBy: { createdAt: "desc" },
+        take: 50_001,
+        select: {
+          id: true,
+          childId: true,
+          kind: true,
+          operation: true,
+          path: true,
+          method: true,
+          status: true,
+          requestId: true,
+          totalMs: true,
+          serverMs: true,
+          clientOverheadMs: true,
+          apiTotalMs: true,
+          nonApiMs: true,
+          ttfbMs: true,
+          downloadMs: true,
+          transferSize: true,
+          visibilityState: true,
+          online: true,
+          effectiveType: true,
+          connectionRttMs: true,
+          downlinkMbps: true,
+          createdAt: true,
+          child: {
+            select: {
+              nickname: true,
+              family: { select: { id: true, name: true } },
+            },
           },
         },
-      },
-    });
-    return buildPerformanceDashboard(
+      }),
+      prisma.childProfile.findMany({
+        where: { status: "ACTIVE", family: { status: "ACTIVE" } },
+        orderBy: [{ family: { name: "asc" } }, { nickname: "asc" }],
+        select: {
+          id: true,
+          nickname: true,
+          family: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+    const truncated = metricsWithSentinel.length > 50_000;
+    const metrics = metricsWithSentinel.slice(0, 50_000);
+    const dashboard = buildPerformanceDashboard(
       metrics.map(({ child, ...metric }) => ({
         ...metric,
         childNickname: child.nickname,
@@ -534,6 +563,26 @@ export async function registerSuperAdminRoutes(
       days,
       config.APP_TIME_ZONE,
     );
+    return {
+      ...dashboard,
+      truncated,
+      filters: {
+        selectedFamilyId: familyId ?? null,
+        selectedChildId: childId ?? null,
+        families: [...new Map(
+          scopeChildren.map((child) => [
+            child.family.id,
+            { id: child.family.id, name: child.family.name },
+          ]),
+        ).values()],
+        children: scopeChildren.map((child) => ({
+          id: child.id,
+          nickname: child.nickname,
+          familyId: child.family.id,
+          familyName: child.family.name,
+        })),
+      },
+    };
   });
 
   app.get("/api/admin/audit-logs", async (request, reply) => {

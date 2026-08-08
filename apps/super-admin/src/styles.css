@@ -58,6 +58,19 @@
 .mascot-asset-upload { min-width: 64px; justify-content: center; }
 .super-metric-wide { grid-column: span 2; }
 .audit-json { display: block; max-width: 300px; overflow: hidden; color: #7b8699; font-family: ui-monospace, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.performance-admin-page .performance-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.performance-filter-row { display: flex; gap: 8px; }
+.performance-filter-row select { min-width: 150px; height: 40px; padding: 0 34px 0 11px; border: 1px solid #d4d9e1; border-radius: 8px; color: #34445c; background-color: #fff; }
+.performance-recommendations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.performance-recommendation { padding: 15px; border: 1px solid #dfe4ea; border-left: 4px solid #7b8aa0; border-radius: 8px; background: #fafbfc; }
+.performance-recommendation--good { border-left-color: #4cae9b; background: #f3fbf8; }
+.performance-recommendation--watch { border-left-color: #d5a23d; background: #fffbef; }
+.performance-recommendation--action { border-left-color: #df7157; background: #fff7f4; }
+.performance-recommendation strong { color: #2f4057; font-size: 14px; }
+.performance-recommendation p { margin: 7px 0 0; color: #748093; font-size: 12px; line-height: 1.6; }
+.performance-failure { color: #b64f39; font-weight: 800; }
+.performance-table-wrap { max-height: 430px; overflow: auto; }
+.performance-table-wrap thead { position: sticky; z-index: 1; top: 0; background: #fff; }
 
 @media (max-width: 980px) {
   .super-family-card__body { grid-template-columns: 1fr; }
@@ -66,4 +79,14 @@
   .mascot-asset-card { grid-template-columns: 72px minmax(0, 1fr); }
   .mascot-asset-card__preview { width: 72px; height: 72px; }
   .mascot-asset-upload { grid-column: 1 / -1; }
+  .performance-admin-page .performance-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .performance-recommendations { grid-template-columns: 1fr; }
+  .performance-filter-row { width: 100%; }
+  .performance-filter-row select { min-width: 0; flex: 1; }
+}
+
+@media (max-width: 580px) {
+  .performance-admin-page .performance-metrics { grid-template-columns: 1fr; }
+  .performance-filter-row { flex-direction: column; }
+  .performance-filter-row select { width: 100%; }
 }

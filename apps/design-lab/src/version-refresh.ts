@@ -6,6 +6,8 @@ const currentVersion = import.meta.env.VITE_APP_VERSION;
 const versionUrl = `${import.meta.env.BASE_URL}version.json`;
 const reloadStorageKey = "star-monsters-last-version-reload";
 let checking = false;
+let lastCheckedAt = 0;
+const MIN_CHECK_INTERVAL_MS = 5 * 60 * 1_000;
 
 function reloadWithVersion(version: string) {
   const url = new URL(window.location.href);
@@ -13,9 +15,15 @@ function reloadWithVersion(version: string) {
   window.location.replace(url.toString());
 }
 
-async function checkForNewVersion() {
-  if (!currentVersion || currentVersion === "dev" || checking) return;
+async function checkForNewVersion(force = false) {
+  if (
+    !currentVersion ||
+    currentVersion === "dev" ||
+    checking ||
+    (!force && Date.now() - lastCheckedAt < MIN_CHECK_INTERVAL_MS)
+  ) return;
   checking = true;
+  lastCheckedAt = Date.now();
   try {
     const response = await fetch(`${versionUrl}?t=${Date.now()}`, {
       cache: "no-store",
@@ -37,7 +45,7 @@ async function checkForNewVersion() {
 
 export function installVersionRefresh() {
   if (!currentVersion || currentVersion === "dev") return;
-  window.setTimeout(() => void checkForNewVersion(), 1500);
+  window.setTimeout(() => void checkForNewVersion(true), 1500);
   window.addEventListener("focus", () => void checkForNewVersion());
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void checkForNewVersion();

@@ -46,16 +46,53 @@ export type Metrics = {
 
 export type PerformanceDiagnosis = "server" | "network" | "frontend" | "mixed";
 
+export type PerformanceOperation = {
+  operation: string;
+  kind: string;
+  samples: number;
+  averageMs: number | null;
+  p50Ms: number | null;
+  p95Ms: number | null;
+  slowCount: number;
+  failureCount: number;
+  serverAverageMs: number | null;
+  networkAverageMs: number | null;
+  frontendAverageMs: number | null;
+};
+
 export type PerformanceDashboard = {
   days: number;
   childCount: number;
   collectedFrom: string | null;
   collectedTo: string | null;
+  truncated: boolean;
+  filters: {
+    selectedFamilyId: string | null;
+    selectedChildId: string | null;
+    families: Array<{ id: string; name: string }>;
+    children: Array<{
+      id: string;
+      nickname: string | null;
+      familyId: string;
+      familyName: string;
+    }>;
+  };
+  dataQuality: {
+    receivedCount: number;
+    usableCount: number;
+    ignoredNoiseCount: number;
+    navigationCount: number;
+    apiCount: number;
+    mediaCount: number;
+    startupCount: number;
+    runtimeFailureCount: number;
+  };
   summary: {
     pageOpenCount: number;
     slowPageCount: number;
     slowPageRate: number;
     pageOpenAverageMs: number | null;
+    pageOpenP50Ms: number | null;
     pageOpenP95Ms: number | null;
     serverAverageMs: number | null;
     networkAverageMs: number | null;
@@ -63,24 +100,39 @@ export type PerformanceDashboard = {
     completionAverageMs: number | null;
     completionP95Ms: number | null;
     completionCount: number;
+    interactionCount: number;
+    interactionP95Ms: number | null;
+    interactionFailureCount: number;
+    interactionFailureRate: number;
+    mediaFailureCount: number;
+    runtimeFailureCount: number;
   };
   diagnosis: Record<PerformanceDiagnosis, number>;
-  operations: Array<{
-    operation: string;
+  operations: PerformanceOperation[];
+  pageOperations: PerformanceOperation[];
+  interactionOperations: PerformanceOperation[];
+  diagnosticOperations: PerformanceOperation[];
+  networkBreakdown: Array<{
+    network: string;
     samples: number;
     averageMs: number | null;
     p95Ms: number | null;
-    slowCount: number;
-    serverAverageMs: number | null;
-    networkAverageMs: number | null;
-    frontendAverageMs: number | null;
+    averageRttMs: number | null;
+    averageDownlinkMbps: number | null;
   }>;
   trend: Array<{
     date: string;
     samples: number;
     averageMs: number | null;
+    p50Ms: number | null;
     p95Ms: number | null;
     slowCount: number;
+    slowRate: number;
+  }>;
+  recommendations: Array<{
+    level: "good" | "watch" | "action";
+    title: string;
+    detail: string;
   }>;
   recentSlowEvents: Array<{
     id: string;
@@ -90,6 +142,7 @@ export type PerformanceDashboard = {
     kind: string;
     operation: string;
     path: string;
+    method?: string | null;
     status: number | null;
     requestId: string | null;
     totalMs: number;
@@ -374,8 +427,15 @@ export const adminApi = {
       { method: "POST" },
     ),
   metrics: () => api<Metrics>("/api/admin/metrics"),
-  performance: (days: number) =>
-    api<PerformanceDashboard>(`/api/admin/performance?days=${days}`),
+  performance: (
+    days: number,
+    filters: { familyId?: string; childId?: string } = {},
+  ) => {
+    const query = new URLSearchParams({ days: String(days) });
+    if (filters.familyId) query.set("familyId", filters.familyId);
+    if (filters.childId) query.set("childId", filters.childId);
+    return api<PerformanceDashboard>(`/api/admin/performance?${query}`);
+  },
   auditLogs: (cursor?: string) =>
     api<{ logs: AuditLog[]; nextCursor: string | null }>(
       `/api/admin/audit-logs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,

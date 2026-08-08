@@ -27,6 +27,13 @@ const moduleLoadedAt = now();
 let startupReported = false;
 let metricFlushTimer: number | null = null;
 let metricFlushInProgress = false;
+let metricRetryDelayMs = 5_000;
+
+const METRIC_BATCH_SIZE = 30;
+const MAX_PENDING_METRICS = 80;
+const NORMAL_FLUSH_DELAY_MS = 8_000;
+const MAX_RETRY_DELAY_MS = 60_000;
+const FAST_READ_SAMPLE_RATE = 0.05;
 
 const MAIN_READ_PATHS = new Set([
   "/api/child/tasks/today",
@@ -34,6 +41,28 @@ const MAIN_READ_PATHS = new Set([
   "/api/child/planets",
   "/api/child/wishes",
   "/api/child/footprints",
+]);
+
+const IMPORTANT_MUTATIONS = new Set([
+  "start_task",
+  "pause_task",
+  "resume_task",
+  "abandon_task",
+  "complete_task",
+  "start_hanzi_session",
+  "complete_hanzi_task",
+  "start_poem_session",
+  "complete_poem_task",
+  "complete_poem_learning",
+  "start_clock_session",
+  "complete_clock_task",
+  "start_make_ten_session",
+  "complete_make_ten_task",
+  "redeem_wish",
+  "feed_pet",
+  "give_pet_water",
+  "start_pet_trip",
+  "reveal_postcard",
 ]);
 
 function now() {
@@ -56,12 +85,24 @@ export function normalizeApiPath(path: string) {
       "/api/child/tasks/:id/start",
     )
     .replace(
-      /^\/api\/child\/(hanzi|poems|clock)\/sessions\/[^/]+\/([^/]+)$/,
+      /^\/api\/child\/(hanzi|poems|clock|make-ten)\/sessions\/[^/]+\/([^/]+)$/,
       "/api/child/$1/sessions/:id/$2",
     )
     .replace(
       /^\/api\/child\/wishes\/[^/]+\/redeem$/,
       "/api/child/wishes/:id/redeem",
+    )
+    .replace(
+      /^\/api\/child\/pet\/(feed|drink)$/,
+      "/api/child/pet/$1",
+    )
+    .replace(
+      /^\/api\/child\/pet\/trips\/[^/]+\/reveal$/,
+      "/api/child/pet/trips/:id/reveal",
+    )
+    .replace(
+      /^\/api\/child\/planets\/[^/]+\/(celebrated|notified)$/,
+      "/api/child/planets/:planet/$1",
     );
 }
 
@@ -89,6 +130,17 @@ function operationFor(path: string) {
     "/api/child/poems/sessions/:id/learn": "complete_poem_learning",
     "/api/child/clock/sessions/:id/answer": "save_clock_answer",
     "/api/child/clock/sessions/:id/finish": "complete_clock_task",
+    "/api/child/make-ten/sessions/start": "start_make_ten_session",
+    "/api/child/make-ten/sessions/:id/answer": "save_make_ten_answer",
+    "/api/child/make-ten/sessions/:id/finish": "complete_make_ten_task",
+    "/api/child/poems/sessions/:id/review": "save_poem_review",
+    "/api/child/wishes/:id/redeem": "redeem_wish",
+    "/api/child/pet/feed": "feed_pet",
+    "/api/child/pet/drink": "give_pet_water",
+    "/api/child/pet/trips": "start_pet_trip",
+    "/api/child/pet/trips/:id/reveal": "reveal_postcard",
+    "/api/child/planets/:planet/celebrated": "celebrate_planet",
+    "/api/child/planets/:planet/notified": "acknowledge_planet",
   };
   return operations[path] ?? "child_api_request";
 }
@@ -147,7 +199,7 @@ function clientContext() {
   };
 }
 
-function scheduleMetricFlush(delayMs = 3_000) {
+function scheduleMetricFlush(delayMs = NORMAL_FLUSH_DELAY_MS) {
   if (metricFlushTimer !== null) return;
   metricFlushTimer = window.setTimeout(() => {
     metricFlushTimer = null;
@@ -156,9 +208,15 @@ function scheduleMetricFlush(delayMs = 3_000) {
 }
 
 async function flushPerformanceMetrics() {
-  if (metricFlushInProgress || pendingMetrics.length === 0) return;
+  if (
+    metricFlushInProgress ||
+    pendingMetrics.length === 0 ||
+    !navigator.onLine
+  ) {
+    return;
+  }
   metricFlushInProgress = true;
-  const metrics = pendingMetrics.splice(0, 30);
+  const metrics = pendingMetrics.splice(0, METRIC_BATCH_SIZE);
 
   try {
     const response = await fetch("/api/child/telemetry/performance", {
@@ -168,21 +226,46 @@ async function flushPerformanceMetrics() {
       body: JSON.stringify({ metrics }),
       keepalive: true,
     });
+    if (response.status === 401) {
+      pendingMetrics.length = 0;
+      metricRetryDelayMs = 5_000;
+      return;
+    }
     if (!response.ok) throw new Error("Performance telemetry was rejected");
+    metricRetryDelayMs = 5_000;
   } catch {
     pendingMetrics.unshift(...metrics);
-    if (pendingMetrics.length > 100) {
-      pendingMetrics.splice(0, pendingMetrics.length - 100);
+    if (pendingMetrics.length > MAX_PENDING_METRICS) {
+      pendingMetrics.splice(0, pendingMetrics.length - MAX_PENDING_METRICS);
     }
+    metricRetryDelayMs = Math.min(metricRetryDelayMs * 2, MAX_RETRY_DELAY_MS);
   } finally {
     metricFlushInProgress = false;
-    if (pendingMetrics.length > 0) scheduleMetricFlush(5_000);
+    if (pendingMetrics.length > 0 && navigator.onLine) {
+      scheduleMetricFlush(metricRetryDelayMs);
+    }
   }
 }
 
-function sendPerformanceMetric(payload: Record<string, unknown>) {
+function flushPerformanceMetricsWithBeacon() {
+  if (!navigator.sendBeacon || pendingMetrics.length === 0) return;
+  const metrics = pendingMetrics.slice(0, METRIC_BATCH_SIZE);
+  const accepted = navigator.sendBeacon(
+    "/api/child/telemetry/performance",
+    new Blob([JSON.stringify({ metrics })], { type: "application/json" }),
+  );
+  if (accepted) pendingMetrics.splice(0, metrics.length);
+}
+
+function sendPerformanceMetric(
+  payload: Record<string, unknown>,
+  { urgent = false }: { urgent?: boolean } = {},
+) {
   pendingMetrics.push({ ...payload, ...clientContext() });
-  if (pendingMetrics.length >= 10) {
+  if (pendingMetrics.length > MAX_PENDING_METRICS) {
+    pendingMetrics.splice(0, pendingMetrics.length - MAX_PENDING_METRICS);
+  }
+  if (urgent || pendingMetrics.length >= 15) {
     if (metricFlushTimer !== null) {
       window.clearTimeout(metricFlushTimer);
       metricFlushTimer = null;
@@ -212,23 +295,16 @@ export function reportChildRuntimeFailure(input: {
   operation: "chunk_load_failed" | "render_failed";
   path?: string;
 }) {
-  const metric = {
-    kind: "runtime",
-    operation: input.operation,
-    path: input.path ?? window.location.pathname,
-    status: 0,
-    totalMs: 0,
-    ...clientContext(),
-  };
-  void fetch("/api/child/telemetry/performance", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ metrics: [metric] }),
-    keepalive: true,
-  }).catch(() => {
-    sendPerformanceMetric(metric);
-  });
+  sendPerformanceMetric(
+    {
+      kind: "runtime",
+      operation: input.operation,
+      path: input.path ?? window.location.pathname,
+      status: 0,
+      totalMs: 0,
+    },
+    { urgent: true },
+  );
 }
 
 function resourceMetric(
@@ -256,12 +332,19 @@ function resourceMetric(
 }
 
 function shouldReportApi(metric: ApiPerformanceMetric) {
-  const isCompletion = metric.operation.startsWith("complete_");
-  const isSlow = metric.totalMs >= 400;
+  const isImportantMutation = IMPORTANT_MUTATIONS.has(metric.operation);
+  const isSlow = metric.totalMs >= 500;
   const failed = metric.status === 0 || metric.status >= 400;
   const sampledMainRead =
-    MAIN_READ_PATHS.has(metric.normalizedPath) && Math.random() < 0.02;
-  return isCompletion || isSlow || failed || sampledMainRead;
+    MAIN_READ_PATHS.has(metric.normalizedPath) &&
+    Math.random() < FAST_READ_SAMPLE_RATE;
+  return (
+    failed ||
+    isSlow ||
+    isImportantMutation ||
+    sampledMainRead ||
+    metric.method !== "GET"
+  );
 }
 
 export function recordApiPerformance(input: {
@@ -273,7 +356,11 @@ export function recordApiPerformance(input: {
   totalMs: number;
   serverMs: number | null;
 }) {
-  if (input.path.startsWith("/api/child/telemetry/")) return;
+  if (
+    input.path.startsWith("/api/child/telemetry/") ||
+    input.path.startsWith("/api/child/auth/") ||
+    (input.path.split("?")[0] === "/api/child/me" && input.status === 401)
+  ) return;
 
   const normalizedPath = normalizeApiPath(input.path);
   const resource = getResourceTiming(input.path, input.startedAt);
@@ -328,18 +415,20 @@ export function reportChildRouteRendered(route: string) {
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      const totalMs = Math.max(0, now() - startedAt);
+      if (totalMs < 250) return;
       sendPerformanceMetric({
         kind: "route",
         operation: `render_${route}`,
         path: window.location.hash || `#${route}`,
-        totalMs: roundDuration(Math.max(0, now() - startedAt)),
+        totalMs: roundDuration(totalMs),
       });
     });
   });
 }
 
 export function reportChildAppStartupReady(apiPath: string) {
-  if (startupReported || moduleLoadedAt > 30_000) return;
+  if (startupReported) return;
   startupReported = true;
 
   const navigation = performance.getEntriesByType(
@@ -405,6 +494,18 @@ export function reportChildAppStartupReady(apiPath: string) {
     ttfbMs: roundDuration(apiMetric?.ttfbMs ?? null),
     downloadMs: roundDuration(apiMetric?.downloadMs ?? null),
     transferSize: apiMetric?.transferSize ?? null,
+  });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => scheduleMetricFlush(0));
+  window.addEventListener("pagehide", flushPerformanceMetricsWithBeacon);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      flushPerformanceMetricsWithBeacon();
+    } else if (navigator.onLine) {
+      scheduleMetricFlush(250);
+    }
   });
 }
 

@@ -175,6 +175,9 @@ function ProgressColumn({
     )?.mediaUrl ??
     mascot.taskImage ??
     mascot.images.neutral;
+  const [displayedMascotImage, setDisplayedMascotImage] = useState(
+    mascot.images.neutral,
+  );
   const candidatesRef = useRef<MascotDialogue[]>(candidates);
   const fallbackText = FALLBACK_MASCOT_DIALOGUES[mascotContext][0];
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(
@@ -185,6 +188,35 @@ function ProgressColumn({
   if (!playbackQueueRef.current) {
     playbackQueueRef.current = new SinglePendingPlaybackQueue(setIsSpeaking);
   }
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: number | null = null;
+    let idleId: number | null = null;
+    const image = new Image();
+    setDisplayedMascotImage(mascot.images.neutral);
+    if (taskMascotImage === mascot.images.neutral) return;
+
+    const load = () => {
+      image.decoding = "async";
+      image.onload = () => {
+        if (!disposed) setDisplayedMascotImage(taskMascotImage);
+      };
+      image.src = taskMascotImage;
+    };
+    const requestIdle = window.requestIdleCallback?.bind(window);
+    if (requestIdle) {
+      idleId = requestIdle(load, { timeout: 1_500 });
+    } else {
+      timer = window.setTimeout(load, 350);
+    }
+    return () => {
+      disposed = true;
+      image.onload = null;
+      if (idleId !== null) window.cancelIdleCallback(idleId);
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [mascot.images.neutral, taskMascotImage]);
 
   useEffect(() => {
     candidatesRef.current = candidates;
@@ -250,7 +282,12 @@ function ProgressColumn({
             key={selectedDialogue?.id ?? `${mascotContext}-fallback`}
             text={selectedDialogue?.text ?? fallbackText}
           />
-          <img className="task-mascot-area__image" src={taskMascotImage} alt={`星宠${mascot.name}`} />
+          <img
+            className="task-mascot-area__image"
+            src={displayedMascotImage}
+            alt={`星宠${mascot.name}`}
+            decoding="async"
+          />
         </button>
       </section>
     </aside>
@@ -472,13 +509,43 @@ export function TaskExperience({
     setApiError("");
     setPlanetUnlock(null);
 
-    const planetRequest = getChildPlanets(controller.signal);
     void getTodayTasks(controller.signal)
       .then((result) => {
         if (cancelled) return;
         updateExperience(result);
         reportChildAppStartupReady("/api/child/tasks/today");
         if (result.active) onStartAttemptRef.current?.(result.active);
+
+        const loadPlanetNotification = () => {
+          if (cancelled || controller.signal.aborted) return;
+          void getChildPlanets(controller.signal)
+            .then((planetData) => {
+              if (cancelled) return;
+              const nextPlanet = planetData.pendingNotifications[0];
+              setPlanetUnlock(
+                nextPlanet
+                  ? planetData.planets.find(
+                      (planet) => planet.planet === nextPlanet,
+                    ) ?? null
+                  : null,
+              );
+            })
+            .catch((reason: unknown) => {
+              if (
+                !cancelled &&
+                reason instanceof ApiError &&
+                reason.status === 401
+              ) {
+                window.location.hash = "login";
+              }
+            });
+        };
+        const requestIdle = window.requestIdleCallback?.bind(window);
+        if (requestIdle) {
+          requestIdle(loadPlanetNotification, { timeout: 1_500 });
+        } else {
+          window.setTimeout(loadPlanetNotification, 150);
+        }
       })
       .catch((reason: unknown) => {
         if (reason instanceof ApiError && reason.status === 401) {
@@ -493,26 +560,6 @@ export function TaskExperience({
         if (!cancelled) setLoading(false);
       });
 
-    void planetRequest
-      .then((planetData) => {
-        if (cancelled) return;
-        const nextPlanet = planetData.pendingNotifications[0];
-        setPlanetUnlock(
-          nextPlanet
-            ? planetData.planets.find(
-                (planet) => planet.planet === nextPlanet,
-              ) ?? null
-            : null,
-        );
-      })
-      .catch((reason: unknown) => {
-        if (cancelled) return;
-        if (reason instanceof ApiError && reason.status === 401) {
-          window.location.hash = "login";
-          return;
-        }
-        setApiError("星球点亮提醒暂时无法读取，今天的任务仍可正常使用");
-      });
     return () => {
       cancelled = true;
       controller.abort();

@@ -29,7 +29,35 @@ export class ApiError extends Error {
   }
 }
 
+const GET_MEMORY_CACHE_MS = 2_000;
+const GET_MEMORY_CACHE_LIMIT = 20;
+const getMemoryCache = new Map<
+  string,
+  { expiresAt: number; value: unknown }
+>();
+
+function cacheGetResponse(path: string, value: unknown) {
+  getMemoryCache.delete(path);
+  getMemoryCache.set(path, {
+    expiresAt: Date.now() + GET_MEMORY_CACHE_MS,
+    value,
+  });
+  while (getMemoryCache.size > GET_MEMORY_CACHE_LIMIT) {
+    const oldestKey = getMemoryCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    getMemoryCache.delete(oldestKey);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    const cached = getMemoryCache.get(path);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value as T;
+    }
+    if (cached) getMemoryCache.delete(path);
+  }
   const headers = new Headers(init?.headers);
   if (init?.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -72,13 +100,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         "API_UNAVAILABLE",
       );
     }
-    return (await response.json()) as T;
+    const result = (await response.json()) as T;
+    if (method === "GET") {
+      cacheGetResponse(path, result);
+    } else {
+      getMemoryCache.clear();
+    }
+    return result;
   } finally {
     if (!init?.signal?.aborted) {
       const finishedAt = globalThis.performance?.now() ?? Date.now();
       recordApiPerformance({
         path,
-        method: init?.method ?? "GET",
+        method,
         status,
         requestId,
         startedAt,

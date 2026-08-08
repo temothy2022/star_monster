@@ -53,18 +53,28 @@ export function UntimedTaskActive({
   const leaveTask = onAbandon ?? onBack;
 
   useEffect(() => {
-    [
-      completeBackground,
-      completeSpark,
-      outlineStar,
-      heartIcon,
-      centerStar,
-      bookIcon,
-      arrowIcon,
-    ].forEach((src) => {
-      const image = new Image();
-      image.src = src;
-    });
+    const preload = () => {
+      [
+        completeBackground,
+        completeSpark,
+        outlineStar,
+        heartIcon,
+        centerStar,
+        bookIcon,
+        arrowIcon,
+      ].forEach((src) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = src;
+      });
+    };
+    const requestIdle = window.requestIdleCallback?.bind(window);
+    if (requestIdle) {
+      const id = requestIdle(preload, { timeout: 2_000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(preload, 500);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (

@@ -6,6 +6,7 @@ import {
   type MakeTenLearningSession,
 } from "../api/child-api";
 import { playAnswerSound } from "../audio/feedback-sounds";
+import { reportChildPageReady } from "../api/performance-telemetry";
 import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 
 type Feedback = {
@@ -41,7 +42,13 @@ export function MakeTenExperience({
     setError("");
     void startMakeTenSession(attemptId)
       .then(({ session: loaded }) => {
-        if (!cancelled) setSession(loaded);
+        if (!cancelled) {
+          setSession(loaded);
+          reportChildPageReady(
+            "make-ten-session",
+            "/api/child/make-ten/sessions/start",
+          );
+        }
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "凑十训练暂时无法开始");

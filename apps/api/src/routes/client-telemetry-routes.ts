@@ -101,7 +101,7 @@ export async function registerClientTelemetryRoutes(
         "child client performance slow",
       );
     } else {
-      request.log.info(
+      request.log.debug(
         {
           event: "child_client_performance_batch",
           childId: child.id,

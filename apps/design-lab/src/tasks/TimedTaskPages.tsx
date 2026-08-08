@@ -90,15 +90,25 @@ export function TimedTaskActive({
     lastTickAt.current = Date.now();
   }, [initialRemainingSeconds]);
   useEffect(() => {
-    [
-      completeBackground,
-      completeCheckIcon,
-      completeLightningIcon,
-      completeArrowIcon,
-    ].forEach((src) => {
-      const image = new Image();
-      image.src = src;
-    });
+    const preload = () => {
+      [
+        completeBackground,
+        completeCheckIcon,
+        completeLightningIcon,
+        completeArrowIcon,
+      ].forEach((src) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = src;
+      });
+    };
+    const requestIdle = window.requestIdleCallback?.bind(window);
+    if (requestIdle) {
+      const id = requestIdle(preload, { timeout: 2_000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(preload, 500);
+    return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => {
     lastTickAt.current = Date.now();

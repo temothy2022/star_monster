@@ -1111,6 +1111,7 @@ model ChildPerformanceMetric {
 
   @@index([childId, createdAt])
   @@index([childId, operation, createdAt])
+  @@index([createdAt])
 }
 
 model AuditLog {

@@ -13,6 +13,7 @@ import {
 } from "../api/child-api";
 import { createIdempotencyKey } from "../api/idempotency";
 import { reportChildPageReady } from "../api/performance-telemetry";
+import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import {
   ChildBottomNav,
   type ChildRoute,
@@ -172,8 +173,8 @@ function Postcard({ trip, mascotImage, mascotName, soundEnabled, onClose }: { tr
       <article className="pet-postcard">
         <button className="pet-postcard__close" type="button" onClick={onClose} aria-label="关闭明信片">×</button>
         <div className="pet-postcard__image-wrap">
-          <img className="pet-postcard__destination" src={trip.imageUrl} alt={trip.destinationName} />
-          <img className="pet-postcard__travel-mascot" src={mascotImage} alt={`${mascotName}在${trip.destinationName}旅行`} />
+          <img className="pet-postcard__destination" src={trip.imageUrl} alt={trip.destinationName} decoding="async" />
+          <img className="pet-postcard__travel-mascot" src={mascotImage} alt={`${mascotName}在${trip.destinationName}旅行`} decoding="async" />
           <span>旅行明信片</span>
         </div>
         <div className="pet-postcard__content">
@@ -331,25 +332,31 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (state) reportChildPageReady("pet-growth", "/api/child/pet");
   }, [state]);
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  useEffect(() => {
     if (state?.currentTrip?.status !== "TRAVELING") return;
-    const timer = window.setInterval(() => void load(true), 10_000);
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(timer);
-  }, [load, state?.currentTrip?.status]);
-  useEffect(() => {
-    const visible = () => document.visibilityState === "visible" && void load(true);
-    document.addEventListener("visibilitychange", visible);
-    return () => document.removeEventListener("visibilitychange", visible);
-  }, [load]);
+  }, [state?.currentTrip?.status]);
+
+  useLiveRefresh(() => load(true), {
+    enabled: Boolean(state),
+    intervalMs: state?.currentTrip?.status === "TRAVELING" ? 10_000 : 30_000,
+  });
 
   useEffect(() => {
-    Object.values(mascot.activityImages).forEach((src) => {
-      const image = new Image();
-      image.src = src;
-    });
+    const preload = () => {
+      Object.values(mascot.activityImages).forEach((src) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = src;
+      });
+    };
+    const requestIdle = window.requestIdleCallback?.bind(window);
+    if (requestIdle) {
+      const id = requestIdle(preload, { timeout: 2_000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(preload, 500);
+    return () => window.clearTimeout(timer);
   }, [mascot.activityImages]);
 
   useEffect(() => {
@@ -693,7 +700,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <button className="pet-modal__backdrop" type="button" aria-label="关闭" onClick={() => setAlbumOpen(false)} />
           <section className="pet-album">
             <header><div><small>{mascot.name}的旅行足迹</small><h2>明信片册</h2></div><button type="button" onClick={() => setAlbumOpen(false)} aria-label="关闭">×</button></header>
-            {state.postcards.length ? <div className="pet-album__grid">{state.postcards.map((item) => <button type="button" key={item.id} onClick={() => setPostcard(item)}><img src={item.imageUrl} alt={item.destinationName} /><span>{item.destinationName}</span><small>{item.city} · {item.country}</small></button>)}</div> : <div className="pet-album__empty"><span>✉</span><strong>还没有明信片</strong><p>准备一次旅行，星宠回来时会带来第一张收藏。</p></div>}
+            {state.postcards.length ? <div className="pet-album__grid">{state.postcards.map((item) => <button type="button" key={item.id} onClick={() => setPostcard(item)}><img src={item.imageUrl} alt={item.destinationName} loading="lazy" decoding="async" /><span>{item.destinationName}</span><small>{item.city} · {item.country}</small></button>)}</div> : <div className="pet-album__empty"><span>✉</span><strong>还没有明信片</strong><p>准备一次旅行，星宠回来时会带来第一张收藏。</p></div>}
           </section>
         </div>
       )}
