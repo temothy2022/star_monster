@@ -32,6 +32,72 @@ export type Family = {
   children: AdminChild[];
 };
 
+export type FamilyDataOverview = {
+  family: { id: string; name: string; status: "ACTIVE" | "DISABLED"; createdAt: string };
+  from: string;
+  to: string;
+  children: Array<{
+    id: string;
+    nickname: string | null;
+    petType: string | null;
+    starBalance: number;
+    lifetimeStarsEarned: number;
+    dailyStarGoal: number;
+    lastActiveAt: string | null;
+    taskStats: {
+      periodTotal: number;
+      periodCompleted: number;
+      completionRate: number | null;
+      todayTotal: number;
+      todayCompleted: number;
+      attemptsCompleted: number;
+      attemptsAbandoned: number;
+    };
+    starStats: { periodEarned: number; periodSpent: number };
+    taskTemplates: Array<{
+      id: string;
+      title: string;
+      category: string;
+      experienceKind: string;
+      baseStars: number;
+      scheduleKind: string;
+      weekdays: number[];
+      oneTimeDate: string | null;
+      isEnabled: boolean;
+      repeatableDaily: boolean;
+    }>;
+    wishes: Array<{
+      id: string;
+      title: string;
+      category: string;
+      costStars: number;
+      redemptionType: string;
+      recurrenceKind: string | null;
+      stockRemaining: number | null;
+      isEnabled: boolean;
+      redemptionCount: number;
+    }>;
+    redemptions: Array<{
+      id: string;
+      titleSnapshot: string;
+      categorySnapshot: string;
+      costStarsSnapshot: number;
+      status: string;
+      requestedAt: string;
+      completedAt: string | null;
+      cancelledAt: string | null;
+    }>;
+    ledger: Array<{
+      id: string;
+      type: string;
+      amount: number;
+      balanceAfter: number;
+      reason: string | null;
+      createdAt: string;
+    }>;
+  }>;
+};
+
 export type Metrics = {
   families: number;
   parents: number;
@@ -365,6 +431,7 @@ export const adminApi = {
   saveMinimaxConfig: (data: { apiKey?: string; enabled: boolean }) => api<{ config: MinimaxConfig }>("/api/admin/minimax/config", { method: "PUT", body: JSON.stringify(data) }),
   testMinimaxConfig: () => api<{ ok: true; message: string }>("/api/admin/minimax/config/test", { method: "POST" }),
   families: () => api<{ families: Family[] }>("/api/admin/families"),
+  familyOverview: (id: string) => api<FamilyDataOverview>(`/api/admin/families/${id}/overview`),
   createFamily: (data: {
     name: string;
     parent: { username: string; displayName: string; password: string };

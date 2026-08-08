@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { access, mkdir, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
@@ -22,6 +22,10 @@ const themes = [
   { key: "snow-lodge", ambience: ["snowflakes", "warm-sparkles"] },
   { key: "starlight-camp", ambience: ["stars", "comet"] },
   { key: "lunar-station", ambience: ["planets", "satellite"] },
+  { key: "osaka-castle", ambience: [] },
+  { key: "great-wall", ambience: [] },
+  { key: "basketball-court", ambience: [] },
+  { key: "space-guardian", ambience: [] },
 ];
 
 function run(command, args) {
@@ -46,7 +50,14 @@ async function writeBackgroundVariants(source, outputDir) {
 }
 
 async function writeAmbienceVariants(theme, outputDir) {
+  if (theme.ambience.length === 0) return;
   const source = resolve(sourceRoot, `${theme.key}-ambient.png`);
+  try {
+    await access(source);
+  } catch {
+    console.warn(`Skipping ambience for ${theme.key}; source not found: ${source}`);
+    return;
+  }
   const metadata = await sharp(source).metadata();
   if (!metadata.width || !metadata.height) throw new Error(`Missing dimensions for ${source}`);
   const panelWidth = Math.floor(metadata.width / 2);
@@ -82,6 +93,14 @@ try {
   for (const theme of themes) {
     const outputDir = resolve(outputRoot, theme.key);
     const background = theme.background ?? resolve(sourceRoot, `${theme.key}-background.png`);
+    if (!theme.background) {
+      try {
+        await access(background);
+      } catch {
+        console.warn(`Skipping ${theme.key}; source not found: ${background}`);
+        continue;
+      }
+    }
     await mkdir(outputDir, { recursive: true });
     await writeBackgroundVariants(background, outputDir);
     await writeAmbienceVariants(theme, outputDir);

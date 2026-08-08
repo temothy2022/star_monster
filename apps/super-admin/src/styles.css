@@ -17,11 +17,31 @@
 .super-family-card > header h3 { margin: 0 0 4px; }
 .super-family-card > header p { margin: 0; color: #7b8699; font-size: 12px; }
 .super-family-card__body { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; padding: 20px; }
+.super-detail-toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.super-detail-toolbar h2 { margin: 0 0 4px; color: #233653; font-size: 22px; }
+.super-detail-toolbar p { margin: 0; color: #7b8699; font-size: 12px; }
+.super-family-overview__child { display: grid; gap: 18px; padding: 20px; border: 1px solid #dce1e8; border-radius: 17px; background: #fff; }
+.super-family-overview__child > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.super-family-overview__child h3 { margin: 0 0 4px; color: #233653; font-size: 20px; }
+.super-family-overview__child header p { margin: 0; color: #7b8699; font-size: 12px; }
+.super-family-overview__balances { display: grid; justify-items: end; gap: 3px; }
+.super-family-overview__balances strong { color: #dc8a2f; font-size: 21px; }
+.super-family-overview__balances span { color: #7b8699; font-size: 12px; }
+.super-family-overview__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.super-family-overview__stats > div { display: grid; gap: 4px; padding: 12px; border-radius: 10px; background: #f6f8fb; }
+.super-family-overview__stats span { color: #7b8699; font-size: 12px; }
+.super-family-overview__stats strong { color: #233653; font-size: 19px; }
+.super-family-overview__columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.super-family-overview__columns h4 { margin: 0 0 9px; color: #34445c; }
+.super-data-table { max-height: 330px; overflow: auto; border: 1px solid #e3e7ec; border-radius: 10px; }
+.super-data-table table { min-width: 560px; }
+.super-data-table thead { position: sticky; z-index: 1; top: 0; background: #fff; }
 .super-account-list { display: grid; gap: 9px; }
 .super-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid #e3e7ec; border-radius: 12px; }
 .super-account p { margin: 3px 0 0; color: #818b9c; font-size: 12px; }
 .super-account__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .super-account__actions button { min-height: 30px; padding: 0 9px; border: 1px solid #d3d9e2; border-radius: 8px; background: white; font-size: 11px; cursor: pointer; }
+.super-account__actions .primary-button { color: white; border-color: #243654; background: #f47a3f; }
 .super-create-result { display: grid; gap: 8px; margin-top: 18px; padding: 14px; border: 1px solid #f2c86c; border-radius: 12px; background: #fff5d7; }
 .super-create-result code { padding: 5px 8px; border-radius: 7px; color: #233653; background: white; font-size: 18px; font-weight: 700; letter-spacing: .12em; }
 .super-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
@@ -74,6 +94,7 @@
 
 @media (max-width: 980px) {
   .super-family-card__body { grid-template-columns: 1fr; }
+  .super-family-overview__columns { grid-template-columns: 1fr; }
   .mascot-dialogue-grid { grid-template-columns: 1fr; }
   .mascot-asset-slots { grid-template-columns: 1fr; }
   .mascot-asset-card { grid-template-columns: 72px minmax(0, 1fr); }
@@ -86,6 +107,12 @@
 }
 
 @media (max-width: 580px) {
+  .super-detail-toolbar { align-items: flex-start; flex-direction: column; }
+  .super-detail-toolbar .ghost-button { width: 100%; }
+  .super-family-overview__child { padding: 14px; }
+  .super-family-overview__child > header { align-items: flex-start; flex-direction: column; }
+  .super-family-overview__balances { justify-items: start; }
+  .super-family-overview__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .performance-admin-page .performance-metrics { grid-template-columns: 1fr; }
   .performance-filter-row { flex-direction: column; }
   .performance-filter-row select { width: 100%; }

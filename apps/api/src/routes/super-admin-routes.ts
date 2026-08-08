@@ -13,6 +13,7 @@ import {
 } from "../services/account-service.js";
 import { requireAdmin } from "../services/auth-service.js";
 import { writeAudit } from "../services/audit-service.js";
+import { addBusinessDays, businessDateAt } from "../lib/time.js";
 
 const familySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -120,6 +121,135 @@ export async function registerSuperAdminRoutes(
         })),
       })),
     };
+  });
+
+  app.get("/api/admin/families/:id/overview", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const { id: familyId } = idParams.parse(request.params);
+    const family = await prisma.family.findUnique({
+      where: { id: familyId },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        createdAt: true,
+        children: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            nickname: true,
+            petType: true,
+            starBalance: true,
+            lifetimeStarsEarned: true,
+            dailyStarGoal: true,
+            lastLoginAt: true,
+            sessions: {
+              orderBy: { lastSeenAt: "desc" },
+              take: 1,
+              select: { lastSeenAt: true },
+            },
+          },
+        },
+      },
+    });
+    if (!family) throw new HttpError(404, "FAMILY_NOT_FOUND", "没有找到家庭");
+
+    const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+    const from = addBusinessDays(today, -29);
+    const children = await Promise.all(family.children.map(async (child) => {
+      const [templates, dailyTasks, attempts, ledger, wishes, redemptions] = await Promise.all([
+        prisma.taskTemplate.findMany({
+          where: { childId: child.id, archivedAt: null },
+          orderBy: [{ isEnabled: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            experienceKind: true,
+            baseStars: true,
+            scheduleKind: true,
+            weekdays: true,
+            oneTimeDate: true,
+            isEnabled: true,
+            repeatableDaily: true,
+          },
+        }),
+        prisma.dailyTask.findMany({
+          where: { childId: child.id, taskDate: { gte: from, lte: today } },
+          select: { taskDate: true, status: true },
+        }),
+        prisma.taskAttempt.findMany({
+          where: { childId: child.id, startedAt: { gte: from } },
+          select: { status: true },
+        }),
+        prisma.starLedger.findMany({
+          where: { childId: child.id, createdAt: { gte: from } },
+          orderBy: { createdAt: "desc" },
+          take: 120,
+          select: { id: true, type: true, amount: true, balanceAfter: true, reason: true, createdAt: true },
+        }),
+        prisma.wishReward.findMany({
+          where: { childId: child.id, archivedAt: null },
+          orderBy: [{ isEnabled: "desc" }, { sortOrder: "asc" }],
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            costStars: true,
+            redemptionType: true,
+            recurrenceKind: true,
+            stockRemaining: true,
+            isEnabled: true,
+            _count: { select: { redemptions: true } },
+          },
+        }),
+        prisma.wishRedemption.findMany({
+          where: { childId: child.id, requestedAt: { gte: from } },
+          orderBy: { requestedAt: "desc" },
+          take: 120,
+          select: {
+            id: true,
+            titleSnapshot: true,
+            categorySnapshot: true,
+            costStarsSnapshot: true,
+            status: true,
+            requestedAt: true,
+            completedAt: true,
+            cancelledAt: true,
+          },
+        }),
+      ]);
+      const todayTasks = dailyTasks.filter((task) => task.taskDate.getTime() === today.getTime());
+      const completedDailyTasks = dailyTasks.filter((task) => task.status === "COMPLETED").length;
+      const completedToday = todayTasks.filter((task) => task.status === "COMPLETED").length;
+      return {
+        id: child.id,
+        nickname: child.nickname,
+        petType: child.petType,
+        starBalance: child.starBalance,
+        lifetimeStarsEarned: child.lifetimeStarsEarned,
+        dailyStarGoal: child.dailyStarGoal,
+        lastActiveAt: child.sessions[0]?.lastSeenAt ?? child.lastLoginAt,
+        taskStats: {
+          periodTotal: dailyTasks.length,
+          periodCompleted: completedDailyTasks,
+          completionRate: dailyTasks.length ? Math.round((completedDailyTasks / dailyTasks.length) * 100) : null,
+          todayTotal: todayTasks.length,
+          todayCompleted: completedToday,
+          attemptsCompleted: attempts.filter((attempt) => attempt.status === "COMPLETED").length,
+          attemptsAbandoned: attempts.filter((attempt) => attempt.status === "ABANDONED").length,
+        },
+        starStats: {
+          periodEarned: ledger.filter((entry) => entry.amount > 0).reduce((sum, entry) => sum + entry.amount, 0),
+          periodSpent: Math.abs(ledger.filter((entry) => entry.amount < 0).reduce((sum, entry) => sum + entry.amount, 0)),
+        },
+        taskTemplates: templates,
+        wishes: wishes.map(({ _count, ...wish }) => ({ ...wish, redemptionCount: _count.redemptions })),
+        redemptions,
+        ledger,
+      };
+    }));
+    return { family: { id: family.id, name: family.name, status: family.status, createdAt: family.createdAt }, from, to: today, children };
   });
 
   app.post("/api/admin/families", async (request, reply) => {
