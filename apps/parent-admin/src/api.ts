@@ -137,6 +137,11 @@ export type MakeTenLearningSettings = {
   passAccuracyPercent: number;
 };
 
+export type MathPracticeSettings = {
+  totalQuestions: number;
+  typeCounts: Record<string, number>;
+};
+
 export type MakeTenFactStats = {
   target: number;
   answer: number;
@@ -667,6 +672,15 @@ export const parentApi = {
   updateMakeTenSettings: (childId: string, data: MakeTenLearningSettings) =>
     api<{ settings: MakeTenLearningSettings }>(
       `/api/parent/children/${childId}/make-ten/settings`,
+      { method: "PATCH", body: JSON.stringify(data) },
+    ),
+  mathPracticeSettings: (childId: string) =>
+    api<{ settings: MathPracticeSettings }>(
+      `/api/parent/children/${childId}/math/settings`,
+    ),
+  updateMathPracticeSettings: (childId: string, data: MathPracticeSettings) =>
+    api<{ settings: MathPracticeSettings }>(
+      `/api/parent/children/${childId}/math/settings`,
       { method: "PATCH", body: JSON.stringify(data) },
     ),
   hanziCharacters: (

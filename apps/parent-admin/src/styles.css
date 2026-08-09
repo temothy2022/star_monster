@@ -408,6 +408,17 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .math-config__type > div { display: grid; grid-template-columns: 34px 54px 34px; align-items: center; gap: 4px; }
 .math-config__type > div button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 10px; color: #315171; background: #eaf3f9; font-size: 18px; font-weight: 800; }
 .math-config__type > div input { width: 54px; height: 34px; padding: 0 3px; text-align: center; border-radius: 9px; }
+.math-settings-form { display: grid; gap: 18px; }
+.math-settings-intro { display: grid; grid-template-columns: minmax(180px, .55fr) minmax(210px, .65fr) minmax(280px, 1.4fr); align-items: stretch; gap: 14px; padding: 18px; border: 1px solid #dce5ef; border-radius: 8px; background: #f8fbfe; }
+.math-settings-intro > div { display: grid; align-content: center; gap: 7px; min-width: 0; padding: 12px 14px; border: 1px solid #dce5ef; border-radius: 8px; background: #fff; }
+.math-settings-intro > div > span { color: #6f7c90; font-size: 12px; font-weight: 800; }
+.math-settings-intro input { width: 100%; min-height: 42px; font-size: 18px; font-weight: 800; }
+.math-settings-intro strong { font-size: 22px; font-variant-numeric: tabular-nums; }
+.math-settings-intro small { font-weight: 700; }
+.math-settings-intro .is-valid { color: #287658; border-color: #a7dec6; background: #effaf5; }
+.math-settings-intro .is-invalid { color: #a94f2f; border-color: #f0c3ae; background: #fff6f1; }
+.math-settings-intro > p { align-self: center; margin: 0; color: #65758a; font-size: 13px; line-height: 1.75; }
+.math-settings-form > .form-actions { justify-content: flex-end; }
 .wish-rule-help {
   margin: -4px 0 0;
   color: #6f7c90;
@@ -1335,6 +1346,8 @@ td { font-size: 13px; }
 }
 
 @media (max-width: 820px) {
+  .math-settings-intro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .math-settings-intro > p { grid-column: 1 / -1; }
   .admin-app { display: block; }
   .admin-sidebar { display: none; }
   .admin-topbar { top: 0; min-height: 78px; align-items: flex-start; padding: 14px 16px; }
@@ -1514,6 +1527,10 @@ td { font-size: 13px; }
   .admin-topbar h1 { font-size: 21px; }
   .mobile-menu-button { margin-right: 9px; }
   .metric-grid, .detail-list, .admin-form, .wish-admin-grid { grid-template-columns: 1fr; }
+  .math-settings-intro { grid-template-columns: 1fr; padding: 12px; }
+  .math-settings-intro > p { grid-column: auto; }
+  .math-config__type { align-items: stretch; grid-template-columns: 1fr; }
+  .math-config__type > div { justify-content: end; }
   .learning-overview-card__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .learning-mastery-grid { grid-template-columns: 1fr; }
   .clock-settings-choice { grid-template-columns: 1fr; }

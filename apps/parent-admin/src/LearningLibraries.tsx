@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
+  MATH_QUESTION_DOMAINS,
+  getMathQuestionTypesByDomain,
+} from "@star-monsters/math-practice";
+import {
   parentApi,
   type Child,
   type ClockLearningSettings,
   type MakeTenLearningStats,
   type MakeTenLearningSettings,
+  type MathPracticeSettings,
   type HanziCharacterResource,
   type HanziLearningSettings,
   type PoemLearningSettings,
@@ -291,6 +296,107 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
         </table>
         {!stats ? <div className="empty-state">正在读取训练数据…</div> : null}
       </div>
+    </Panel>
+  </div>;
+}
+
+const DEFAULT_MATH_PRACTICE_SETTINGS: MathPracticeSettings = {
+  totalQuestions: 10,
+  typeCounts: {
+    N01: 2,
+    C01: 2,
+    V01: 2,
+    V04: 1,
+    W01: 1,
+    W03: 1,
+    S04: 1,
+  },
+};
+
+export function ParentMathPractice({ child }: { child: Child }) {
+  const [settings, setSettings] = useState<MathPracticeSettings>(DEFAULT_MATH_PRACTICE_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const allocatedQuestions = Object.values(settings.typeCounts).reduce((sum, count) => sum + count, 0);
+  const allocationValid = settings.totalQuestions > 0 && allocatedQuestions === settings.totalQuestions;
+
+  useEffect(() => {
+    setLoading(true);
+    setError("");
+    void parentApi.mathPracticeSettings(child.id)
+      .then((result) => setSettings(result.settings))
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "数学练习设置加载失败"))
+      .finally(() => setLoading(false));
+  }, [child.id]);
+
+  function setTypeCount(typeId: string, nextCount: number) {
+    setSettings((current) => ({
+      ...current,
+      typeCounts: {
+        ...current.typeCounts,
+        [typeId]: Math.max(0, Math.min(100, Number.isFinite(nextCount) ? nextCount : 0)),
+      },
+    }));
+  }
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (!allocationValid) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await parentApi.updateMathPracticeSettings(child.id, settings);
+      setSettings(result.settings);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "数学练习设置保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <div className="admin-stack">
+    <Panel title="数学练习设置">
+      {loading ? <div className="empty-state">正在读取设置…</div> : <form className="math-settings-form" onSubmit={save}>
+        <div className="math-settings-intro">
+          <div>
+            <span>每次练习总题数</span>
+            <input aria-label="每次练习总题数" type="number" min={1} max={100} value={settings.totalQuestions} onChange={(event) => setSettings({ ...settings, totalQuestions: Number(event.target.value) })} />
+          </div>
+          <div className={allocationValid ? "is-valid" : "is-invalid"}>
+            <span>当前已分配</span>
+            <strong>{allocatedQuestions} / {settings.totalQuestions}</strong>
+            <small>{allocationValid ? "题目配比完整" : `还需调整 ${Math.abs(settings.totalQuestions - allocatedQuestions)} 道`}</small>
+          </div>
+          <p>这套配置由当前孩子的所有“数学练习”任务共用。任务配置页面只负责出现日期、奖励和重复领取规则。</p>
+        </div>
+        <div className="math-config__domains">
+          {MATH_QUESTION_DOMAINS.map((domain, domainIndex) => {
+            const questionTypes = getMathQuestionTypesByDomain(domain.id);
+            const domainTotal = questionTypes.reduce((sum, type) => sum + (settings.typeCounts[type.id] ?? 0), 0);
+            return <details open={domainIndex === 0} key={domain.id}>
+              <summary><span>{domain.id}</span><strong>{domain.name}</strong><b>{domainTotal} 道</b></summary>
+              <div>
+                {questionTypes.map((type) => {
+                  const count = settings.typeCounts[type.id] ?? 0;
+                  return <div className="math-config__type" key={type.id}>
+                    <span><b>{type.id}</b><span>{type.name}</span><small>{type.description}</small></span>
+                    <div>
+                      <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}>−</button>
+                      <input aria-label={`${type.name}数量`} type="number" min={0} max={100} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
+                      <button type="button" aria-label={`增加${type.name}`} onClick={() => setTypeCount(type.id, count + 1)}>＋</button>
+                    </div>
+                  </div>;
+                })}
+              </div>
+            </details>;
+          })}
+        </div>
+        <div className="admin-help">数量为 0 的题型不会出现。所有题型数量相加必须等于每次练习总题数。</div>
+        {error ? <Notice error>{error}</Notice> : null}
+        <div className="form-actions"><button className="primary-button" disabled={busy || !allocationValid}>{busy ? "保存中…" : "保存数学练习设置"}</button></div>
+      </form>}
+      {loading && error ? <Notice error>{error}</Notice> : null}
     </Panel>
   </div>;
 }

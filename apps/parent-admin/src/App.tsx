@@ -35,11 +35,7 @@ import {
 import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
 import { PetManagement } from "./PetManagement";
-import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentPoemLearning } from "./LearningLibraries";
-import {
-  MATH_QUESTION_DOMAINS,
-  getMathQuestionTypesByDomain,
-} from "@star-monsters/math-practice";
+import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentMathPractice, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
 import televisionReward from "@star-monsters/assets/images/reward-categories/television.webp";
@@ -61,6 +57,7 @@ type Section =
   | "hanzi"
   | "clock"
   | "make-ten"
+  | "math"
   | "poems"
   | "wishes"
   | "redemptions"
@@ -79,6 +76,7 @@ const SECTION_LABELS: Record<Section, string> = {
   hanzi: "汉字学习",
   clock: "时钟学习",
   "make-ten": "凑十训练",
+  math: "数学练习",
   poems: "古诗学习",
   wishes: "星愿管理",
   redemptions: "兑换处理",
@@ -111,6 +109,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
       { key: "hanzi", label: "汉字学习", icon: "字" },
       { key: "clock", label: "时钟学习", icon: "时" },
       { key: "make-ten", label: "凑十训练", icon: "十" },
+      { key: "math", label: "数学练习", icon: "数" },
       { key: "poems", label: "古诗学习", icon: "诗" },
     ],
   },
@@ -472,18 +471,6 @@ type TaskForm = {
   learningPracticeKind: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
   targetSessionsPerWeek: number;
   minimumGapDays: number;
-  mathTotalQuestions: number;
-  mathTypeCounts: Record<string, number>;
-};
-
-const DEFAULT_MATH_TYPE_COUNTS: Record<string, number> = {
-  N01: 2,
-  C01: 2,
-  V01: 2,
-  V04: 1,
-  W01: 1,
-  W03: 1,
-  S04: 1,
 };
 
 const EMPTY_TASK: TaskForm = {
@@ -505,8 +492,6 @@ const EMPTY_TASK: TaskForm = {
   learningPracticeKind: "GENERAL",
   targetSessionsPerWeek: 3,
   minimumGapDays: 1,
-  mathTotalQuestions: 10,
-  mathTypeCounts: DEFAULT_MATH_TYPE_COUNTS,
 };
 
 function taskFormFrom(template: TaskTemplate): TaskForm {
@@ -535,8 +520,6 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
     learningPracticeKind: template.learningPracticeKind,
     targetSessionsPerWeek: template.targetSessionsPerWeek ?? 3,
     minimumGapDays: template.minimumGapDays ?? 1,
-    mathTotalQuestions: template.mathPracticeConfig?.totalQuestions ?? 10,
-    mathTypeCounts: template.mathPracticeConfig?.typeCounts ?? DEFAULT_MATH_TYPE_COUNTS,
   };
 }
 
@@ -569,9 +552,6 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
     learningPracticeKind: form.learningPracticeKind,
     targetSessionsPerWeek: form.scheduleKind !== "ONE_TIME" && form.aiSchedulingEnabled ? form.targetSessionsPerWeek : null,
     minimumGapDays: form.scheduleKind !== "ONE_TIME" && form.aiSchedulingEnabled ? form.minimumGapDays : null,
-    mathPracticeConfig: isMathPractice
-      ? { totalQuestions: form.mathTotalQuestions, typeCounts: form.mathTypeCounts }
-      : null,
   };
 }
 
@@ -585,10 +565,6 @@ function Tasks({ child }: { child: Child }) {
   const [busy, setBusy] = useState(false);
   const systemTemplates = templates.filter((template) => template.systemManaged);
   const editableTemplates = templates.filter((template) => !template.systemManaged);
-  const mathAllocatedQuestions = Object.values(form.mathTypeCounts).reduce((sum, count) => sum + count, 0);
-  const mathAllocationValid = form.experienceKind !== "MATH_PRACTICE" || (
-    form.mathTotalQuestions > 0 && mathAllocatedQuestions === form.mathTotalQuestions
-  );
 
   async function load() {
     const result = await parentApi.templates(child.id);
@@ -751,52 +727,7 @@ function Tasks({ child }: { child: Child }) {
             <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
           {(form.experienceKind === "STANDARD" || form.experienceKind === "MAKE_TEN" || form.experienceKind === "MATH_PRACTICE") && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
-          {form.experienceKind === "MATH_PRACTICE" && (
-            <fieldset className="math-config field-span">
-              <legend>题目配比</legend>
-              <div className="math-config__summary">
-                <label>本次总题数<input type="number" min={1} max={100} value={form.mathTotalQuestions} onChange={(event) => setForm({ ...form, mathTotalQuestions: Number(event.target.value) })} /></label>
-                <div className={mathAllocationValid ? "is-valid" : "is-invalid"}>
-                  <strong>{mathAllocatedQuestions} / {form.mathTotalQuestions}</strong>
-                  <span>{mathAllocationValid ? "题目已分配完成" : `还需调整 ${Math.abs(form.mathTotalQuestions - mathAllocatedQuestions)} 道`}</span>
-                </div>
-              </div>
-              <p>展开分类，为需要的题型设置数量；设为 0 的题型不会出现在练习中。</p>
-              <div className="math-config__domains">
-                {MATH_QUESTION_DOMAINS.map((domain, domainIndex) => {
-                  const questionTypes = getMathQuestionTypesByDomain(domain.id);
-                  const domainTotal = questionTypes.reduce((sum, type) => sum + (form.mathTypeCounts[type.id] ?? 0), 0);
-                  return (
-                    <details open={domainIndex === 0} key={domain.id}>
-                      <summary><span>{domain.id}</span><strong>{domain.name}</strong><b>{domainTotal} 道</b></summary>
-                      <div>
-                        {questionTypes.map((type) => {
-                          const count = form.mathTypeCounts[type.id] ?? 0;
-                          const setCount = (nextCount: number) => setForm({
-                            ...form,
-                            mathTypeCounts: {
-                              ...form.mathTypeCounts,
-                              [type.id]: Math.max(0, Math.min(100, nextCount)),
-                            },
-                          });
-                          return (
-                            <div className="math-config__type" key={type.id}>
-                              <span><b>{type.id}</b><span>{type.name}</span><small>{type.description}</small></span>
-                              <div>
-                                <button type="button" disabled={count === 0} onClick={() => setCount(count - 1)}>−</button>
-                                <input aria-label={`${type.name}数量`} type="number" min={0} max={100} value={count} onChange={(event) => setCount(Number(event.target.value))} />
-                                <button type="button" onClick={() => setCount(count + 1)}>＋</button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </details>
-                  );
-                })}
-              </div>
-            </fieldset>
-          )}
+          {form.experienceKind === "MATH_PRACTICE" && <div className="field-span admin-help">题目总量和 42 类题型配比统一在“学习内容”中的“数学练习”设置；这里仅配置任务出现时间、奖励和是否可重复完成。</div>}
           <label>出现方式<select value={form.scheduleKind} onChange={(event) => setForm({ ...form, scheduleKind: event.target.value as TaskForm["scheduleKind"] })}><option value="DAILY">每天</option><option value="WORKDAYS">工作日</option><option value="SELECTED_WEEKDAYS">指定星期</option><option value="ONE_TIME">一次性任务</option></select></label>
           {form.scheduleKind === "ONE_TIME" && <label>任务日期<input required type="date" value={form.oneTimeDate} onChange={(event) => setForm({ ...form, oneTimeDate: event.target.value })} /></label>}
           {form.scheduleKind === "SELECTED_WEEKDAYS" && <fieldset className="weekday-field field-span"><legend>选择星期</legend>{["日","一","二","三","四","五","六"].map((label, weekday) => <label key={weekday}><input type="checkbox" checked={form.weekdays.includes(weekday)} onChange={(event) => setForm({ ...form, weekdays: event.target.checked ? [...form.weekdays, weekday] : form.weekdays.filter((item) => item !== weekday) })} />周{label}</label>)}</fieldset>}
@@ -808,7 +739,7 @@ function Tasks({ child }: { child: Child }) {
           </>}
           <label className="checkbox field-span"><input type="checkbox" checked={form.isEnabled} onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} />立即启用</label>
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
-          <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_TASK); }}>取消编辑</button>}<button className="primary-button" disabled={busy || !mathAllocationValid}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
+          <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_TASK); }}>取消编辑</button>}<button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
         </form>
       </Panel>
       <Panel title={`任务模板（${templates.length}）`}>
@@ -2689,6 +2620,7 @@ export function App() {
             {section === "hanzi" && <ParentHanziLearning child={selectedChild} />}
             {section === "clock" && <ParentClockLearning child={selectedChild} />}
             {section === "make-ten" && <ParentMakeTenLearning child={selectedChild} />}
+            {section === "math" && <ParentMathPractice child={selectedChild} />}
             {section === "poems" && <ParentPoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}

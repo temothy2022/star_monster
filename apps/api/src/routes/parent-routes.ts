@@ -211,10 +211,6 @@ const taskTemplateShape = {
   learningPracticeKind: learningPracticeKind.default("GENERAL"),
   targetSessionsPerWeek: z.number().int().min(1).max(7).nullable().optional(),
   minimumGapDays: z.number().int().min(0).max(6).nullable().optional(),
-  mathPracticeConfig: z.object({
-    totalQuestions: z.number().int().min(1).max(100),
-    typeCounts: z.record(z.string(), z.number().int().min(0).max(100)),
-  }).nullable().optional(),
 };
 
 const taskTemplateSchema = z
@@ -252,26 +248,6 @@ const taskTemplateSchema = z
           path: ["experienceKind"],
           message: "数学练习必须是不限时任务",
         });
-      }
-      if (input.mathPracticeConfig) {
-        const validIds = new Set<string>(MATH_QUESTION_TYPES.map((item) => item.id));
-        const entries = Object.entries(input.mathPracticeConfig.typeCounts);
-        const invalidId = entries.find(([typeId]) => !validIds.has(typeId));
-        if (invalidId) {
-          context.addIssue({
-            code: "custom",
-            path: ["mathPracticeConfig", "typeCounts", invalidId[0]],
-            message: "包含未知的数学题型",
-          });
-        }
-        const allocated = entries.reduce((sum, [, count]) => sum + count, 0);
-        if (allocated !== input.mathPracticeConfig.totalQuestions) {
-          context.addIssue({
-            code: "custom",
-            path: ["mathPracticeConfig", "typeCounts"],
-            message: "各题型数量之和必须等于题目总数",
-          });
-        }
       }
     }
     if (
@@ -809,7 +785,7 @@ export async function registerParentRoutes(
     await requireOwnedChild(request, reply, config, id);
     const input = taskTemplateSchema.parse(request.body);
     const mathPracticeConfig = input.experienceKind === "MATH_PRACTICE"
-      ? input.mathPracticeConfig ?? await loadMathPracticeSettings(id)
+      ? await loadMathPracticeSettings(id)
       : null;
     const template = await prisma.taskTemplate.create({
       data: {
@@ -828,13 +804,6 @@ export async function registerParentRoutes(
       },
       include: { mathPracticeConfig: true },
     });
-    if (input.experienceKind === "MATH_PRACTICE" && mathPracticeConfig) {
-      await prisma.mathPracticeSettings.upsert({
-        where: { childId: id },
-        update: { totalQuestions: mathPracticeConfig.totalQuestions, typeCounts: mathPracticeConfig.typeCounts },
-        create: { childId: id, totalQuestions: mathPracticeConfig.totalQuestions, typeCounts: mathPracticeConfig.typeCounts },
-      });
-    }
     await generateDailyTasks(
       id,
       businessDateAt(new Date(), config.APP_TIME_ZONE),
@@ -853,11 +822,29 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     const input = mathPracticeSettingsSchema.parse(request.body);
+    const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
     const settings = await prisma.$transaction(async (tx) => {
       const saved = await tx.mathPracticeSettings.upsert({ where: { childId: id }, update: input, create: { childId: id, ...input } });
-      const templates = await tx.taskTemplate.findMany({ where: { childId: id, experienceKind: "MATH_PRACTICE", archivedAt: null }, select: { id: true } });
+      const templates = await tx.taskTemplate.findMany({ where: { childId: id, experienceKind: "MATH_PRACTICE", archivedAt: null }, select: { id: true, repeatableDaily: true } });
       for (const template of templates) {
         await tx.mathPracticeConfig.upsert({ where: { taskTemplateId: template.id }, update: input, create: { taskTemplateId: template.id, ...input } });
+      }
+      const templateIds = templates.map((template) => template.id);
+      const repeatableTemplateIds = templates.filter((template) => template.repeatableDaily).map((template) => template.id);
+      if (templateIds.length) {
+        await tx.dailyTask.updateMany({
+          where: {
+            childId: id,
+            taskDate: today,
+            OR: [
+              { templateId: { in: templateIds }, status: { in: ["PENDING", "EXPIRED"] } },
+              ...(repeatableTemplateIds.length
+                ? [{ templateId: { in: repeatableTemplateIds }, status: "COMPLETED" as const }]
+                : []),
+            ],
+          },
+          data: { mathPracticeConfigSnapshot: input },
+        });
       }
       return saved;
     });
@@ -880,30 +867,29 @@ export async function registerParentRoutes(
       const merged = taskTemplateSchema.parse({
         ...existing,
         ...patch,
-        mathPracticeConfig:
-          patch.mathPracticeConfig !== undefined
-            ? patch.mathPracticeConfig
-            : existing.mathPracticeConfig,
         oneTimeDate:
           patch.oneTimeDate !== undefined
             ? patch.oneTimeDate
             : existing.oneTimeDate?.toISOString().slice(0, 10),
       });
+      const mathPracticeConfig = merged.experienceKind === "MATH_PRACTICE"
+        ? await loadMathPracticeSettings(childId)
+        : null;
       const template = await prisma.taskTemplate.update({
         where: { id },
         data: {
           ...templateData(merged),
           mathPracticeConfig:
-            merged.experienceKind === "MATH_PRACTICE" && merged.mathPracticeConfig
+            merged.experienceKind === "MATH_PRACTICE" && mathPracticeConfig
               ? {
                   upsert: {
                     create: {
-                      totalQuestions: merged.mathPracticeConfig.totalQuestions,
-                      typeCounts: merged.mathPracticeConfig.typeCounts,
+                      totalQuestions: mathPracticeConfig.totalQuestions,
+                      typeCounts: mathPracticeConfig.typeCounts,
                     },
                     update: {
-                      totalQuestions: merged.mathPracticeConfig.totalQuestions,
-                      typeCounts: merged.mathPracticeConfig.typeCounts,
+                      totalQuestions: mathPracticeConfig.totalQuestions,
+                      typeCounts: mathPracticeConfig.typeCounts,
                     },
                   },
                 }
