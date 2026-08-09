@@ -10,6 +10,7 @@ import { registerChildTaskRoutes } from "./routes/child-task-routes.js";
 import { registerChildHanziRoutes } from "./routes/child-hanzi-routes.js";
 import { registerChildClockRoutes } from "./routes/child-clock-routes.js";
 import { registerChildMakeTenRoutes } from "./routes/child-make-ten-routes.js";
+import { registerChildMathPracticeRoutes } from "./routes/child-math-practice-routes.js";
 import { registerChildPoemRoutes } from "./routes/child-poem-routes.js";
 import { registerChildProgressRoutes } from "./routes/child-progress-routes.js";
 import { registerChildPetRoutes } from "./routes/child-pet-routes.js";
@@ -111,6 +112,7 @@ export async function buildApp(config: AppConfig) {
   await registerChildHanziRoutes(app, config);
   await registerChildClockRoutes(app, config);
   await registerChildMakeTenRoutes(app, config);
+  await registerChildMathPracticeRoutes(app, config);
   await registerChildPoemRoutes(app, config);
   await registerClientTelemetryRoutes(app, config);
   await registerHanziMediaRoutes(app, config);

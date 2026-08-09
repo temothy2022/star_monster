@@ -14,6 +14,7 @@
   "dependencies": {
     "@star-monsters/assets": "workspace:*",
     "@star-monsters/design-tokens": "workspace:*",
+    "@star-monsters/math-practice": "workspace:*",
     "@star-monsters/ui": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

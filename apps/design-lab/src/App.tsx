@@ -64,6 +64,16 @@ const MakeTenExperience = lazy(() =>
     default: module.MakeTenExperience,
   })),
 );
+const MathPracticePreview = lazy(() =>
+  import("./math-practice/MathPracticePreview").then((module) => ({
+    default: module.MathPracticePreview,
+  })),
+);
+const MathPracticeExperience = lazy(() =>
+  import("./math-practice/MathPracticeExperience").then((module) => ({
+    default: module.MathPracticeExperience,
+  })),
+);
 const UntimedTaskActive = lazy(() =>
   loadUntimedTaskPages().then((module) => ({
     default: module.UntimedTaskActive,
@@ -232,7 +242,9 @@ type AppRoute =
   | "hanzi-session"
   | "clock-session"
   | "make-ten-session"
+  | "math-practice-session"
   | "poem-session"
+  | "math-preview"
   | "poem-recitation";
 
 const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
@@ -296,7 +308,9 @@ function readRouteFromHash(): AppRoute {
     "hanzi-session",
     "clock-session",
     "make-ten-session",
+    "math-practice-session",
     "poem-session",
+    "math-preview",
     "poem-recitation",
   ];
 
@@ -323,6 +337,7 @@ function isActiveTaskRoute(route: AppRoute) {
     route === "hanzi-session" ||
     route === "clock-session" ||
     route === "make-ten-session" ||
+    route === "math-practice-session" ||
     route === "poem-session"
   );
 }
@@ -333,6 +348,8 @@ function childPageTitle(route: AppRoute) {
   if (route.startsWith("hanzi-")) return "汉字学习";
   if (route === "clock-session") return "时钟学习";
   if (route === "make-ten-session") return "凑十训练";
+  if (route === "math-practice-session") return "数学练习";
+  if (route === "math-preview") return "数学练习设计室";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
   if (route === "pet-growth") return "星宠小屋";
@@ -521,6 +538,8 @@ export function App() {
               ? "clock-session"
             : active.dailyTask.experienceKindSnapshot === "MAKE_TEN"
               ? "make-ten-session"
+            : active.dailyTask.experienceKindSnapshot === "MATH_PRACTICE"
+              ? "math-practice-session"
             : active.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
                 active.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
               ? "poem-session"
@@ -589,6 +608,8 @@ export function App() {
                 ? "clock-session"
               : attempt.dailyTask.experienceKindSnapshot === "MAKE_TEN"
                 ? "make-ten-session"
+              : attempt.dailyTask.experienceKindSnapshot === "MATH_PRACTICE"
+                ? "math-practice-session"
               : attempt.dailyTask.experienceKindSnapshot === "POEM_LEARNING" ||
                   attempt.dailyTask.experienceKindSnapshot === "POEM_REVIEW"
                 ? "poem-session"
@@ -669,6 +690,23 @@ export function App() {
     );
   }
 
+  if (route === "math-practice-session") {
+    return (
+      <MathPracticeExperience
+        attemptId={activeAttempt!.id}
+        onExit={leaveActiveAttempt}
+        onCompleted={(reward) => {
+          setLastCompletion({
+            taskTitle: activeAttempt!.dailyTask.titleSnapshot,
+            ...reward,
+          });
+          setActiveAttempt(null);
+          navigate("untimed-complete");
+        }}
+      />
+    );
+  }
+
   if (route === "poem-session") {
     return (
       <PoemLearningExperience
@@ -688,6 +726,10 @@ export function App() {
 
   if (route === "pages") {
     return <PageIndex onNavigate={(nextRoute: PageIndexRoute) => navigate(nextRoute)} />;
+  }
+
+  if (route === "math-preview") {
+    return <MathPracticePreview />;
   }
 
   if (route === "poem-recitation") {

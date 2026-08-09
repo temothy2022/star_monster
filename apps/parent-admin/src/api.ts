@@ -78,6 +78,7 @@ export type TaskTemplate = {
     | "HANZI_REVIEW"
     | "CLOCK_LEARNING"
     | "MAKE_TEN"
+    | "MATH_PRACTICE"
     | "POEM_LEARNING"
     | "POEM_REVIEW";
   systemManaged: boolean;
@@ -100,6 +101,10 @@ export type TaskTemplate = {
   learningPracticeKind: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
   targetSessionsPerWeek: number | null;
   minimumGapDays: number | null;
+  mathPracticeConfig: {
+    totalQuestions: number;
+    typeCounts: Record<string, number>;
+  } | null;
 };
 
 export type HanziLearningSettings = {

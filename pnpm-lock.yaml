@@ -19,6 +19,9 @@ importers:
       '@prisma/client':
         specifier: 6.19.0
         version: 6.19.0(prisma@6.19.0(typescript@5.9.3))(typescript@5.9.3)
+      '@star-monsters/math-practice':
+        specifier: workspace:*
+        version: link:../../packages/math-practice
       fastify:
         specifier: ^5.6.2
         version: 5.10.0
@@ -53,6 +56,9 @@ importers:
       '@star-monsters/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens
+      '@star-monsters/math-practice':
+        specifier: workspace:*
+        version: link:../../packages/math-practice
       '@star-monsters/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -87,6 +93,9 @@ importers:
       '@star-monsters/assets':
         specifier: workspace:*
         version: link:../../packages/assets
+      '@star-monsters/math-practice':
+        specifier: workspace:*
+        version: link:../../packages/math-practice
       react:
         specifier: ^19.2.0
         version: 19.2.7
@@ -142,6 +151,15 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+
+  packages/math-practice:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.8
+        version: 4.1.10(@types/node@24.13.3)(vite@7.3.6(@types/node@24.13.3)(jiti@2.7.0)(tsx@4.23.1))
 
   packages/ui:
     dependencies:

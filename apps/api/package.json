@@ -22,6 +22,7 @@
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.1.0",
+    "@star-monsters/math-practice": "workspace:*",
     "@prisma/client": "6.19.0",
     "fastify": "^5.6.2",
     "sharp": "^0.34.5",

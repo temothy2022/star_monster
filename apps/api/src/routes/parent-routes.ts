@@ -1,5 +1,6 @@
 import { PlanetKey, Prisma } from "@prisma/client";
 import type { DailyTaskStatus } from "@prisma/client";
+import { MATH_QUESTION_TYPES } from "@star-monsters/math-practice";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -37,7 +38,7 @@ import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
-const taskExperienceKind = z.enum(["STANDARD", "HANZI_LEARNING", "CLOCK_LEARNING", "MAKE_TEN"]);
+const taskExperienceKind = z.enum(["STANDARD", "HANZI_LEARNING", "CLOCK_LEARNING", "MAKE_TEN", "MATH_PRACTICE"]);
 const scheduleKind = z.enum([
   "DAILY",
   "WORKDAYS",
@@ -115,6 +116,37 @@ const makeTenSettingsSchema = z.object({
   secondsPerQuestion: z.number().min(2).max(30),
   passAccuracyPercent: z.number().int().min(1).max(100),
 });
+const mathPracticeSettingsSchema = z.object({
+  totalQuestions: z.number().int().min(1).max(100),
+  typeCounts: z.record(z.string(), z.number().int().min(0).max(100)),
+}).superRefine((input, context) => {
+  const validIds = new Set<string>(MATH_QUESTION_TYPES.map((item) => item.id));
+  const invalidId = Object.keys(input.typeCounts).find((typeId) => !validIds.has(typeId));
+  if (invalidId) context.addIssue({ code: "custom", path: ["typeCounts", invalidId], message: "包含未知的数学题型" });
+  const allocated = Object.values(input.typeCounts).reduce((sum, count) => sum + count, 0);
+  if (allocated !== input.totalQuestions) context.addIssue({ code: "custom", path: ["typeCounts"], message: "各题型数量之和必须等于题目总数" });
+});
+const DEFAULT_MATH_PRACTICE_SETTINGS = {
+  totalQuestions: 10,
+  typeCounts: { N01: 2, C01: 2, V01: 2, V04: 1, W01: 1, W03: 1, S04: 1 },
+};
+
+async function loadMathPracticeSettings(childId: string) {
+  const settings = await prisma.mathPracticeSettings.findUnique({ where: { childId } });
+  if (settings) {
+    return mathPracticeSettingsSchema.parse({
+      totalQuestions: settings.totalQuestions,
+      typeCounts: settings.typeCounts,
+    });
+  }
+  const legacy = await prisma.mathPracticeConfig.findFirst({
+    where: { taskTemplate: { childId, experienceKind: "MATH_PRACTICE", archivedAt: null } },
+    orderBy: { updatedAt: "desc" },
+  });
+  return mathPracticeSettingsSchema.parse(legacy
+    ? { totalQuestions: legacy.totalQuestions, typeCounts: legacy.typeCounts }
+    : DEFAULT_MATH_PRACTICE_SETTINGS);
+}
 const leaderboardSettingsSchema = z.object({
   competitorGrowthPercent: z.number().int().min(25).max(200),
   dailyCompetitorStarDelta: z.number().int().min(-50).max(50),
@@ -179,6 +211,10 @@ const taskTemplateShape = {
   learningPracticeKind: learningPracticeKind.default("GENERAL"),
   targetSessionsPerWeek: z.number().int().min(1).max(7).nullable().optional(),
   minimumGapDays: z.number().int().min(0).max(6).nullable().optional(),
+  mathPracticeConfig: z.object({
+    totalQuestions: z.number().int().min(1).max(100),
+    typeCounts: z.record(z.string(), z.number().int().min(0).max(100)),
+  }).nullable().optional(),
 };
 
 const taskTemplateSchema = z
@@ -208,6 +244,35 @@ const taskTemplateSchema = z
         path: ["experienceKind"],
         message: "凑十训练必须是不限时任务",
       });
+    }
+    if (input.experienceKind === "MATH_PRACTICE") {
+      if (input.mode !== "UNTIMED") {
+        context.addIssue({
+          code: "custom",
+          path: ["experienceKind"],
+          message: "数学练习必须是不限时任务",
+        });
+      }
+      if (input.mathPracticeConfig) {
+        const validIds = new Set<string>(MATH_QUESTION_TYPES.map((item) => item.id));
+        const entries = Object.entries(input.mathPracticeConfig.typeCounts);
+        const invalidId = entries.find(([typeId]) => !validIds.has(typeId));
+        if (invalidId) {
+          context.addIssue({
+            code: "custom",
+            path: ["mathPracticeConfig", "typeCounts", invalidId[0]],
+            message: "包含未知的数学题型",
+          });
+        }
+        const allocated = entries.reduce((sum, [, count]) => sum + count, 0);
+        if (allocated !== input.mathPracticeConfig.totalQuestions) {
+          context.addIssue({
+            code: "custom",
+            path: ["mathPracticeConfig", "typeCounts"],
+            message: "各题型数量之和必须等于题目总数",
+          });
+        }
+      }
     }
     if (
       input.earlyBonusEnabled &&
@@ -733,6 +798,7 @@ export async function registerParentRoutes(
     return {
       templates: await prisma.taskTemplate.findMany({
         where: { childId: id, archivedAt: null },
+        include: { mathPracticeConfig: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       }),
     };
@@ -742,15 +808,60 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     const input = taskTemplateSchema.parse(request.body);
+    const mathPracticeConfig = input.experienceKind === "MATH_PRACTICE"
+      ? input.mathPracticeConfig ?? await loadMathPracticeSettings(id)
+      : null;
     const template = await prisma.taskTemplate.create({
-      data: { childId: id, ...templateData(input) },
+      data: {
+        childId: id,
+        ...templateData(input),
+        ...(input.experienceKind === "MATH_PRACTICE" && mathPracticeConfig
+          ? {
+              mathPracticeConfig: {
+                create: {
+                  totalQuestions: mathPracticeConfig.totalQuestions,
+                  typeCounts: mathPracticeConfig.typeCounts,
+                },
+              },
+            }
+          : {}),
+      },
+      include: { mathPracticeConfig: true },
     });
+    if (input.experienceKind === "MATH_PRACTICE" && mathPracticeConfig) {
+      await prisma.mathPracticeSettings.upsert({
+        where: { childId: id },
+        update: { totalQuestions: mathPracticeConfig.totalQuestions, typeCounts: mathPracticeConfig.typeCounts },
+        create: { childId: id, totalQuestions: mathPracticeConfig.totalQuestions, typeCounts: mathPracticeConfig.typeCounts },
+      });
+    }
     await generateDailyTasks(
       id,
       businessDateAt(new Date(), config.APP_TIME_ZONE),
     );
     reply.status(201);
     return { template };
+  });
+
+  app.get("/api/parent/children/:id/math/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    return { settings: await loadMathPracticeSettings(id) };
+  });
+
+  app.patch("/api/parent/children/:id/math/settings", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const input = mathPracticeSettingsSchema.parse(request.body);
+    const settings = await prisma.$transaction(async (tx) => {
+      const saved = await tx.mathPracticeSettings.upsert({ where: { childId: id }, update: input, create: { childId: id, ...input } });
+      const templates = await tx.taskTemplate.findMany({ where: { childId: id, experienceKind: "MATH_PRACTICE", archivedAt: null }, select: { id: true } });
+      for (const template of templates) {
+        await tx.mathPracticeConfig.upsert({ where: { taskTemplateId: template.id }, update: input, create: { taskTemplateId: template.id, ...input } });
+      }
+      return saved;
+    });
+    return { settings: { totalQuestions: settings.totalQuestions, typeCounts: settings.typeCounts } };
   });
 
   app.patch(
@@ -761,6 +872,7 @@ export async function registerParentRoutes(
       const patch = taskTemplatePatchSchema.parse(request.body);
       const existing = await prisma.taskTemplate.findFirst({
         where: { id, childId, archivedAt: null, systemManaged: false },
+        include: { mathPracticeConfig: true },
       });
       if (!existing)
         throw new HttpError(404, "TASK_TEMPLATE_NOT_FOUND", "没有找到任务模板");
@@ -768,6 +880,10 @@ export async function registerParentRoutes(
       const merged = taskTemplateSchema.parse({
         ...existing,
         ...patch,
+        mathPracticeConfig:
+          patch.mathPracticeConfig !== undefined
+            ? patch.mathPracticeConfig
+            : existing.mathPracticeConfig,
         oneTimeDate:
           patch.oneTimeDate !== undefined
             ? patch.oneTimeDate
@@ -775,7 +891,27 @@ export async function registerParentRoutes(
       });
       const template = await prisma.taskTemplate.update({
         where: { id },
-        data: templateData(merged),
+        data: {
+          ...templateData(merged),
+          mathPracticeConfig:
+            merged.experienceKind === "MATH_PRACTICE" && merged.mathPracticeConfig
+              ? {
+                  upsert: {
+                    create: {
+                      totalQuestions: merged.mathPracticeConfig.totalQuestions,
+                      typeCounts: merged.mathPracticeConfig.typeCounts,
+                    },
+                    update: {
+                      totalQuestions: merged.mathPracticeConfig.totalQuestions,
+                      typeCounts: merged.mathPracticeConfig.typeCounts,
+                    },
+                  },
+                }
+              : existing.mathPracticeConfig
+                ? { delete: true }
+                : undefined,
+        },
+        include: { mathPracticeConfig: true },
       });
       const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
       const remainsScheduledToday =
@@ -807,6 +943,12 @@ export async function registerParentRoutes(
               earlyThresholdSecsSnapshot: template.earlyThresholdSeconds,
               earlyBonusStarsSnapshot: template.earlyBonusStars,
               repeatableDailySnapshot: template.repeatableDaily,
+              mathPracticeConfigSnapshot: template.mathPracticeConfig
+                ? {
+                    totalQuestions: template.mathPracticeConfig.totalQuestions,
+                    typeCounts: template.mathPracticeConfig.typeCounts,
+                  }
+                : Prisma.JsonNull,
             }
           : { status: "EXPIRED", expiredAt: new Date() },
       });

@@ -73,6 +73,7 @@ enum TaskExperienceKind {
   HANZI_REVIEW
   CLOCK_LEARNING
   MAKE_TEN
+  MATH_PRACTICE
   POEM_LEARNING
   POEM_REVIEW
 }
@@ -307,6 +308,9 @@ model ChildProfile {
   makeTenSessions         MakeTenLearningSession[]
   makeTenQuestionAttempts MakeTenQuestionAttempt[]
   makeTenFactProgress     MakeTenFactProgress[]
+  mathPracticeSettings    MathPracticeSettings?
+  mathPracticeSessions    MathPracticeSession[]
+  mathPracticeAttempts    MathPracticeQuestionAttempt[]
   poemSettings            PoemLearningSettings?
   poemProgress            PoemLearningProgress[]
   poemSessions            PoemLearningSession[]
@@ -539,6 +543,7 @@ model TaskTemplate {
 
   child      ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
   dailyTasks DailyTask[]
+  mathPracticeConfig MathPracticeConfig?
 
   @@index([childId, isEnabled, archivedAt])
   @@index([childId, scheduleKind, oneTimeDate])
@@ -722,6 +727,7 @@ model DailyTask {
   earlyThresholdSecsSnapshot Int?
   earlyBonusStarsSnapshot    Int?
   repeatableDailySnapshot    Boolean            @default(false)
+  mathPracticeConfigSnapshot Json?
   completedAt                DateTime?
   completionDurationSeconds  Int?
   expiredAt                  DateTime?
@@ -929,6 +935,70 @@ model MakeTenFactProgress {
   @@index([childId, lastAnsweredAt])
 }
 
+model MathPracticeConfig {
+  id              String   @id @default(cuid())
+  taskTemplateId  String   @unique
+  totalQuestions  Int      @default(10)
+  typeCounts      Json
+  schemaVersion   Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  taskTemplate TaskTemplate @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+}
+
+model MathPracticeSettings {
+  id              String   @id @default(cuid())
+  childId         String   @unique
+  totalQuestions  Int      @default(10)
+  typeCounts      Json
+  schemaVersion   Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+}
+
+model MathPracticeSession {
+  id             String    @id @default(cuid())
+  childId        String
+  taskAttemptId  String    @unique
+  sessionDate    DateTime  @db.Date
+  questions      Json
+  currentIndex   Int       @default(0)
+  correctCount   Int       @default(0)
+  totalQuestions Int
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  child       ChildProfile                  @relation(fields: [childId], references: [id], onDelete: Cascade)
+  taskAttempt TaskAttempt                   @relation(fields: [taskAttemptId], references: [id], onDelete: Cascade)
+  attempts    MathPracticeQuestionAttempt[]
+
+  @@index([childId, completedAt])
+  @@index([childId, sessionDate])
+}
+
+model MathPracticeQuestionAttempt {
+  id            String   @id @default(cuid())
+  childId       String
+  sessionId     String
+  questionIndex Int
+  attemptNumber Int
+  values        Json
+  correct       Boolean
+  responseMs    Int
+  answeredAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  child   ChildProfile        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  session MathPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionIndex, attemptNumber])
+  @@index([childId, answeredAt])
+}
+
 model Poem {
   id        String   @id @default(cuid())
   title     String
@@ -1026,6 +1096,7 @@ model TaskAttempt {
   hanziSession   HanziLearningSession?
   clockSession   ClockLearningSession?
   makeTenSession MakeTenLearningSession?
+  mathPracticeSession MathPracticeSession?
   poemSession    PoemLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])

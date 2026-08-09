@@ -21,6 +21,12 @@ import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 
 type AttemptWithTask = TaskAttempt & { dailyTask: DailyTask };
+type TaskTemplateWithMathConfig = TaskTemplate & {
+  mathPracticeConfig: {
+    totalQuestions: number;
+    typeCounts: Prisma.JsonValue;
+  } | null;
+};
 type CompleteTaskTiming = { stage: string; ms: number };
 type CompleteTaskOptions = {
   now?: Date;
@@ -209,7 +215,7 @@ async function settlePreviousDay(
 async function eligibleTaskTemplates(
   childId: string,
   businessDate: Date,
-): Promise<TaskTemplate[]> {
+): Promise<TaskTemplateWithMathConfig[]> {
   await ensureHanziReviewTemplate(childId);
   const templates = await prisma.taskTemplate.findMany({
     where: {
@@ -217,6 +223,7 @@ async function eligibleTaskTemplates(
       isEnabled: true,
       archivedAt: null,
     },
+    include: { mathPracticeConfig: true },
   });
 
   const due = templates.filter((template) =>
@@ -301,6 +308,12 @@ export async function generateDailyTasks(
       earlyThresholdSecsSnapshot: template.earlyThresholdSeconds,
       earlyBonusStarsSnapshot: template.earlyBonusStars,
       repeatableDailySnapshot: template.repeatableDaily,
+      mathPracticeConfigSnapshot: template.mathPracticeConfig
+        ? {
+            totalQuestions: template.mathPracticeConfig.totalQuestions,
+            typeCounts: template.mathPracticeConfig.typeCounts,
+          }
+        : Prisma.JsonNull,
     })),
   });
   return due;
@@ -950,6 +963,24 @@ export async function completeTask(
         409,
         "MAKE_TEN_CHALLENGE_FAILED",
         "本次凑十挑战未达标，任务不会完成",
+      );
+    }
+  }
+  if (existing.dailyTask.experienceKindSnapshot === "MATH_PRACTICE") {
+    stageStartedAt = performance.now();
+    const mathPracticeSession = await prisma.mathPracticeSession.findUnique({
+      where: { taskAttemptId: existing.id },
+      select: { completedAt: true, currentIndex: true, totalQuestions: true },
+    });
+    mark("load-math-practice-session", stageStartedAt);
+    if (
+      !mathPracticeSession?.completedAt ||
+      mathPracticeSession.currentIndex < mathPracticeSession.totalQuestions
+    ) {
+      throw new HttpError(
+        409,
+        "MATH_PRACTICE_SESSION_INCOMPLETE",
+        "请先完成全部数学题目",
       );
     }
   }

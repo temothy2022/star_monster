@@ -36,6 +36,10 @@ import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
 import { PetManagement } from "./PetManagement";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentPoemLearning } from "./LearningLibraries";
+import {
+  MATH_QUESTION_DOMAINS,
+  getMathQuestionTypesByDomain,
+} from "@star-monsters/math-practice";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
 import televisionReward from "@star-monsters/assets/images/reward-categories/television.webp";
@@ -451,7 +455,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
 
 type TaskForm = {
   title: string;
-  experienceKind: "STANDARD" | "HANZI_LEARNING" | "HANZI_REVIEW" | "CLOCK_LEARNING" | "MAKE_TEN";
+  experienceKind: "STANDARD" | "HANZI_LEARNING" | "HANZI_REVIEW" | "CLOCK_LEARNING" | "MAKE_TEN" | "MATH_PRACTICE";
   category: string;
   mode: "UNTIMED" | "TIMED";
   durationMinutes: number;
@@ -468,6 +472,18 @@ type TaskForm = {
   learningPracticeKind: "GENERAL" | "NEW_CONTENT" | "REVIEW" | "MIXED";
   targetSessionsPerWeek: number;
   minimumGapDays: number;
+  mathTotalQuestions: number;
+  mathTypeCounts: Record<string, number>;
+};
+
+const DEFAULT_MATH_TYPE_COUNTS: Record<string, number> = {
+  N01: 2,
+  C01: 2,
+  V01: 2,
+  V04: 1,
+  W01: 1,
+  W03: 1,
+  S04: 1,
 };
 
 const EMPTY_TASK: TaskForm = {
@@ -489,6 +505,8 @@ const EMPTY_TASK: TaskForm = {
   learningPracticeKind: "GENERAL",
   targetSessionsPerWeek: 3,
   minimumGapDays: 1,
+  mathTotalQuestions: 10,
+  mathTypeCounts: DEFAULT_MATH_TYPE_COUNTS,
 };
 
 function taskFormFrom(template: TaskTemplate): TaskForm {
@@ -497,7 +515,8 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
     experienceKind:
       template.experienceKind === "HANZI_LEARNING" ||
       template.experienceKind === "CLOCK_LEARNING" ||
-      template.experienceKind === "MAKE_TEN"
+      template.experienceKind === "MAKE_TEN" ||
+      template.experienceKind === "MATH_PRACTICE"
         ? template.experienceKind
         : "STANDARD",
     category: template.category,
@@ -516,6 +535,8 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
     learningPracticeKind: template.learningPracticeKind,
     targetSessionsPerWeek: template.targetSessionsPerWeek ?? 3,
     minimumGapDays: template.minimumGapDays ?? 1,
+    mathTotalQuestions: template.mathPracticeConfig?.totalQuestions ?? 10,
+    mathTypeCounts: template.mathPracticeConfig?.typeCounts ?? DEFAULT_MATH_TYPE_COUNTS,
   };
 }
 
@@ -523,13 +544,14 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
   const isHanzi = form.experienceKind === "HANZI_LEARNING";
   const isClock = form.experienceKind === "CLOCK_LEARNING";
   const isMakeTen = form.experienceKind === "MAKE_TEN";
-  const isLearningExperience = isHanzi || isClock || isMakeTen;
-  const supportsRepeatableDaily = form.experienceKind === "STANDARD" || isMakeTen;
+  const isMathPractice = form.experienceKind === "MATH_PRACTICE";
+  const isLearningExperience = isHanzi || isClock || isMakeTen || isMathPractice;
+  const supportsRepeatableDaily = form.experienceKind === "STANDARD" || isMakeTen || isMathPractice;
   return {
     title: form.title,
     experienceKind: form.experienceKind,
-    category: isHanzi ? "CHINESE" : isClock || isMakeTen ? "MATH" : form.category,
-    iconKey: isHanzi ? "chinese" : isClock || isMakeTen ? "math" : form.category.toLowerCase(),
+    category: isHanzi ? "CHINESE" : isClock || isMakeTen || isMathPractice ? "MATH" : form.category,
+    iconKey: isHanzi ? "chinese" : isClock || isMakeTen || isMathPractice ? "math" : form.category.toLowerCase(),
     mode: isLearningExperience ? "UNTIMED" : form.mode,
     suggestedSeconds: isLearningExperience || form.mode === "UNTIMED" ? form.durationMinutes * 60 : null,
     timeLimitSeconds: !isLearningExperience && form.mode === "TIMED" ? form.durationMinutes * 60 : null,
@@ -547,6 +569,9 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
     learningPracticeKind: form.learningPracticeKind,
     targetSessionsPerWeek: form.scheduleKind !== "ONE_TIME" && form.aiSchedulingEnabled ? form.targetSessionsPerWeek : null,
     minimumGapDays: form.scheduleKind !== "ONE_TIME" && form.aiSchedulingEnabled ? form.minimumGapDays : null,
+    mathPracticeConfig: isMathPractice
+      ? { totalQuestions: form.mathTotalQuestions, typeCounts: form.mathTypeCounts }
+      : null,
   };
 }
 
@@ -560,6 +585,10 @@ function Tasks({ child }: { child: Child }) {
   const [busy, setBusy] = useState(false);
   const systemTemplates = templates.filter((template) => template.systemManaged);
   const editableTemplates = templates.filter((template) => !template.systemManaged);
+  const mathAllocatedQuestions = Object.values(form.mathTypeCounts).reduce((sum, count) => sum + count, 0);
+  const mathAllocationValid = form.experienceKind !== "MATH_PRACTICE" || (
+    form.mathTotalQuestions > 0 && mathAllocatedQuestions === form.mathTotalQuestions
+  );
 
   async function load() {
     const result = await parentApi.templates(child.id);
@@ -702,14 +731,16 @@ function Tasks({ child }: { child: Child }) {
                     ? "时钟学习"
                     : experienceKind === "MAKE_TEN"
                       ? "凑十训练"
+                    : experienceKind === "MATH_PRACTICE"
+                      ? "数学练习"
                     : form.title
                 : form.title,
-              category: experienceKind === "HANZI_LEARNING" ? "CHINESE" : experienceKind === "CLOCK_LEARNING" || experienceKind === "MAKE_TEN" ? "MATH" : form.category,
+              category: experienceKind === "HANZI_LEARNING" ? "CHINESE" : experienceKind === "CLOCK_LEARNING" || experienceKind === "MAKE_TEN" || experienceKind === "MATH_PRACTICE" ? "MATH" : form.category,
               mode: experienceKind === "STANDARD" ? form.mode : "UNTIMED",
-              repeatableDaily: experienceKind === "STANDARD" || experienceKind === "MAKE_TEN" ? form.repeatableDaily : false,
+              repeatableDaily: experienceKind === "STANDARD" || experienceKind === "MAKE_TEN" || experienceKind === "MATH_PRACTICE" ? form.repeatableDaily : false,
               earlyBonusEnabled: experienceKind === "STANDARD" ? form.earlyBonusEnabled : false,
             });
-          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option></select></label>
+          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option><option value="MATH_PRACTICE">数学练习任务（42 种题型）</option></select></label>
           <label>分类<select disabled={form.experienceKind !== "STANDARD"} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>计时类型<select disabled={form.experienceKind !== "STANDARD"} value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
           <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<input type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
@@ -719,7 +750,53 @@ function Tasks({ child }: { child: Child }) {
             <label>剩余至少（分钟）<input type="number" min={1} value={form.earlyThresholdMinutes} onChange={(event) => setForm({ ...form, earlyThresholdMinutes: Number(event.target.value) })} /></label>
             <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
-          {(form.experienceKind === "STANDARD" || form.experienceKind === "MAKE_TEN") && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
+          {(form.experienceKind === "STANDARD" || form.experienceKind === "MAKE_TEN" || form.experienceKind === "MATH_PRACTICE") && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
+          {form.experienceKind === "MATH_PRACTICE" && (
+            <fieldset className="math-config field-span">
+              <legend>题目配比</legend>
+              <div className="math-config__summary">
+                <label>本次总题数<input type="number" min={1} max={100} value={form.mathTotalQuestions} onChange={(event) => setForm({ ...form, mathTotalQuestions: Number(event.target.value) })} /></label>
+                <div className={mathAllocationValid ? "is-valid" : "is-invalid"}>
+                  <strong>{mathAllocatedQuestions} / {form.mathTotalQuestions}</strong>
+                  <span>{mathAllocationValid ? "题目已分配完成" : `还需调整 ${Math.abs(form.mathTotalQuestions - mathAllocatedQuestions)} 道`}</span>
+                </div>
+              </div>
+              <p>展开分类，为需要的题型设置数量；设为 0 的题型不会出现在练习中。</p>
+              <div className="math-config__domains">
+                {MATH_QUESTION_DOMAINS.map((domain, domainIndex) => {
+                  const questionTypes = getMathQuestionTypesByDomain(domain.id);
+                  const domainTotal = questionTypes.reduce((sum, type) => sum + (form.mathTypeCounts[type.id] ?? 0), 0);
+                  return (
+                    <details open={domainIndex === 0} key={domain.id}>
+                      <summary><span>{domain.id}</span><strong>{domain.name}</strong><b>{domainTotal} 道</b></summary>
+                      <div>
+                        {questionTypes.map((type) => {
+                          const count = form.mathTypeCounts[type.id] ?? 0;
+                          const setCount = (nextCount: number) => setForm({
+                            ...form,
+                            mathTypeCounts: {
+                              ...form.mathTypeCounts,
+                              [type.id]: Math.max(0, Math.min(100, nextCount)),
+                            },
+                          });
+                          return (
+                            <div className="math-config__type" key={type.id}>
+                              <span><b>{type.id}</b><span>{type.name}</span><small>{type.description}</small></span>
+                              <div>
+                                <button type="button" disabled={count === 0} onClick={() => setCount(count - 1)}>−</button>
+                                <input aria-label={`${type.name}数量`} type="number" min={0} max={100} value={count} onChange={(event) => setCount(Number(event.target.value))} />
+                                <button type="button" onClick={() => setCount(count + 1)}>＋</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
           <label>出现方式<select value={form.scheduleKind} onChange={(event) => setForm({ ...form, scheduleKind: event.target.value as TaskForm["scheduleKind"] })}><option value="DAILY">每天</option><option value="WORKDAYS">工作日</option><option value="SELECTED_WEEKDAYS">指定星期</option><option value="ONE_TIME">一次性任务</option></select></label>
           {form.scheduleKind === "ONE_TIME" && <label>任务日期<input required type="date" value={form.oneTimeDate} onChange={(event) => setForm({ ...form, oneTimeDate: event.target.value })} /></label>}
           {form.scheduleKind === "SELECTED_WEEKDAYS" && <fieldset className="weekday-field field-span"><legend>选择星期</legend>{["日","一","二","三","四","五","六"].map((label, weekday) => <label key={weekday}><input type="checkbox" checked={form.weekdays.includes(weekday)} onChange={(event) => setForm({ ...form, weekdays: event.target.checked ? [...form.weekdays, weekday] : form.weekdays.filter((item) => item !== weekday) })} />周{label}</label>)}</fieldset>}
@@ -731,7 +808,7 @@ function Tasks({ child }: { child: Child }) {
           </>}
           <label className="checkbox field-span"><input type="checkbox" checked={form.isEnabled} onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} />立即启用</label>
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
-          <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_TASK); }}>取消编辑</button>}<button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
+          <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_TASK); }}>取消编辑</button>}<button className="primary-button" disabled={busy || !mathAllocationValid}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
         </form>
       </Panel>
       <Panel title={`任务模板（${templates.length}）`}>
@@ -789,7 +866,7 @@ function Tasks({ child }: { child: Child }) {
                   setDragOverId(null);
                 }}
                 onClick={(event) => event.preventDefault()}
-              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : template.experienceKind === "MATH_PRACTICE" ? `数学练习 ${template.mathPracticeConfig?.totalQuestions ?? 0} 道` : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>

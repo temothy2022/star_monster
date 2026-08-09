@@ -1,5 +1,6 @@
 import type { PetType } from "../mascots";
 import type { PlanetKey } from "../planets/planet-data";
+import type { MathQuestion } from "@star-monsters/math-practice";
 import { createIdempotencyKey } from "./idempotency";
 import { recordApiPerformance } from "./performance-telemetry";
 
@@ -313,6 +314,7 @@ export type DailyTask = {
     | "HANZI_REVIEW"
     | "CLOCK_LEARNING"
     | "MAKE_TEN"
+    | "MATH_PRACTICE"
     | "POEM_LEARNING"
     | "POEM_REVIEW";
   suggestedSecondsSnapshot: number | null;
@@ -695,6 +697,57 @@ export async function finishMakeTenSession(sessionId: string) {
     };
     alreadyCompleted: boolean;
   }>(`/api/child/make-ten/sessions/${sessionId}/finish`, { method: "POST" });
+}
+
+export type MathPracticeQuestion = Omit<MathQuestion, "answer">;
+
+export type MathPracticeSession = {
+  id: string;
+  taskAttemptId: string;
+  currentIndex: number;
+  correctCount: number;
+  totalQuestions: number;
+  completedAt: string | null;
+  attemptsForCurrent: number;
+  question: MathPracticeQuestion | null;
+};
+
+export type MathPracticeFeedback = {
+  correct: boolean;
+  attemptNumber: number;
+  revealAnswer: boolean;
+  correctAnswer: { values: string[]; display: string } | null;
+  explanation: string | null;
+};
+
+export async function startMathPracticeSession(attemptId: string) {
+  return request<{ session: MathPracticeSession }>(
+    "/api/child/math-practice/sessions/start",
+    { method: "POST", body: JSON.stringify({ attemptId }) },
+  );
+}
+
+export async function submitMathPracticeAnswer(
+  sessionId: string,
+  input: { questionIndex: number; values: string[]; responseMs: number },
+) {
+  return request<{ session: MathPracticeSession; feedback: MathPracticeFeedback }>(
+    `/api/child/math-practice/sessions/${sessionId}/answer`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
+export async function finishMathPracticeSession(sessionId: string) {
+  return request<{
+    attempt: TaskAttempt;
+    reward: {
+      baseStars: number;
+      bonusStars: number;
+      dailyGoalBonusStars: number;
+      totalStars: number;
+    };
+    alreadyCompleted: boolean;
+  }>(`/api/child/math-practice/sessions/${sessionId}/finish`, { method: "POST" });
 }
 
 export type Poem = {

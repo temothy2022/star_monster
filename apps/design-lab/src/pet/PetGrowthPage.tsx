@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   ApiError,
   careForPet,
@@ -46,9 +55,92 @@ const CARE_ANIMATION_MS = 3_000;
 const ROOM_NOTICE_MS = 2_000;
 const PET_SOUND_STORAGE_KEY = "star-monsters:pet-sound-enabled";
 const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
+const PET_ROOM_LAYOUT_STORAGE_KEY = "star-monsters:pet-room-layout:v1";
 const ROOM_DECOR_ENTRY_IMAGE = "/pet-assets/v1/ui/room-decor-entry.webp";
+const PET_LAYOUT_LONG_PRESS_MS = 520;
 type CareKind = "feed" | "drink";
 type RoomNotice = { id: number; message: string };
+type PetLayoutModule = "status" | "map" | "actions";
+type PetLayoutOrientation = "landscape" | "portrait";
+type PetLayoutPosition = { x: number; y: number };
+type PetLayoutPreset = Record<PetLayoutModule, PetLayoutPosition>;
+type StoredPetRoomLayouts = {
+  version: 1;
+  landscape?: PetLayoutPreset;
+  portrait?: PetLayoutPreset;
+};
+type PetLayoutViewport = {
+  enabled: boolean;
+  orientation: PetLayoutOrientation;
+};
+type PetLayoutDragSession = {
+  module: PetLayoutModule;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  target: HTMLElement;
+  activated: boolean;
+  timer: number;
+};
+
+const EMPTY_PET_ROOM_LAYOUTS: StoredPetRoomLayouts = { version: 1 };
+
+function isLayoutPosition(value: unknown): value is PetLayoutPosition {
+  if (!value || typeof value !== "object") return false;
+  const position = value as Partial<PetLayoutPosition>;
+  return typeof position.x === "number"
+    && Number.isFinite(position.x)
+    && position.x >= 0
+    && position.x <= 1
+    && typeof position.y === "number"
+    && Number.isFinite(position.y)
+    && position.y >= 0
+    && position.y <= 1;
+}
+
+function isLayoutPreset(value: unknown): value is PetLayoutPreset {
+  if (!value || typeof value !== "object") return false;
+  const preset = value as Partial<PetLayoutPreset>;
+  return isLayoutPosition(preset.status)
+    && isLayoutPosition(preset.map)
+    && isLayoutPosition(preset.actions);
+}
+
+function readStoredPetRoomLayouts(): StoredPetRoomLayouts {
+  try {
+    const raw = window.localStorage.getItem(PET_ROOM_LAYOUT_STORAGE_KEY);
+    if (!raw) return EMPTY_PET_ROOM_LAYOUTS;
+    const parsed = JSON.parse(raw) as Partial<StoredPetRoomLayouts>;
+    return {
+      version: 1,
+      ...(isLayoutPreset(parsed.landscape) ? { landscape: parsed.landscape } : {}),
+      ...(isLayoutPreset(parsed.portrait) ? { portrait: parsed.portrait } : {}),
+    };
+  } catch {
+    return EMPTY_PET_ROOM_LAYOUTS;
+  }
+}
+
+function writeStoredPetRoomLayouts(layouts: StoredPetRoomLayouts) {
+  try {
+    window.localStorage.setItem(PET_ROOM_LAYOUT_STORAGE_KEY, JSON.stringify(layouts));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getPetLayoutViewport(): PetLayoutViewport {
+  const viewport = window.visualViewport;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
+  const hasTouch = window.matchMedia("(pointer: coarse)").matches
+    || navigator.maxTouchPoints > 0;
+  return {
+    enabled: Math.min(width, height) >= 600 && Math.max(width, height) >= 700 && hasTouch,
+    orientation: width >= height ? "landscape" : "portrait",
+  };
+}
 
 const FALLBACK_ROOM_THEME: PetRoomTheme = {
   key: "sunny-garden",
@@ -227,6 +319,12 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [dialogueSpeaking, setDialogueSpeaking] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(initialPetSoundEnabled);
   const [now, setNow] = useState(Date.now());
+  const [layoutViewport, setLayoutViewport] = useState(getPetLayoutViewport);
+  const [storedRoomLayouts, setStoredRoomLayouts] = useState(readStoredPetRoomLayouts);
+  const [layoutEditing, setLayoutEditing] = useState(false);
+  const [draftRoomLayout, setDraftRoomLayout] = useState<PetLayoutPreset | null>(null);
+  const [pressedLayoutModule, setPressedLayoutModule] = useState<PetLayoutModule | null>(null);
+  const [draggingLayoutModule, setDraggingLayoutModule] = useState<PetLayoutModule | null>(null);
   const careTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const dialogueAudioCacheRef = useRef(new Map<string, HTMLAudioElement>());
@@ -240,6 +338,16 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const entryVisitHandledRef = useRef(false);
   const soundEnabledRef = useRef(soundEnabled);
   const roomNoticeIdRef = useRef(0);
+  const petStageRef = useRef<HTMLElement | null>(null);
+  const layoutModuleRefs = useRef<Record<PetLayoutModule, HTMLElement | null>>({
+    status: null,
+    map: null,
+    actions: null,
+  });
+  const draftRoomLayoutRef = useRef<PetLayoutPreset | null>(null);
+  const layoutDragRef = useRef<PetLayoutDragSession | null>(null);
+  const suppressLayoutClickUntilRef = useRef(0);
+  const previousLayoutOrientationRef = useRef(layoutViewport.orientation);
   if (!dialogueQueueRef.current) {
     dialogueQueueRef.current = new SinglePendingPlaybackQueue(setDialogueSpeaking);
   }
@@ -279,6 +387,48 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const updateLayoutViewport = () => {
+      const next = getPetLayoutViewport();
+      setLayoutViewport((current) => (
+        current.enabled === next.enabled && current.orientation === next.orientation
+          ? current
+          : next
+      ));
+    };
+    const viewport = window.visualViewport;
+    window.addEventListener("resize", updateLayoutViewport);
+    window.addEventListener("orientationchange", updateLayoutViewport);
+    viewport?.addEventListener("resize", updateLayoutViewport);
+    return () => {
+      window.removeEventListener("resize", updateLayoutViewport);
+      window.removeEventListener("orientationchange", updateLayoutViewport);
+      viewport?.removeEventListener("resize", updateLayoutViewport);
+    };
+  }, []);
+  useEffect(() => {
+    if (layoutViewport.enabled) return;
+    const drag = layoutDragRef.current;
+    if (drag) window.clearTimeout(drag.timer);
+    layoutDragRef.current = null;
+    draftRoomLayoutRef.current = null;
+    setLayoutEditing(false);
+    setDraftRoomLayout(null);
+    setPressedLayoutModule(null);
+    setDraggingLayoutModule(null);
+  }, [layoutViewport.enabled]);
+  useEffect(() => {
+    if (previousLayoutOrientationRef.current === layoutViewport.orientation) return;
+    previousLayoutOrientationRef.current = layoutViewport.orientation;
+    const drag = layoutDragRef.current;
+    if (drag) window.clearTimeout(drag.timer);
+    layoutDragRef.current = null;
+    draftRoomLayoutRef.current = null;
+    setLayoutEditing(false);
+    setDraftRoomLayout(null);
+    setPressedLayoutModule(null);
+    setDraggingLayoutModule(null);
+  }, [layoutViewport.orientation]);
   const stopEntrySound = useCallback(() => {
     entrySoundPlaybackRef.current?.cancel();
     entrySoundPlaybackRef.current = null;
@@ -422,6 +572,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     stopEntrySound();
     soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
     soundRetryCleanupRef.current.clear();
+    const drag = layoutDragRef.current;
+    if (drag) window.clearTimeout(drag.timer);
+    layoutDragRef.current = null;
   }, [stopEntrySound]);
 
   function speakPetDialogue() {
@@ -484,6 +637,181 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       setRoomNotice((current) => (current?.id === id ? null : current));
       noticeTimerRef.current = null;
     }, ROOM_NOTICE_MS);
+  }
+
+  function captureCurrentRoomLayout(): PetLayoutPreset | null {
+    const stage = petStageRef.current;
+    if (!stage) return null;
+    const stageRect = stage.getBoundingClientRect();
+    if (stageRect.width <= 0 || stageRect.height <= 0) return null;
+
+    const positions = {} as PetLayoutPreset;
+    for (const module of ["status", "map", "actions"] as const) {
+      const element = layoutModuleRefs.current[module];
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      positions[module] = {
+        x: Math.min(1, Math.max(0, (rect.left + rect.width / 2 - stageRect.left) / stageRect.width)),
+        y: Math.min(1, Math.max(0, (rect.top + rect.height / 2 - stageRect.top) / stageRect.height)),
+      };
+    }
+    return positions;
+  }
+
+  function roomLayoutPosition(module: PetLayoutModule, clientX: number, clientY: number) {
+    const stage = petStageRef.current;
+    const element = layoutModuleRefs.current[module];
+    if (!stage || !element) return null;
+
+    const stageRect = stage.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const navTop = document.querySelector<HTMLElement>(".child-bottom-nav")
+      ?.getBoundingClientRect().top ?? stageRect.bottom;
+    const edgeGap = 12;
+    const minX = stageRect.left + elementRect.width / 2 + edgeGap;
+    const maxX = stageRect.right - elementRect.width / 2 - edgeGap;
+    const minY = stageRect.top + elementRect.height / 2 + edgeGap;
+    const maxY = Math.min(stageRect.bottom, navTop) - elementRect.height / 2 - edgeGap;
+    const x = maxX > minX ? Math.min(maxX, Math.max(minX, clientX)) : stageRect.left + stageRect.width / 2;
+    const y = maxY > minY ? Math.min(maxY, Math.max(minY, clientY)) : stageRect.top + stageRect.height / 2;
+    return {
+      x: Math.min(1, Math.max(0, (x - stageRect.left) / stageRect.width)),
+      y: Math.min(1, Math.max(0, (y - stageRect.top) / stageRect.height)),
+    };
+  }
+
+  function activateRoomLayoutDrag(session: PetLayoutDragSession) {
+    try {
+      session.target.setPointerCapture?.(session.pointerId);
+    } catch {
+      layoutDragRef.current = null;
+      setPressedLayoutModule(null);
+      return;
+    }
+    const baseline = draftRoomLayoutRef.current ?? captureCurrentRoomLayout();
+    if (!baseline) return;
+    draftRoomLayoutRef.current = baseline;
+    setDraftRoomLayout(baseline);
+    setLayoutEditing(true);
+    setPressedLayoutModule(null);
+    setDraggingLayoutModule(session.module);
+    session.activated = true;
+    navigator.vibrate?.(18);
+  }
+
+  function beginRoomLayoutDrag(module: PetLayoutModule, event: ReactPointerEvent<HTMLElement>) {
+    if (!layoutViewport.enabled || state?.currentTrip || event.button !== 0) return;
+    const previous = layoutDragRef.current;
+    if (previous) window.clearTimeout(previous.timer);
+
+    const session: PetLayoutDragSession = {
+      module,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      target: event.currentTarget,
+      activated: false,
+      timer: 0,
+    };
+    layoutDragRef.current = session;
+    setPressedLayoutModule(module);
+
+    if (layoutEditing) {
+      event.preventDefault();
+      activateRoomLayoutDrag(session);
+      return;
+    }
+    session.timer = window.setTimeout(() => {
+      if (layoutDragRef.current !== session) return;
+      activateRoomLayoutDrag(session);
+    }, PET_LAYOUT_LONG_PRESS_MS);
+  }
+
+  function moveRoomLayoutModule(event: ReactPointerEvent<HTMLElement>) {
+    const session = layoutDragRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    if (!session.activated) {
+      const moved = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
+      if (moved > 12) {
+        window.clearTimeout(session.timer);
+        layoutDragRef.current = null;
+        setPressedLayoutModule(null);
+      }
+      return;
+    }
+
+    event.preventDefault();
+    const position = roomLayoutPosition(session.module, event.clientX, event.clientY);
+    const current = draftRoomLayoutRef.current;
+    if (!position || !current) return;
+    const next = { ...current, [session.module]: position };
+    draftRoomLayoutRef.current = next;
+    setDraftRoomLayout(next);
+  }
+
+  function leaveRoomLayoutModule(event: ReactPointerEvent<HTMLElement>) {
+    const session = layoutDragRef.current;
+    if (!session || session.pointerId !== event.pointerId || session.activated) return;
+    window.clearTimeout(session.timer);
+    layoutDragRef.current = null;
+    setPressedLayoutModule(null);
+  }
+
+  function finishRoomLayoutDrag(event: ReactPointerEvent<HTMLElement>) {
+    const session = layoutDragRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    window.clearTimeout(session.timer);
+    if (session.activated) {
+      event.preventDefault();
+      suppressLayoutClickUntilRef.current = performance.now() + 420;
+    }
+    if (session.target.hasPointerCapture?.(session.pointerId)) {
+      session.target.releasePointerCapture(session.pointerId);
+    }
+    layoutDragRef.current = null;
+    setPressedLayoutModule(null);
+    setDraggingLayoutModule(null);
+  }
+
+  function blockRoomLayoutClick(event: ReactMouseEvent<HTMLElement>) {
+    if (!layoutEditing && performance.now() >= suppressLayoutClickUntilRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function saveRoomLayout() {
+    const preset = draftRoomLayoutRef.current;
+    if (!preset) return;
+    const next = {
+      ...storedRoomLayouts,
+      version: 1 as const,
+      [layoutViewport.orientation]: preset,
+    };
+    const saved = writeStoredPetRoomLayouts(next);
+    setStoredRoomLayouts(next);
+    draftRoomLayoutRef.current = null;
+    setDraftRoomLayout(null);
+    setLayoutEditing(false);
+    showRoomNotice(saved ? "小屋布置已经保存" : "当前浏览器无法保存布置");
+  }
+
+  function cancelRoomLayout() {
+    draftRoomLayoutRef.current = null;
+    setDraftRoomLayout(null);
+    setLayoutEditing(false);
+    setPressedLayoutModule(null);
+    setDraggingLayoutModule(null);
+  }
+
+  function resetRoomLayout() {
+    const next = { ...storedRoomLayouts };
+    delete next[layoutViewport.orientation];
+    const saved = writeStoredPetRoomLayouts(next);
+    setStoredRoomLayouts(next);
+    draftRoomLayoutRef.current = null;
+    setDraftRoomLayout(null);
+    setLayoutEditing(false);
+    showRoomNotice(saved ? "已经恢复默认布置" : "当前浏览器无法保存布置");
   }
 
   function requestCare(kind: CareKind) {
@@ -629,13 +957,40 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
         costStars: state.careOptions[careConfirm].costStars,
       }
     : null;
+  const activeRoomLayout = layoutViewport.enabled
+    ? (layoutEditing ? draftRoomLayout : storedRoomLayouts[layoutViewport.orientation])
+    : undefined;
+
+  function roomLayoutModuleClass(base: string, module: PetLayoutModule) {
+    return [
+      base,
+      "pet-layout-module",
+      layoutViewport.enabled ? "is-layout-available" : "",
+      activeRoomLayout?.[module] ? "is-layout-positioned" : "",
+      layoutEditing ? "is-layout-editing" : "",
+      pressedLayoutModule === module ? "is-long-pressing" : "",
+      draggingLayoutModule === module ? "is-dragging" : "",
+    ].filter(Boolean).join(" ");
+  }
+
+  function roomLayoutModuleStyle(module: PetLayoutModule): CSSProperties | undefined {
+    const position = activeRoomLayout?.[module];
+    if (!position) return undefined;
+    return {
+      left: `${position.x * 100}%`,
+      top: `${position.y * 100}%`,
+      right: "auto",
+      bottom: "auto",
+      transform: "translate(-50%, -50%)",
+    };
+  }
 
   return (
     <main
-      className={`pet-growth-page pet-growth-page--${trip ? "travel" : "home"}`}
+      className={`pet-growth-page pet-growth-page--${trip ? "travel" : "home"}${layoutEditing ? " is-room-layout-editing" : ""}`}
       onPointerDownCapture={stopEntrySound}
     >
-      <section className="pet-growth-stage">
+      <section className="pet-growth-stage" ref={petStageRef}>
         <picture className="pet-room-backdrop" key={displayedRoomTheme.key}>
           <source media="(max-width: 699px) and (orientation: portrait)" srcSet={displayedRoomTheme.backgroundPhoneUrl} />
           <source media="(orientation: portrait)" srcSet={displayedRoomTheme.backgroundTabletUrl} />
@@ -666,7 +1021,18 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <div className="pet-star-balance" aria-label={`当前有 ${state.wallet.starBalance} 颗星`}><span>★</span><div><small>我的星星</small><strong>{state.wallet.starBalance}</strong></div></div>
         </header>
 
-        <section className="pet-status-card" aria-label="星宠状态">
+        <section
+          className={roomLayoutModuleClass("pet-status-card", "status")}
+          style={roomLayoutModuleStyle("status")}
+          ref={(element) => { layoutModuleRefs.current.status = element; }}
+          aria-label="星宠状态"
+          onPointerDown={(event) => beginRoomLayoutDrag("status", event)}
+          onPointerMove={moveRoomLayoutModule}
+          onPointerLeave={leaveRoomLayoutModule}
+          onPointerUp={finishRoomLayoutDrag}
+          onPointerCancel={finishRoomLayoutDrag}
+          onClickCapture={blockRoomLayoutClick}
+        >
           <div className="pet-status-card__title"><div><small>成长阶段</small><strong>{state.pet.growthStage === "BABY" ? "幼年伙伴" : state.pet.growthStage === "GROWING" ? "成长伙伴" : "成熟伙伴"}</strong></div><span>Lv.{state.pet.level}</span></div>
           <div className="pet-growth-progress" aria-label={`${mascot.name}的成长进度 ${Math.round(levelProgress)}%`}>
             <div><strong>{mascot.name}的成长进度</strong><span>{Math.round(levelProgress)}%</span></div>
@@ -677,7 +1043,20 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <div className="pet-spend-note">今日已使用 <strong>{state.wallet.dailySpent}</strong> 颗星{state.wallet.dailySpendLimitStars !== null && <> / {state.wallet.dailySpendLimitStars}</>}</div>
         </section>
 
-        <button className="pet-map-entry" type="button" onClick={() => onNavigate("map")} aria-label="打开星际航图">
+        <button
+          className={roomLayoutModuleClass("pet-map-entry", "map")}
+          style={roomLayoutModuleStyle("map")}
+          ref={(element) => { layoutModuleRefs.current.map = element; }}
+          type="button"
+          onClick={() => onNavigate("map")}
+          onClickCapture={blockRoomLayoutClick}
+          onPointerDown={(event) => beginRoomLayoutDrag("map", event)}
+          onPointerMove={moveRoomLayoutModule}
+          onPointerLeave={leaveRoomLayoutModule}
+          onPointerUp={finishRoomLayoutDrag}
+          onPointerCancel={finishRoomLayoutDrag}
+          aria-label="打开星际航图"
+        >
           <span className="pet-map-entry__sky" aria-hidden="true">
             <img src={PLANET_BY_KEY.EARTH.image} alt="" />
             <img src={PLANET_BY_KEY.SATURN.image} alt="" />
@@ -687,7 +1066,18 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <span className="pet-map-entry__arrow" aria-hidden="true">›</span>
         </button>
 
-        <aside className="pet-action-rail" aria-label="星宠操作">
+        <aside
+          className={roomLayoutModuleClass("pet-action-rail", "actions")}
+          style={roomLayoutModuleStyle("actions")}
+          ref={(element) => { layoutModuleRefs.current.actions = element; }}
+          aria-label="星宠操作"
+          onPointerDown={(event) => beginRoomLayoutDrag("actions", event)}
+          onPointerMove={moveRoomLayoutModule}
+          onPointerLeave={leaveRoomLayoutModule}
+          onPointerUp={finishRoomLayoutDrag}
+          onPointerCancel={finishRoomLayoutDrag}
+          onClickCapture={blockRoomLayoutClick}
+        >
           <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation)} onClick={() => setTravelOpen(true)}>
             <span className="pet-action-icon pet-action-icon--travel" aria-hidden="true">✦</span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "去看看远方" : "旅行已关闭"}</small></div>
           </button>
@@ -712,6 +1102,17 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><i /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
           </button>
         </aside>
+
+        {layoutEditing && (
+          <div className="pet-layout-toolbar" role="status" aria-live="polite">
+            <span><i aria-hidden="true" />拖动模块，布置你的星宠小屋</span>
+            <div>
+              <button type="button" onClick={cancelRoomLayout}>取消</button>
+              <button type="button" onClick={resetRoomLayout}>恢复默认</button>
+              <button className="pet-layout-toolbar__save" type="button" onClick={saveRoomLayout}>保存布置</button>
+            </div>
+          </div>
+        )}
 
         {roomNotice && <div className="pet-room-notice" key={roomNotice.id} role="status" aria-live="polite">{roomNotice.message}</div>}
         {trip?.status === "TRAVELING" ? (
