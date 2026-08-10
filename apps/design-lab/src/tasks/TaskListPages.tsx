@@ -614,16 +614,18 @@ function CompactLeaderboardRow({ entry }: { entry: ChildLeaderboardEntry }) {
   );
 }
 
-function CompactLeaderboardWidget({ leaderboard }: { leaderboard: ChildLeaderboard | null }) {
-  if (!leaderboard) {
-    return (
-      <div className="task-widget-leaderboard task-widget-leaderboard--loading" aria-busy="true">
-        <div className="task-widget-leaderboard__heading"><small>今日榜</small><strong>小朋友排名</strong></div>
-        <span>正在更新排名…</span>
-      </div>
-    );
-  }
+type CompactLeaderboards = {
+  daily: ChildLeaderboard;
+  weekly: ChildLeaderboard;
+};
 
+function CompactLeaderboardSlide({
+  leaderboard,
+  period,
+}: {
+  leaderboard: ChildLeaderboard;
+  period: "今日榜" | "本周榜";
+}) {
   const topThree = leaderboard.entries
     .filter((entry) => entry.rank !== null && entry.rank <= 3)
     .sort((left, right) => (left.rank ?? 4) - (right.rank ?? 4))
@@ -632,9 +634,9 @@ function CompactLeaderboardWidget({ leaderboard }: { leaderboard: ChildLeaderboa
   const selfOutsideTopThree = self !== null && (self.rank === null || self.rank > 3);
 
   return (
-    <div className="task-widget-leaderboard">
+    <section className="task-widget-leaderboard__slide">
       <div className="task-widget-leaderboard__heading">
-        <small>今日榜</small><strong>小朋友排名</strong>
+        <small>{period}</small><strong>小朋友排名</strong>
       </div>
       <ol>
         {topThree.map((entry) => (
@@ -647,6 +649,76 @@ function CompactLeaderboardWidget({ leaderboard }: { leaderboard: ChildLeaderboa
           </>
         )}
       </ol>
+    </section>
+  );
+}
+
+function CompactLeaderboardWidget({ leaderboards }: { leaderboards: CompactLeaderboards | null }) {
+  const [index, setIndex] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragRef = useRef<{ pointerId: number; startX: number; width: number } | null>(null);
+
+  function beginSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!leaderboards || event.button !== 0) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      width: event.currentTarget.getBoundingClientRect().width,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rawOffset = event.clientX - drag.startX;
+    const atEdge = (index === 0 && rawOffset > 0) || (index === 1 && rawOffset < 0);
+    setDragOffset(atEdge ? rawOffset * .2 : rawOffset);
+  }
+
+  function finishSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) >= Math.max(30, drag.width * .16)) {
+      setIndex((current) => Math.max(0, Math.min(1, current + (distance < 0 ? 1 : -1))));
+    }
+    dragRef.current = null;
+    setDragOffset(0);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  if (!leaderboards) {
+    return (
+      <div className="task-widget-leaderboard task-widget-leaderboard--loading" aria-busy="true">
+        <div className="task-widget-leaderboard__heading"><small>今日榜</small><strong>小朋友排名</strong></div>
+        <span>正在更新排名…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`task-widget-leaderboard${dragRef.current ? " is-swiping" : ""}`}>
+      <div
+        className="task-widget-leaderboard__viewport"
+        onPointerDown={beginSwipe}
+        onPointerMove={moveSwipe}
+        onPointerUp={finishSwipe}
+        onPointerCancel={finishSwipe}
+      >
+        <div
+          className="task-widget-leaderboard__track"
+          style={{ transform: `translate3d(calc(${-index * 100}% + ${dragOffset}px), 0, 0)` }}
+        >
+          <CompactLeaderboardSlide leaderboard={leaderboards.daily} period="今日榜" />
+          <CompactLeaderboardSlide leaderboard={leaderboards.weekly} period="本周榜" />
+        </div>
+      </div>
+      <div className="task-widget-leaderboard__pages" aria-label={index === 0 ? "当前显示今日榜" : "当前显示本周榜"}>
+        <i className={index === 0 ? "is-active" : ""} /><i className={index === 1 ? "is-active" : ""} />
+      </div>
     </div>
   );
 }
@@ -913,7 +985,7 @@ export function TaskExperience({
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
-  const [dailyLeaderboard, setDailyLeaderboard] = useState<ChildLeaderboard | null>(null);
+  const [dashboardLeaderboards, setDashboardLeaderboards] = useState<CompactLeaderboards | null>(null);
   const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
   const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
   const onStartAttemptRef = useRef(onStartAttempt);
@@ -1017,12 +1089,12 @@ export function TaskExperience({
 
   useEffect(() => {
     if (!leaderboardEnabled) {
-      setDailyLeaderboard(null);
+      setDashboardLeaderboards(null);
       return;
     }
     const controller = new AbortController();
     void getChildFootprints(undefined, controller.signal)
-      .then((result) => setDailyLeaderboard(result.leaderboards.daily))
+      .then((result) => setDashboardLeaderboards(result.leaderboards))
       .catch((reason: unknown) => {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
@@ -1035,7 +1107,7 @@ export function TaskExperience({
     async (signal) => {
       try {
         const result = await getChildFootprints(undefined, signal);
-        setDailyLeaderboard(result.leaderboards.daily);
+        setDashboardLeaderboards(result.leaderboards);
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
@@ -1222,7 +1294,7 @@ export function TaskExperience({
           />
         );
       case "LEADERBOARD":
-        return <CompactLeaderboardWidget leaderboard={dailyLeaderboard} />;
+        return <CompactLeaderboardWidget leaderboards={dashboardLeaderboards} />;
       case "NOTIFICATIONS":
         return <NotificationWidget notifications={petNotifications} onNavigate={onNavigate} />;
       case "HANZI_REVIEW":

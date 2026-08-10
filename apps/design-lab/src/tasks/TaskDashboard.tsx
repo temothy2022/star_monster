@@ -23,7 +23,7 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   required?: boolean;
 }> = [
   { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", required: true },
-  { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "small", tone: "green" },
+  { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green" },
   { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow" },
   { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink" },
   { key: "TODAY_PLAN", label: "今日计划", description: "待完成、已完成和预计时间", size: "medium", tone: "blue" },
