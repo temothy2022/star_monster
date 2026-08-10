@@ -62,7 +62,9 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
     const rowCount = question.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 4;
     return { heightMm: Math.max(104, Math.min(120, 76 + rowCount * 7)), size: "logic", wide: true };
   }
-  if (question.typeId === "V07") return { heightMm: 104, size: "fact-family", wide: true };
+  // 一图四式在纸面上适合半栏展示：两题并排，图和算式都保持足够大。
+  // 四行算式纵向排列后，88mm 可以完整容纳内容，同时避免卡片过高。
+  if (question.typeId === "V07") return { heightMm: 88, size: "fact-family", wide: false };
   if (question.typeId === "N02") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N15") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N16") return { heightMm: 104, size: "wide-visual", wide: true };
@@ -218,7 +220,7 @@ function EquationBlanks({ question }: { question: MathQuestion }) {
   const response = question.response;
   if (response.equationRows && response.equationSlotsPerRow) {
     return (
-      <div className="math-paper-fact-family">
+      <div className={`math-paper-fact-family math-paper-fact-family--${response.equationRows}-rows`}>
         {Array.from({ length: response.equationRows }, (_, row) => (
           <div key={row}>
             <i /><i /><i /><b>=</b><i />

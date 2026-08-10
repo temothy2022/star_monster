@@ -690,8 +690,9 @@
 .math-paper-fact-family {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2mm 5mm;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 1.2mm;
 }
 
 .math-paper-fact-family > div {
@@ -702,6 +703,58 @@
 }
 
 .math-paper-fact-family b { margin: 0 1mm; font-size: 12pt; }
+
+/* V07 一图四式：A4 上采用两题一行。半栏卡片内把两组物品各自
+   收成最多三列，既能明显分辨左右两部分，也让图标比通用打印尺寸更大。 */
+.math-paper-question[data-question-type="V07"] .math-paper-visual {
+  margin-top: 1mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-paper-visual > .math-visual-board {
+  padding: 1mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-object-model,
+.math-paper-question[data-question-type="V07"] .math-object-groups {
+  width: 100%;
+}
+
+.math-paper-question[data-question-type="V07"] .math-object-groups {
+  justify-content: center;
+  align-items: center;
+  column-gap: 4mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-object-group {
+  min-width: 0;
+  min-height: 0;
+  padding: 1mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-object-group--grid {
+  grid-template-columns: repeat(3, 10mm) !important;
+  grid-auto-rows: 10mm;
+  gap: .8mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-object-group--grid .math-object,
+.math-paper-question[data-question-type="V07"] .math-object-group--grid .math-object .math-sprite {
+  width: 10mm;
+  height: 10mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-paper-fact-family i {
+  width: 8.5mm;
+  height: 8.5mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-paper-fact-family > div {
+  min-height: 8.5mm;
+}
+
+.math-paper-question[data-question-type="V07"] .math-paper-fact-family b {
+  font-size: 11pt;
+}
 
 .math-paper-options {
   min-height: 11mm;
