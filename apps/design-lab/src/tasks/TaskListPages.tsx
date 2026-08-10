@@ -5,8 +5,6 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import balanceStar from "@star-monsters/assets/images/task-list/semantic/balance-star.png";
-import streakFlame from "@star-monsters/assets/images/task-list/semantic/streak-flame.png";
 import bookIcon from "@star-monsters/assets/images/task-list/semantic/task-book.png";
 import trainingIcon from "@star-monsters/assets/images/task-list/semantic/task-training.png";
 import mathIcon from "@star-monsters/assets/images/task-list/semantic/task-math.png";
@@ -17,9 +15,6 @@ import startArrow from "@star-monsters/assets/icons/task-list/semantic/task-star
 import completedStamp from "@star-monsters/assets/images/task-list/semantic/completed-stamp.webp";
 import emptyRocket from "@star-monsters/assets/images/task-list/semantic/empty-rocket.webp";
 import addPlus from "@star-monsters/assets/images/task-list/semantic/add-plus.png";
-import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-base.webp";
-import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
-import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import { useMascot } from "../mascots";
 import {
   createHtmlAudioPlayback,
@@ -33,12 +28,14 @@ import {
   getChildPlanets,
   getTodayTasks,
   markChildPlanetNotified,
+  updateTaskDashboardLayout,
   type ChildPlanet,
   type DailyTask,
   type MascotAsset,
   type MascotDialogue,
   type TaskAttempt,
   type TodayTaskExperience,
+  type TaskDashboardWidgetKey,
 } from "../api/child-api";
 import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
@@ -46,6 +43,7 @@ import {
   reportChildAppStartupReady,
   reportChildPageReady,
 } from "../api/performance-telemetry";
+import { TaskDashboard } from "./TaskDashboard";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -152,17 +150,11 @@ function DailyProgress({ earned, total }: { earned: number; total: number }) {
   );
 }
 
-function ProgressColumn({
-  earned,
-  goal,
-  balance,
+function TaskMascotWidget({
   mascotContext,
   dialogues,
   mascotAssets,
 }: {
-  earned: number;
-  goal: number;
-  balance: number;
   mascotContext: TodayTaskExperience["mascotContext"];
   dialogues: MascotDialogue[];
   mascotAssets: MascotAsset[];
@@ -260,38 +252,101 @@ function ProgressColumn({
   }
 
   return (
-    <aside className="task-progress-column">
-      <section className="task-progress-card" aria-labelledby="daily-progress-title">
-        <div className="task-progress-card__decoration" />
-        <h2 id="daily-progress-title">今日一共赚了</h2>
-        <DailyProgress earned={earned} total={goal} />
-        <div className="task-balance">
-          <div className="task-balance__value"><img src={balanceStar} alt="星星" /><strong>{balance}</strong></div>
-          <span>当前余额</span>
-        </div>
-      </section>
-      <section className="task-mascot-area" aria-label={`${mascot.name}的鼓励`}>
-        <div className="task-mascot-area__glow" />
-        <button
-          className={`task-mascot-figure${isSpeaking ? " task-mascot-figure--speaking" : ""}`}
-          type="button"
-          aria-label={`点击让${mascot.name}说话`}
-          aria-pressed={isSpeaking}
-          onClick={speak}
-        >
-          <MascotSpeech
-            key={selectedDialogue?.id ?? `${mascotContext}-fallback`}
-            text={selectedDialogue?.text ?? fallbackText}
-          />
-          <img
-            className="task-mascot-area__image"
-            src={displayedMascotImage}
-            alt={`星宠${mascot.name}`}
-            decoding="async"
-          />
-        </button>
-      </section>
-    </aside>
+    <section className="task-mascot-area task-mascot-area--widget" aria-label={`${mascot.name}的鼓励`}>
+      <div className="task-mascot-area__glow" />
+      <button
+        className={`task-mascot-figure${isSpeaking ? " task-mascot-figure--speaking" : ""}`}
+        type="button"
+        aria-label={`点击让${mascot.name}说话`}
+        aria-pressed={isSpeaking}
+        onClick={speak}
+      >
+        <MascotSpeech
+          key={selectedDialogue?.id ?? `${mascotContext}-fallback`}
+          text={selectedDialogue?.text ?? fallbackText}
+        />
+        <img
+          className="task-mascot-area__image"
+          src={displayedMascotImage}
+          alt={`星宠${mascot.name}`}
+          decoding="async"
+        />
+      </button>
+    </section>
+  );
+}
+
+function DailyProgressWidget({ earned, goal }: { earned: number; goal: number }) {
+  const remaining = Math.max(0, goal - earned);
+  return (
+    <div className="task-widget-progress">
+      <div className="task-widget-heading"><small>今日进度</small><strong>{remaining > 0 ? `还差 ${remaining} 颗星` : "目标达成"}</strong></div>
+      <DailyProgress earned={earned} total={goal} />
+    </div>
+  );
+}
+
+function BalanceWidget({ balance }: { balance: number }) {
+  return (
+    <div className="task-widget-balance">
+      <span className="task-widget-balance__star" aria-hidden="true">★</span>
+      <div><small>我的星星</small><strong>{balance}</strong><span>可用于星愿和星宠</span></div>
+    </div>
+  );
+}
+
+function TodayPlanWidget({ tasks }: { tasks: TaskItem[] }) {
+  const pending = tasks.filter((task) => task.status === "pending");
+  const completed = tasks.length - pending.length;
+  const minutes = pending.reduce((sum, task) => sum + task.duration, 0);
+  return (
+    <div className="task-widget-plan">
+      <div className="task-widget-heading"><small>今日计划</small><strong>{pending.length > 0 ? "继续探险" : "全部完成"}</strong></div>
+      <div className="task-widget-plan__metrics">
+        <span><b>{pending.length}</b><small>待完成</small></span>
+        <span><b>{completed}</b><small>已完成</small></span>
+        <span><b>{minutes}</b><small>预计分钟</small></span>
+      </div>
+    </div>
+  );
+}
+
+function StreakWidget({ days }: { days: number }) {
+  return (
+    <div className="task-widget-streak">
+      <span className="task-widget-streak__flame" aria-hidden="true"><i /></span>
+      <div><small>连续记录</small><strong>{days} <em>天</em></strong><span>{days > 2 ? "坚持让每一天都闪亮" : "从今天开始积累"}</span></div>
+    </div>
+  );
+}
+
+function GoalBonusWidget({
+  earned,
+  potential,
+  goalReached,
+}: {
+  earned: number;
+  potential: number;
+  goalReached: boolean;
+}) {
+  return (
+    <div className="task-widget-goal-bonus">
+      <span className="task-widget-goal-bonus__gift" aria-hidden="true"><i /></span>
+      <div><small>目标奖励</small><strong>{goalReached ? "已经领取" : potential > 0 ? `达标 +${potential}` : "完成目标"}</strong><span>{earned > 0 ? `今天已获得 ${earned} 颗奖励星` : "向今天的目标前进"}</span></div>
+    </div>
+  );
+}
+
+function QuickLinksWidget({ onNavigate }: { onNavigate?: (route: ChildRoute) => void }) {
+  return (
+    <div className="task-widget-links">
+      <div className="task-widget-heading"><small>快捷入口</small><strong>去哪里看看？</strong></div>
+      <div>
+        <button type="button" onClick={() => onNavigate?.("pet-growth")}><i className="task-widget-link-icon task-widget-link-icon--pet" aria-hidden="true" /><span>星宠</span></button>
+        <button type="button" onClick={() => onNavigate?.("wishes-requested")}><i className="task-widget-link-icon task-widget-link-icon--wish" aria-hidden="true" /><span>星愿</span></button>
+        <button type="button" onClick={() => onNavigate?.("footprints")}><i className="task-widget-link-icon task-widget-link-icon--footprint" aria-hidden="true" /><span>足迹</span></button>
+      </div>
+    </div>
   );
 }
 
@@ -354,12 +409,10 @@ function CompletedTaskCard({ task }: { task: TaskItem }) {
 
 function TaskListPanel({
   tasks,
-  streakDays,
   startingTaskId,
   onStart,
 }: {
   tasks: TaskItem[];
-  streakDays: number;
   startingTaskId: string | null;
   onStart?: (task: TaskItem) => void;
 }) {
@@ -370,12 +423,7 @@ function TaskListPanel({
     <section className="task-list-panel" aria-labelledby="my-tasks-title">
       <header className="task-list-panel__header">
         <h2 id="my-tasks-title">我的任务</h2>
-        {streakDays > 2 && (
-          <div className="task-streak">
-            <img src={streakFlame} alt="" />
-            <span>连续 {streakDays} 天</span>
-          </div>
-        )}
+        <span className="task-list-panel__count">{pendingTasks.length} 项待完成</span>
       </header>
       <div className="task-list-panel__scroll">
         <section className="task-section">
@@ -412,21 +460,6 @@ function EmptyTaskPanel() {
         <button className="task-add-button" type="button"><img src={addPlus} alt="" /><span>家长添加任务</span></button>
       </div>
     </section>
-  );
-}
-
-function CompleteTaskPanel({ earned }: { earned: number }) {
-  return (
-    <main className="task-complete-main">
-      <section className="task-complete-card" aria-labelledby="complete-title">
-        <span className="task-complete-card__shape task-complete-card__shape--top" />
-        <span className="task-complete-card__shape task-complete-card__shape--bottom" />
-        <img className="task-complete-card__base" src={launchBase} alt="星球基地" />
-        <h2 id="complete-title">今天都完成啦！</h2>
-        <p>今天你一共赚取了 <strong>{earned}</strong><img src={completeStar} alt="星星" /></p>
-        <button type="button"><span>去看航图</span><img src={compassIcon} alt="" /></button>
-      </section>
-    </main>
   );
 }
 
@@ -645,6 +678,52 @@ export function TaskExperience({
     }
   }
 
+  async function saveDashboardLayout(layout: TodayTaskExperience["taskDashboardLayout"]) {
+    const result = await updateTaskDashboardLayout(layout);
+    updateExperience({ ...experience!, taskDashboardLayout: result.layout });
+  }
+
+  function renderDashboardWidget(key: TaskDashboardWidgetKey) {
+    switch (key) {
+      case "TASKS":
+        return effectiveView === "empty" ? (
+          <EmptyTaskPanel />
+        ) : (
+          <TaskListPanel
+            tasks={tasks}
+            startingTaskId={startingTaskId}
+            onStart={start}
+          />
+        );
+      case "DAILY_PROGRESS":
+        return <DailyProgressWidget earned={experience!.earnedToday} goal={experience!.dailyStarGoal} />;
+      case "BALANCE":
+        return <BalanceWidget balance={experience!.starBalance} />;
+      case "MASCOT":
+        return (
+          <TaskMascotWidget
+            mascotContext={experience!.mascotContext}
+            dialogues={experience!.mascotDialogues}
+            mascotAssets={experience!.mascotAssets ?? []}
+          />
+        );
+      case "TODAY_PLAN":
+        return <TodayPlanWidget tasks={tasks} />;
+      case "STREAK":
+        return <StreakWidget days={experience!.streakDays} />;
+      case "GOAL_BONUS":
+        return (
+          <GoalBonusWidget
+            earned={experience!.dailyGoalBonusStars}
+            potential={experience!.dailyGoalBonusPotential}
+            goalReached={experience!.earnedToday >= experience!.dailyStarGoal}
+          />
+        );
+      case "QUICK_LINKS":
+        return <QuickLinksWidget onNavigate={onNavigate} />;
+    }
+  }
+
   if (loading || !experience) {
     return (
       <div className="task-page task-page--loading">
@@ -669,30 +748,11 @@ export function TaskExperience({
           {apiError} · 点击关闭
         </button>
       )}
-      {effectiveView === "complete" ? (
-        <CompleteTaskPanel earned={experience.earnedToday} />
-      ) : (
-        <main className="task-main">
-          <ProgressColumn
-            earned={experience.earnedToday}
-            goal={experience.dailyStarGoal}
-            balance={experience.starBalance}
-            mascotContext={experience.mascotContext}
-            dialogues={experience.mascotDialogues}
-            mascotAssets={experience.mascotAssets ?? []}
-          />
-          {effectiveView === "empty" ? (
-            <EmptyTaskPanel />
-          ) : (
-            <TaskListPanel
-              tasks={tasks}
-              streakDays={experience.streakDays}
-              startingTaskId={startingTaskId}
-              onStart={start}
-            />
-          )}
-        </main>
-      )}
+      <TaskDashboard
+        layout={experience.taskDashboardLayout}
+        onSave={saveDashboardLayout}
+        renderWidget={renderDashboardWidget}
+      />
       <ChildBottomNav active="tasks" onNavigate={onNavigate} />
       {planetUnlock && (
         <PlanetUnlockModal

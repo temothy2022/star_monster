@@ -377,13 +377,30 @@ export type TodayTaskExperience = {
   streakDays: number;
   dailyStarGoal: number;
   dailyGoalBonusStars: number;
+  dailyGoalBonusPotential: number;
   starBalance: number;
+  taskDashboardLayout: TaskDashboardLayout;
   tasks: DailyTask[];
   active: TaskAttempt | null;
   timedOutAttemptId: string | null;
   mascotContext: "START" | "PROGRESS" | "COMPLETE" | "EMPTY";
   mascotDialogues: MascotDialogue[];
   mascotAssets: MascotAsset[];
+};
+
+export type TaskDashboardWidgetKey =
+  | "TASKS"
+  | "DAILY_PROGRESS"
+  | "BALANCE"
+  | "MASCOT"
+  | "TODAY_PLAN"
+  | "STREAK"
+  | "GOAL_BONUS"
+  | "QUICK_LINKS";
+
+export type TaskDashboardLayout = {
+  version: 1;
+  widgets: TaskDashboardWidgetKey[];
 };
 
 export type MascotAsset = {
@@ -413,6 +430,13 @@ export async function getTodayTasks(signal?: AbortSignal) {
     cache: "no-store",
     signal,
   });
+}
+
+export async function updateTaskDashboardLayout(layout: TaskDashboardLayout) {
+  return request<{ layout: TaskDashboardLayout }>(
+    "/api/child/tasks/dashboard-layout",
+    { method: "PATCH", body: JSON.stringify(layout) },
+  );
 }
 
 export async function startDailyTask(dailyTaskId: string) {

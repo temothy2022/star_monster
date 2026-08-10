@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
+import { taskDashboardLayoutSchema } from "../domain/task-dashboard.js";
+import { prisma } from "../lib/prisma.js";
 import { requireChild } from "../services/auth-service.js";
 import {
   abandonTask,
@@ -21,6 +23,17 @@ export async function registerChildTaskRoutes(
   app.get("/api/child/tasks/today", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     return getTodayTaskExperience(child.id, config);
+  });
+
+  app.patch("/api/child/tasks/dashboard-layout", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const layout = taskDashboardLayoutSchema.parse(request.body);
+    await prisma.childProfile.update({
+      where: { id: child.id },
+      data: { taskDashboardLayout: layout },
+      select: { id: true },
+    });
+    return { layout };
   });
 
   app.post("/api/child/tasks/:id/start", async (request, reply) => {

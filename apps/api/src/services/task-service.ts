@@ -18,6 +18,7 @@ import {
 } from "../domain/task-rules.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
+import { normalizeTaskDashboardLayout } from "../domain/task-dashboard.js";
 import { businessDateAt } from "../lib/time.js";
 
 type AttemptWithTask = TaskAttempt & { dailyTask: DailyTask };
@@ -500,7 +501,13 @@ export async function getTodayTaskExperience(
   const [child, tasks, activeSlot, scoredDays, completedStars, mascotDialogues, mascotAssets] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
-      select: { dailyStarGoal: true, starBalance: true },
+      select: {
+        dailyStarGoal: true,
+        dailyGoalBonusEnabled: true,
+        dailyGoalBonusStars: true,
+        starBalance: true,
+        taskDashboardLayout: true,
+      },
     }),
     prisma.dailyTask.findMany({
       where: { childId, taskDate: today, status: { not: "EXPIRED" } },
@@ -623,12 +630,16 @@ export async function getTodayTaskExperience(
     date: todayKey,
     earnedToday,
     dailyGoalBonusStars,
+    dailyGoalBonusPotential: child.dailyGoalBonusEnabled
+      ? child.dailyGoalBonusStars
+      : 0,
     streakDays: consecutiveScoredDays(
       scoredDays.map((item) => item.taskDate.toISOString().slice(0, 10)),
       today,
     ),
     dailyStarGoal: child.dailyStarGoal,
     starBalance: child.starBalance,
+    taskDashboardLayout: normalizeTaskDashboardLayout(child.taskDashboardLayout),
     tasks: serializedTasks,
     mascotDialogues: mascotDialogues.filter(
       (dialogue) =>
