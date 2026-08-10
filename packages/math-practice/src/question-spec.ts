@@ -72,7 +72,10 @@ export type MathVisualSpec =
       scales: readonly number[];
       attribute?: "SIZE" | "HEIGHT" | "LENGTH" | "WEIGHT";
       balance?: "LEFT" | "RIGHT" | "EQUAL";
+      balanceType?: "SEESAW" | "SCALE";
+      weights?: readonly [number, number];
       lengthAsset?: MathLengthAssetKey;
+      lengthOrientation?: "HORIZONTAL" | "VERTICAL";
     }
   | {
       kind: "SPATIAL_GRID";

@@ -1009,6 +1009,9 @@
 .math-length-compare { width: min(720px, 100%); padding: 18px 4px 8px; box-sizing: border-box; }
 .math-length-compare > img { display: block; width: 100%; height: auto; max-height: 170px; margin: 0 auto; object-fit: contain; user-select: none; -webkit-user-drag: none; }
 .math-length-compare__labels { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 12px; color: #667c94; text-align: center; font-weight: 900; }
+.math-length-compare--vertical { width: min(430px, 100%); min-height: 320px; display: grid; grid-template-columns: minmax(0, 1fr) 70px; align-items: center; gap: 12px; }
+.math-length-compare--vertical > img { width: min(280px, 100%); max-height: none; transform: rotate(90deg); }
+.math-length-compare--vertical .math-length-compare__labels { height: 250px; margin-top: 0; grid-template-columns: 1fr; grid-template-rows: repeat(3, 1fr); align-items: center; }
 .math-balance-compare { position: relative; width: min(430px, 90%); height: 245px; display: grid; align-items: end; justify-items: center; }
 .math-balance-compare__objects { position: absolute; z-index: 2; left: 5%; right: 5%; top: 58px; height: 12px; border-radius: 999px; background: #6687a5; transform-origin: center; transition: transform 180ms ease; }
 .math-balance-compare__objects::before,
@@ -1021,6 +1024,16 @@
 .math-balance-compare__object .math-sprite { width: 82px; height: 82px; object-fit: contain; }
 .math-balance-compare > i { position: absolute; z-index: 1; top: 64px; left: 50%; width: 0; height: 0; border-left: 42px solid transparent; border-right: 42px solid transparent; border-bottom: 88px solid #f0b84d; filter: drop-shadow(0 7px 0 #d79931); transform: translateX(-50%); }
 .math-balance-compare__labels { position: absolute; left: 3%; right: 3%; bottom: 0; display: flex; justify-content: space-between; color: #667c94; font-weight: 900; }
+.math-scale-compare { width: min(600px, 100%); padding: 10px 0 0; color: #667c94; font-weight: 900; }
+.math-scale-compare__stage { position: relative; width: min(540px, 100%); margin: 0 auto; aspect-ratio: 1402 / 1122; transform-origin: center; transition: transform 180ms ease; }
+.math-scale-compare--left .math-scale-compare__stage { transform: rotate(-4deg); }
+.math-scale-compare--right .math-scale-compare__stage { transform: rotate(4deg); }
+.math-scale-compare__stage > img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.math-scale-compare__weights { position: absolute; top: 30%; width: 24%; height: 13%; display: flex; align-items: flex-end; justify-content: center; gap: 5px; }
+.math-scale-compare__weights--left { left: 8%; }
+.math-scale-compare__weights--right { right: 8%; }
+.math-scale-compare__weights span { width: clamp(18px, 4vw, 30px); height: clamp(13px, 3vw, 23px); border: 3px solid #2d5a92; border-radius: 8px 8px 12px 12px; background: linear-gradient(180deg, #ffd86a 0%, #f19b4f 100%); box-shadow: inset 0 -4px 0 rgba(188, 91, 52, .22); }
+.math-scale-compare__labels { display: flex; justify-content: space-between; padding: 0 12%; margin-top: -3px; }
 
 .math-spatial-grid { display: grid; width: min(320px, 90%); border: 4px solid #8bc2df; border-radius: 25px; overflow: hidden; background: #fff; }
 .math-spatial-grid > div { min-height: 110px; display: grid; place-items: center; border: 1px dashed #b9d9ea; }
@@ -1179,6 +1192,9 @@
   .math-question-card[data-math-type="P04"] .math-inline-number-sequence { width: min(420px, 100%); grid-template-columns: 1fr; gap: 14px; }
   .math-question-card[data-math-type="P03"] .math-number-bond,
   .math-question-card[data-math-type="P04"] .math-number-bond { width: min(300px, 100%); margin: 0 auto; }
+  .math-length-compare--vertical { min-height: 280px; }
+  .math-length-compare--vertical .math-length-compare__labels { height: 220px; }
+  .math-scale-compare__weights span { border-width: 2px; }
 }
 
 .math-session {

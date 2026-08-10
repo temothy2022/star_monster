@@ -342,50 +342,74 @@ export function generateMathQuestion(
       return question(input, { prompt: "下面一组比上面一组多几个？", visual: { kind: "OBJECT_GROUPS", asset, groups: [first, second], orientation: "VERTICAL", groupLabels: ["上面", "下面"] }, response: numericResponse(), answer: { values: [String(second - first)], display: String(second - first) }, explanation: `${second} - ${first} = ${second - first}，多 ${second - first} 个。` });
     }
     case "N11": {
-      const scales = rng.shuffle(difficulty === 1 ? [0.58, 1, 0.78] : [0.72, 1, 0.86]);
-      const answerIndex = scales.indexOf(Math.max(...scales));
-      const compareAsset = rng.pick(["apple", "cake", "watermelon", "bear"] as const);
+      const scales = rng.shuffle(difficulty === 1 ? [0.54, 0.9, 1.22] : [0.46, 0.86, 1.32]);
+      const ask = rng.pick(["MAX", "MIN", "MIDDLE"] as const);
+      const targetScale = ask === "MAX" ? Math.max(...scales) : ask === "MIN" ? Math.min(...scales) : scales.slice().sort((left, right) => left - right)[1]!;
+      const answerIndex = scales.indexOf(targetScale);
+      const compareAsset = rng.pick(sprites);
+      const askLabel = ask === "MAX" ? "最大" : ask === "MIN" ? "最小" : "中等大小";
       return question(input, {
-        prompt: "请选出最大的一个。",
+        prompt: `请选出${askLabel}的一个。`,
         visual: { kind: "ATTRIBUTE_COMPARE", asset: compareAsset, scales, attribute: "SIZE" },
         response: optionResponse(positionNames),
         answer: { values: [positionNames[answerIndex]!], display: positionNames[answerIndex]! },
-        explanation: `${positionNames[answerIndex]}的一个最大。`,
+        explanation: `${positionNames[answerIndex]}的${spriteNames[compareAsset]}是${askLabel}的。`,
       });
     }
     case "N12": {
-      const scales = rng.shuffle(difficulty === 1 ? [0.58, 1, 0.76] : [0.76, 1, 0.86]);
-      const answerIndex = scales.indexOf(Math.max(...scales));
-      const compareAsset = rng.pick(["bear", "duck", "chick", "puppy"] as const);
+      const scales = rng.shuffle(difficulty === 1 ? [0.52, 0.88, 1.2] : [0.44, 0.84, 1.3]);
+      const ask = rng.pick(["MAX", "MIN", "MIDDLE"] as const);
+      const targetScale = ask === "MAX" ? Math.max(...scales) : ask === "MIN" ? Math.min(...scales) : scales.slice().sort((left, right) => left - right)[1]!;
+      const answerIndex = scales.indexOf(targetScale);
+      const compareAsset = rng.pick(sprites);
+      const askLabel = ask === "MAX" ? "最高" : ask === "MIN" ? "最矮" : "高矮适中";
       return question(input, {
-        prompt: "请选出最高的一个。",
+        prompt: `请选出${askLabel}的一个。`,
         visual: { kind: "ATTRIBUTE_COMPARE", asset: compareAsset, scales, attribute: "HEIGHT" },
         response: optionResponse(positionNames),
         answer: { values: [positionNames[answerIndex]!], display: positionNames[answerIndex]! },
-        explanation: "把物体放在同一条底线上，再比较谁的顶部最高。",
+        explanation: `把${spriteNames[compareAsset]}放在同一条底线上，${positionNames[answerIndex]}是${askLabel}的。`,
       });
     }
     case "N13": {
       const lengthSet = rng.pick(lengthAssetSets);
-      const answer = positionNames[lengthSet.longestIndex]!;
+      const ask = rng.pick(["LONGEST", "SHORTEST", "MIDDLE"] as const);
+      const shortestIndex = ((lengthSet.longestIndex + 2) % 3) as 0 | 1 | 2;
+      const middleIndex = ([0, 1, 2] as const).find((index) => index !== lengthSet.longestIndex && index !== shortestIndex)!;
+      const answerIndex = ask === "LONGEST" ? lengthSet.longestIndex : ask === "SHORTEST" ? shortestIndex : middleIndex;
+      const askLabel = ask === "LONGEST" ? "最长" : ask === "SHORTEST" ? "最短" : "中等长度";
+      const orientation = rng.pick(["HORIZONTAL", "VERTICAL"] as const);
+      const locations = orientation === "VERTICAL" ? (["上面", "中间", "下面"] as const) : positionNames;
       return question(input, {
-        prompt: "请选出最长的一件。",
-        visual: { kind: "ATTRIBUTE_COMPARE", asset: "pencil", scales: [1, 1, 1], attribute: "LENGTH", lengthAsset: lengthSet.asset },
-        response: optionResponse(positionNames),
-        answer: { values: [answer], display: answer },
-        explanation: `${answer}的${lengthSet.label}最长。`,
+        prompt: `请选出${askLabel}的一件。`,
+        visual: { kind: "ATTRIBUTE_COMPARE", asset: "pencil", scales: [1, 1, 1], attribute: "LENGTH", lengthAsset: lengthSet.asset, lengthOrientation: orientation },
+        response: optionResponse(locations),
+        answer: { values: [locations[answerIndex]!], display: locations[answerIndex]! },
+        explanation: `${locations[answerIndex]}的${lengthSet.label}是${askLabel}的。`,
       });
     }
     case "N14": {
-      const balance = rng.pick(["LEFT", "RIGHT"] as const);
-      const answer = balance === "LEFT" ? "左边" : "右边";
-      const weightAssets = rng.shuffle(["bear", "duck", "chick", "puppy", "cake", "watermelon", "apple"] as const).slice(0, 2);
+      const balance = rng.pick(["LEFT", "RIGHT", "EQUAL"] as const);
+      const balanceType = rng.pick(["SEESAW", "SCALE"] as const);
+      const ask = balance === "EQUAL" ? "EQUAL" : rng.pick(["HEAVIER", "LIGHTER"] as const);
+      const answer = balance === "EQUAL" ? "一样重" : ask === "HEAVIER"
+        ? balance === "LEFT" ? "左边" : "右边"
+        : balance === "LEFT" ? "右边" : "左边";
+      const weightAssets = rng.shuffle([...sprites]).slice(0, 2);
+      const weights: readonly [number, number] = balance === "EQUAL"
+        ? [2, 2]
+        : balance === "LEFT"
+          ? [3, 1]
+          : [1, 3];
+      const prompt = balance === "EQUAL"
+        ? "看一看，两边的物体一样重吗？"
+        : ask === "HEAVIER" ? "请选出较重的一边。" : "请选出较轻的一边。";
       return question(input, {
-        prompt: "看跷跷板，请选出较重的一个。",
-        visual: { kind: "ATTRIBUTE_COMPARE", asset: weightAssets[0]!, assets: weightAssets, scales: [1, 1], attribute: "WEIGHT", balance },
-        response: optionResponse(["左边", "右边"]),
+        prompt,
+        visual: { kind: "ATTRIBUTE_COMPARE", asset: weightAssets[0]!, assets: weightAssets, scales: [1, 1], attribute: "WEIGHT", balance, balanceType, weights },
+        response: optionResponse(balance === "EQUAL" ? ["一样重", "不一样重"] : ["左边", "右边"]),
         answer: { values: [answer], display: answer },
-        explanation: "跷跷板较低的一边更重。",
+        explanation: balance === "EQUAL" ? "两边的物体一样重。" : `${answer}的物体${ask === "HEAVIER" ? "更重" : "更轻"}。`,
       });
     }
     case "N15": {

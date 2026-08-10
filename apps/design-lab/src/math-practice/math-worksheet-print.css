@@ -565,7 +565,14 @@
 .math-paper-question .math-length-compare { width: 100%; padding: 1mm 0 0; }
 .math-paper-question .math-length-compare > img { width: 100%; max-height: 22mm; }
 .math-paper-question .math-length-compare__labels { margin-top: 1mm; font-size: 7pt; }
+.math-paper-question .math-length-compare--vertical { min-height: 34mm; grid-template-columns: 1fr 14mm; gap: 2mm; }
+.math-paper-question .math-length-compare--vertical > img { width: 36mm; max-height: none; }
+.math-paper-question .math-length-compare--vertical .math-length-compare__labels { height: 30mm; margin-top: 0; }
 .math-paper-question .math-balance-compare { height: 44mm; transform: scale(.62); }
+.math-paper-question .math-scale-compare { width: 100%; }
+.math-paper-question .math-scale-compare__stage { width: 62mm; }
+.math-paper-question .math-scale-compare__weights span { width: 4mm; height: 3mm; border-width: .5mm; border-radius: 1mm; }
+.math-paper-question .math-scale-compare__labels { font-size: 7pt; }
 .math-paper-question .math-spatial-grid { width: 50mm; border-width: .7mm; border-radius: 3mm; }
 .math-paper-question .math-spatial-grid > div { min-height: 20mm; }
 .math-paper-question .math-spatial-grid .math-sprite { width: 15mm; height: 15mm; }

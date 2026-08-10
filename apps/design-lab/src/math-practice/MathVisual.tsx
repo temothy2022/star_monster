@@ -14,6 +14,7 @@ import pencilUrl from "@star-monsters/assets/images/math-practice/pencil.webp";
 import puppyUrl from "@star-monsters/assets/images/math-practice/puppy.webp";
 import stickBundleUrl from "@star-monsters/assets/images/math-practice/stick-bundle.webp";
 import watermelonUrl from "@star-monsters/assets/images/math-practice/watermelon.webp";
+import balanceScaleUrl from "@star-monsters/assets/images/math-practice/balance-scale.png";
 import lengthCrayonsUrl from "@star-monsters/assets/images/math-practice/length-crayons.webp";
 import lengthPaintbrushesUrl from "@star-monsters/assets/images/math-practice/length-paintbrushes.webp";
 import lengthRibbonsUrl from "@star-monsters/assets/images/math-practice/length-ribbons.webp";
@@ -400,25 +401,44 @@ function AttributeCompare({ question }: { question: VisualQuestion }) {
   if (visual.attribute === "LENGTH") {
     const legacyLongestIndex = visual.scales.indexOf(Math.max(...visual.scales));
     const lengthAsset = visual.lengthAsset ?? (["rulers", "crayons", "ribbons"] as const)[legacyLongestIndex] ?? "rulers";
+    const isVertical = visual.lengthOrientation === "VERTICAL";
     return (
-      <div className="math-length-compare">
+      <div className={`math-length-compare${isVertical ? " math-length-compare--vertical" : ""}`}>
         <img
           src={lengthAssetUrls[lengthAsset]}
           alt={lengthAssetLabels[lengthAsset]}
           draggable={false}
         />
         <div className="math-length-compare__labels">
-          <small>左边</small>
-          <small>中间</small>
-          <small>右边</small>
+          {(isVertical ? ["上面", "中间", "下面"] : ["左边", "中间", "右边"]).map((label) => <small key={label}>{label}</small>)}
         </div>
       </div>
     );
   }
   if (visual.attribute === "WEIGHT" && visual.balance) {
-    const rotation = visual.balance === "LEFT" ? -7 : visual.balance === "RIGHT" ? 7 : 0;
+    if (visual.balanceType === "SCALE") {
+      const weights = visual.weights ?? [2, 2];
+      const balanceLabel = visual.balance === "EQUAL" ? "两边一样重" : visual.balance === "LEFT" ? "左边较重" : "右边较重";
+      return (
+        <div className={`math-scale-compare math-scale-compare--${visual.balance.toLowerCase()}`} aria-label={`天平，${balanceLabel}`}>
+          <div className="math-scale-compare__stage">
+            <img src={balanceScaleUrl} alt="卡通天平" draggable={false} />
+            <div className="math-scale-compare__weights math-scale-compare__weights--left">
+              {Array.from({ length: weights[0] }, (_, index) => <span key={index} aria-hidden="true" />)}
+            </div>
+            <div className="math-scale-compare__weights math-scale-compare__weights--right">
+              {Array.from({ length: weights[1] }, (_, index) => <span key={index} aria-hidden="true" />)}
+            </div>
+          </div>
+          <div className="math-scale-compare__labels"><small>左边</small><small>右边</small></div>
+        </div>
+      );
+    }
+    // A positive CSS rotation lowers the left end of the beam; keep the
+    // visual direction aligned with the answer semantics.
+    const rotation = visual.balance === "LEFT" ? 7 : visual.balance === "RIGHT" ? -7 : 0;
     return (
-      <div className="math-balance-compare" aria-label={`跷跷板${visual.balance === "LEFT" ? "左低右高" : visual.balance === "RIGHT" ? "右低左高" : "两边一样高"}`}>
+      <div className="math-balance-compare" aria-label={`跷跷板${visual.balance === "LEFT" ? "左低右高" : visual.balance === "RIGHT" ? "右低左高" : "两边一样重"}`}>
         <div className="math-balance-compare__objects" style={{ transform: `rotate(${rotation}deg)` }}>
           <div className="math-balance-compare__object math-balance-compare__object--left" style={{ transform: `rotate(${-rotation}deg)` }}><Sprite asset={visual.assets?.[0] ?? visual.asset} /></div>
           <div className="math-balance-compare__object math-balance-compare__object--right" style={{ transform: `rotate(${-rotation}deg)` }}><Sprite asset={visual.assets?.[1] ?? visual.asset} /></div>

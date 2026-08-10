@@ -434,10 +434,68 @@ describe("math practice question generator", () => {
       expect(question.visual.scales).toEqual([1, 1, 1]);
       const asset = question.visual.lengthAsset!;
       seen.add(asset);
-      expect(question.answer.values).toEqual([longestByAsset[asset]]);
+      const longestIndex = ["rulers", "toothbrushes", "spoons"].includes(asset)
+        ? 0
+        : ["crayons", "paintbrushes"].includes(asset)
+          ? 1
+          : 2;
+      const shortestIndex = (longestIndex + 2) % 3;
+      const middleIndex = [0, 1, 2].find((index) => index !== longestIndex && index !== shortestIndex)!;
+      const answerIndex = question.prompt.includes("最长") ? longestIndex : question.prompt.includes("最短") ? shortestIndex : middleIndex;
+      const locations = question.visual.lengthOrientation === "VERTICAL" ? ["上面", "中间", "下面"] : ["左边", "中间", "右边"];
+      expect(question.answer.values).toEqual([locations[answerIndex]]);
+      expect(question.visual.lengthOrientation).toMatch(/HORIZONTAL|VERTICAL/);
     }
 
     expect(seen).toEqual(new Set(Object.keys(longestByAsset)));
+  });
+
+  it("varies N11 and N12 question directions, assets, and visible differences", () => {
+    for (const typeId of ["N11", "N12"] as const) {
+      const asks = new Set<string>();
+      const assets = new Set<string>();
+      for (let seed = 1; seed <= 400; seed += 1) {
+        const question = generateMathQuestion({ typeId, seed });
+        expect(question.visual.kind).toBe("ATTRIBUTE_COMPARE");
+        if (question.visual.kind !== "ATTRIBUTE_COMPARE") continue;
+        assets.add(question.visual.asset);
+        const ask = question.prompt.includes("最大") || question.prompt.includes("最高")
+          ? "MAX"
+          : question.prompt.includes("最小") || question.prompt.includes("最矮")
+            ? "MIN"
+            : "MIDDLE";
+        asks.add(ask);
+        const sorted = [...question.visual.scales].sort((left, right) => left - right);
+        expect(sorted[2]! - sorted[0]!).toBeGreaterThanOrEqual(0.6);
+        const target = ask === "MAX" ? Math.max(...question.visual.scales) : ask === "MIN" ? Math.min(...question.visual.scales) : sorted[1]!;
+        expect(question.answer.values).toEqual([["左边", "中间", "右边"][question.visual.scales.indexOf(target)]]);
+      }
+      expect(asks).toEqual(new Set(["MAX", "MIN", "MIDDLE"]));
+      expect(assets.size).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  it("adds scale scenes, equal-weight cases, and light/heavy wording to N14", () => {
+    const scenes = new Set<string>();
+    const prompts = new Set<string>();
+    for (let seed = 1; seed <= 500; seed += 1) {
+      const question = generateMathQuestion({ typeId: "N14", seed });
+      expect(question.visual.kind).toBe("ATTRIBUTE_COMPARE");
+      if (question.visual.kind !== "ATTRIBUTE_COMPARE") continue;
+      scenes.add(question.visual.balanceType ?? "SEESAW");
+      expect(question.visual.assets).toHaveLength(2);
+      if (question.visual.balance === "EQUAL") {
+        prompts.add("EQUAL");
+        expect(question.prompt).toContain("一样重");
+        expect(question.response.options).toEqual(["一样重", "不一样重"]);
+      } else {
+        prompts.add(question.prompt.includes("较轻") ? "LIGHTER" : "HEAVIER");
+        expect(question.response.options).toEqual(["左边", "右边"]);
+        expect(question.visual.weights).toEqual(question.visual.balance === "LEFT" ? [3, 1] : [1, 3]);
+      }
+    }
+    expect(scenes).toEqual(new Set(["SEESAW", "SCALE"]));
+    expect(prompts).toEqual(new Set(["EQUAL", "LIGHTER", "HEAVIER"]));
   });
 
   it("keeps N05 front and behind counts consistent with the travel direction", () => {
