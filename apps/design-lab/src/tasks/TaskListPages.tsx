@@ -20,7 +20,7 @@ import addPlus from "@star-monsters/assets/images/task-list/semantic/add-plus.pn
 import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-base.webp";
 import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
 import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
-import { useMascot } from "../mascots";
+import { MASCOTS, useMascot } from "../mascots";
 import {
   createHtmlAudioPlayback,
   SinglePendingPlaybackQueue,
@@ -31,10 +31,13 @@ import { ChildDataState } from "../components/ChildDataState";
 import {
   ApiError,
   getChildPlanets,
+  getChildFootprints,
   getTodayTasks,
   markChildPlanetNotified,
   updateTaskDashboardLayout,
   type ChildPlanet,
+  type ChildLeaderboard,
+  type ChildLeaderboardEntry,
   type DailyTask,
   type MascotAsset,
   type MascotDialogue,
@@ -49,6 +52,8 @@ import {
   reportChildPageReady,
 } from "../api/performance-telemetry";
 import { TaskDashboard } from "./TaskDashboard";
+import { LEADERBOARD_AVATARS } from "../progress/leaderboard-avatars";
+import { LEADERBOARD_FLAGS } from "../progress/leaderboard-flags";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -393,6 +398,66 @@ function QuickLinksWidget({ onNavigate }: { onNavigate?: (route: ChildRoute) => 
   );
 }
 
+function CompactLeaderboardRow({ entry }: { entry: ChildLeaderboardEntry }) {
+  const avatar = entry.avatarUrl ?? (
+    entry.avatarKey
+      ? LEADERBOARD_AVATARS[entry.avatarKey]
+      : MASCOTS[entry.petType].images.neutral
+  );
+  return (
+    <li className={entry.isSelf ? "is-self" : ""}>
+      <span className={`task-widget-leaderboard__rank rank-${entry.rank ?? "more"}`}>
+        {entry.rank ?? "..."}
+      </span>
+      <span className="task-widget-leaderboard__avatar" aria-hidden="true">
+        <img src={avatar} alt="" loading={entry.isSelf ? "eager" : "lazy"} decoding="async" />
+        <img src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" />
+      </span>
+      <strong>{entry.isSelf ? "我" : entry.displayName}</strong>
+      <span className="task-widget-leaderboard__stars">
+        <b>{entry.stars}</b><img src={rewardStar} alt="星星" />
+      </span>
+    </li>
+  );
+}
+
+function CompactLeaderboardWidget({ leaderboard }: { leaderboard: ChildLeaderboard | null }) {
+  if (!leaderboard) {
+    return (
+      <div className="task-widget-leaderboard task-widget-leaderboard--loading" aria-busy="true">
+        <div className="task-widget-leaderboard__heading"><small>今日榜</small><strong>小朋友排名</strong></div>
+        <span>正在更新排名…</span>
+      </div>
+    );
+  }
+
+  const topThree = leaderboard.entries
+    .filter((entry) => entry.rank !== null && entry.rank <= 3)
+    .sort((left, right) => (left.rank ?? 4) - (right.rank ?? 4))
+    .slice(0, 3);
+  const self = leaderboard.entries.find((entry) => entry.isSelf) ?? null;
+  const selfOutsideTopThree = self !== null && (self.rank === null || self.rank > 3);
+
+  return (
+    <div className="task-widget-leaderboard">
+      <div className="task-widget-leaderboard__heading">
+        <small>今日榜</small><strong>小朋友排名</strong>
+      </div>
+      <ol>
+        {topThree.map((entry) => (
+          <CompactLeaderboardRow entry={entry} key={entry.competitorId ?? "self"} />
+        ))}
+        {selfOutsideTopThree && (
+          <>
+            <li className="task-widget-leaderboard__divider" aria-hidden="true"><i /><i /><i /></li>
+            <CompactLeaderboardRow entry={self} />
+          </>
+        )}
+      </ol>
+    </div>
+  );
+}
+
 function PendingTaskCard({
   task,
   starting,
@@ -608,6 +673,7 @@ export function TaskExperience({
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [dailyLeaderboard, setDailyLeaderboard] = useState<ChildLeaderboard | null>(null);
   const onStartAttemptRef = useRef(onStartAttempt);
 
   useEffect(() => {
@@ -701,6 +767,40 @@ export function TaskExperience({
       }
     },
     { enabled: Boolean(experience), intervalMs: 10_000 },
+  );
+
+  const leaderboardEnabled = variant === "dashboard" && Boolean(
+    experience?.taskDashboardLayout.widgets.includes("LEADERBOARD"),
+  );
+
+  useEffect(() => {
+    if (!leaderboardEnabled) {
+      setDailyLeaderboard(null);
+      return;
+    }
+    const controller = new AbortController();
+    void getChildFootprints(undefined, controller.signal)
+      .then((result) => setDailyLeaderboard(result.leaderboards.daily))
+      .catch((reason: unknown) => {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      });
+    return () => controller.abort();
+  }, [leaderboardEnabled]);
+
+  useLiveRefresh(
+    async (signal) => {
+      try {
+        const result = await getChildFootprints(undefined, signal);
+        setDailyLeaderboard(result.leaderboards.daily);
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: leaderboardEnabled, intervalMs: 60_000 },
   );
 
   useEffect(() => {
@@ -808,6 +908,8 @@ export function TaskExperience({
         );
       case "QUICK_LINKS":
         return <QuickLinksWidget onNavigate={onNavigate} />;
+      case "LEADERBOARD":
+        return <CompactLeaderboardWidget leaderboard={dailyLeaderboard} />;
     }
   }
 

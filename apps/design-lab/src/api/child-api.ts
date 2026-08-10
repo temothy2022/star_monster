@@ -396,7 +396,8 @@ export type TaskDashboardWidgetKey =
   | "TODAY_PLAN"
   | "STREAK"
   | "GOAL_BONUS"
-  | "QUICK_LINKS";
+  | "QUICK_LINKS"
+  | "LEADERBOARD";
 
 export type TaskDashboardLayout = {
   version: 1;

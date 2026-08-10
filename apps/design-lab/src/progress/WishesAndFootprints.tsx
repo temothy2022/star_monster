@@ -15,18 +15,6 @@ import triumphIcon from "@star-monsters/assets/icons/footprints/triumph.svg";
 import readingIcon from "@star-monsters/assets/icons/footprints/task-reading.svg";
 import mathIcon from "@star-monsters/assets/icons/footprints/task-math.svg";
 import booksIcon from "@star-monsters/assets/icons/footprints/task-books.svg";
-import chinaFlag from "@star-monsters/assets/images/footprints/flags/china.webp?no-inline";
-import japanFlag from "@star-monsters/assets/images/footprints/flags/japan.webp?no-inline";
-import koreaFlag from "@star-monsters/assets/images/footprints/flags/korea.webp?no-inline";
-import singaporeFlag from "@star-monsters/assets/images/footprints/flags/singapore.webp?no-inline";
-import unitedKingdomFlag from "@star-monsters/assets/images/footprints/flags/united-kingdom.webp?no-inline";
-import franceFlag from "@star-monsters/assets/images/footprints/flags/france.webp?no-inline";
-import germanyFlag from "@star-monsters/assets/images/footprints/flags/germany.webp?no-inline";
-import italyFlag from "@star-monsters/assets/images/footprints/flags/italy.webp?no-inline";
-import canadaFlag from "@star-monsters/assets/images/footprints/flags/canada.webp?no-inline";
-import australiaFlag from "@star-monsters/assets/images/footprints/flags/australia.webp?no-inline";
-import brazilFlag from "@star-monsters/assets/images/footprints/flags/brazil.webp?no-inline";
-import unitedStatesFlag from "@star-monsters/assets/images/footprints/flags/united-states.webp?no-inline";
 import { MASCOTS } from "../mascots";
 import { PLANET_BY_KEY } from "../planets/planet-data";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
@@ -41,12 +29,12 @@ import {
   getChildWishes,
   redeemChildWish,
   type ChildWish,
-  type ChildLeaderboardEntry,
   type FootprintResponse,
 } from "../api/child-api";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { reportChildPageReady } from "../api/performance-telemetry";
 import { LEADERBOARD_AVATARS } from "./leaderboard-avatars";
+import { LEADERBOARD_FLAGS } from "./leaderboard-flags";
 
 type RequestedWish = {
   id: string;
@@ -88,21 +76,6 @@ function nextDateText(date: string | null) {
 }
 
 type LeaderboardPeriod = "daily" | "weekly";
-
-const FLAG_IMAGES: Record<ChildLeaderboardEntry["flagKey"], string> = {
-  CHINA: chinaFlag,
-  JAPAN: japanFlag,
-  KOREA: koreaFlag,
-  SINGAPORE: singaporeFlag,
-  UNITED_KINGDOM: unitedKingdomFlag,
-  FRANCE: franceFlag,
-  GERMANY: germanyFlag,
-  ITALY: italyFlag,
-  CANADA: canadaFlag,
-  AUSTRALIA: australiaFlag,
-  BRAZIL: brazilFlag,
-  UNITED_STATES: unitedStatesFlag,
-};
 
 function RequestedWishCard({
   wish,
@@ -378,7 +351,7 @@ function FootprintLeaderboard({
                 loading={entry.isSelf ? "eager" : "lazy"}
                 decoding="async"
               />
-              <img className="footprints-leaderboard__flag" src={FLAG_IMAGES[entry.flagKey]} alt="" loading="lazy" />
+              <img className="footprints-leaderboard__flag" src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" />
             </span>
             <span className="footprints-leaderboard__name">
               <strong>{entry.displayName}</strong>

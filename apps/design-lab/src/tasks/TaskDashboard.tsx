@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -23,11 +24,12 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", required: true },
   { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green" },
   { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow" },
-  { key: "MASCOT", label: "星宠伙伴", description: "让星宠陪你完成今天的挑战", size: "wide", tone: "pink" },
+  { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink" },
   { key: "TODAY_PLAN", label: "今日计划", description: "待完成、已完成和预计时间", size: "medium", tone: "blue" },
   { key: "STREAK", label: "连续记录", description: "记录坚持完成任务的天数", size: "small", tone: "orange" },
   { key: "GOAL_BONUS", label: "目标奖励", description: "展示达标后可以获得的奖励", size: "small", tone: "purple" },
   { key: "QUICK_LINKS", label: "快捷入口", description: "快速前往星宠、星愿和足迹", size: "medium", tone: "teal" },
+  { key: "LEADERBOARD", label: "今日排名", description: "查看前三名和自己的今日排名", size: "medium", tone: "indigo" },
 ];
 
 const WIDGET_BY_KEY = new Map(TASK_DASHBOARD_WIDGETS.map((widget) => [widget.key, widget]));
@@ -37,6 +39,9 @@ type DragSession = {
   pointerId: number;
   startX: number;
   startY: number;
+  startOffsetLeft: number;
+  startOffsetTop: number;
+  startScrollTop: number;
   target: HTMLElement;
   activated: boolean;
   timer: number;
@@ -73,8 +78,10 @@ export function TaskDashboard({
   const [pressedWidget, setPressedWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [draggingWidget, setDraggingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragSession | null>(null);
   const widgetsRef = useRef(draftWidgets);
+  const previousRectsRef = useRef<Map<TaskDashboardWidgetKey, DOMRect> | null>(null);
 
   useEffect(() => {
     widgetsRef.current = draftWidgets;
@@ -88,6 +95,38 @@ export function TaskDashboard({
     const drag = dragRef.current;
     if (drag) window.clearTimeout(drag.timer);
   }, []);
+
+  useLayoutEffect(() => {
+    const previousRects = previousRectsRef.current;
+    previousRectsRef.current = null;
+    if (!previousRects || !gridRef.current) return;
+    for (const element of gridRef.current.querySelectorAll<HTMLElement>("[data-task-widget]")) {
+      const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+      if (!key || key === draggingWidget) continue;
+      const previous = previousRects.get(key);
+      if (!previous) continue;
+      const current = element.getBoundingClientRect();
+      const deltaX = previous.left - current.left;
+      const deltaY = previous.top - current.top;
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
+      element.animate(
+        [
+          { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
+          { transform: "translate3d(0, 0, 0)" },
+        ],
+        { duration: 240, easing: "cubic-bezier(.2,.82,.2,1)" },
+      );
+    }
+  }, [draftWidgets, draggingWidget]);
+
+  function captureWidgetRects(exclude?: TaskDashboardWidgetKey) {
+    const positions = new Map<TaskDashboardWidgetKey, DOMRect>();
+    for (const element of gridRef.current?.querySelectorAll<HTMLElement>("[data-task-widget]") ?? []) {
+      const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+      if (key && key !== exclude) positions.set(key, element.getBoundingClientRect());
+    }
+    return positions;
+  }
 
   function enterEditing() {
     setDraftWidgets(layout.widgets);
@@ -106,6 +145,8 @@ export function TaskDashboard({
     }
     if (!editing) enterEditing();
     session.activated = true;
+    session.target.style.setProperty("--task-drag-x", "0px");
+    session.target.style.setProperty("--task-drag-y", "0px");
     setPressedWidget(null);
     setDraggingWidget(session.key);
   }
@@ -121,6 +162,9 @@ export function TaskDashboard({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      startOffsetLeft: event.currentTarget.offsetLeft,
+      startOffsetTop: event.currentTarget.offsetTop,
+      startScrollTop: scrollRef.current?.scrollTop ?? 0,
       target: event.currentTarget,
       activated: false,
       timer: 0,
@@ -149,6 +193,11 @@ export function TaskDashboard({
       return;
     }
     event.preventDefault();
+    const dragX = event.clientX - session.startX + session.startOffsetLeft - session.target.offsetLeft;
+    const dragY = event.clientY - session.startY + session.startOffsetTop - session.target.offsetTop +
+      ((scrollRef.current?.scrollTop ?? 0) - session.startScrollTop);
+    session.target.style.setProperty("--task-drag-x", `${dragX}px`);
+    session.target.style.setProperty("--task-drag-y", `${dragY}px`);
     const scroll = scrollRef.current;
     if (scroll) {
       const rect = scroll.getBoundingClientRect();
@@ -169,6 +218,7 @@ export function TaskDashboard({
       : event.clientY > rect.top + rect.height / 2;
     const next = reorder(widgetsRef.current, session.key, targetKey, after);
     if (next !== widgetsRef.current) {
+      previousRectsRef.current = captureWidgetRects(session.key);
       widgetsRef.current = next;
       setDraftWidgets(next);
     }
@@ -182,6 +232,8 @@ export function TaskDashboard({
     if (session.target.hasPointerCapture?.(session.pointerId)) {
       session.target.releasePointerCapture(session.pointerId);
     }
+    session.target.style.removeProperty("--task-drag-x");
+    session.target.style.removeProperty("--task-drag-y");
     dragRef.current = null;
     setPressedWidget(null);
     setDraggingWidget(null);
@@ -244,7 +296,7 @@ export function TaskDashboard({
       <div className="task-dashboard-topbar">
         <div>
           <strong>今天的探险</strong>
-          <span>{editing ? "拖动组件，布置自己的任务桌面" : "长按组件可以调整桌面"}</span>
+          {editing && <span>拖动组件，布置自己的任务桌面</span>}
         </div>
         {editing ? (
           <div className="task-dashboard-topbar__actions">
@@ -254,15 +306,11 @@ export function TaskDashboard({
               {saving ? "保存中" : "完成"}
             </button>
           </div>
-        ) : (
-          <button className="task-dashboard-edit" type="button" onClick={enterEditing} aria-label="编辑任务桌面">
-            <i aria-hidden="true" /><span>编辑桌面</span>
-          </button>
-        )}
+        ) : null}
       </div>
 
       <div className="task-dashboard-scroll" ref={scrollRef}>
-        <div className="task-dashboard-grid">
+        <div className="task-dashboard-grid" ref={gridRef}>
           {draftWidgets.map((key, index) => {
             const definition = WIDGET_BY_KEY.get(key)!;
             return (
@@ -275,11 +323,13 @@ export function TaskDashboard({
                   draggingWidget === key ? "is-dragging" : "",
                 ].filter(Boolean).join(" ")}
                 data-task-widget={key}
+                aria-label={definition.label}
                 key={key}
                 onPointerDown={(event) => beginDrag(key, event)}
                 onPointerMove={moveDrag}
                 onPointerUp={finishDrag}
                 onPointerCancel={finishDrag}
+                onContextMenu={(event) => event.preventDefault()}
               >
                 {editing && (
                   <div className="task-dashboard-widget__edit-controls">
