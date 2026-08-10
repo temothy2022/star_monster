@@ -11,6 +11,7 @@ export type StaffUser = {
 export type Child = {
   id: string;
   nickname: string | null;
+  avatarUrl: string | null;
   petType: string | null;
   status: "ACTIVE" | "DISABLED";
   onboardingCompletedAt: string | null;
@@ -667,6 +668,15 @@ export const parentApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  uploadChildAvatar: (id: string, file: File) =>
+    api<{ child: { id: string; avatarUrl: string } }>(
+      `/api/parent/children/${id}/avatar`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": uploadContentType(file) },
+        body: file,
+      },
+    ),
   leaderboardSettings: (childId: string) =>
     api<LeaderboardSettingsResponse>(`/api/parent/children/${childId}/leaderboard/settings`),
   updateLeaderboardSettings: (childId: string, data: Pick<LeaderboardSettings, "competitorGrowthPercent" | "dailyCompetitorStarDelta">) =>

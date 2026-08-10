@@ -46,6 +46,7 @@ import {
 } from "../api/child-api";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
 import { reportChildPageReady } from "../api/performance-telemetry";
+import { LEADERBOARD_AVATARS } from "./leaderboard-avatars";
 
 type RequestedWish = {
   id: string;
@@ -364,13 +365,19 @@ function FootprintLeaderboard({
         {leaderboard.entries.map((entry) => (
           <li
             className={`footprints-leaderboard__row${entry.isSelf ? " footprints-leaderboard__row--self" : ""}`}
-            key={`${period}-${entry.displayName}-${entry.flagKey}`}
+            key={`${period}-${entry.competitorId ?? "self"}`}
           >
             <span className={`footprints-leaderboard__rank footprints-leaderboard__rank--${Math.min(entry.rank ?? 4, 4)}${entry.rank === null ? " footprints-leaderboard__rank--unlisted" : ""}`}>
               {entry.rank ?? "..."}
             </span>
             <span className="footprints-leaderboard__avatar" aria-hidden="true">
-              <img className="footprints-leaderboard__pet" src={MASCOTS[entry.petType].images.neutral} alt="" />
+              <img
+                className="footprints-leaderboard__portrait"
+                src={entry.avatarUrl ?? (entry.avatarKey ? LEADERBOARD_AVATARS[entry.avatarKey] : MASCOTS[entry.petType].images.neutral)}
+                alt=""
+                loading={entry.isSelf ? "eager" : "lazy"}
+                decoding="async"
+              />
               <img className="footprints-leaderboard__flag" src={FLAG_IMAGES[entry.flagKey]} alt="" loading="lazy" />
             </span>
             <span className="footprints-leaderboard__name">

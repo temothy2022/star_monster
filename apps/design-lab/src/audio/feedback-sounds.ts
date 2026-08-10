@@ -1,7 +1,9 @@
+import { registerManagedAudioContext } from "./queued-playback";
+
 let audioContext: AudioContext | null = null;
 
 function context() {
-  audioContext ??= new AudioContext();
+  audioContext ??= registerManagedAudioContext(new AudioContext());
   if (audioContext.state === "suspended") void audioContext.resume();
   return audioContext;
 }

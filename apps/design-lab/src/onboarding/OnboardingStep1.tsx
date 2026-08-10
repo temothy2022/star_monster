@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { AdventureButton, StarPetCard } from "@star-monsters/ui";
 import arrowLeft from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import check from "@star-monsters/assets/icons/icon-check.svg";
 import rocket from "@star-monsters/assets/icons/icon-rocket.svg";
 import { MASCOTS, MASCOT_ORDER, type PetType } from "../mascots";
 import { OnboardingViewport } from "./OnboardingViewport";
+import { registerManagedAudioContext } from "../audio/queued-playback";
 
 type WebkitAudioWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
@@ -35,6 +36,13 @@ export function OnboardingStep1({
 }: OnboardingStep1Props) {
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  useEffect(() => () => {
+    const audioContext = audioContextRef.current;
+    if (audioContext?.state === "running") {
+      void audioContext.suspend().catch(() => undefined);
+    }
+  }, []);
+
   function playSelectionChime() {
     if (typeof window === "undefined") return;
 
@@ -45,8 +53,9 @@ export function OnboardingStep1({
 
     const audioContext =
       audioContextRef.current?.state === "closed"
-        ? new AudioContextConstructor()
-        : (audioContextRef.current ?? new AudioContextConstructor());
+        ? registerManagedAudioContext(new AudioContextConstructor())
+        : (audioContextRef.current
+          ?? registerManagedAudioContext(new AudioContextConstructor()));
 
     audioContextRef.current = audioContext;
 

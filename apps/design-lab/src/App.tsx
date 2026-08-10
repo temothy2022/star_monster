@@ -20,6 +20,7 @@ import {
   saveOnboarding,
 } from "./api/child-api";
 import type { TaskAttempt, TodayTaskExperience } from "./api/child-api";
+import { stopManagedHtmlAudio } from "./audio/queued-playback";
 
 const loadUntimedTaskPages = () => import("./tasks/UntimedTaskPages");
 const loadTimedTaskPages = () => import("./tasks/TimedTaskPages");
@@ -406,6 +407,10 @@ export function App() {
 
   useEffect(() => {
     document.title = `星宠-${childPageTitle(route)}`;
+  }, [route]);
+
+  useEffect(() => {
+    stopManagedHtmlAudio();
   }, [route]);
 
   useEffect(() => {

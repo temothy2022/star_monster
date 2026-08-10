@@ -1,3 +1,5 @@
+import { registerManagedAudioContext } from "./queued-playback";
+
 type WebkitAudioWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
 };
@@ -13,7 +15,7 @@ function getAudioContext(): AudioContext | null {
   if (!AudioContextConstructor) return null;
 
   if (!audioContext || audioContext.state === "closed") {
-    audioContext = new AudioContextConstructor();
+    audioContext = registerManagedAudioContext(new AudioContextConstructor());
   }
   return audioContext;
 }

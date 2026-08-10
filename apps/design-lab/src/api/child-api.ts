@@ -942,11 +942,14 @@ export type FootprintResponse = {
 };
 
 export type ChildLeaderboardEntry = {
+  competitorId: string | null;
   rank: number | null;
   displayName: string;
   stars: number;
   completedTasks: number;
   petType: "DOUYA" | "PAOPAO" | "TUANTUAN" | "MILU" | "SHANSHAN";
+  avatarKey: string | null;
+  avatarUrl: string | null;
   flagKey:
     | "CHINA"
     | "JAPAN"

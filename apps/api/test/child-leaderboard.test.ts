@@ -1,258 +1,219 @@
 import { describe, expect, it } from "vitest";
 import { buildMotivationalLeaderboard } from "../src/domain/child-leaderboard.js";
+import { leaderboardEffectiveMinute } from "../src/services/footprint-service.js";
 
 const baseInput = {
   childId: "child-a",
   nickname: "了了",
+  avatarUrl: null,
   stars: 0,
   completedTasks: 0,
   petType: "DOUYA" as const,
-  goalStars: 12,
-  maxAvailableStars: 12,
+  goalStars: 20,
+  maxAvailableStars: 40,
   completionRate: 0,
-  dailyGoalStars: 12,
-  seed: "2026-08-03",
-  scoreDays: [{ seed: "2026-08-07", elapsedMinutes: 24 * 60 }],
+  dailyGoalStars: 20,
+  habitualDailyStars: 24,
+  seed: "2026-08-10",
+  scoreDays: [{
+    seed: "2026-08-10",
+    elapsedMinutes: 20 * 60,
+    effectiveMinutes: 20 * 60,
+    childStars: 0,
+    maxAvailableStars: 40,
+  }],
 };
 
+function competitors(result: ReturnType<typeof buildMotivationalLeaderboard>) {
+  return result.entries.filter((entry) => !entry.isSelf);
+}
+
 describe("孩子激励排行榜", () => {
-  it("始终生成完整的十二人榜单并固定当前孩子为中国国旗", () => {
+  it("每日榜人数在十三到十六人之间且虚拟头像身份完整", () => {
     const result = buildMotivationalLeaderboard(baseInput);
-    const self = result.entries.find((entry) => entry.isSelf);
-
-    expect(result.entries).toHaveLength(12);
-    expect(result.entries.map((entry) => entry.rank)).toEqual([
-      ...Array.from({ length: 11 }, (_, index) => index + 1),
-      null,
-    ]);
-    expect(self).toMatchObject({ displayName: "了了", flagKey: "CHINA" });
-    expect(new Set(result.entries.filter((entry) => !entry.isSelf).map((entry) => entry.petType)).size).toBe(5);
-    expect(
-      result.entries.filter(
-        (entry) => !entry.isSelf && entry.flagKey === "CHINA",
-      ),
-    ).toHaveLength(6);
-    expect(
-      result.entries
-        .filter((entry) => !entry.isSelf)
-        .every((entry) => /^[A-Z][a-z]{2}$/.test(entry.displayName)),
-    ).toBe(true);
-  });
-
-  it("上海时间零点从零开始并让尚未得星的孩子位于榜尾", () => {
-    const result = buildMotivationalLeaderboard({
-      ...baseInput,
-      scoreDays: [{ seed: "2026-08-08", elapsedMinutes: 0 }],
+    const rivals = competitors(result);
+    expect(result.entries.length).toBeGreaterThanOrEqual(13);
+    expect(result.entries.length).toBeLessThanOrEqual(16);
+    expect(rivals.every((entry) => entry.competitorId && entry.avatarKey?.startsWith("avatar-"))).toBe(true);
+    expect(new Set(rivals.map((entry) => entry.competitorId)).size).toBe(rivals.length);
+    expect(result.entries.find((entry) => entry.isSelf)).toMatchObject({
+      displayName: "了了",
+      flagKey: "CHINA",
+      avatarKey: null,
     });
-
-    expect(result.self.rank).toBe(12);
-    expect(result.entries.every((entry) => entry.stars === 0)).toBe(true);
   });
 
-  it("虚拟小朋友随着一天时间推进只增加星星且刷新结果稳定", () => {
-    const minutes = [0, 8 * 60, 13 * 60, 18 * 60, 23 * 60 + 59];
-    const snapshots = minutes.map((elapsedMinutes) =>
+  it("同一天名单和分数稳定，第二天轮换，一周覆盖二十人以上", () => {
+    const today = buildMotivationalLeaderboard(baseInput);
+    const repeated = buildMotivationalLeaderboard(baseInput);
+    const dailyResults = Array.from({ length: 7 }, (_, index) =>
       buildMotivationalLeaderboard({
         ...baseInput,
-        scoreDays: [{ seed: "2026-08-07", elapsedMinutes }],
+        seed: `2026-08-${String(10 + index).padStart(2, "0")}`,
+        scoreDays: [{
+          ...baseInput.scoreDays[0],
+          seed: `2026-08-${String(10 + index).padStart(2, "0")}`,
+        }],
       }),
     );
-
-    for (let index = 1; index < snapshots.length; index += 1) {
-      const previous = new Map(
-        snapshots[index - 1].entries.map((entry) => [entry.displayName, entry.stars]),
-      );
-      expect(
-        snapshots[index].entries.every(
-          (entry) => entry.stars >= (previous.get(entry.displayName) ?? 0),
-        ),
-      ).toBe(true);
-    }
-    expect(snapshots.at(-1)?.entries.some((entry) => !entry.isSelf && entry.stars > 0)).toBe(true);
-    expect(snapshots[2]).toEqual(
-      buildMotivationalLeaderboard({
-        ...baseInput,
-        scoreDays: [{ seed: "2026-08-07", elapsedMinutes: 13 * 60 }],
-      }),
-    );
+    const ids = (result: typeof today) => competitors(result).map((entry) => entry.competitorId).sort();
+    expect(repeated).toEqual(today);
+    expect(ids(dailyResults[1]!)).not.toEqual(ids(today));
+    expect(new Set(dailyResults.flatMap((result) => ids(result))).size).toBeGreaterThanOrEqual(20);
   });
 
-  it("今日榜和本周榜的虚拟星星都不会超过孩子可获得的总数", () => {
-    const daily = buildMotivationalLeaderboard({
-      ...baseInput,
-      maxAvailableStars: 7,
-      competitorGrowthPercent: 200,
-      competitorStarDelta: 50,
-    });
+  it("周榜逐日累加每日参赛者的成绩", () => {
+    const days = Array.from({ length: 5 }, (_, index) => ({
+      seed: `2026-08-${String(3 + index).padStart(2, "0")}`,
+      elapsedMinutes: 24 * 60,
+      effectiveMinutes: 24 * 60,
+      childStars: 12,
+      maxAvailableStars: 30,
+    }));
     const weekly = buildMotivationalLeaderboard({
       ...baseInput,
-      goalStars: 60,
-      maxAvailableStars: 23,
-      competitorGrowthPercent: 200,
-      competitorStarDelta: 50,
-      scoreDays: Array.from({ length: 5 }, (_, index) => ({
-        seed: `2026-08-${String(index + 3).padStart(2, "0")}`,
-        elapsedMinutes: 24 * 60,
-      })),
+      stars: 60,
+      goalStars: 100,
+      maxAvailableStars: 150,
+      completionRate: 1,
+      scoreDays: days,
     });
-
-    expect(daily.entries.filter((entry) => !entry.isSelf).every((entry) => entry.stars <= 7)).toBe(true);
-    expect(weekly.entries.filter((entry) => !entry.isSelf).every((entry) => entry.stars <= 23)).toBe(true);
-  });
-
-  it("少于三颗星且落后于全部对手时显示未上榜", () => {
-    const unlisted = buildMotivationalLeaderboard({
-      ...baseInput,
-      stars: 2,
-    });
-
-    expect(unlisted.entries.filter((entry) => !entry.isSelf).every((entry) => entry.stars > 2)).toBe(true);
-    expect(unlisted.self.rank).toBeNull();
-    expect(unlisted.self.inTopTen).toBe(false);
-    expect(unlisted.entries.find((entry) => entry.isSelf)?.rank).toBeNull();
-  });
-
-  it("家长调整今日对手星星后仍保留真实得星的递增过程", () => {
-    const morning = buildMotivationalLeaderboard({
-      ...baseInput,
-      competitorStarDelta: 4,
-      scoreDays: [{ seed: "2026-08-07", elapsedMinutes: 8 * 60 }],
-    });
-    const evening = buildMotivationalLeaderboard({
-      ...baseInput,
-      competitorStarDelta: 4,
-      scoreDays: [{ seed: "2026-08-07", elapsedMinutes: 21 * 60 }],
-    });
-    const morningStars = new Map(
-      morning.entries.map((entry) => [entry.displayName, entry.stars]),
-    );
-
-    expect(morning.self.stars).toBe(0);
+    const expected = new Map<string, number>();
+    for (const day of days) {
+      const daily = buildMotivationalLeaderboard({
+        ...baseInput,
+        stars: day.childStars,
+        completionRate: 1,
+        maxAvailableStars: day.maxAvailableStars,
+        scoreDays: [day],
+      });
+      for (const entry of competitors(daily)) {
+        expected.set(entry.competitorId!, (expected.get(entry.competitorId!) ?? 0) + entry.stars);
+      }
+    }
+    expect(competitors(weekly).length).toBeGreaterThanOrEqual(20);
     expect(
-      evening.entries
-        .filter((entry) => !entry.isSelf)
-        .every((entry) => entry.stars >= (morningStars.get(entry.displayName) ?? 0)),
+      competitors(weekly).every((entry) => entry.stars === expected.get(entry.competitorId!)),
     ).toBe(true);
   });
 
-  it("对手增长速度可调且默认百分比保持原结果", () => {
-    const defaults = buildMotivationalLeaderboard(baseInput);
-    const explicitDefaults = buildMotivationalLeaderboard({
-      ...baseInput,
-      competitorGrowthPercent: 100,
-      competitorStarDelta: 0,
-    });
-    const slower = buildMotivationalLeaderboard({
-      ...baseInput,
-      competitorGrowthPercent: 50,
-    });
-    const opponentStars = (result: typeof defaults) =>
-      result.entries
-        .filter((entry) => !entry.isSelf)
-        .reduce((sum, entry) => sum + entry.stars, 0);
-
-    expect(explicitDefaults).toEqual(defaults);
-    expect(opponentStars(slower)).toBeLessThan(opponentStars(defaults));
-  });
-
-  it("孩子获得更多星星后排名自然提升", () => {
-    const quarter = buildMotivationalLeaderboard({ ...baseInput, stars: 3 });
-    const half = buildMotivationalLeaderboard({ ...baseInput, stars: 6 });
-    const goal = buildMotivationalLeaderboard({ ...baseInput, stars: 12 });
-    const quarterRank = quarter.self.rank ?? Number.POSITIVE_INFINITY;
-    const halfRank = half.self.rank ?? Number.POSITIVE_INFINITY;
-
-    expect(quarterRank).toBeGreaterThanOrEqual(halfRank);
-    expect(halfRank).toBeGreaterThan(goal.self.rank!);
-    expect(goal.self.rank).toBeLessThanOrEqual(2);
-  });
-
-  it("达到目标后大多数日期获得第一名且同一天结果稳定", () => {
-    const ranks = Array.from({ length: 100 }, (_, index) =>
+  it("对手分数随有效时间单调增加且刷新稳定", () => {
+    const minutes = [0, 8 * 60, 13 * 60, 18 * 60, 23 * 60 + 59];
+    const snapshots = minutes.map((effectiveMinutes) =>
       buildMotivationalLeaderboard({
         ...baseInput,
-        stars: 12,
-        scoreDays: [{
-          seed: `day-${String(index + 1).padStart(3, "0")}`,
-          elapsedMinutes: 24 * 60,
-        }],
-      }).self.rank,
+        scoreDays: [{ ...baseInput.scoreDays[0], effectiveMinutes }],
+      }),
     );
-    const first = buildMotivationalLeaderboard({
+    for (let index = 1; index < snapshots.length; index += 1) {
+      const previous = new Map(competitors(snapshots[index - 1]!).map((entry) => [entry.competitorId, entry.stars]));
+      expect(competitors(snapshots[index]!).every(
+        (entry) => entry.stars >= (previous.get(entry.competitorId) ?? 0),
+      )).toBe(true);
+    }
+    expect(snapshots[2]).toEqual(buildMotivationalLeaderboard({
       ...baseInput,
-      stars: 12,
-    });
-    const second = buildMotivationalLeaderboard({
-      ...baseInput,
-      stars: 12,
-    });
-
-    expect(ranks.filter((rank) => rank === 1).length).toBeGreaterThanOrEqual(70);
-    expect(ranks.every((rank) => rank !== null && rank >= 1 && rank <= 3)).toBe(true);
-    expect(first).toEqual(second);
+      scoreDays: [{ ...baseInput.scoreDays[0], effectiveMinutes: 13 * 60 }],
+    }));
   });
 
-  it("明显超额时固定为第一名", () => {
-    const exceeded = buildMotivationalLeaderboard({
-      ...baseInput,
-      stars: 17,
-    });
-
-    expect(exceeded.self.rank).toBe(1);
+  it("速度锚点保证修改瞬间不跳分，之后只改变新增速度", () => {
+    const before = {
+      competitorGrowthPercent: 100,
+      dailyCompetitorStarDelta: 0,
+      dailyAdjustmentDate: null,
+      speedAnchorDate: null,
+      speedAnchorMinute: 0,
+      speedAnchorEffectiveMinute: 0,
+    };
+    const effectiveAtChange = leaderboardEffectiveMinute(before, "2026-08-10", 600);
+    const faster = {
+      ...before,
+      competitorGrowthPercent: 180,
+      speedAnchorDate: "2026-08-10",
+      speedAnchorMinute: 600,
+      speedAnchorEffectiveMinute: effectiveAtChange,
+    };
+    const slower = { ...faster, competitorGrowthPercent: 40 };
+    expect(leaderboardEffectiveMinute(faster, "2026-08-10", 600)).toBe(effectiveAtChange);
+    expect(leaderboardEffectiveMinute(slower, "2026-08-10", 600)).toBe(effectiveAtChange);
+    expect(leaderboardEffectiveMinute(faster, "2026-08-10", 660)).toBeGreaterThan(
+      leaderboardEffectiveMinute(slower, "2026-08-10", 660),
+    );
   });
 
-  it("虚拟身份一周内保持一致，到新一周再轮换", () => {
-    const today = buildMotivationalLeaderboard(baseInput);
-    const tomorrow = buildMotivationalLeaderboard({
+  it("孩子大比分领先时有四到六名对手追到接近区间", () => {
+    const result = buildMotivationalLeaderboard({
       ...baseInput,
-      scoreDays: [{ seed: "2026-08-08", elapsedMinutes: 24 * 60 }],
+      stars: 40,
+      completedTasks: 16,
+      completionRate: 0.9,
+      scoreDays: [{ ...baseInput.scoreDays[0], childStars: 40 }],
     });
-    const nextWeek = buildMotivationalLeaderboard({
-      ...baseInput,
-      seed: "2026-08-10",
-      scoreDays: [{ seed: "2026-08-10", elapsedMinutes: 24 * 60 }],
-    });
-    const identities = (result: typeof today) =>
-      result.entries
-        .filter((entry) => !entry.isSelf)
-        .map((entry) => `${entry.displayName}:${entry.petType}:${entry.flagKey}`)
-        .sort();
-
-    expect(identities(today)).toEqual(identities(tomorrow));
-    expect(identities(today)).not.toEqual(identities(nextWeek));
-    expect(today.entries).toEqual(buildMotivationalLeaderboard(baseInput).entries);
+    const closeRivals = competitors(result).filter((entry) => entry.stars >= 36);
+    expect(closeRivals.length).toBeGreaterThanOrEqual(4);
+    expect(closeRivals.length).toBeLessThanOrEqual(6);
+    expect(Math.max(...competitors(result).map((entry) => entry.stars))).toBe(40);
   });
 
-  it("周榜累计完整日期并在当天零点保留此前成绩", () => {
-    const firstDay = buildMotivationalLeaderboard({
+  it("追赶和人工修正都不能超过孩子理论可获得总量", () => {
+    const result = buildMotivationalLeaderboard({
       ...baseInput,
-      scoreDays: [{ seed: "2026-08-03", elapsedMinutes: 24 * 60 }],
+      stars: 25,
+      maxAvailableStars: 25,
+      competitorStarDelta: 50,
+      scoreDays: [{
+        ...baseInput.scoreDays[0],
+        childStars: 25,
+        maxAvailableStars: 25,
+      }],
     });
-    const nextMidnight = buildMotivationalLeaderboard({
+    expect(competitors(result).every((entry) => entry.stars <= 25)).toBe(true);
+  });
+
+  it("低于三颗且落后全部对手时显示未上榜", () => {
+    const result = buildMotivationalLeaderboard({
       ...baseInput,
+      stars: 2,
+      scoreDays: [{ ...baseInput.scoreDays[0], childStars: 2 }],
+    });
+    expect(result.self.rank).toBeNull();
+    expect(result.self.inTopTen).toBe(false);
+    expect(result.entries.find((entry) => entry.isSelf)?.rank).toBeNull();
+  });
+
+  it("自己的上传头像原样进入排行榜响应", () => {
+    const result = buildMotivationalLeaderboard({
+      ...baseInput,
+      avatarUrl: "/poem-assets/v1/uploads/child-avatar.webp",
+    });
+    expect(result.entries.find((entry) => entry.isSelf)?.avatarUrl).toBe(
+      "/poem-assets/v1/uploads/child-avatar.webp",
+    );
+  });
+
+  it("新一天零点加入新参赛者但不会改写既有周榜成绩", () => {
+    const firstDay = {
+      seed: "2026-08-03",
+      elapsedMinutes: 24 * 60,
+      effectiveMinutes: 24 * 60,
+      childStars: 10,
+      maxAvailableStars: 20,
+    };
+    const first = buildMotivationalLeaderboard({ ...baseInput, stars: 10, scoreDays: [firstDay] });
+    const midnight = buildMotivationalLeaderboard({
+      ...baseInput,
+      stars: 10,
+      goalStars: 40,
+      maxAvailableStars: 40,
       scoreDays: [
-        { seed: "2026-08-03", elapsedMinutes: 24 * 60 },
-        { seed: "2026-08-04", elapsedMinutes: 0 },
+        firstDay,
+        { seed: "2026-08-04", elapsedMinutes: 0, effectiveMinutes: 0, childStars: 0, maxAvailableStars: 20 },
       ],
     });
-    const nextNight = buildMotivationalLeaderboard({
-      ...baseInput,
-      scoreDays: [
-        { seed: "2026-08-03", elapsedMinutes: 24 * 60 },
-        { seed: "2026-08-04", elapsedMinutes: 24 * 60 },
-      ],
-    });
-    const starsByName = (result: typeof firstDay) =>
-      new Map(result.entries.map((entry) => [entry.displayName, entry.stars]));
-    const firstStars = starsByName(firstDay);
-    const midnightStars = starsByName(nextMidnight);
-    const nightStars = starsByName(nextNight);
-
-    expect(midnightStars).toEqual(firstStars);
-    expect(
-      [...nightStars].some(
-        ([name, stars]) => name !== "了了" && stars > (midnightStars.get(name) ?? 0),
-      ),
-    ).toBe(true);
+    const midnightById = new Map(competitors(midnight).map((entry) => [entry.competitorId, entry.stars]));
+    expect(competitors(first).every(
+      (entry) => midnightById.get(entry.competitorId) === entry.stars,
+    )).toBe(true);
   });
 });

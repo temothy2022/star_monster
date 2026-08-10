@@ -24,6 +24,7 @@ import { registerClientTelemetryRoutes } from "./routes/client-telemetry-routes.
 import { registerHanziMediaRoutes } from "./routes/hanzi-media-routes.js";
 import { registerPoemMediaRoutes } from "./routes/poem-media-routes.js";
 import { registerMascotAssetRoutes } from "./routes/mascot-asset-routes.js";
+import { registerParentChildAvatarRoutes } from "./routes/parent-child-avatar-routes.js";
 import { prisma } from "./lib/prisma.js";
 import { MASCOT_ASSET_BODY_LIMIT } from "./services/mascot-asset-service.js";
 import { PET_ROOM_THEME_IMAGE_BODY_LIMIT } from "./services/pet-room-theme-image-service.js";
@@ -133,6 +134,7 @@ export async function buildApp(config: AppConfig) {
   await registerAdminMinimaxRoutes(app, config);
   await registerPetManagementRoutes(app, config);
   await registerMascotAssetRoutes(app, config);
+  await registerParentChildAvatarRoutes(app, config);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

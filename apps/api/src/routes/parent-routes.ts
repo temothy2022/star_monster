@@ -6,7 +6,12 @@ import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
-import { addBusinessDays, businessDateAt } from "../lib/time.js";
+import {
+  addBusinessDays,
+  businessDateAt,
+  businessDateKey,
+  businessMinuteOfDayAt,
+} from "../lib/time.js";
 import { isScheduledForDate } from "../domain/task-rules.js";
 import { clockMastery } from "../domain/clock-learning.js";
 import {
@@ -33,6 +38,7 @@ import { getGrowthAnalytics } from "../services/growth-analytics-service.js";
 import {
   getChildLeaderboardSettings,
   getFootprints,
+  leaderboardEffectiveMinute,
 } from "../services/footprint-service.js";
 import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 
@@ -644,6 +650,7 @@ export async function registerParentRoutes(
         select: {
           id: true,
           nickname: true,
+          avatarUrl: true,
           petType: true,
           status: true,
           onboardingCompletedAt: true,
@@ -713,7 +720,16 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     const { user, child } = await requireOwnedChild(request, reply, config, id);
     const input = leaderboardSettingsSchema.parse(request.body);
-    const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+    const now = new Date();
+    const today = businessDateAt(now, config.APP_TIME_ZONE);
+    const todayKey = businessDateKey(today);
+    const currentMinute = businessMinuteOfDayAt(now, config.APP_TIME_ZONE);
+    const previousSettings = await getChildLeaderboardSettings(id, today);
+    const effectiveMinute = leaderboardEffectiveMinute(
+      previousSettings,
+      todayKey,
+      currentMinute,
+    );
     await prisma.$transaction(async (tx) => {
       await tx.childLeaderboardSettings.upsert({
         where: { childId: id },
@@ -722,11 +738,17 @@ export async function registerParentRoutes(
           competitorGrowthPercent: input.competitorGrowthPercent,
           dailyCompetitorStarDelta: input.dailyCompetitorStarDelta,
           dailyAdjustmentDate: today,
+          speedAnchorDate: today,
+          speedAnchorMinute: currentMinute,
+          speedAnchorEffectiveMinute: effectiveMinute,
         },
         update: {
           competitorGrowthPercent: input.competitorGrowthPercent,
           dailyCompetitorStarDelta: input.dailyCompetitorStarDelta,
           dailyAdjustmentDate: today,
+          speedAnchorDate: today,
+          speedAnchorMinute: currentMinute,
+          speedAnchorEffectiveMinute: effectiveMinute,
         },
       });
       await writeAudit(tx, {

@@ -7,11 +7,13 @@ import { MascotProvider } from "./mascots";
 import { installVisibleViewport } from "./visible-viewport";
 import { installVersionRefresh } from "./version-refresh";
 import { installZoomPrevention } from "./zoom-prevention";
+import { installWebMediaCleanup } from "./audio/queued-playback";
 import "./app.css";
 
 installVisibleViewport();
 installVersionRefresh();
 installZoomPrevention();
+installWebMediaCleanup();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -287,6 +287,7 @@ model ChildProfile {
   loginCodeLastFour     String
   status                AccountStatus @default(ACTIVE)
   nickname              String?
+  avatarUrl             String?
   petType               PetType?
   onboardingCompletedAt DateTime?
   dailyStarGoal         Int           @default(12)
@@ -718,13 +719,16 @@ model MascotAsset {
 }
 
 model ChildLeaderboardSettings {
-  id                       String    @id @default(cuid())
-  childId                  String    @unique
-  competitorGrowthPercent  Int       @default(100)
-  dailyCompetitorStarDelta Int       @default(0)
-  dailyAdjustmentDate      DateTime? @db.Date
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
+  id                         String    @id @default(cuid())
+  childId                    String    @unique
+  competitorGrowthPercent    Int       @default(100)
+  dailyCompetitorStarDelta   Int       @default(0)
+  dailyAdjustmentDate        DateTime? @db.Date
+  speedAnchorDate            DateTime? @db.Date
+  speedAnchorMinute          Int       @default(0)
+  speedAnchorEffectiveMinute Int       @default(0)
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
 }

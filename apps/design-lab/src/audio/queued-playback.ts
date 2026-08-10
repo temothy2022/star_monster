@@ -5,7 +5,9 @@ export type PlaybackHandle = {
 
 export type PlaybackFactory = () => PlaybackHandle;
 
-const managedHtmlAudios = new Set<HTMLAudioElement>();
+const managedHtmlAudios = new Map<HTMLAudioElement, () => void>();
+const managedAudioContexts = new Set<AudioContext>();
+const detachedAudioSources = new WeakMap<HTMLAudioElement, string>();
 const mediaSessionActions = [
   "play",
   "pause",
@@ -22,6 +24,12 @@ export function clearWebMediaSession() {
   if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
   const mediaSession = navigator.mediaSession;
   mediaSession.metadata = null;
+  try {
+    mediaSession.playbackState = "none";
+    mediaSession.setPositionState();
+  } catch {
+    // Older Safari versions do not expose the full Media Session API.
+  }
   for (const action of mediaSessionActions) {
     try {
       mediaSession.setActionHandler(action, null);
@@ -31,18 +39,63 @@ export function clearWebMediaSession() {
   }
 }
 
+function detachHtmlAudio(audio: HTMLAudioElement) {
+  const source = audio.currentSrc || audio.src;
+  if (source) detachedAudioSources.set(audio, source);
+  audio.pause();
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Ignore elements whose media resource has already been released.
+  }
+  audio.removeAttribute("src");
+  audio.load();
+}
+
+function restoreHtmlAudio(audio: HTMLAudioElement) {
+  if (audio.getAttribute("src")) return;
+  const source = detachedAudioSources.get(audio);
+  if (!source) return;
+  audio.src = source;
+  audio.load();
+}
+
+/** Register short-lived Web Audio contexts so they are suspended on lock/background. */
+export function registerManagedAudioContext(context: AudioContext) {
+  managedAudioContexts.add(context);
+  return context;
+}
+
 /** Stop audio created by the shared playback helpers when leaving a feature. */
 export function stopManagedHtmlAudio() {
-  for (const audio of managedHtmlAudios) {
-    audio.pause();
-    try {
-      audio.currentTime = 0;
-    } catch {
-      // Ignore elements that have already been released by the browser.
-    }
+  for (const stop of [...managedHtmlAudios.values()]) {
+    stop();
   }
   managedHtmlAudios.clear();
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+  for (const context of managedAudioContexts) {
+    if (context.state === "running") {
+      void context.suspend().catch(() => undefined);
+    }
+  }
   clearWebMediaSession();
+}
+
+/** Install one app-wide guard against stale iPad lock-screen media controls. */
+export function installWebMediaCleanup() {
+  const stopWhenHidden = () => {
+    if (document.visibilityState === "hidden") stopManagedHtmlAudio();
+  };
+  window.addEventListener("pagehide", stopManagedHtmlAudio);
+  document.addEventListener("visibilitychange", stopWhenHidden);
+
+  return () => {
+    window.removeEventListener("pagehide", stopManagedHtmlAudio);
+    document.removeEventListener("visibilitychange", stopWhenHidden);
+    stopManagedHtmlAudio();
+  };
 }
 
 /** Keeps one active playback and, while it runs, at most one pending request. */
@@ -98,6 +151,12 @@ export class SinglePendingPlaybackQueue {
   }
 
   private startPendingOrFinish() {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      this.pending = null;
+      clearWebMediaSession();
+      this.onPlayingChange?.(false);
+      return;
+    }
     const next = this.pending;
     this.pending = null;
     if (next && !this.disposed) {
@@ -127,15 +186,23 @@ export function createHtmlAudioPlayback(audio: HTMLAudioElement): PlaybackHandle
     if (settled) return;
     settled = true;
     cleanup();
+    managedHtmlAudios.delete(audio);
+    detachHtmlAudio(audio);
+    clearWebMediaSession();
     if (reason) rejectDone(reason);
     else resolveDone();
   };
   const handleEnded = () => settle();
   const handleError = () => settle(new Error("Audio playback failed"));
 
+  restoreHtmlAudio(audio);
   audio.pause();
-  audio.currentTime = 0;
-  managedHtmlAudios.add(audio);
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Safari can reject seeking while a detached source is being restored.
+  }
+  managedHtmlAudios.set(audio, () => settle());
   audio.addEventListener("ended", handleEnded);
   audio.addEventListener("error", handleError);
   void audio.play().catch(settle);
@@ -144,8 +211,6 @@ export function createHtmlAudioPlayback(audio: HTMLAudioElement): PlaybackHandle
     done,
     cancel: () => {
       if (settled) return;
-      audio.pause();
-      audio.currentTime = 0;
       settle();
     },
   };

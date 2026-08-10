@@ -2209,6 +2209,7 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
   const [dailyGoalBonusEnabled, setDailyGoalBonusEnabled] = useState(child.dailyGoalBonusEnabled);
   const [dailyGoalBonusStars, setDailyGoalBonusStars] = useState(child.dailyGoalBonusStars || 1);
   const [message, setMessage] = useState("");
+  const [avatarUploading, setAvatarUploading] = useState(false);
   useEffect(() => {
     setNickname(child.nickname ?? "");
     setDailyStarGoal(child.dailyStarGoal);
@@ -2228,8 +2229,41 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
     onChanged();
   }
 
+  async function uploadAvatar(file: File) {
+    setAvatarUploading(true);
+    setMessage("");
+    try {
+      await parentApi.uploadChildAvatar(child.id, file);
+      setMessage("孩子头像已更新，排行榜下次刷新后生效");
+      onChanged();
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "头像上传失败");
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
   return (
     <Panel title="孩子档案">
+      <div className="child-profile-avatar-editor">
+        <div className="child-profile-avatar-editor__preview">
+          {child.avatarUrl ? (
+            <img src={child.avatarUrl} alt={`${child.nickname ?? "孩子"}的排行榜头像`} />
+          ) : (
+            <span aria-hidden="true">{(child.nickname ?? "星").slice(0, 1)}</span>
+          )}
+        </div>
+        <div>
+          <strong>排行榜头像</strong>
+          <p>上传后会显示在孩子自己的排行榜位置，系统自动裁切并压缩为正方形头像。</p>
+          <HanziUploadControl
+            label={avatarUploading ? "上传中…" : child.avatarUrl ? "更换头像" : "上传头像"}
+            accept="image/jpeg,image/png,image/webp"
+            disabled={avatarUploading}
+            onSelect={(file) => void uploadAvatar(file)}
+          />
+        </div>
+      </div>
       <form className="admin-form" onSubmit={save}>
         <label>
           昵称
@@ -2391,7 +2425,7 @@ function LeaderboardSettings({ child }: { child: Child }) {
         {loading ? <div className="empty-state">正在读取排行榜设置…</div> : (
           <form className="leaderboard-settings__form" onSubmit={save}>
             <label className="leaderboard-setting-control">
-              <span><strong>对手得星速度</strong><small>调整虚拟小朋友随时间增长的速度，原有活动时间和递增过程保持不变。</small></span>
+              <span><strong>对手得星速度</strong><small>只调整保存之后的得星速度，保存时不会改变对手已经获得的星星。</small></span>
               <output>{settings.competitorGrowthPercent}%</output>
               <input type="range" min={25} max={200} step={5} value={settings.competitorGrowthPercent} onChange={(event) => setSettings({ ...settings, competitorGrowthPercent: Number(event.target.value) })} />
             </label>

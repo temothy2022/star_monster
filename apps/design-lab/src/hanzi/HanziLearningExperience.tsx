@@ -30,6 +30,7 @@ import {
 } from "../api/performance-telemetry";
 import {
   createCallbackPlayback,
+  createHtmlAudioPlayback,
   SinglePendingPlaybackQueue,
 } from "../audio/queued-playback";
 
@@ -111,17 +112,11 @@ function speak(
 
   if (audioUrl) {
     const audio = getHanziAudioElement(audioUrl);
-    audio.pause();
-    audio.currentTime = 0;
-    audio.onended = finish;
-    audio.onerror = speakWithBrowserVoice;
-    void audio.play().catch(speakWithBrowserVoice);
+    const playback = createHtmlAudioPlayback(audio);
+    void playback.done.then(finish).catch(speakWithBrowserVoice);
     return () => {
       cancelled = true;
-      audio.onended = null;
-      audio.onerror = null;
-      audio.pause();
-      audio.currentTime = 0;
+      playback.cancel();
       fallbackCleanup?.();
     };
   }
@@ -164,7 +159,6 @@ function speakCharacterThenText(
 ) {
   let cancelled = false;
   let pauseTimer: number | undefined;
-  let audio: HTMLAudioElement | undefined;
   let followingCleanup: (() => void) | undefined;
   let fallbackStarted = false;
 
@@ -200,12 +194,10 @@ function speakCharacterThenText(
   };
 
   if (character.characterAudioUrl) {
-    audio = getHanziAudioElement(character.characterAudioUrl);
-    audio.pause();
-    audio.currentTime = 0;
-    audio.onended = speakFollowingText;
-    audio.onerror = speakWithBrowserVoice;
-    void audio.play().catch(speakWithBrowserVoice);
+    const audio = getHanziAudioElement(character.characterAudioUrl);
+    const playback = createHtmlAudioPlayback(audio);
+    void playback.done.then(speakFollowingText).catch(speakWithBrowserVoice);
+    followingCleanup = playback.cancel;
   } else {
     speakWithBrowserVoice();
   }
@@ -213,13 +205,8 @@ function speakCharacterThenText(
   return () => {
     cancelled = true;
     if (pauseTimer !== undefined) window.clearTimeout(pauseTimer);
-    if (audio) {
-      audio.onended = null;
-      audio.onerror = null;
-      audio.pause();
-      audio.currentTime = 0;
-    }
     followingCleanup?.();
+    followingCleanup = undefined;
     window.speechSynthesis?.cancel();
   };
 }
