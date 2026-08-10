@@ -182,18 +182,35 @@
   background: #fbfdff;
 }
 
-.math-worksheet-type-list > section > h2 {
+.math-worksheet-category-toggle {
+  width: 100%;
+  min-height: 45px;
   margin: 0;
   padding: 10px 12px;
+  border: 0;
   border-bottom: 1px solid #e7edf1;
+  appearance: none;
   background: #f2f7fa;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  color: var(--paper-ink);
   font-size: 14px;
+  font-weight: 850;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
-.math-worksheet-type-list > section > h2 span {
+.math-worksheet-category-toggle__name {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.math-worksheet-category-toggle__name > b {
   width: 31px;
   height: 25px;
   border-radius: 8px;
@@ -202,6 +219,37 @@
   display: grid;
   place-items: center;
   font-size: 11px;
+}
+
+.math-worksheet-category-toggle__name > strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.math-worksheet-category-toggle > i {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #cddde7;
+  border-radius: 7px;
+  color: #66829a;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-style: normal;
+  line-height: 1;
+}
+
+.math-worksheet-type-list > section.is-collapsed {
+  background: #f8fbfd;
+}
+
+.math-worksheet-category-toggle:hover,
+.math-worksheet-category-toggle:focus-visible {
+  background: #eaf4f9;
+  outline: none;
 }
 
 .math-worksheet-type-list > section > div {

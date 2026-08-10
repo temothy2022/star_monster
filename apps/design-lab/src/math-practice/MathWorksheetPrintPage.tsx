@@ -68,7 +68,12 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
   if (question.typeId === "N16") return { heightMm: 104, size: "wide-visual", wide: true };
   if (question.visual.kind === "ARITHMETIC_LIST") {
     const rows = question.visual.items.length;
-    return { heightMm: Math.min(112, Math.max(58, 18 + rows * 10)), size: "compact", wide: false };
+    // Arithmetic exercises can contain several independent rows.  Their card
+    // height must be derived from the row count so the last row never gets
+    // clipped by the fixed-height paper card.  Keep the calculation generous
+    // enough for the wrapped prompt, card padding and row gaps; the generator
+    // caps each type at 20 items, so 240mm remains within one A4 body.
+    return { heightMm: Math.min(240, Math.max(66, 25 + rows * 11)), size: "compact", wide: false };
   }
   if (["C01", "C02", "C03", "C04", "C06", "N08"].includes(question.typeId)) {
     return { heightMm: 42, size: "compact", wide: false };
@@ -449,6 +454,7 @@ export function MathWorksheetPrintPage() {
   const [counts, setCounts] = useState<TypeCounts>(DEFAULT_COUNTS);
   const [seed, setSeed] = useState(20260810);
   const [includeAnswers, setIncludeAnswers] = useState(true);
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [exportProgress, setExportProgress] = useState("");
   const [error, setError] = useState("");
   const questions = useMemo(() => generateMathWorksheet(counts, seed), [counts, seed]);
@@ -472,6 +478,10 @@ export function MathWorksheetPrintPage() {
 
   function selectEveryType() {
     setCounts(Object.fromEntries(MATH_QUESTION_TYPES.map((type) => [type.id, 1])) as TypeCounts);
+  }
+
+  function toggleCategory(categoryId: string) {
+    setCollapsedCategories((current) => ({ ...current, [categoryId]: !current[categoryId] }));
   }
 
   async function downloadPdf() {
@@ -540,38 +550,51 @@ export function MathWorksheetPrintPage() {
 
           <div className="math-worksheet-type-list">
             {MATH_QUESTION_CATEGORIES.map((domain, categoryIndex) => (
-              <section key={domain.id}>
-                <h2><span>{categoryIndex + 1}</span>{domain.name}</h2>
-                <div>
-                  {getMathQuestionTypesByCategory(domain.id).map((type) => {
-                    const count = counts[type.id] ?? 0;
-                    return (
-                      <label className={count > 0 ? "is-selected" : ""} key={type.id}>
-                        <input
-                          type="checkbox"
-                          checked={count > 0}
-                          onChange={(event) => updateCount(type.id, event.target.checked ? Math.max(1, count) : 0)}
-                        />
-                        <b>{type.id}</b>
-                        <span><strong>{type.name}</strong><small>难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
-                        <div>
-                          <button type="button" disabled={count === 0} onClick={(event) => { event.preventDefault(); updateCount(type.id, count - 1); }}>−</button>
+              <section key={domain.id} className={collapsedCategories[domain.id] ? "is-collapsed" : ""}>
+                <button
+                  type="button"
+                  className="math-worksheet-category-toggle"
+                  aria-expanded={!collapsedCategories[domain.id]}
+                  onClick={() => toggleCategory(domain.id)}
+                >
+                  <span className="math-worksheet-category-toggle__name">
+                    <b>{categoryIndex + 1}</b>
+                    <strong>{domain.name}</strong>
+                  </span>
+                  <i aria-hidden="true">{collapsedCategories[domain.id] ? "＋" : "−"}</i>
+                </button>
+                {!collapsedCategories[domain.id] ? (
+                  <div>
+                    {getMathQuestionTypesByCategory(domain.id).map((type) => {
+                      const count = counts[type.id] ?? 0;
+                      return (
+                        <label className={count > 0 ? "is-selected" : ""} key={type.id}>
                           <input
-                            aria-label={`${type.name}题目数量`}
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            max={MAX_PER_TYPE}
-                            value={count}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(event) => updateCount(type.id, Number(event.target.value))}
+                            type="checkbox"
+                            checked={count > 0}
+                            onChange={(event) => updateCount(type.id, event.target.checked ? Math.max(1, count) : 0)}
                           />
-                          <button type="button" disabled={count >= MAX_PER_TYPE || questions.length >= MAX_TOTAL} onClick={(event) => { event.preventDefault(); updateCount(type.id, count + 1); }}>＋</button>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
+                          <b>{type.id}</b>
+                          <span><strong>{type.name}</strong><small>难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
+                          <div>
+                            <button type="button" disabled={count === 0} onClick={(event) => { event.preventDefault(); updateCount(type.id, count - 1); }}>−</button>
+                            <input
+                              aria-label={`${type.name}题目数量`}
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              max={MAX_PER_TYPE}
+                              value={count}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={(event) => updateCount(type.id, Number(event.target.value))}
+                            />
+                            <button type="button" disabled={count >= MAX_PER_TYPE || questions.length >= MAX_TOTAL} onClick={(event) => { event.preventDefault(); updateCount(type.id, count + 1); }}>＋</button>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </section>
             ))}
           </div>
