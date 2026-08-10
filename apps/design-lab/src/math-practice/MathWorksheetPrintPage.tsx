@@ -256,7 +256,7 @@ function paperPrompt(question: MathQuestion) {
       return "把下面的数按从小到大的顺序排列。";
     case "N16": {
       if (question.visual.kind !== "COUNT_ADJUST") return question.prompt;
-      return `先数一数上面的物品，在下面画出比它${question.visual.relation === "MORE" ? "多" : "少"} ${question.visual.difference} 个的数量。`;
+      return `先数一数参考框里的物品，在作答框里画出比它${question.visual.relation === "MORE" ? "多" : "少"} ${question.visual.difference} 个的数量。`;
     }
     case "P01":
       return "看图写出数字。";

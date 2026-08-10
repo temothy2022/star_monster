@@ -343,7 +343,7 @@ function CountAdjust({
         <strong>看一看</strong>
         <div>{Array.from({ length: visual.referenceCount }, (_, index) => <Sprite asset={visual.asset} key={index} />)}</div>
       </section>
-      <span>比上面{visual.relation === "MORE" ? "多" : "少"} {visual.difference} 个</span>
+      <span>比参考数量{visual.relation === "MORE" ? "多" : "少"} {visual.difference} 个</span>
       <section className="math-count-adjust__drawing" aria-label={`已经画了 ${count} 个`}>
         <strong>点一下画出来</strong>
         <div>

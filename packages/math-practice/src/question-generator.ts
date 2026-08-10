@@ -409,7 +409,10 @@ export function generateMathQuestion(
       const relation = referenceCount - difference >= 1 && rng.next() > 0.5 ? "FEWER" : "MORE";
       const targetCount = relation === "MORE" ? referenceCount + difference : referenceCount - difference;
       return question(input, {
-        prompt: `点击加号，画出比上面${relation === "MORE" ? "多" : "少"} ${difference} 个的数量。`,
+        // The live board is horizontal on wide screens and stacks on narrow
+        // screens. Keep the wording tied to the role of each panel rather
+        // than a viewport-dependent "above/below" position.
+        prompt: `点击加号，画出比参考数量${relation === "MORE" ? "多" : "少"} ${difference} 个的数量。`,
         visual: { kind: "COUNT_ADJUST", asset, referenceCount, relation, difference, maximum: 10 },
         response: { mode: "R07", slots: 1, maxDigits: 2 },
         answer: { values: [String(targetCount)], display: String(targetCount) },

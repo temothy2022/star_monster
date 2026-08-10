@@ -429,11 +429,36 @@ describe("math practice question generator", () => {
 
       const drawing = generateMathQuestion({ typeId: "N16", seed });
       expect(drawing.visual.kind).toBe("COUNT_ADJUST");
+      expect(drawing.prompt).not.toMatch(/上面|下面|左边|右边/);
+      expect(drawing.prompt).toContain("参考数量");
       if (drawing.visual.kind === "COUNT_ADJUST") {
         const expected = drawing.visual.relation === "MORE"
           ? drawing.visual.referenceCount + drawing.visual.difference
           : drawing.visual.referenceCount - drawing.visual.difference;
         expect(drawing.answer.values).toEqual([String(expected)]);
+      }
+    }
+  });
+
+  it("keeps directional wording tied to a stable visual layout", () => {
+    for (let seed = 1; seed <= 80; seed += 1) {
+      const grouped = generateMathQuestion({ typeId: "N02", seed });
+      expect(grouped.prompt).toMatch(/^第 \d+ 组里有几个？$/);
+      expect(grouped.visual).toMatchObject({ kind: "OBJECT_GROUPS", containers: true });
+
+      const quantity = generateMathQuestion({ typeId: "N10", seed, difficulty: 2 });
+      expect(quantity.visual).toMatchObject({ kind: "OBJECT_GROUPS", orientation: "VERTICAL", groupLabels: ["上面", "下面"] });
+      expect(quantity.prompt).toContain("上面");
+      expect(quantity.prompt).toContain("下面");
+
+      const constructed = generateMathQuestion({ typeId: "N16", seed });
+      expect(constructed.prompt).not.toMatch(/上面|下面|左边|右边/);
+      expect(constructed.prompt).toContain("参考数量");
+
+      for (const typeId of ["N04", "N05", "N15", "S01"] as const) {
+        const question = generateMathQuestion({ typeId, seed });
+        expect(question.visual.kind, typeId).toBe("QUEUE");
+        expect(question.prompt, typeId).toMatch(/左|右/);
       }
     }
   });

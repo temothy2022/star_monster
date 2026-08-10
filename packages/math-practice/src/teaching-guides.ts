@@ -117,7 +117,7 @@ export const MATH_TEACHING_GUIDES_BY_TYPE: Record<MathQuestionTypeId, MathTeachi
   N16: {
     focus: "根据多几或少几构造新的数量。",
     commonMistake: "照抄原数量，或把多和少的方向弄反。",
-    hints: ["先数清上面有几个。", "多就再添，少就拿掉，再检查相差几个。"],
+    hints: ["先数清参考数量有几个。", "多就再添，少就拿掉，再检查相差几个。"],
     visual: "COMPARE",
   },
   P01: {
