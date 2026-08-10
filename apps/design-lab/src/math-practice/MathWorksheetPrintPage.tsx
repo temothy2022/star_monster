@@ -223,7 +223,7 @@ function EquationBlanks({ question }: { question: MathQuestion }) {
 function PaperResponse({ question }: { question: MathQuestion }) {
   // These visual-reading/order exercises already contain the answer area in
   // their prompt/illustration. Do not append the generic "答：____" line.
-  if (["S03", "N09", "N04", "N05", "N15", "N16", "P01"].includes(question.typeId)) return null;
+  if (["S03", "N09", "N04", "N05", "N15", "N16", "P01", "P06"].includes(question.typeId)) return null;
   if (question.response.mode === "R04") return <EquationBlanks question={question} />;
   const options = question.response.options ?? [];
   if (options.length > 0 && question.response.mode !== "R03") {
@@ -250,12 +250,69 @@ function PaperResponse({ question }: { question: MathQuestion }) {
   );
 }
 
+function paperPrompt(question: MathQuestion) {
+  switch (question.typeId) {
+    case "N09":
+      return "把下面的数按从小到大的顺序排列。";
+    case "N16": {
+      if (question.visual.kind !== "COUNT_ADJUST") return question.prompt;
+      return `先数一数上面的物品，在下面画出比它${question.visual.relation === "MORE" ? "多" : "少"} ${question.visual.difference} 个的数量。`;
+    }
+    case "P01":
+      return "看图写出数字。";
+    case "P06": {
+      const beadCount = question.prompt.match(/把 (\d+) 颗珠子/)?.[1] ?? "";
+      return `用 ${beadCount} 颗珠子表示所有可能的数：在每个计数器上画出珠子，再写出表示的数。`;
+    }
+    case "S03":
+      return "根据下面的条件，在表格中给每个小伙伴打“√”（每行只选一个）。";
+    default:
+      return question.prompt;
+  }
+}
+
 function SortOnPaper({ question }: { question: MathQuestion }) {
   const options = question.response.options ?? [];
   return (
     <div className="math-paper-sort">
       <div>{options.map((option) => <b key={option}>{option}</b>)}</div>
       <p>{options.map((_, index) => <span key={index}><i />{index < options.length - 1 ? "<" : ""}</span>)}</p>
+    </div>
+  );
+}
+
+function ConstructQuantityOnPaper({ question }: { question: MathQuestion }) {
+  if (question.visual.kind !== "COUNT_ADJUST") return null;
+  return (
+    <div className="math-paper-construct-quantity">
+      <div className="math-paper-visual math-paper-visual--count-adjust">
+        <div className="math-visual-board">
+          <MathVisual question={question} disabled />
+        </div>
+      </div>
+      <div className="math-paper-drawing-line">
+        <b>请在这里画：</b><span />
+      </div>
+    </div>
+  );
+}
+
+function AbacusBuildOnPaper({ question }: { question: MathQuestion }) {
+  const count = question.answer.values.length;
+  return (
+    <div className="math-paper-abacus-build">
+      <div className="math-paper-abacus-build__items">
+        {Array.from({ length: count }, (_, index) => (
+          <div key={index}>
+            <div className="math-paper-mini-abacus">
+              <span><i /><i /><i /><i /></span>
+              <span><i /><i /><i /><i /></span>
+              <b>十位　个位</b>
+            </div>
+            <label>写数：<i /></label>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -277,9 +334,9 @@ function PaperQuestion({ item }: { item: NumberedQuestion }) {
     >
       <header>
         <span>{number}</span>
-        <h2>{question.prompt}</h2>
+      <h2>{paperPrompt(question)}</h2>
       </header>
-      {question.typeId === "N09" ? <SortOnPaper question={question} /> : (
+      {question.typeId === "N09" ? <SortOnPaper question={question} /> : question.typeId === "N16" ? <ConstructQuantityOnPaper question={question} /> : question.typeId === "P06" ? <AbacusBuildOnPaper question={question} /> : (
         <div className={`math-paper-visual math-paper-visual--${question.visual.kind.toLowerCase()}`}>
           <div className="math-visual-board">
             <MathVisual question={question} disabled />

@@ -548,6 +548,7 @@
 .math-paper-question .math-queue__item b { top: -3mm; font-size: 12pt; }
 .math-paper-question .math-queue__item small { width: 5mm; font-size: 6pt; }
 .math-paper-question .math-direction { display: none; }
+.math-paper-question .math-logic-clues button { display: none; }
 .math-paper-question .math-attribute-compare { gap: 3mm; transform: scale(.65); }
 .math-paper-question .math-length-compare { width: 100%; padding: 1mm 0 0; }
 .math-paper-question .math-length-compare > img { width: 100%; max-height: 22mm; }
@@ -657,6 +658,111 @@
 .math-paper-sort > div b { min-width: 13mm; height: 13mm; padding: 0 2mm; border: .6mm solid #82afd0; border-radius: 3mm; display: grid; place-items: center; font-size: 16pt; box-sizing: border-box; }
 .math-paper-sort > p span { display: flex; align-items: center; gap: 2mm; font-size: 14pt; font-weight: 900; }
 .math-paper-sort > p i { width: 13mm; height: 10mm; border-bottom: .5mm solid #607b96; }
+
+.math-paper-construct-quantity {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.math-paper-construct-quantity .math-paper-visual {
+  min-height: 0;
+  flex: 1;
+}
+.math-paper-construct-quantity .math-count-adjust__drawing {
+  display: none;
+}
+.math-paper-construct-quantity .math-count-adjust > span {
+  font-size: 10pt;
+}
+.math-paper-drawing-line {
+  min-height: 15mm;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  color: #536d86;
+  font-size: 9pt;
+  font-weight: 800;
+}
+.math-paper-drawing-line span {
+  flex: 1;
+  height: 13mm;
+  border: .5mm dashed #85b5cf;
+  border-radius: 2mm;
+  background: #fbfdff;
+}
+
+.math-paper-abacus-build {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+.math-paper-abacus-build__items {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 7mm;
+}
+.math-paper-abacus-build__items > div {
+  min-width: 30mm;
+  display: grid;
+  justify-items: center;
+  gap: 2mm;
+}
+.math-paper-mini-abacus {
+  position: relative;
+  width: 27mm;
+  height: 30mm;
+  padding: 2mm 3mm 6mm;
+  border: .45mm solid #d7e0e7;
+  border-radius: 2mm;
+  display: flex;
+  justify-content: space-around;
+  box-sizing: border-box;
+  background: #fcfeff;
+}
+.math-paper-mini-abacus > span {
+  width: 7mm;
+  height: 22mm;
+  border-left: .5mm solid #8db4c9;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1mm;
+}
+.math-paper-mini-abacus > span i {
+  display: block;
+  width: 6mm;
+  height: 3mm;
+  border: .4mm solid #d56a35;
+  border-radius: 50%;
+  background: #ffb06e;
+}
+.math-paper-mini-abacus > b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1mm 0;
+  color: #8b6d45;
+  background: #fff3c5;
+  font-size: 6pt;
+  text-align: center;
+}
+.math-paper-abacus-build__items label {
+  color: #536d86;
+  font-size: 8pt;
+  font-weight: 800;
+}
+.math-paper-abacus-build__items label i {
+  display: inline-block;
+  width: 17mm;
+  height: 5mm;
+  border-bottom: .45mm solid #758aa0;
+  vertical-align: middle;
+}
 
 .math-paper-answer-grid {
   flex: 1;
