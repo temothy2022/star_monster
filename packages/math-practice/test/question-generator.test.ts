@@ -279,7 +279,8 @@ describe("math practice question generator", () => {
     const spatialEasy = generateMathQuestion({ typeId: "S02", seed: 11, difficulty: 1 });
     const spatialHard = generateMathQuestion({ typeId: "S02", seed: 11, difficulty: 3 });
     expect(spatialEasy.visual.kind === "SPATIAL_GRID" && spatialEasy.visual.cells).toHaveLength(2);
-    expect(spatialHard.visual.kind === "SPATIAL_GRID" && spatialHard.visual.cells).toHaveLength(3);
+    expect(spatialHard.visual.kind === "SPATIAL_GRID" && spatialHard.visual.cells.flat()).toHaveLength(6);
+    expect(spatialHard.visual.kind === "SPATIAL_GRID" && spatialHard.visual.cells.flat().every(Boolean)).toBe(true);
 
     const logicLower = generateMathQuestion({ typeId: "S03", seed: 11, difficulty: 2 });
     const logicUpper = generateMathQuestion({ typeId: "S03", seed: 11, difficulty: 3 });

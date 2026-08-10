@@ -897,16 +897,24 @@ export function generateMathQuestion(
       const target = assets[0]!;
       const anchor = assets[1]!;
       if (difficulty === 3) {
-        const cells: (MathSpriteKey | null)[][] = Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => null));
-        const positions = answer === "左边" ? [[1, 0], [1, 2]]
-          : answer === "右边" ? [[1, 2], [1, 0]]
-          : answer === "上面" ? [[0, 1], [2, 1]]
-          : [[2, 1], [0, 1]];
+        // Use a filled rectangle instead of a 3x3 board with an unused
+        // middle row/column. The two queried objects stay adjacent, while
+        // the other four pictures fill every remaining cell.
+        const horizontal = answer === "左边" || answer === "右边";
+        const rowCount = horizontal ? 3 : 2;
+        const columnCount = horizontal ? 2 : 3;
+        const cells: (MathSpriteKey | null)[][] = Array.from({ length: rowCount }, () => Array.from({ length: columnCount }, () => null));
+        const positions = answer === "左边" ? [[1, 0], [1, 1]]
+          : answer === "右边" ? [[1, 1], [1, 0]]
+          : answer === "上面" ? [[0, 1], [1, 1]]
+          : [[1, 1], [0, 1]];
         cells[positions[0]![0]!]![positions[0]![1]!] = target;
         cells[positions[1]![0]!]![positions[1]![1]!] = anchor;
-        [[0, 0], [0, 2], [2, 0], [2, 2]].forEach(([row, column], index) => {
-          cells[row!]![column!] = assets[index + 2]!;
-        });
+        let fillerIndex = 2;
+        cells.forEach((row, rowIndex) => row.forEach((asset, columnIndex) => {
+          if (asset !== null) return;
+          cells[rowIndex]![columnIndex] = assets[fillerIndex++]!;
+        }));
         return question(input, { prompt: `${spriteNames[target]}在${spriteNames[anchor]}的哪一边？`, visual: { kind: "SPATIAL_GRID", cells }, response: optionResponse(["左边", "右边", "上面", "下面"]), answer: { values: [answer], display: answer }, explanation: `${spriteNames[target]}在${spriteNames[anchor]}的${answer}。` });
       }
       const cells = answer === "左边" ? [[target, anchor], [assets[2]!, assets[3]!]]
