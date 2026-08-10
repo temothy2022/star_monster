@@ -768,6 +768,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   async function claimRedPacket() {
     if (!state || redPacketStage !== "ready" || busy) return;
     stopRedPacketRainSound();
+    // Start within the tap gesture so Safari does not block the reward sound after the API returns.
+    playRedPacketOpenSound();
     const claimKey = redPacketClaimKeyRef.current ?? actionKey("pet-red-packet");
     redPacketClaimKeyRef.current = claimKey;
     setBusy("red-packet");
@@ -781,10 +783,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       setRedPacketReward(result.reward);
       redPacketClaimKeyRef.current = null;
       setRedPacketStage("revealed");
-      playRedPacketOpenSound();
       setError("");
       navigator.vibrate?.([24, 35, 55]);
     } catch (reason) {
+      stopRedPacketOpenSound();
       setRedPacketStage("ready");
       playRedPacketRainSound();
       showRoomNotice(reason instanceof ApiError ? reason.message : "红包暂时没有打开，请再试一次");
@@ -1405,7 +1407,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
                 <div className="pet-red-packet-reward__crown" aria-hidden="true"><span>★</span></div>
                 <h2>红包开出</h2>
                 <div className="pet-red-packet-reward__stars"><b>+</b><strong>{redPacketReward.stars}</strong><span>颗星</span></div>
-                <button type="button" onClick={continueRedPackets}>{state.redPackets.availableCount > 0 ? `再开一个 · ${state.redPackets.availableCount}` : "收下星星"}</button>
+                <button type="button" onClick={continueRedPackets}>{state.redPackets.availableCount > 0 ? "再开一个" : "收下星星"}</button>
               </div>
             )}
           </section>
