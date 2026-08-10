@@ -332,11 +332,16 @@
 .task-widget-hanzi-review.is-swiping .task-widget-hanzi-review__viewport { cursor: grabbing; }
 .task-widget-hanzi-review__track { display: flex; width: 100%; height: 100%; transition: transform 280ms cubic-bezier(.2, .75, .25, 1); will-change: transform; }
 .task-widget-hanzi-review.is-swiping .task-widget-hanzi-review__track { transition: none; }
-.task-widget-hanzi-review__slide { display: grid; width: 100%; min-width: 100%; height: 100%; flex: 0 0 100%; grid-template-columns: minmax(0, 1fr) 72px; align-items: center; gap: 10px; padding: 15px 17px 24px; }
-.task-widget-hanzi-review__word { display: grid; min-width: 0; align-content: center; justify-items: start; }
-.task-widget-hanzi-review__word small { color: #a15f38; font-size: 11px; font-weight: 900; }
-.task-widget-hanzi-review__word strong { color: #253b59; font-family: "Kaiti SC", "STKaiti", "KaiTi", serif; font-size: 64px; font-weight: 700; line-height: .98; }
-.task-widget-hanzi-review__word span { overflow: hidden; max-width: 100%; color: #7b6659; font-size: 13px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.task-widget-hanzi-review__slide { display: grid; width: 100%; min-width: 100%; height: 100%; flex: 0 0 100%; grid-template-columns: 108px minmax(0, 1fr) 72px; align-items: center; gap: 10px; padding: 11px 15px 23px; }
+.task-widget-hanzi-review__character { display: grid; min-width: 0; align-content: center; justify-items: center; gap: 3px; }
+.task-widget-hanzi-review__character small { justify-self: start; color: #a15f38; font-size: 11px; font-weight: 900; }
+.task-widget-hanzi-review__grid { position: relative; display: grid; width: 100px; height: 100px; overflow: hidden; place-items: center; border: 2px solid #dfb99e; border-radius: 8px; background: #fff; box-shadow: 0 4px 0 rgb(183 116 76 / 12%); }
+.task-widget-hanzi-review__grid::before,
+.task-widget-hanzi-review__grid::after { content: ""; position: absolute; z-index: 0; opacity: .72; }
+.task-widget-hanzi-review__grid::before { top: 0; bottom: 0; left: 50%; border-left: 1px dashed #e6bda3; }
+.task-widget-hanzi-review__grid::after { top: 50%; right: 0; left: 0; border-top: 1px dashed #e6bda3; }
+.task-widget-hanzi-review__grid strong { position: relative; z-index: 1; color: #253b59; font-family: "Kaiti SC", "STKaiti", "KaiTi", serif; font-size: 68px; font-weight: 700; line-height: 1; }
+.task-widget-hanzi-review__phrase { min-width: 0; color: #5f5149; font-size: 21px; font-weight: 900; line-height: 1.3; text-align: center; overflow-wrap: anywhere; }
 .task-widget-hanzi-review__slide > button,
 .task-widget-poem-review > button { display: grid; width: 70px; height: 70px; padding: 0; place-items: center; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: transform 160ms ease, filter 160ms ease; }
 .task-widget-hanzi-review__slide > button:active,
@@ -463,9 +468,11 @@
   .task-widget-notifications__icon.is-postcard::before { inset: 6px 4px; }
   .task-widget-notifications__icon.is-postcard::after { top: 10px; left: 7px; width: 14px; height: 8px; }
   .task-widget-notifications__icon.is-packet b { top: 10px; left: 10px; }
-  .task-widget-hanzi-review__slide { grid-template-columns: minmax(0, 1fr) 54px; gap: 4px; padding: 10px 9px 21px; }
-  .task-widget-hanzi-review__word strong { font-size: 48px; }
-  .task-widget-hanzi-review__word span { font-size: 11px; }
+  .task-dashboard-widget--hanzi { grid-column: span 2; }
+  .task-widget-hanzi-review__slide { grid-template-columns: 88px minmax(0, 1fr) 54px; gap: 7px; padding: 9px 11px 21px; }
+  .task-widget-hanzi-review__grid { width: 78px; height: 78px; }
+  .task-widget-hanzi-review__grid strong { font-size: 53px; }
+  .task-widget-hanzi-review__phrase { font-size: 18px; }
   .task-widget-hanzi-review__slide > button,
   .task-widget-poem-review > button { width: 54px; height: 54px; }
   .task-widget-poem-review { grid-template-columns: minmax(0, 1fr) 58px; gap: 8px; padding: 15px 14px; }

@@ -519,11 +519,13 @@ function HanziReviewWidget({
         >
           {reviews.map((review) => (
             <section className="task-widget-hanzi-review__slide" key={review.id} aria-hidden={reviews[index]?.id !== review.id}>
-              <div className="task-widget-hanzi-review__word">
+              <div className="task-widget-hanzi-review__character">
                 <small>复习汉字</small>
-                <strong>{review.character}</strong>
-                {review.word && <span>{review.word}</span>}
+                <span className="task-widget-hanzi-review__grid">
+                  <strong>{review.character}</strong>
+                </span>
               </div>
+              <span className="task-widget-hanzi-review__phrase">{review.word ?? ""}</span>
               <button
                 className={isPlaying && reviews[index]?.id === review.id ? "is-playing" : ""}
                 type="button"
