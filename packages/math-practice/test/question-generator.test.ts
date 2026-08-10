@@ -125,6 +125,28 @@ describe("math practice question generator", () => {
     expect(onesSeen.size).toBe(10);
   });
 
+  it("varies P07 tens conditions instead of fixing every question at one ten", () => {
+    const tensSeen = new Set<number>();
+    const questions = Array.from({ length: 240 }, (_, index) =>
+      generateMathQuestion({ typeId: "P07", seed: index + 1, difficulty: index % 2 === 0 ? 2 : 3 }),
+    );
+
+    for (const question of questions) {
+      expect(question.visual).toMatchObject({ kind: "ABACUS", tens: 0, ones: 0 });
+      const match = question.prompt.match(/十位上是 (\d+)，个位比十位多 (\d+)/);
+      expect(match).not.toBeNull();
+      if (!match) continue;
+      const tens = Number(match[1]);
+      const difference = Number(match[2]);
+      const answer = Number(question.answer.values[0]);
+      const base = tens * 10 + tens + difference;
+      expect(answer).toBe(question.prompt.includes("添 1 颗") ? base + 1 : base);
+      tensSeen.add(tens);
+    }
+
+    expect(tensSeen.size).toBeGreaterThan(4);
+  });
+
   it("keeps P04 saved settings as an alias of the merged P03 exercise", () => {
     for (let seed = 1; seed <= 30; seed += 1) {
       const canonical = generateMathQuestion({ typeId: "P03", seed });

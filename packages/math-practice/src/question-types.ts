@@ -280,7 +280,7 @@ export const MATH_QUESTION_TYPES = [
     description: "根据数位条件确定数字，或判断计数器添一颗珠子后的可能结果。",
     responseModes: ["R01", "R05"],
     sceneStrategy: "PROGRAMMATIC",
-    numberRange: "WITHIN_20",
+    numberRange: "WITHIN_100",
     difficultyRange: [2, 3],
     sourceImageNumbers: [10, 11],
   }),

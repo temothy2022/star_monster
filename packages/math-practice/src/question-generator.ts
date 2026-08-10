@@ -468,14 +468,34 @@ export function generateMathQuestion(
       return question(input, { prompt: `把 ${beadCount} 颗珠子放在十位和个位，可以表示哪些数？`, visual: { kind: "ABACUS", tens: 0, ones: 0 }, response: optionResponse(rng.shuffle([...answers, ...distractors]), "R05", true), answer: { values: answers, display: answers.join("、") }, explanation: "把珠子分别放在个位、十位，列出所有不同分法。" });
     }
     case "P07": {
-      const ones = rng.int(difficulty === 2 ? 2 : 5, difficulty === 2 ? 5 : 8);
-      const value = 10 + ones;
+      // Keep this as a two-digit place-value reasoning problem, but do not
+      // silently train only the special case of one ten.  The tens digit is
+      // part of the condition and varies with difficulty; the ones digit is
+      // then derived from a small, child-friendly difference.  For the hard
+      // version we leave room for adding one in the ones place without
+      // creating a carry into the tens place.
+      const tens = difficulty === 2 ? rng.int(1, 4) : rng.int(2, 7);
+      const maximumOnes = difficulty === 3 ? 8 : 9;
+      const difference = rng.int(1, Math.min(3, maximumOnes - tens));
+      const ones = tens + difference;
+      const value = tens * 10 + ones;
       const afterAdding = difficulty === 3;
       const answer = afterAdding ? value + 1 : value;
       const prompt = afterAdding
-        ? `十位上是 1，个位比十位多 ${ones - 1}，再在个位添 1 颗珠子，这个数变成几？`
-        : `十位上是 1，个位比十位多 ${ones - 1}，这个数是几？`;
-      return question(input, { prompt, visual: { kind: "ABACUS", tens: 1, ones: 0 }, response: optionResponse([String(answer - 1), String(answer), String(answer + 1)]), answer: { values: [String(answer)], display: String(answer) }, explanation: afterAdding ? `先得到 ${value}，个位再添 1 颗后是 ${answer}。` : `个位是 ${ones}，所以这个数是 ${value}。` });
+        ? `十位上是 ${tens}，个位比十位多 ${difference}，再在个位添 1 颗珠子，这个数变成几？`
+        : `十位上是 ${tens}，个位比十位多 ${difference}，这个数是几？`;
+      return question(input, {
+        prompt,
+        // The number is encoded by the sentence, not exposed as beads. An
+        // empty counter keeps the place-value visual without giving away the
+        // answer or implying that the tens digit is always 1.
+        visual: { kind: "ABACUS", tens: 0, ones: 0 },
+        response: optionResponse([String(answer - 1), String(answer), String(answer + 1)]),
+        answer: { values: [String(answer)], display: String(answer) },
+        explanation: afterAdding
+          ? `先得到 ${value}，个位再添 1 颗后是 ${answer}。`
+          : `个位是 ${ones}，所以这个数是 ${value}。`,
+      });
     }
     case "C01": {
       const addition = rng.next() > 0.5;
