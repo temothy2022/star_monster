@@ -39,13 +39,16 @@ function publicQuestion(question: MathQuestion | undefined) {
   return safeQuestion;
 }
 
-async function serializeSession(session: MathPracticeSession) {
-  const questions = questionsFromJson(session.questions);
-  const attemptsForCurrent = session.currentIndex < session.totalQuestions
+async function serializeSession(
+  session: MathPracticeSession,
+  options: { questions?: MathQuestion[]; attemptsForCurrent?: number } = {},
+) {
+  const questions = options.questions ?? questionsFromJson(session.questions);
+  const attemptsForCurrent = options.attemptsForCurrent ?? (session.currentIndex < session.totalQuestions
     ? await prisma.mathPracticeQuestionAttempt.count({
         where: { sessionId: session.id, questionIndex: session.currentIndex },
       })
-    : 0;
+    : 0);
   return {
     id: session.id,
     taskAttemptId: session.taskAttemptId,
@@ -135,7 +138,7 @@ export async function startMathPracticeSession(childId: string, attemptId: strin
         totalQuestions: questions.length,
       },
     });
-    return { session: await serializeSession(session) };
+    return { session: await serializeSession(session, { questions, attemptsForCurrent: 0 }) };
   } catch (error) {
     if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") throw error;
     const session = await prisma.mathPracticeSession.findUniqueOrThrow({ where: { taskAttemptId: attemptId } });
@@ -198,6 +201,8 @@ export async function answerMathPracticeQuestion(
     const updated = await tx.mathPracticeSession.findUniqueOrThrow({ where: { id: session.id } });
     return {
       updated,
+      questions,
+      attemptsForCurrent: advance ? 0 : attemptNumber,
       feedback: {
         correct,
         attemptNumber,
@@ -208,7 +213,13 @@ export async function answerMathPracticeQuestion(
     };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
-  return { session: await serializeSession(result.updated), feedback: result.feedback };
+  return {
+    session: await serializeSession(result.updated, {
+      questions: result.questions,
+      attemptsForCurrent: result.attemptsForCurrent,
+    }),
+    feedback: result.feedback,
+  };
 }
 
 export async function finishMathPracticeSession(childId: string, sessionId: string) {

@@ -1,7 +1,31 @@
 import type { MathQuestionTypeId } from "./question-types.js";
 import type { MathDifficulty, MathResponseModeId } from "./types.js";
 
-export type MathSpriteKey = "chick" | "puppy" | "apple" | "pencil";
+export type MathSpriteKey =
+  | "chick"
+  | "puppy"
+  | "apple"
+  | "pencil"
+  | "watermelon"
+  | "bear"
+  | "duck"
+  | "cake";
+
+export type MathLogicPictureKey =
+  | "soccer"
+  | "basketball"
+  | "volleyball"
+  | "tennis"
+  | "badminton";
+
+export type MathLengthAssetKey =
+  | "rulers"
+  | "crayons"
+  | "ribbons"
+  | "toothbrushes"
+  | "paintbrushes"
+  | "straws"
+  | "spoons";
 
 export type MathVisualSpec =
   | { kind: "NONE" }
@@ -9,6 +33,9 @@ export type MathVisualSpec =
       kind: "OBJECT_GROUPS";
       asset: MathSpriteKey;
       groups: readonly number[];
+      groupColumns?: readonly number[];
+      groupLabels?: readonly string[];
+      orientation?: "HORIZONTAL" | "VERTICAL";
       containers?: boolean;
       crossedOut?: readonly number[];
       totalLabel?: number;
@@ -27,12 +54,25 @@ export type MathVisualSpec =
       assets: readonly MathSpriteKey[];
       targetIndex?: number;
       direction?: "LEFT" | "RIGHT";
+      directionLabel?: string;
+      selectable?: boolean;
+    }
+  | {
+      kind: "COUNT_ADJUST";
+      asset: MathSpriteKey;
+      referenceCount: number;
+      relation: "MORE" | "FEWER";
+      difference: number;
+      maximum: number;
     }
   | {
       kind: "ATTRIBUTE_COMPARE";
       asset: MathSpriteKey;
+      assets?: readonly MathSpriteKey[];
       scales: readonly number[];
+      attribute?: "SIZE" | "HEIGHT" | "LENGTH" | "WEIGHT";
       balance?: "LEFT" | "RIGHT" | "EQUAL";
+      lengthAsset?: MathLengthAssetKey;
     }
   | {
       kind: "SPATIAL_GRID";
@@ -41,7 +81,9 @@ export type MathVisualSpec =
   | {
       kind: "LOGIC_GRID";
       rows: readonly string[];
+      rowAssets?: readonly MathSpriteKey[];
       columns: readonly string[];
+      columnAssets?: readonly MathLogicPictureKey[];
       clues: readonly string[];
     }
   | {
@@ -56,6 +98,9 @@ export type MathQuestionResponse = {
   maxDigits?: number;
   options?: readonly string[];
   multiSelect?: boolean;
+  equationRows?: number;
+  equationSlotsPerRow?: number;
+  slotLabels?: readonly string[];
 };
 
 export type MathQuestionAnswer = {

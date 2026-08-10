@@ -6,10 +6,12 @@ import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import { MascotProvider } from "./mascots";
 import { installVisibleViewport } from "./visible-viewport";
 import { installVersionRefresh } from "./version-refresh";
+import { installZoomPrevention } from "./zoom-prevention";
 import "./app.css";
 
 installVisibleViewport();
 installVersionRefresh();
+installZoomPrevention();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

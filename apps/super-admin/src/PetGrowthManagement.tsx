@@ -1,7 +1,17 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { adminApi, type PetDestination, type PetGrowthConfig, type PetTravelTier } from "./api";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { adminApi, type PetDestination, type PetGrowthConfig, type PetRoomMascotMotion, type PetRoomTheme, type PetTravelTier } from "./api";
 
 const TIER_LABEL: Record<PetTravelTier, string> = { NEARBY: "附近", CHINA: "中国", WORLD: "世界" };
+const ROOM_MOTION_LABEL: Record<PetRoomMascotMotion, string> = {
+  IDLE: "日常轻呼吸",
+  CLOUD_FLOAT: "云端漂浮",
+  UNDERWATER_SWIM: "海底游动",
+  PETAL_SWAY: "花瓣轻摆",
+  STARGAZE: "星空呼吸",
+  ZERO_GRAVITY: "月球失重",
+  SPORT_BOUNCE: "球场弹跳",
+  ADVENTURE_MARCH: "探险踏步",
+};
 
 const EMPTY_DESTINATION: Omit<PetDestination, "id" | "createdAt" | "updatedAt"> = {
   slug: "", name: "", city: "", country: "中国", tier: "CHINA",
@@ -16,18 +26,42 @@ function NumberField({ label, value, onChange, min = 0 }: { label: string; value
 export function PetGrowthManagement() {
   const [config, setConfig] = useState<PetGrowthConfig | null>(null);
   const [destinations, setDestinations] = useState<PetDestination[]>([]);
+  const [roomThemes, setRoomThemes] = useState<PetRoomTheme[]>([]);
   const [draft, setDraft] = useState(EMPTY_DESTINATION);
+  const [themeName, setThemeName] = useState("");
+  const [themeDescription, setThemeDescription] = useState("");
+  const [themePrice, setThemePrice] = useState("10");
+  const [themeMotion, setThemeMotion] = useState<PetRoomMascotMotion>("IDLE");
+  const [themeImage, setThemeImage] = useState<File | null>(null);
+  const [themePreview, setThemePreview] = useState("");
+  const [themeDimensions, setThemeDimensions] = useState<{ width: number; height: number } | null>(null);
+  const themeFileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
 
   async function load() {
     setBusy(true); setMessage("");
-    try { const result = await adminApi.petGrowth(); setConfig(result.config); setDestinations(result.destinations); }
+    try { const result = await adminApi.petGrowth(); setConfig(result.config); setDestinations(result.destinations); setRoomThemes(result.roomThemes); }
     catch (reason) { setMessage(reason instanceof Error ? reason.message : "星宠成长配置读取失败"); }
     finally { setBusy(false); }
   }
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    if (!themeImage) {
+      setThemePreview("");
+      setThemeDimensions(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(themeImage);
+    setThemePreview(objectUrl);
+    const image = new Image();
+    image.onload = () => setThemeDimensions({ width: image.naturalWidth, height: image.naturalHeight });
+    image.onerror = () => setThemeDimensions(null);
+    image.src = objectUrl;
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [themeImage]);
 
   async function saveConfig(event: FormEvent) {
     event.preventDefault(); if (!config) return;
@@ -49,6 +83,42 @@ export function PetGrowthManagement() {
       setMessage("新景点已加入旅行库");
     } catch (reason) { setMessage(reason instanceof Error ? reason.message : "景点创建失败"); }
     finally { setBusy(false); }
+  }
+
+  async function createRoomTheme(event: FormEvent) {
+    event.preventDefault();
+    if (!themeImage) return;
+    setBusy(true); setMessage("");
+    try {
+      const result = await adminApi.createPetRoomTheme({
+        name: themeName.trim(),
+        description: themeDescription.trim(),
+        priceStars: Math.max(0, Math.min(10000, Math.round(Number(themePrice)))),
+        mascotMotion: themeMotion,
+        image: themeImage,
+      });
+      setRoomThemes((items) => [...items, result.theme]);
+      setThemeName(""); setThemeDescription(""); setThemePrice("10"); setThemeMotion("IDLE"); setThemeImage(null);
+      if (themeFileInput.current) themeFileInput.current.value = "";
+      const sourceSize = `${result.processing.source.width}×${result.processing.source.height}`;
+      const outputSize = `${Math.max(1, Math.round(result.processing.outputBytes / 1024))}KB`;
+      setMessage(`“${result.theme.name}”已加入平台背景库。原图 ${sourceSize}，四份 WebP 共 ${outputSize}`);
+    } catch (reason) { setMessage(reason instanceof Error ? reason.message : "小屋背景上传失败"); }
+    finally { setBusy(false); }
+  }
+
+  async function saveRoomThemeMotion(theme: PetRoomTheme, mascotMotion: PetRoomMascotMotion) {
+    const previousMotion = theme.mascotMotion;
+    setRoomThemes((items) => items.map((item) => item.id === theme.id ? { ...item, mascotMotion } : item));
+    setBusy(true); setMessage("");
+    try {
+      const updated = (await adminApi.updatePetRoomThemeMotion(theme.id, mascotMotion)).theme;
+      setRoomThemes((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setMessage(`“${updated.name}”的星宠动作已设为${ROOM_MOTION_LABEL[updated.mascotMotion]}`);
+    } catch (reason) {
+      setRoomThemes((items) => items.map((item) => item.id === theme.id ? { ...item, mascotMotion: previousMotion } : item));
+      setMessage(reason instanceof Error ? reason.message : "小屋星宠动作保存失败");
+    } finally { setBusy(false); }
   }
 
   async function saveDestination(item: PetDestination) {
@@ -78,6 +148,31 @@ export function PetGrowthManagement() {
         <fieldset><legend>世界旅行</legend><NumberField label="旅费" value={config.worldCostStars} onChange={(value) => setConfig({ ...config, worldCostStars: value })} /><NumberField label="时长（分钟）" value={config.worldDurationMinutes} onChange={(value) => setConfig({ ...config, worldDurationMinutes: value })} min={1} /><NumberField label="归来经验" value={config.worldExperience} onChange={(value) => setConfig({ ...config, worldExperience: value })} /></fieldset>
         <div className="form-actions"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存成长规则"}</button></div>
       </form> : <div className="empty-state">正在读取成长规则…</div>}
+    </section>
+
+    <section className="admin-panel super-room-theme-panel">
+      <header className="admin-panel__header"><div><h2>小屋背景素材（{roomThemes.length}）</h2><p>平台统一新增素材；各家庭只能为这些背景配置自己的解锁价格</p></div></header>
+      <form className="super-room-theme-upload" onSubmit={createRoomTheme}>
+        <div className="super-room-theme-upload__requirements">
+          <strong>建议原图尺寸</strong>
+          <b>1920 × 1200 px</b>
+          <span>16:10 横图，至少达到该尺寸，最大 30MB</span>
+          <small>支持 PNG、JPEG、WebP、AVIF、TIFF。上传后自动生成横屏、iPad、手机和预览图，并统一压缩为 WebP。</small>
+        </div>
+        <div className="super-room-theme-upload__fields">
+          <label>背景名称<input required maxLength={40} value={themeName} onChange={(event) => setThemeName(event.target.value)} placeholder="例如：彩虹游戏屋" /></label>
+          <label>平台默认价格<input required type="number" min={0} max={10000} value={themePrice} onChange={(event) => setThemePrice(event.target.value)} /></label>
+          <label>星宠专属动作<select value={themeMotion} onChange={(event) => setThemeMotion(event.target.value as PetRoomMascotMotion)}>{Object.entries(ROOM_MOTION_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="field-span">儿童介绍<textarea required minLength={2} maxLength={160} rows={3} value={themeDescription} onChange={(event) => setThemeDescription(event.target.value)} /></label>
+          <label className="field-span">背景原图<input ref={themeFileInput} required type="file" accept=".png,.jpg,.jpeg,.webp,.avif,.tif,.tiff,image/png,image/jpeg,image/webp,image/avif,image/tiff" onChange={(event) => setThemeImage(event.target.files?.[0] ?? null)} /></label>
+        </div>
+        {themeImage ? <div className="super-room-theme-upload__preview">
+          {themePreview ? <img src={themePreview} alt="待上传背景预览" /> : null}
+          <div><strong>{themeImage.name}</strong><span>{themeDimensions ? `${themeDimensions.width}×${themeDimensions.height}px · ` : ""}{(themeImage.size / 1024 / 1024).toFixed(2)}MB</span><small>上传后自动转换，不保留原始大文件。</small></div>
+        </div> : null}
+        <div className="form-actions field-span"><button className="primary-button" disabled={busy || !themeImage || !themeName.trim() || !themeDescription.trim()}>{busy ? "正在处理…" : "新增平台小屋背景"}</button></div>
+      </form>
+      {roomThemes.length ? <div className="super-room-theme-list">{roomThemes.map((theme) => <article key={theme.id}><img src={theme.previewUrl} alt="" loading="lazy" /><div><strong>{theme.name}</strong><span>默认 {theme.priceStars} 星</span></div><label>星宠动作<select disabled={busy} value={theme.mascotMotion} onChange={(event) => void saveRoomThemeMotion(theme, event.target.value as PetRoomMascotMotion)}>{Object.entries(ROOM_MOTION_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></article>)}</div> : null}
     </section>
 
     <section className="admin-panel">

@@ -26,6 +26,7 @@ import { registerPoemMediaRoutes } from "./routes/poem-media-routes.js";
 import { registerMascotAssetRoutes } from "./routes/mascot-asset-routes.js";
 import { prisma } from "./lib/prisma.js";
 import { MASCOT_ASSET_BODY_LIMIT } from "./services/mascot-asset-service.js";
+import { PET_ROOM_THEME_IMAGE_BODY_LIMIT } from "./services/pet-room-theme-image-service.js";
 
 export async function buildApp(config: AppConfig) {
   const app = Fastify({
@@ -85,6 +86,10 @@ export async function buildApp(config: AppConfig) {
       "image/png",
       "image/webp",
       "image/gif",
+      "image/avif",
+      "image/tiff",
+      "image/heic",
+      "image/heif",
       "audio/mpeg",
       "audio/mp3",
       "audio/mp4",
@@ -93,7 +98,7 @@ export async function buildApp(config: AppConfig) {
       "audio/wav",
       "audio/x-wav",
     ],
-    { parseAs: "buffer", bodyLimit: MASCOT_ASSET_BODY_LIMIT },
+    { parseAs: "buffer", bodyLimit: Math.max(MASCOT_ASSET_BODY_LIMIT, PET_ROOM_THEME_IMAGE_BODY_LIMIT) },
     (_request, body, done) => done(null, body),
   );
 
@@ -156,7 +161,7 @@ export async function buildApp(config: AppConfig) {
           code: clientError.code ?? "BAD_REQUEST",
           message:
             clientError.code === "FST_ERR_CTP_BODY_TOO_LARGE"
-              ? "上传文件不能超过 5MB"
+              ? "上传文件超过页面标注的大小限制"
               : "请求格式不正确",
         },
       });

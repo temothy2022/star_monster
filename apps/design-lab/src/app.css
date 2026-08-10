@@ -11500,6 +11500,8 @@ body:has(.footprints-page),
 .footprints-task__icon--blue { background: #4da8e8; }
 .footprints-task__icon--coral { background: #f36f6a; }
 .footprints-task__icon--green { background: #72c78e; }
+.footprints-task__icon--gold { background: #ffd56a; }
+.footprints-task__icon--purple { background: #b9a7ee; }
 
 .footprints-task__icon img {
   width: 22px;
@@ -12257,6 +12259,45 @@ body:has(.footprints-page),
 
 @keyframes pet-idle { 50% { transform: translateY(-8px) rotate(.5deg); } }
 
+.pet-main-figure--motion-cloud-float img { animation: pet-scene-cloud-float 4.8s ease-in-out infinite; }
+.pet-main-figure--motion-underwater-swim img { animation: pet-scene-underwater-swim 5.8s ease-in-out infinite; }
+.pet-main-figure--motion-petal-sway img { animation: pet-scene-petal-sway 3.8s ease-in-out infinite; transform-origin: 50% 90%; }
+.pet-main-figure--motion-stargaze img { animation: pet-scene-stargaze 5.2s ease-in-out infinite; transform-origin: 50% 90%; }
+.pet-main-figure--motion-zero-gravity img { animation: pet-scene-zero-gravity 6.2s ease-in-out infinite; }
+.pet-main-figure--motion-sport-bounce img { animation: pet-scene-sport-bounce 1.8s cubic-bezier(.45, 0, .25, 1) infinite; transform-origin: 50% 92%; }
+.pet-main-figure--motion-adventure-march img { animation: pet-scene-adventure-march 2.2s ease-in-out infinite; }
+
+@keyframes pet-scene-cloud-float {
+  0%, 100% { transform: translate3d(-4px, 4px, 0) rotate(-1deg); }
+  50% { transform: translate3d(8px, -18px, 0) rotate(2deg); }
+}
+@keyframes pet-scene-underwater-swim {
+  0%, 100% { transform: translate3d(-16px, 2px, 0) rotate(-2deg); }
+  50% { transform: translate3d(18px, -12px, 0) rotate(2deg); }
+}
+@keyframes pet-scene-petal-sway {
+  0%, 100% { transform: translateY(-3px) rotate(-2.5deg); }
+  50% { transform: translateY(-9px) rotate(2.5deg); }
+}
+@keyframes pet-scene-stargaze {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-7px) scale(1.015); }
+  58% { transform: translateY(-7px) scale(1.015); }
+}
+@keyframes pet-scene-zero-gravity {
+  0%, 100% { transform: translate3d(-7px, 5px, 0) rotate(-3deg); }
+  50% { transform: translate3d(10px, -22px, 0) rotate(4deg); }
+}
+@keyframes pet-scene-sport-bounce {
+  0%, 100% { transform: translateY(0) scale(1.02, .98); }
+  42% { transform: translateY(-18px) scale(.98, 1.02); }
+  58% { transform: translateY(-18px) scale(.98, 1.02); }
+}
+@keyframes pet-scene-adventure-march {
+  0%, 100% { transform: translate3d(-7px, 0, 0) rotate(-1.5deg); }
+  50% { transform: translate3d(7px, -8px, 0) rotate(1.5deg); }
+}
+
 .pet-main-figure--speaking img { animation: pet-speaking 420ms ease-in-out infinite alternate; }
 @keyframes pet-speaking { to { transform: translateY(-5px) scale(1.018) rotate(1deg); } }
 
@@ -12949,13 +12990,17 @@ body:has(.footprints-page),
 .pet-album__empty strong { font-size: 22px; color: var(--pet-ink); }
 .pet-album__empty p { max-width: 320px; line-height: 1.7; }
 
-.pet-postcard { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); overflow: hidden; }
+.pet-postcard { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); height: min(760px, 88dvh); min-height: 520px; overflow: hidden; }
 .pet-postcard__close { position: absolute; z-index: 2; right: 14px; top: 14px; }
 .pet-postcard__image-wrap { position: relative; min-height: 520px; background: #eee; }
 .pet-postcard__destination { width: 100%; height: 100%; object-fit: cover; }
 .pet-postcard__travel-mascot { position: absolute; z-index: 1; left: 4%; bottom: 3%; width: clamp(125px, 25%, 210px); height: auto; object-fit: contain; filter: drop-shadow(0 10px 8px rgb(52 43 37 / 25%)); }
 .pet-postcard__image-wrap > span { position: absolute; left: 20px; top: 20px; padding: 8px 13px; border-radius: 8px; color: #5f493d; background: rgba(255,250,235,.9); font-weight: 900; }
-.pet-postcard__content { align-self: center; padding: clamp(28px, 4vw, 46px); }
+.pet-postcard__content { align-self: stretch; min-height: 0; max-height: 100%; padding: clamp(28px, 4vw, 46px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
+.pet-postcard__content:focus-visible { outline: 3px solid rgb(230 111 58 / 45%); outline-offset: -5px; }
+.pet-postcard__content::-webkit-scrollbar { width: 10px; }
+.pet-postcard__content::-webkit-scrollbar-track { margin-block: 18px; background: transparent; }
+.pet-postcard__content::-webkit-scrollbar-thumb { border: 3px solid #fffdf8; border-radius: 999px; background: #d7c8b9; }
 .pet-postcard__location { margin: 0; color: #e16734; font-weight: 900; }
 .pet-postcard__content h2 { margin: 7px 0 18px; font-size: clamp(28px, 3vw, 40px); }
 .pet-postcard__content > p:not(.pet-postcard__location) { color: #65544c; font-size: 16px; line-height: 1.8; }
@@ -13038,14 +13083,15 @@ body:has(.footprints-page),
   .pet-trip-price { grid-column: 3; grid-row: 1 / 3; align-self: center; }
   .pet-album__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .pet-album__grid button { --pet-album-image-height: 110px; }
-  .pet-postcard { display: block; }
+  .pet-postcard { display: block; height: auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .pet-postcard__image-wrap { min-height: 280px; height: 42dvh; }
-  .pet-postcard__content { padding: 24px 20px; }
+  .pet-postcard__content { max-height: none; padding: 24px 20px; overflow: visible; }
   .pet-return-envelope-wrap { width: min(76vw, 360px); }
   .pet-return-mascot { right: -4%; top: -8%; }
 }
 
 @media (max-height: 650px) and (orientation: landscape) {
+  .pet-postcard { height: calc(100dvh - 20px); min-height: 0; }
   .pet-room-hud { inset-block-start: max(9px, env(safe-area-inset-top)); }
   .pet-star-balance { min-height: 46px; }
   .pet-status-card { top: max(9px, env(safe-area-inset-top)); padding: 11px 13px; }
@@ -13550,6 +13596,7 @@ body:has(.footprints-page),
 @media (prefers-reduced-motion: reduce) {
   .pet-room-ambience__item { animation: none !important; opacity: .45; }
   .pet-room-backdrop img { animation: none; }
+  .pet-main-figure img { animation: none !important; }
   .pet-layout-module.is-layout-available,
   .pet-layout-toolbar { animation: none; }
 }

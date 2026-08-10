@@ -49,6 +49,17 @@ enum PetTripStatus {
   CANCELLED
 }
 
+enum PetRoomMascotMotion {
+  IDLE
+  CLOUD_FLOAT
+  UNDERWATER_SWIM
+  PETAL_SWAY
+  STARGAZE
+  ZERO_GRAVITY
+  SPORT_BOUNCE
+  ADVENTURE_MARCH
+}
+
 enum TaskCategory {
   READING
   MATH
@@ -228,6 +239,7 @@ model Family {
   aiRecommendations   AiRecommendation[]
   weeklyGrowthReports WeeklyGrowthReport[]
   petRoomThemeSettings FamilyPetRoomThemeSetting[]
+  petRoomThemes         PetRoomTheme[]
 
   @@index([status])
 }
@@ -349,6 +361,7 @@ model PetGrowthProfile {
 model PetRoomTheme {
   id                      String   @id
   key                     String   @unique
+  ownerFamilyId           String?
   name                    String
   description             String
   priceStars              Int
@@ -357,16 +370,19 @@ model PetRoomTheme {
   backgroundPhoneUrl      String
   previewUrl              String
   ambience                Json
+  mascotMotion            PetRoomMascotMotion @default(IDLE)
   sortOrder               Int      @default(0)
   isEnabled               Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
+  ownerFamily     Family?                     @relation(fields: [ownerFamilyId], references: [id], onDelete: Cascade)
   equippedProfiles PetGrowthProfile[]
   unlocks         PetRoomThemeUnlock[]
   familySettings  FamilyPetRoomThemeSetting[]
 
   @@index([isEnabled, sortOrder])
+  @@index([ownerFamilyId, isEnabled, sortOrder])
 }
 
 model FamilyPetRoomThemeSetting {

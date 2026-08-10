@@ -10,6 +10,7 @@ import { reportChildPageReady } from "../api/performance-telemetry";
 import { playAnswerSound } from "../audio/feedback-sounds";
 import chickUrl from "@star-monsters/assets/images/math-practice/chick.webp";
 import { MathAnswerEditor } from "./MathAnswerEditor";
+import { MathTeachingHint } from "./MathTeachingHint";
 import { MathVisual } from "./MathVisual";
 import "./math-practice.css";
 
@@ -29,6 +30,7 @@ export function MathPracticeExperience({
   const [error, setError] = useState("");
   const [cubeGuideLayers, setCubeGuideLayers] = useState<number | null>(null);
   const [cubeAnimatingLayer, setCubeAnimatingLayer] = useState<number | null>(null);
+  const [hintLevel, setHintLevel] = useState(0);
   const questionStartedAt = useRef(performance.now());
   const feedbackTimer = useRef<number | null>(null);
 
@@ -41,6 +43,7 @@ export function MathPracticeExperience({
         setSession(loaded);
         setCubeGuideLayers(null);
         setCubeAnimatingLayer(null);
+        setHintLevel(0);
         questionStartedAt.current = performance.now();
         reportChildPageReady(
           "math-practice-session",
@@ -68,6 +71,9 @@ export function MathPracticeExperience({
         responseMs: Math.round(performance.now() - questionStartedAt.current),
       });
       setFeedback(result.feedback);
+      if (!result.feedback.correct && !result.feedback.revealAnswer) {
+        setHintLevel((current) => Math.max(1, current));
+      }
       playAnswerSound(result.feedback.correct);
       const delay = result.feedback.correct ? 1200 : result.feedback.revealAnswer ? 1800 : 900;
       feedbackTimer.current = window.setTimeout(() => {
@@ -77,6 +83,7 @@ export function MathPracticeExperience({
         setBusy(false);
         setCubeGuideLayers(null);
         setCubeAnimatingLayer(null);
+        if (result.feedback.correct || result.feedback.revealAnswer) setHintLevel(0);
         questionStartedAt.current = performance.now();
       }, delay);
     } catch (reason) {
@@ -115,6 +122,16 @@ export function MathPracticeExperience({
     ? Math.max(...question.visual.cubes.map(([, , z]) => z)) + 1
     : 0;
   const cubeGuideComplete = cubeLayerCount > 0 && cubeGuideLayers === cubeLayerCount;
+  const logicGridRowCount = question?.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
+  const isLogicGrid = question?.typeId === "S03" && logicGridRowCount > 0;
+  const isInlineSort = question?.typeId === "N09";
+  const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
+  const isDirectVisualAnswer = isLogicGrid || question?.typeId === "N15" || question?.typeId === "N16";
+  const directVisualComplete = isLogicGrid
+    ? logicGridComplete
+    : question?.typeId === "N15"
+      ? values.length === (question.response.slots ?? 1)
+      : question?.typeId === "N16" && Number(values[0] ?? 0) > 0;
 
   function advanceCubeGuide() {
     if (cubeLayerCount === 0) return;
@@ -143,8 +160,8 @@ export function MathPracticeExperience({
         ) : null}
 
         {!session.completedAt && question ? (
-          <div className="math-question-layout">
-            <article className="math-question-card">
+          <div className={`math-question-layout${isDirectVisualAnswer ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
+            <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
               <div className="math-question-card__prompt">
                 <span>{question.typeId}</span>
                 <h1>{question.prompt}</h1>
@@ -154,17 +171,51 @@ export function MathPracticeExperience({
                     {cubeGuideLayers === null ? "分层看" : cubeGuideComplete ? "重新分层" : "放下一层"}
                   </button>
                 ) : null}
+                <MathTeachingHint
+                  question={question}
+                  level={hintLevel}
+                  disabled={busy || Boolean(feedback)}
+                  onLevelChange={setHintLevel}
+                />
               </div>
-              <div className={`math-visual-board math-visual-board--${question.visual.kind.toLowerCase()}`}>
-                <MathVisual question={question} cubeVisibleLayers={question.typeId === "S04" ? cubeGuideLayers : undefined} cubeAnimatingLayer={question.typeId === "S04" ? cubeAnimatingLayer : undefined} />
+              <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : question.visual.kind.toLowerCase()}`}>
+                {isInlineSort ? (
+                  <div className="math-inline-sort-answer">
+                    <MathAnswerEditor
+                      key={`${session.id}:${session.currentIndex}:${question.id}:${question.response.mode}:inline`}
+                      question={question}
+                      values={values}
+                      disabled={busy || Boolean(feedback)}
+                      onChange={setValues}
+                      onSubmit={() => void submit()}
+                    />
+                    {error ? <div className="math-session__error">{error}</div> : null}
+                  </div>
+                ) : (
+                  <MathVisual
+                    question={question}
+                    cubeVisibleLayers={question.typeId === "S04" ? cubeGuideLayers : undefined}
+                    cubeAnimatingLayer={question.typeId === "S04" ? cubeAnimatingLayer : undefined}
+                    values={values}
+                    disabled={busy || Boolean(feedback)}
+                    onChange={setValues}
+                  />
+                )}
               </div>
+              {isDirectVisualAnswer ? (
+                <div className="math-logic-submit">
+                  <button className="math-submit-answer" type="button" disabled={busy || Boolean(feedback) || !directVisualComplete} onClick={() => void submit()}>提交答案</button>
+                  {error ? <div className="math-session__error">{error}</div> : null}
+                </div>
+              ) : null}
             </article>
 
-            <aside className="math-answer-card">
+            {!isDirectVisualAnswer && !isInlineSort ? <aside className="math-answer-card">
               <div className="math-answer-card__top">
                 <span>我的答案</span>
               </div>
               <MathAnswerEditor
+                key={`${session.id}:${session.currentIndex}:${question.id}:${question.response.mode}`}
                 question={question}
                 values={values}
                 disabled={busy || Boolean(feedback)}
@@ -172,7 +223,7 @@ export function MathPracticeExperience({
                 onSubmit={() => void submit()}
               />
               {error ? <div className="math-session__error">{error}</div> : null}
-            </aside>
+            </aside> : null}
           </div>
         ) : null}
 

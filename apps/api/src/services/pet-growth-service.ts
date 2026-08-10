@@ -347,10 +347,12 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
     petSpentToday(tx, childId, now, appConfig),
   );
   const unlockedRoomThemeIds = new Set(roomThemeUnlocks.map((unlock) => unlock.themeId));
-  const serializedRoomThemes = roomThemes.map((theme) => ({
-    ...theme,
-    priceStars: familyRoomThemePrices.get(theme.id) ?? theme.priceStars,
-  }));
+  const serializedRoomThemes = roomThemes
+    .filter((theme) => theme.ownerFamilyId === null)
+    .map((theme) => ({
+      ...theme,
+      priceStars: familyRoomThemePrices.get(theme.id) ?? theme.priceStars,
+    }));
   const equippedRoomTheme = serializedRoomThemes.find((theme) => theme.id === profile.equippedRoomThemeId)
     ?? serializedRoomThemes.find((theme) => theme.priceStars === 0)
     ?? serializedRoomThemes[0];
@@ -405,6 +407,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       backgroundPhoneUrl: theme.backgroundPhoneUrl,
       previewUrl: theme.previewUrl,
       ambience: parsePetRoomAmbience(theme.ambience),
+      mascotMotion: theme.mascotMotion,
       isOwned: theme.priceStars === 0 || unlockedRoomThemeIds.has(theme.id),
       isEquipped: theme.id === equippedRoomTheme?.id,
     })),
@@ -451,14 +454,18 @@ export async function purchasePetRoomTheme(input: {
       select: { id: true },
     });
     if (activeTrip) throw new HttpError(409, "PET_AWAY", "星宠旅行回来后再布置小屋吧");
-    const theme = await tx.petRoomTheme.findFirst({
-      where: { key: input.themeKey, isEnabled: true },
-    });
-    if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "这个小屋背景暂时不可用");
     const child = await tx.childProfile.findUniqueOrThrow({
       where: { id: input.childId },
       select: { familyId: true, starBalance: true },
     });
+    const theme = await tx.petRoomTheme.findFirst({
+      where: {
+        key: input.themeKey,
+        isEnabled: true,
+        ownerFamilyId: null,
+      },
+    });
+    if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "这个小屋背景暂时不可用");
     const priceStars = await getRoomThemePrice(tx, child.familyId, theme.id, theme.priceStars);
     const profile = await ensureProfile(tx, input.childId);
     if (priceStars === 0) {
@@ -538,7 +545,11 @@ export async function selectPetRoomTheme(input: {
     });
     if (activeTrip) throw new HttpError(409, "PET_AWAY", "星宠旅行回来后再布置小屋吧");
     const theme = await tx.petRoomTheme.findFirst({
-      where: { key: input.themeKey, isEnabled: true },
+      where: {
+        key: input.themeKey,
+        isEnabled: true,
+        ownerFamilyId: null,
+      },
     });
     if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "这个小屋背景暂时不可用");
     const priceStars = await getRoomThemePrice(tx, child.familyId, theme.id, theme.priceStars);

@@ -42,6 +42,7 @@ else
 fi
 
 echo "1/3 Building the shared math package, API and three web apps locally..."
+pnpm --filter @star-monsters/api pet:generate-destination-images
 pnpm --filter @star-monsters/math-practice build
 pnpm --filter @star-monsters/api build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/design-lab build

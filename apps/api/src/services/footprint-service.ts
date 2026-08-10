@@ -1,3 +1,4 @@
+import type { PlanetKey, StarLedgerType } from "@prisma/client";
 import type { AppConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import {
@@ -10,6 +11,65 @@ import {
 import {
   buildMotivationalLeaderboard,
 } from "../domain/child-leaderboard.js";
+
+const PLANET_NAMES: Record<PlanetKey, string> = {
+  MERCURY: "水星",
+  VENUS: "金星",
+  EARTH: "地球",
+  MARS: "火星",
+  JUPITER: "木星",
+  SATURN: "土星",
+  URANUS: "天王星",
+  NEPTUNE: "海王星",
+};
+
+type FootprintRewardLedger = {
+  id: string;
+  type: StarLedgerType;
+  amount: number;
+  referenceId: string | null;
+  createdAt: Date;
+};
+
+export function buildFootprintRewardDetails(
+  ledgers: readonly FootprintRewardLedger[],
+  planetProgress: readonly { id: string; planet: PlanetKey }[],
+  selectedDateKey: string,
+  timeZone: string,
+) {
+  const planetByProgressId = new Map(
+    planetProgress.map((progress) => [progress.id, progress.planet]),
+  );
+
+  return ledgers.flatMap((ledger) => {
+    const earnedDateKey = businessDateKey(
+      businessDateAt(ledger.createdAt, timeZone),
+    );
+    if (
+      earnedDateKey !== selectedDateKey ||
+      ledger.amount <= 0 ||
+      (ledger.type !== "DAILY_GOAL_BONUS" && ledger.type !== "PLANET_BONUS")
+    ) return [];
+
+    const planet = ledger.referenceId
+      ? (planetByProgressId.get(ledger.referenceId) ?? null)
+      : null;
+    const title = ledger.type === "DAILY_GOAL_BONUS"
+      ? "完成每日目标"
+      : planet
+        ? `点亮${PLANET_NAMES[planet]}`
+        : "点亮星球";
+
+    return [{
+      rewardId: ledger.id,
+      type: ledger.type,
+      title,
+      totalStars: ledger.amount,
+      earnedAt: ledger.createdAt,
+      planet,
+    }];
+  });
+}
 
 export async function getChildLeaderboardSettings(
   childId: string,
@@ -55,7 +115,13 @@ export async function getFootprints(
   const todayKey = businessDateKey(today);
   const weekStartKey = businessDateKey(weekStart);
   const currentMinute = businessMinuteOfDayAt(now, config.APP_TIME_ZONE);
-  const [tasks, child, leaderboardSettings, rewardLedgers] = await Promise.all([
+  const [
+    tasks,
+    child,
+    leaderboardSettings,
+    rewardLedgers,
+    planetProgress,
+  ] = await Promise.all([
     prisma.dailyTask.findMany({
       where: {
         childId,
@@ -92,8 +158,18 @@ export async function getFootprints(
         },
         type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS"] },
       },
-      select: { type: true, amount: true, createdAt: true },
+      select: {
+        id: true,
+        type: true,
+        amount: true,
+        referenceId: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.planetProgress.findMany({
+      where: { childId },
+      select: { id: true, planet: true },
     }),
   ]);
 
@@ -146,6 +222,12 @@ export async function getFootprints(
         completedAt: attempt.endedAt,
       })),
     );
+  const rewards = buildFootprintRewardDetails(
+    rewardLedgers,
+    planetProgress,
+    selectedKey,
+    config.APP_TIME_ZONE,
+  );
 
   const summarizePeriod = (from: Date, to: Date) => {
     const periodTasks = tasks.filter((task) =>
@@ -214,6 +296,7 @@ export async function getFootprints(
     selectedDate: selectedKey,
     days,
     tasks: details,
+    rewards,
     leaderboards: {
       daily: buildMotivationalLeaderboard({
         childId,

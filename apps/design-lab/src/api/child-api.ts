@@ -231,6 +231,7 @@ export type PetRoomTheme = {
     motion: "DRIFT" | "FLY" | "FLOAT" | "FALL" | "TWINKLE" | "RISE" | "SWIM" | "COMET" | "ORBIT";
     placement: "TOP" | "UPPER_RIGHT" | "CENTER" | "BOTTOM_LEFT";
   }>;
+  mascotMotion: "IDLE" | "CLOUD_FLOAT" | "UNDERWATER_SWIM" | "PETAL_SWAY" | "STARGAZE" | "ZERO_GRAVITY" | "SPORT_BOUNCE" | "ADVENTURE_MARCH";
   isOwned: boolean;
   isEquipped: boolean;
 };
@@ -894,6 +895,14 @@ export type FootprintResponse = {
     bonusStars: number;
     totalStars: number;
     completedAt: string;
+  }>;
+  rewards: Array<{
+    rewardId: string;
+    type: "DAILY_GOAL_BONUS" | "PLANET_BONUS";
+    title: string;
+    totalStars: number;
+    earnedAt: string;
+    planet: PlanetKey | null;
   }>;
   leaderboards: {
     daily: ChildLeaderboard;

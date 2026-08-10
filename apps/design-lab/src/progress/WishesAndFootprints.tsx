@@ -28,6 +28,7 @@ import australiaFlag from "@star-monsters/assets/images/footprints/flags/austral
 import brazilFlag from "@star-monsters/assets/images/footprints/flags/brazil.webp?no-inline";
 import unitedStatesFlag from "@star-monsters/assets/images/footprints/flags/united-states.webp?no-inline";
 import { MASCOTS } from "../mascots";
+import { PLANET_BY_KEY } from "../planets/planet-data";
 import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
@@ -454,24 +455,39 @@ export function Footprints({
         muted: item.isFuture,
       }))
     : [];
-  const displayedTasks = footprints
-    ? footprints.tasks.map((task) => ({
-        id: task.completionId,
-        title: task.title,
-        reward: task.totalStars,
-        icon:
-          task.category === "MATH"
-            ? mathIcon
-            : task.category === "CHORES" || task.category === "ORGANIZING"
-              ? booksIcon
-              : readingIcon,
-        accent:
-          task.category === "MATH"
-            ? "coral"
-            : task.category === "CHORES" || task.category === "ORGANIZING"
-              ? "green"
-              : "blue",
-      }))
+  const displayedEntries = footprints
+    ? [
+        ...footprints.tasks.map((task) => ({
+          id: task.completionId,
+          title: task.title,
+          reward: task.totalStars,
+          earnedAt: task.completedAt,
+          icon:
+            task.category === "MATH"
+              ? mathIcon
+              : task.category === "CHORES" || task.category === "ORGANIZING"
+                ? booksIcon
+                : readingIcon,
+          accent:
+            task.category === "MATH"
+              ? "coral"
+              : task.category === "CHORES" || task.category === "ORGANIZING"
+                ? "green"
+                : "blue",
+        })),
+        ...footprints.rewards.map((reward) => ({
+          id: reward.rewardId,
+          title: reward.title,
+          reward: reward.totalStars,
+          earnedAt: reward.earnedAt,
+          icon: reward.planet
+            ? PLANET_BY_KEY[reward.planet].image
+            : triumphIcon,
+          accent: reward.type === "PLANET_BONUS" ? "purple" : "gold",
+        })),
+      ].sort((left, right) =>
+        new Date(right.earnedAt).getTime() - new Date(left.earnedAt).getTime(),
+      )
     : [];
   const activeDate = selectedDate ?? footprints?.selectedDate;
   const activeDay = displayedDays.find((item) =>
@@ -537,7 +553,7 @@ export function Footprints({
               <img className="footprints-detail__pattern" src={detailPattern} alt="" />
               <h2 id="footprints-detail-title"><img src={triumphIcon} alt="" />{activeWeekday}&apos;s Triumphs</h2>
               <div className="footprints-task-list">
-                {displayedTasks.map((task) => (
+                {displayedEntries.map((task) => (
                   <article className="footprints-task" key={task.id}>
                     <div className="footprints-task__title">
                       <span className={`footprints-task__icon footprints-task__icon--${task.accent}`}>
@@ -550,9 +566,9 @@ export function Footprints({
                     </div>
                   </article>
                 ))}
-                {displayedTasks.length === 0 && (
+                {displayedEntries.length === 0 && (
                   <div className="footprints-task-empty">
-                    这一天还没有完成任务
+                    这一天还没有获得星星
                   </div>
                 )}
               </div>

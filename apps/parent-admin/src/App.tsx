@@ -716,7 +716,7 @@ function Tasks({ child }: { child: Child }) {
               repeatableDaily: experienceKind === "STANDARD" || experienceKind === "MAKE_TEN" || experienceKind === "MATH_PRACTICE" ? form.repeatableDaily : false,
               earlyBonusEnabled: experienceKind === "STANDARD" ? form.earlyBonusEnabled : false,
             });
-          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option><option value="MATH_PRACTICE">数学练习任务（42 种题型）</option></select></label>
+          }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option><option value="MATH_PRACTICE">数学练习任务</option></select></label>
           <label>分类<select disabled={form.experienceKind !== "STANDARD"} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label>计时类型<select disabled={form.experienceKind !== "STANDARD"} value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
           <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<input type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
@@ -727,7 +727,7 @@ function Tasks({ child }: { child: Child }) {
             <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
           {(form.experienceKind === "STANDARD" || form.experienceKind === "MAKE_TEN" || form.experienceKind === "MATH_PRACTICE") && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
-          {form.experienceKind === "MATH_PRACTICE" && <div className="field-span admin-help">题目总量和 42 类题型配比统一在“学习内容”中的“数学练习”设置；这里仅配置任务出现时间、奖励和是否可重复完成。</div>}
+          {form.experienceKind === "MATH_PRACTICE" && <div className="field-span admin-help">题目总量和题型配比统一在“学习内容”中的“数学练习”设置；这里仅配置任务出现时间、奖励和是否可重复完成。</div>}
           <label>出现方式<select value={form.scheduleKind} onChange={(event) => setForm({ ...form, scheduleKind: event.target.value as TaskForm["scheduleKind"] })}><option value="DAILY">每天</option><option value="WORKDAYS">工作日</option><option value="SELECTED_WEEKDAYS">指定星期</option><option value="ONE_TIME">一次性任务</option></select></label>
           {form.scheduleKind === "ONE_TIME" && <label>任务日期<input required type="date" value={form.oneTimeDate} onChange={(event) => setForm({ ...form, oneTimeDate: event.target.value })} /></label>}
           {form.scheduleKind === "SELECTED_WEEKDAYS" && <fieldset className="weekday-field field-span"><legend>选择星期</legend>{["日","一","二","三","四","五","六"].map((label, weekday) => <label key={weekday}><input type="checkbox" checked={form.weekdays.includes(weekday)} onChange={(event) => setForm({ ...form, weekdays: event.target.checked ? [...form.weekdays, weekday] : form.weekdays.filter((item) => item !== weekday) })} />周{label}</label>)}</fieldset>}

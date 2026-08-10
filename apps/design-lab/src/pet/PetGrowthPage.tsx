@@ -152,6 +152,7 @@ const FALLBACK_ROOM_THEME: PetRoomTheme = {
   backgroundPhoneUrl: "/pet-assets/v1/scenes/pet-room.webp",
   previewUrl: "/pet-assets/v1/scenes/pet-room.webp",
   ambience: [],
+  mascotMotion: "IDLE",
   isOwned: true,
   isEquipped: true,
 };
@@ -287,7 +288,12 @@ function Postcard({ trip, mascotImage, mascotName, soundEnabled, onClose }: { tr
           <img className="pet-postcard__travel-mascot" src={mascotImage} alt={`${mascotName}在${trip.destinationName}旅行`} decoding="async" />
           <span>旅行明信片</span>
         </div>
-        <div className="pet-postcard__content">
+        <div
+          className="pet-postcard__content"
+          role="region"
+          aria-label={`${trip.destinationName}景点介绍，可上下滑动`}
+          tabIndex={0}
+        >
           <p className="pet-postcard__location">{trip.city} · {trip.country}</p>
           <h2>{trip.destinationName}</h2>
           <p>{trip.introduction}</p>
@@ -943,6 +949,17 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     ?? FALLBACK_ROOM_THEME;
   const displayedRoomTheme = roomThemes.find((theme) => theme.key === themePreviewKey)
     ?? equippedRoomTheme;
+  const roomMascotMotion = displayedRoomTheme.isOwned
+    && displayedRoomTheme.mascotMotion !== "IDLE"
+    && !careAnimation
+    && !trip
+    && state.pet.satiety >= 30
+    && state.pet.hydration >= 30
+      ? displayedRoomTheme.mascotMotion
+      : "IDLE";
+  const roomMascotImage = roomMascotMotion === "IDLE"
+    ? moodImage
+    : uploadedNeutralImage ?? mascot.images.neutral;
   const levelRange = state.pet.nextLevelExperience === null
     ? 1
     : Math.max(1, state.pet.nextLevelExperience - state.pet.currentLevelStart);
@@ -1137,10 +1154,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           </div>
         ) : (
           <>
-            <div className={`pet-main-figure pet-main-figure--${state.pet.growthStage.toLowerCase()}${dialogueSpeaking ? " pet-main-figure--speaking" : ""}`}>
+            <div className={`pet-main-figure pet-main-figure--${state.pet.growthStage.toLowerCase()} pet-main-figure--motion-${roomMascotMotion.toLowerCase().replaceAll("_", "-")}${dialogueSpeaking ? " pet-main-figure--speaking" : ""}`}>
               <span className="pet-main-figure__spark">✦</span>
               <button className="pet-main-figure__button" type="button" disabled={Boolean(careAnimation)} aria-label={`点击听${mascot.name}说话`} aria-pressed={dialogueSpeaking} onClick={speakPetDialogue}>
-                <img src={moodImage} alt={`你的星宠${mascot.name}`} />
+                <img src={roomMascotImage} alt={`你的星宠${mascot.name}`} />
               </button>
               {careAnimation ? (
                 <div className="pet-care-progress" key={careAnimation.startedAt}>

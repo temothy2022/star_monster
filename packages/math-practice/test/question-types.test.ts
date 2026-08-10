@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   getMathQuestionTypesByDomain,
+  getMathQuestionTypesByCategory,
   MATH_CORE_GENERATOR_IDS,
+  MATH_QUESTION_CATEGORIES,
   MATH_QUESTION_DOMAINS,
   MATH_QUESTION_TYPES,
   MATH_QUESTION_TYPES_BY_ID,
@@ -9,8 +11,8 @@ import {
 } from "../src/index";
 
 describe("math practice question type registry", () => {
-  it("registers 42 teaching types across the expected six domains", () => {
-    expect(MATH_QUESTION_TYPES).toHaveLength(42);
+  it("registers compatible teaching types across the expected six legacy domains", () => {
+    expect(MATH_QUESTION_TYPES).toHaveLength(50);
     expect(MATH_QUESTION_DOMAINS.map((domain) => domain.id)).toEqual([
       "N",
       "P",
@@ -27,16 +29,16 @@ describe("math practice question type registry", () => {
           getMathQuestionTypesByDomain(domain.id).length,
         ]),
       ),
-    ).toEqual({ N: 11, P: 7, C: 6, V: 7, W: 7, S: 4 });
+    ).toEqual({ N: 16, P: 7, C: 6, V: 7, W: 9, S: 5 });
   });
 
-  it("maps the teaching types onto exactly 35 used core generators", () => {
+  it("maps the teaching types onto every registered core generator", () => {
     const usedCoreGenerators = new Set(
       MATH_QUESTION_TYPES.map((definition) => definition.coreGeneratorId),
     );
 
-    expect(MATH_CORE_GENERATOR_IDS).toHaveLength(35);
-    expect(usedCoreGenerators.size).toBe(35);
+    expect(MATH_CORE_GENERATOR_IDS).toHaveLength(43);
+    expect(usedCoreGenerators.size).toBe(43);
     expect([...usedCoreGenerators].sort()).toEqual(
       [...MATH_CORE_GENERATOR_IDS].sort(),
     );
@@ -53,7 +55,17 @@ describe("math practice question type registry", () => {
     for (const definition of MATH_QUESTION_TYPES) {
       expect(MATH_QUESTION_TYPES_BY_ID[definition.id]).toBe(definition);
     }
-    expect(Object.keys(MATH_QUESTION_TYPES_BY_ID)).toHaveLength(42);
+    expect(Object.keys(MATH_QUESTION_TYPES_BY_ID)).toHaveLength(50);
+  });
+
+  it("exposes every teaching type exactly once in the eight curriculum categories", () => {
+    expect(MATH_QUESTION_CATEGORIES).toHaveLength(8);
+    const categorizedIds = MATH_QUESTION_CATEGORIES.flatMap((category) =>
+      getMathQuestionTypesByCategory(category.id).map((type) => type.id),
+    );
+    expect(categorizedIds).toHaveLength(MATH_QUESTION_TYPES.length);
+    expect(new Set(categorizedIds).size).toBe(MATH_QUESTION_TYPES.length);
+    expect([...categorizedIds].sort()).toEqual(MATH_QUESTION_TYPES.map((type) => type.id).sort());
   });
 
   it("only references registered response modes and source images", () => {

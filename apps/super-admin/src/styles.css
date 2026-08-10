@@ -92,6 +92,37 @@
 .performance-table-wrap { max-height: 430px; overflow: auto; }
 .performance-table-wrap thead { position: sticky; z-index: 1; top: 0; background: #fff; }
 
+.super-room-theme-upload { display: grid; grid-template-columns: minmax(240px, .7fr) minmax(420px, 1.5fr); gap: 16px; padding: 16px; border: 1px solid #dce3eb; border-radius: 10px; background: #f8fafc; }
+.super-room-theme-upload__requirements { display: grid; align-content: start; gap: 7px; padding: 15px; border: 1px solid #ecd29e; border-radius: 8px; background: #fff9e9; }
+.super-room-theme-upload__requirements strong { color: #89591f; font-size: 13px; }
+.super-room-theme-upload__requirements b { color: #243654; font-size: 25px; font-variant-numeric: tabular-nums; }
+.super-room-theme-upload__requirements span { color: #755e3c; font-size: 13px; font-weight: 700; }
+.super-room-theme-upload__requirements small { color: #776e60; line-height: 1.6; }
+.super-room-theme-upload__fields { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 180px; align-content: start; gap: 12px; }
+.super-room-theme-upload__fields label { min-width: 0; display: grid; gap: 6px; color: #52647d; font-size: 13px; font-weight: 700; }
+.super-room-theme-upload__fields input,
+.super-room-theme-upload__fields textarea,
+.super-room-theme-upload__fields select { width: 100%; min-width: 0; box-sizing: border-box; }
+.super-room-theme-upload__fields input[type="file"] { padding: 8px; border: 1px dashed #9fb3c7; background: #fff; }
+.super-room-theme-upload__preview { grid-column: 1 / -1; display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; gap: 13px; padding: 11px; border: 1px solid #d8e4ee; border-radius: 8px; background: #fff; }
+.super-room-theme-upload__preview img { display: block; width: 150px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 6px; }
+.super-room-theme-upload__preview > div { min-width: 0; display: grid; gap: 5px; }
+.super-room-theme-upload__preview span,
+.super-room-theme-upload__preview small { color: #66758a; font-size: 12px; }
+.super-room-theme-upload > .form-actions { grid-column: 1 / -1; margin: 0; }
+.super-room-theme-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 9px; margin-top: 14px; }
+.super-room-theme-list article { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 7px 10px; min-height: 58px; overflow: hidden; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; }
+.super-room-theme-list img { width: 76px; height: 58px; object-fit: cover; }
+.super-room-theme-list article > div { min-width: 0; display: grid; gap: 3px; padding-right: 10px; }
+.super-room-theme-list article > label { grid-column: 1 / -1; display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 10px 9px; color: #52647d; font-size: 12px; font-weight: 700; }
+.super-room-theme-list article > label select { min-width: 0; padding: 6px 8px; }
+.super-room-theme-list strong { overflow: hidden; color: #263a5b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.super-room-theme-list span { color: #778294; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .super-room-theme-upload { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 980px) {
   .super-family-card__body { grid-template-columns: 1fr; }
   .super-family-overview__columns { grid-template-columns: 1fr; }

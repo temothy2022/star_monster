@@ -30,6 +30,7 @@ export type PageIndexRoute =
   | "hanzi-listen-wrong"
   | "hanzi-result"
   | "math-preview"
+  | "math-print"
   | "poem-recitation";
 
 type PageGroup = {
@@ -110,7 +111,8 @@ const groups: PageGroup[] = [
   {
     title: "数学练习",
     pages: [
-      { route: "math-preview", name: "42 种题型设计室", note: "逐题查看、换题与 iPad 触控作答" },
+      { route: "math-preview", name: "数学题型设计室", note: "按8个能力大类逐题查看、换题与 iPad 触控作答" },
+      { route: "math-print", name: "A4 练习卷生成器", note: "公开访问，按题型和数量生成可打印 PDF" },
     ],
   },
   {

@@ -1,38 +1,91 @@
+import { memo, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type {
+  MathLengthAssetKey,
+  MathLogicPictureKey,
   MathQuestion,
   MathSpriteKey,
 } from "@star-monsters/math-practice";
 import appleUrl from "@star-monsters/assets/images/math-practice/apple.webp";
+import bearUrl from "@star-monsters/assets/images/math-practice/bear.webp";
+import cakeUrl from "@star-monsters/assets/images/math-practice/cake.webp";
 import chickUrl from "@star-monsters/assets/images/math-practice/chick.webp";
+import duckUrl from "@star-monsters/assets/images/math-practice/duck.webp";
 import pencilUrl from "@star-monsters/assets/images/math-practice/pencil.webp";
 import puppyUrl from "@star-monsters/assets/images/math-practice/puppy.webp";
+import stickBundleUrl from "@star-monsters/assets/images/math-practice/stick-bundle.webp";
+import watermelonUrl from "@star-monsters/assets/images/math-practice/watermelon.webp";
+import lengthCrayonsUrl from "@star-monsters/assets/images/math-practice/length-crayons.webp";
+import lengthPaintbrushesUrl from "@star-monsters/assets/images/math-practice/length-paintbrushes.webp";
+import lengthRibbonsUrl from "@star-monsters/assets/images/math-practice/length-ribbons.webp";
+import lengthRulersUrl from "@star-monsters/assets/images/math-practice/length-rulers.webp";
+import lengthSpoonsUrl from "@star-monsters/assets/images/math-practice/length-spoons.webp";
+import lengthStrawsUrl from "@star-monsters/assets/images/math-practice/length-straws.webp";
+import lengthToothbrushesUrl from "@star-monsters/assets/images/math-practice/length-toothbrushes.webp";
 
 const spriteUrls: Record<MathSpriteKey, string> = {
   apple: appleUrl,
+  bear: bearUrl,
+  cake: cakeUrl,
   chick: chickUrl,
+  duck: duckUrl,
   pencil: pencilUrl,
   puppy: puppyUrl,
+  watermelon: watermelonUrl,
 };
 
 const spriteLabels: Record<MathSpriteKey, string> = {
   apple: "苹果",
+  bear: "小熊",
+  cake: "蛋糕",
   chick: "小鸡",
+  duck: "鸭子",
   pencil: "铅笔",
   puppy: "小狗",
+  watermelon: "西瓜",
+};
+
+const lengthAssetUrls: Record<MathLengthAssetKey, string> = {
+  rulers: lengthRulersUrl,
+  crayons: lengthCrayonsUrl,
+  ribbons: lengthRibbonsUrl,
+  toothbrushes: lengthToothbrushesUrl,
+  paintbrushes: lengthPaintbrushesUrl,
+  straws: lengthStrawsUrl,
+  spoons: lengthSpoonsUrl,
+};
+
+const lengthAssetLabels: Record<MathLengthAssetKey, string> = {
+  rulers: "三把长短不同的尺子",
+  crayons: "三支长短不同的彩笔",
+  ribbons: "三条长短不同的丝带",
+  toothbrushes: "三把长短不同的牙刷",
+  paintbrushes: "三支长短不同的画笔",
+  straws: "三根长短不同的吸管",
+  spoons: "三把长短不同的勺子",
 };
 
 type VisualQuestion = Pick<MathQuestion, "visual" | "helper">;
 
-function Sprite({ asset, className = "" }: { asset: MathSpriteKey; className?: string }) {
+type MathVisualProps = {
+  question: VisualQuestion;
+  cubeVisibleLayers?: number | null;
+  cubeAnimatingLayer?: number | null;
+  values?: readonly string[];
+  disabled?: boolean;
+  onChange?: (values: string[]) => void;
+};
+
+const Sprite = memo(function Sprite({ asset, className = "", style }: { asset: MathSpriteKey; className?: string; style?: CSSProperties }) {
   return (
     <img
       className={`math-sprite ${className}`}
       src={spriteUrls[asset]}
       alt={spriteLabels[asset]}
       draggable={false}
+      style={style}
     />
   );
-}
+});
 
 function ObjectGroups({ question }: { question: VisualQuestion }) {
   if (question.visual.kind !== "OBJECT_GROUPS") return null;
@@ -41,11 +94,21 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
   const removalStages = visual.crossedOut ?? [];
   const totalRemoved = removalStages.reduce((sum, count) => sum + count, 0);
   let globalIndex = 0;
+  const splitRemovalGroups = removalStages.length > 0
+    && visual.groups.length === 1
+    && totalRemoved > 0
+    && totalRemoved < totalObjects;
+  const displayGroups = splitRemovalGroups
+    ? [
+        { count: totalObjects - totalRemoved, removed: false, key: "remaining" },
+        ...removalStages.map((count, index) => ({ count, removed: true, key: `removed-${index}` })),
+      ]
+    : visual.groups.map((count, index) => ({ count, removed: false, key: `group-${index}` }));
 
   return (
     <div className="math-object-model">
-      <div className="math-object-groups">
-        {visual.groups.map((count, groupIndex) => {
+      <div className={`math-object-groups${visual.orientation === "VERTICAL" ? " math-object-groups--vertical" : ""}${visual.orientation !== "VERTICAL" && visual.groups.length === 2 ? " math-object-groups--split" : ""}`}>
+        {displayGroups.map(({ count, removed, key }, groupIndex) => {
           const groupStart = globalIndex;
           globalIndex += count;
           if (visual.unknownGroupIndex === groupIndex) {
@@ -57,13 +120,17 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
           }
           return (
             <div
-              className={`math-object-group${visual.containers ? " math-object-group--container" : ""}`}
-              key={groupIndex}
+              className={`math-object-group${visual.groupColumns?.[groupIndex] ? " math-object-group--grid" : ""}${visual.containers ? " math-object-group--container" : ""}${removed ? " math-object-group--removed" : ""}`}
+              style={visual.groupColumns?.[groupIndex]
+                ? { gridTemplateColumns: `repeat(${visual.groupColumns[groupIndex]}, 58px)` }
+                : undefined}
+              key={key}
             >
+              {visual.groupLabels?.[groupIndex] ? <strong className="math-object-group-label">{visual.groupLabels[groupIndex]}</strong> : null}
               {Array.from({ length: count }, (_, localIndex) => {
                 const itemIndex = groupStart + localIndex;
                 const fromEnd = totalObjects - itemIndex;
-                const crossed = fromEnd <= totalRemoved;
+                const crossed = !splitRemovalGroups && fromEnd <= totalRemoved;
                 let stage = 0;
                 let running = 0;
                 for (let index = 0; index < removalStages.length; index += 1) {
@@ -90,7 +157,7 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
       {visual.totalLabel !== undefined ? (
         <div className="math-total-bracket">
           <span />
-          <strong>一共 {visual.totalLabel} 个</strong>
+          <strong>{visual.totalLabel}</strong>
           <span />
         </div>
       ) : null}
@@ -115,15 +182,18 @@ function Abacus({ tens, ones }: { tens: number; ones: number }) {
   );
 }
 
+function StickBundle() {
+  return (
+    <img className="math-stick-bundle" src={stickBundleUrl} alt="一捆小棍" draggable={false} />
+  );
+}
+
 function PlaceValue({ tens, ones }: { tens: number; ones: number }) {
   return (
     <div className="math-place-value">
       <div className="math-place-value__section">
         {Array.from({ length: tens }, (_, index) => (
-          <div className="math-stick-bundle" key={index}>
-            {Array.from({ length: 10 }, (_, stick) => <i key={stick} />)}
-            <b />
-          </div>
+          <StickBundle key={index} />
         ))}
         <span>{tens} 个十</span>
       </div>
@@ -163,26 +233,93 @@ function NumberBond({ total, parts }: { total: number | null; parts: readonly [n
   );
 }
 
-function Queue({ question }: { question: VisualQuestion }) {
+function Queue({
+  question,
+  values,
+  disabled,
+  onChange,
+}: {
+  question: VisualQuestion;
+  values: readonly string[];
+  disabled: boolean;
+  onChange?: (values: string[]) => void;
+}) {
   if (question.visual.kind !== "QUEUE") return null;
   const { visual } = question;
+  function toggleItem(index: number) {
+    if (!visual.selectable || disabled || !onChange) return;
+    const value = `item-${index}`;
+    onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
+  }
   return (
     <div className="math-queue-wrap">
       <div className="math-queue">
-        {visual.assets.map((asset, index) => (
-          <span className="math-queue__item" key={`${asset}-${index}`}>
+        {visual.assets.map((asset, index) => {
+          const selected = values.includes(`item-${index}`);
+          const content = <>
             {visual.targetIndex === index ? <b aria-label="目标">★</b> : null}
             <Sprite asset={asset} />
-            <small>{index + 1}</small>
-          </span>
-        ))}
+            {visual.selectable ? <i aria-hidden="true">{selected ? "✓" : ""}</i> : <small>{index + 1}</small>}
+          </>;
+          return visual.selectable ? (
+            <button
+              className={`math-queue__item math-queue__item--selectable${selected ? " is-selected" : ""}`}
+              type="button"
+              disabled={disabled}
+              aria-label={`第 ${index + 1} 个小伙伴${selected ? "，已圈选" : ""}`}
+              aria-pressed={selected}
+              onClick={() => toggleItem(index)}
+              key={`${asset}-${index}`}
+            >{content}</button>
+          ) : <span className="math-queue__item" key={`${asset}-${index}`}>{content}</span>;
+        })}
       </div>
       {visual.direction ? (
         <div className={`math-direction math-direction--${visual.direction.toLowerCase()}`}>
           <span>{visual.direction === "LEFT" ? "←" : "→"}</span>
-          从{visual.direction === "LEFT" ? "左" : "右"}边数
+          {visual.directionLabel ?? `从${visual.direction === "LEFT" ? "左" : "右"}边数`}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function CountAdjust({
+  question,
+  values,
+  disabled,
+  onChange,
+}: {
+  question: VisualQuestion;
+  values: readonly string[];
+  disabled: boolean;
+  onChange?: (values: string[]) => void;
+}) {
+  if (question.visual.kind !== "COUNT_ADJUST") return null;
+  const visual = question.visual;
+  const count = Math.max(0, Math.min(visual.maximum, Number(values[0] ?? 0) || 0));
+  function setCount(next: number) {
+    if (disabled || !onChange) return;
+    onChange([String(Math.max(0, Math.min(visual.maximum, next)))]);
+  }
+  return (
+    <div className="math-count-adjust">
+      <section aria-label={`参考数量 ${visual.referenceCount}`}>
+        <strong>看一看</strong>
+        <div>{Array.from({ length: visual.referenceCount }, (_, index) => <Sprite asset={visual.asset} key={index} />)}</div>
+      </section>
+      <span>比上面{visual.relation === "MORE" ? "多" : "少"} {visual.difference} 个</span>
+      <section className="math-count-adjust__drawing" aria-label={`已经画了 ${count} 个`}>
+        <strong>点一下画出来</strong>
+        <div>
+          {Array.from({ length: count }, (_, index) => (
+            <button type="button" disabled={disabled} aria-label="擦掉一个" onClick={() => setCount(count - 1)} key={index}>
+              <Sprite asset={visual.asset} />
+            </button>
+          ))}
+          {count < visual.maximum ? <button className="math-count-adjust__add" type="button" disabled={disabled} aria-label="再画一个" onClick={() => setCount(count + 1)}>＋</button> : null}
+        </div>
+      </section>
     </div>
   );
 }
@@ -190,12 +327,46 @@ function Queue({ question }: { question: VisualQuestion }) {
 function AttributeCompare({ question }: { question: VisualQuestion }) {
   if (question.visual.kind !== "ATTRIBUTE_COMPARE") return null;
   const visual = question.visual;
+  if (visual.attribute === "LENGTH") {
+    const legacyLongestIndex = visual.scales.indexOf(Math.max(...visual.scales));
+    const lengthAsset = visual.lengthAsset ?? (["rulers", "crayons", "ribbons"] as const)[legacyLongestIndex] ?? "rulers";
+    return (
+      <div className="math-length-compare">
+        <img
+          src={lengthAssetUrls[lengthAsset]}
+          alt={lengthAssetLabels[lengthAsset]}
+          draggable={false}
+        />
+        <div className="math-length-compare__labels">
+          <small>左边</small>
+          <small>中间</small>
+          <small>右边</small>
+        </div>
+      </div>
+    );
+  }
+  if (visual.attribute === "WEIGHT" && visual.balance) {
+    const rotation = visual.balance === "LEFT" ? -7 : visual.balance === "RIGHT" ? 7 : 0;
+    return (
+      <div className="math-balance-compare" aria-label={`跷跷板${visual.balance === "LEFT" ? "左低右高" : visual.balance === "RIGHT" ? "右低左高" : "两边一样高"}`}>
+        <div className="math-balance-compare__objects" style={{ transform: `rotate(${rotation}deg)` }}>
+          <div className="math-balance-compare__object math-balance-compare__object--left" style={{ transform: `rotate(${-rotation}deg)` }}><Sprite asset={visual.assets?.[0] ?? visual.asset} /></div>
+          <div className="math-balance-compare__object math-balance-compare__object--right" style={{ transform: `rotate(${-rotation}deg)` }}><Sprite asset={visual.assets?.[1] ?? visual.asset} /></div>
+        </div>
+        <i />
+        <div className="math-balance-compare__labels"><small>左边</small><small>右边</small></div>
+      </div>
+    );
+  }
   return (
-    <div className="math-attribute-compare">
+    <div className={`math-attribute-compare math-attribute-compare--${(visual.attribute ?? "SIZE").toLowerCase()}`}>
       {visual.scales.map((scale, index) => (
         <div key={index}>
-          <Sprite asset={visual.asset} className="math-sprite--scaled" />
-          <style>{`.math-attribute-compare > div:nth-child(${index + 1}) .math-sprite--scaled{transform:scale(${scale})}`}</style>
+          <Sprite
+            asset={visual.asset}
+            className="math-sprite--scaled"
+            style={{ transform: visual.attribute === "LENGTH" ? `scaleX(${scale})` : `scale(${scale})` }}
+          />
           <small>{["左边", "中间", "右边"][index]}</small>
         </div>
       ))}
@@ -216,20 +387,179 @@ function SpatialGrid({ question }: { question: VisualQuestion }) {
   );
 }
 
-function LogicGrid({ question }: { question: VisualQuestion }) {
+const logicPictureLabels: Record<MathLogicPictureKey, string> = {
+  soccer: "足球",
+  basketball: "篮球",
+  volleyball: "排球",
+  tennis: "网球",
+  badminton: "羽毛球",
+};
+
+const logicRowAssetByLabel: Partial<Record<string, MathSpriteKey>> = {
+  小鸡: "chick",
+  小狗: "puppy",
+  小熊: "bear",
+  小鸭: "duck",
+  苹果妹妹: "apple",
+  西瓜妹妹: "watermelon",
+};
+
+const logicColumnAssetByLabel: Partial<Record<string, MathLogicPictureKey>> = {
+  皮球: "volleyball",
+  足球: "soccer",
+  篮球: "basketball",
+  排球: "volleyball",
+  网球: "tennis",
+  羽毛球: "badminton",
+};
+
+const LogicPicture = memo(function LogicPicture({ asset }: { asset: MathLogicPictureKey }) {
+  if (asset === "badminton") {
+    return (
+      <svg className="math-logic-picture" viewBox="0 0 64 64" role="img" aria-label={logicPictureLabels[asset]}>
+        <path d="M17 12 40 35 29 46 10 21Z" fill="#fff" stroke="#527a9d" strokeWidth="3" />
+        <path d="m13 18 22 22M19 12l21 23M18 28l18-1M24 35l18-1" fill="none" stroke="#9dc7df" strokeWidth="2" />
+        <path d="M29 46c5 7 13 8 18 3l4-4-11-10Z" fill="#ffd65a" stroke="#b97827" strokeWidth="3" />
+      </svg>
+    );
+  }
+  const fill = asset === "soccer" ? "#fff" : asset === "basketball" ? "#f49a3c" : asset === "volleyball" ? "#75c8eb" : "#cbe85b";
+  return (
+    <svg className="math-logic-picture" viewBox="0 0 64 64" role="img" aria-label={logicPictureLabels[asset]}>
+      <circle cx="32" cy="32" r="24" fill={fill} stroke="#426b8d" strokeWidth="3" />
+      {asset === "soccer" ? (
+        <>
+          <path d="m32 21 8 6-3 10H27l-3-10Z" fill="#3e5268" />
+          <path d="m24 27-9-3m25 3 9-3M27 37l-7 9m17-9 7 9M32 21v-9" fill="none" stroke="#3e5268" strokeWidth="3" />
+        </>
+      ) : null}
+      {asset === "basketball" ? (
+        <>
+          <path d="M8 32h48M32 8v48M15 16c12 7 22 25 34 32M49 16C37 23 27 41 15 48" fill="none" stroke="#874921" strokeWidth="3" />
+        </>
+      ) : null}
+      {asset === "volleyball" ? (
+        <>
+          <path d="M32 8c-4 12-3 18 4 25M10 24c12-1 19 2 26 9M18 50c3-12 8-17 18-17M55 27c-10 5-15 11-16 22" fill="none" stroke="#fff" strokeWidth="5" />
+          <path d="M32 8c-4 12-3 18 4 25M10 24c12-1 19 2 26 9M18 50c3-12 8-17 18-17M55 27c-10 5-15 11-16 22" fill="none" stroke="#477d9e" strokeWidth="2" />
+        </>
+      ) : null}
+      {asset === "tennis" ? <path d="M15 15c17 10 24 24 34 34M49 15C32 25 25 39 15 49" fill="none" stroke="#fff" strokeWidth="4" /> : null}
+    </svg>
+  );
+});
+
+function SpeakerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9H4Z" fill="currentColor" />
+      <path d="M16 9c1.4 1.6 1.4 4.4 0 6M18.5 6.5c3.2 3 3.2 8 0 11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LogicGrid({
+  question,
+  values,
+  disabled,
+  onChange,
+}: {
+  question: VisualQuestion;
+  values: readonly string[];
+  disabled: boolean;
+  onChange?: (values: string[]) => void;
+}) {
   if (question.visual.kind !== "LOGIC_GRID") return null;
   const visual = question.visual;
+  const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
+  const rowAssets = useMemo(
+    () => visual.rows.map((row, index) => visual.rowAssets?.[index] ?? logicRowAssetByLabel[row] ?? "chick"),
+    [visual.rowAssets, visual.rows],
+  );
+  const columnAssets = useMemo(
+    () => visual.columns.map((column, index) => visual.columnAssets?.[index] ?? logicColumnAssetByLabel[column] ?? "volleyball"),
+    [visual.columnAssets, visual.columns],
+  );
+
+  useEffect(() => {
+    setSpeakingIndex(null);
+    return () => {
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    };
+  }, [visual.clues]);
+
+  function toggleCell(rowIndex: number, columnIndex: number) {
+    if (disabled || !onChange) return;
+    const row = visual.rows[rowIndex]!;
+    const column = visual.columns[columnIndex]!;
+    const value = `${row}-${column}`;
+    if (values.includes(value)) {
+      onChange(values.filter((item) => item !== value));
+      return;
+    }
+    const next = values.filter((item) => !item.startsWith(`${row}-`));
+    onChange([...next, value]);
+  }
+
+  function speakClue(clue: string, index: number) {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(clue);
+    utterance.lang = "zh-CN";
+    utterance.rate = 0.78;
+    utterance.pitch = 1.05;
+    utterance.onend = () => setSpeakingIndex((current) => current === index ? null : current);
+    utterance.onerror = () => setSpeakingIndex(null);
+    setSpeakingIndex(index);
+    window.speechSynthesis.speak(utterance);
+  }
+
   return (
     <div className="math-logic-model">
-      <div className="math-logic-grid" style={{ gridTemplateColumns: `1.25fr repeat(${visual.columns.length}, 1fr)` }}>
-        <span />
-        {visual.columns.map((column) => <strong key={column}>{column}</strong>)}
-        {visual.rows.flatMap((row) => [
-          <strong key={`${row}-label`}>{row}</strong>,
-          ...visual.columns.map((column) => <span key={`${row}-${column}`}>○</span>),
+      <div
+        className="math-logic-clues"
+        style={{ gridTemplateRows: `repeat(${visual.clues.length}, minmax(0, 1fr))` }}
+        aria-label="题目条件"
+      >
+        {visual.clues.map((clue, index) => (
+          <div className={speakingIndex === index ? "is-speaking" : ""} key={clue}>
+            <span>{index + 1}</span>
+            <p>{clue}</p>
+            <button type="button" disabled={disabled} onClick={() => speakClue(clue, index)} aria-label={`朗读条件${index + 1}`}>
+              <SpeakerIcon /><b>朗读</b>
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="math-logic-grid" style={{ gridTemplateColumns: `88px repeat(${visual.columns.length}, minmax(82px, 1fr))` }}>
+        <span className="math-logic-grid__corner" />
+        {columnAssets.map((asset, index) => (
+          <div className="math-logic-grid__picture" aria-label={visual.columns[index]} key={visual.columns[index]}>
+            <LogicPicture asset={asset} />
+          </div>
+        ))}
+        {visual.rows.flatMap((row, rowIndex) => [
+          <div className="math-logic-grid__picture" aria-label={row} key={`${row}-label`}>
+            <Sprite asset={rowAssets[rowIndex]!} />
+          </div>,
+          ...visual.columns.map((column, columnIndex) => {
+            const selected = values.includes(`${row}-${column}`);
+            return (
+              <button
+                className={selected ? "is-selected" : ""}
+                type="button"
+                disabled={disabled}
+                aria-label={`${row}选择${column}${selected ? "，已打勾" : ""}`}
+                aria-pressed={selected}
+                onClick={() => toggleCell(rowIndex, columnIndex)}
+                key={`${row}-${column}`}
+              >
+                <span>{selected ? "✓" : ""}</span>
+              </button>
+            );
+          }),
         ])}
       </div>
-      <ol>{visual.clues.map((clue) => <li key={clue}>{clue}</li>)}</ol>
     </div>
   );
 }
@@ -238,30 +568,34 @@ function CubeModel({ cubes, visibleLayers, animatedLayer }: { cubes: readonly [n
   const size = 36;
   const originX = 180;
   const originY = 168;
-  const projected = [...cubes].sort((first, second) => {
-    const firstDepth = first[0] + first[1] + first[2] * 0.01;
-    const secondDepth = second[0] + second[1] + second[2] * 0.01;
-    return firstDepth - secondDepth;
-  });
-
-  const allFaces = projected.map(([x, y, z], index) => {
-    const px = originX + (x - y) * size;
-    const py = originY + (x + y) * (size / 2) - z * size;
-    const top = [[px, py - size], [px + size, py - size / 2], [px, py], [px - size, py - size / 2]] as const;
-    const left = [[px - size, py - size / 2], [px, py], [px, py + size], [px - size, py + size / 2]] as const;
-    const right = [[px, py], [px + size, py - size / 2], [px + size, py + size / 2], [px, py + size]] as const;
-    return { key: `${x}-${y}-${z}-${index}`, z, top, left, right, points: [...top, ...left, ...right] };
-  });
+  const { allFaces, viewBox } = useMemo(() => {
+    const projected = [...cubes].sort((first, second) => {
+      const firstDepth = first[0] + first[1] + first[2] * 0.01;
+      const secondDepth = second[0] + second[1] + second[2] * 0.01;
+      return firstDepth - secondDepth;
+    });
+    const faces = projected.map(([x, y, z], index) => {
+      const px = originX + (x - y) * size;
+      const py = originY + (x + y) * (size / 2) - z * size;
+      const top = [[px, py - size], [px + size, py - size / 2], [px, py], [px - size, py - size / 2]] as const;
+      const left = [[px - size, py - size / 2], [px, py], [px, py + size], [px - size, py + size / 2]] as const;
+      const right = [[px, py], [px + size, py - size / 2], [px + size, py + size / 2], [px, py + size]] as const;
+      return { key: `${x}-${y}-${z}-${index}`, z, top, left, right, points: [...top, ...left, ...right] };
+    });
+    const allPoints = faces.flatMap((face) => face.points);
+    const padding = 12;
+    const minX = Math.min(...allPoints.map(([x]) => x)) - padding;
+    const minY = Math.min(...allPoints.map(([, y]) => y)) - padding;
+    const maxX = Math.max(...allPoints.map(([x]) => x)) + padding;
+    const maxY = Math.max(...allPoints.map(([, y]) => y)) + padding;
+    return {
+      allFaces: faces,
+      viewBox: `${minX} ${minY} ${maxX - minX} ${maxY - minY}`,
+    };
+  }, [cubes]);
   const faces = visibleLayers == null
     ? allFaces
     : allFaces.filter((face) => face.z < visibleLayers);
-  const allPoints = allFaces.flatMap((face) => face.points);
-  const padding = 12;
-  const minX = Math.min(...allPoints.map(([x]) => x)) - padding;
-  const minY = Math.min(...allPoints.map(([, y]) => y)) - padding;
-  const maxX = Math.max(...allPoints.map(([x]) => x)) + padding;
-  const maxY = Math.max(...allPoints.map(([, y]) => y)) + padding;
-  const viewBox = `${minX} ${minY} ${maxX - minX} ${maxY - minY}`;
 
   return (
     <svg className="math-cube-model" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={`由 ${cubes.length} 个小正方体组成的立体`}>
@@ -276,7 +610,14 @@ function CubeModel({ cubes, visibleLayers, animatedLayer }: { cubes: readonly [n
   );
 }
 
-export function MathVisual({ question, cubeVisibleLayers, cubeAnimatingLayer }: { question: VisualQuestion; cubeVisibleLayers?: number | null; cubeAnimatingLayer?: number | null }) {
+function MathVisualComponent({
+  question,
+  cubeVisibleLayers,
+  cubeAnimatingLayer,
+  values = [],
+  disabled = false,
+  onChange,
+}: MathVisualProps) {
   switch (question.visual.kind) {
     case "NONE":
       return <div className="math-plain-helper">{question.helper}</div>;
@@ -291,14 +632,32 @@ export function MathVisual({ question, cubeVisibleLayers, cubeAnimatingLayer }: 
     case "NUMBER_BOND":
       return <NumberBond total={question.visual.total} parts={question.visual.parts} />;
     case "QUEUE":
-      return <Queue question={question} />;
+      return <Queue question={question} values={values} disabled={disabled} onChange={onChange} />;
+    case "COUNT_ADJUST":
+      return <CountAdjust question={question} values={values} disabled={disabled} onChange={onChange} />;
     case "ATTRIBUTE_COMPARE":
       return <AttributeCompare question={question} />;
     case "SPATIAL_GRID":
       return <SpatialGrid question={question} />;
     case "LOGIC_GRID":
-      return <LogicGrid question={question} />;
+      return <LogicGrid question={question} values={values} disabled={disabled} onChange={onChange} />;
     case "CUBES":
       return <CubeModel cubes={question.visual.cubes} visibleLayers={cubeVisibleLayers} animatedLayer={cubeAnimatingLayer} />;
   }
 }
+
+function sameValues(first: readonly string[] | undefined, second: readonly string[] | undefined) {
+  if (first === second) return true;
+  const left = first ?? [];
+  const right = second ?? [];
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function mathVisualPropsEqual(previous: MathVisualProps, next: MathVisualProps) {
+  if (previous.question !== next.question) return false;
+  if (previous.cubeVisibleLayers !== next.cubeVisibleLayers || previous.cubeAnimatingLayer !== next.cubeAnimatingLayer) return false;
+  if (!["LOGIC_GRID", "QUEUE", "COUNT_ADJUST"].includes(previous.question.visual.kind)) return true;
+  return previous.disabled === next.disabled && sameValues(previous.values, next.values);
+}
+
+export const MathVisual = memo(MathVisualComponent, mathVisualPropsEqual);

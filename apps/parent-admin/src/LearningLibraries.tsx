@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
-  MATH_QUESTION_DOMAINS,
-  getMathQuestionTypesByDomain,
+  MATH_QUESTION_CATEGORIES,
+  getMathQuestionFamiliesByCategory,
+  getMathQuestionTypesByCategory,
 } from "@star-monsters/math-practice";
 import {
   parentApi,
@@ -15,6 +16,14 @@ import {
   type PoemLearningSettings,
   type PoemResource,
 } from "./api";
+import {
+  DEFAULT_MATH_PRACTICE_SETTINGS,
+  MATH_PRACTICE_PRESETS,
+  allocateEvenly,
+  clampMathTotal,
+  countAllocatedQuestions,
+  rebalanceTypeCounts,
+} from "./math-practice-settings";
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return <section className="admin-panel"><header className="admin-panel__header"><h2>{title}</h2></header>{children}</section>;
@@ -300,26 +309,18 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
   </div>;
 }
 
-const DEFAULT_MATH_PRACTICE_SETTINGS: MathPracticeSettings = {
-  totalQuestions: 10,
-  typeCounts: {
-    N01: 2,
-    C01: 2,
-    V01: 2,
-    V04: 1,
-    W01: 1,
-    W03: 1,
-    S04: 1,
-  },
-};
-
 export function ParentMathPractice({ child }: { child: Child }) {
   const [settings, setSettings] = useState<MathPracticeSettings>(DEFAULT_MATH_PRACTICE_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const allocatedQuestions = Object.values(settings.typeCounts).reduce((sum, count) => sum + count, 0);
+  const [savedMessage, setSavedMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const [expandedDomains, setExpandedDomains] = useState<string[]>([MATH_QUESTION_CATEGORIES[0].id]);
+  const allocatedQuestions = countAllocatedQuestions(settings.typeCounts);
+  const activeTypeCount = Object.values(settings.typeCounts).filter((count) => count > 0).length;
   const allocationValid = settings.totalQuestions > 0 && allocatedQuestions === settings.totalQuestions;
+  const normalizedSearch = search.trim().toLocaleLowerCase("zh-CN");
 
   useEffect(() => {
     setLoading(true);
@@ -331,13 +332,45 @@ export function ParentMathPractice({ child }: { child: Child }) {
   }, [child.id]);
 
   function setTypeCount(typeId: string, nextCount: number) {
+    setSavedMessage("");
+    setSettings((current) => {
+      const typeCounts = { ...current.typeCounts };
+      const previousCount = typeCounts[typeId] ?? 0;
+      const otherQuestions = countAllocatedQuestions(typeCounts) - previousCount;
+      const count = Math.max(0, Math.min(100 - otherQuestions, Number.isFinite(nextCount) ? Math.round(nextCount) : 0));
+      if (count > 0) typeCounts[typeId] = count;
+      else delete typeCounts[typeId];
+      return { totalQuestions: countAllocatedQuestions(typeCounts), typeCounts };
+    });
+  }
+
+  function setTotalQuestions(nextTotalQuestions: number) {
+    const totalQuestions = clampMathTotal(nextTotalQuestions);
+    setSavedMessage("");
     setSettings((current) => ({
-      ...current,
-      typeCounts: {
-        ...current.typeCounts,
-        [typeId]: Math.max(0, Math.min(100, Number.isFinite(nextCount) ? nextCount : 0)),
-      },
+      totalQuestions,
+      typeCounts: rebalanceTypeCounts(current.typeCounts, totalQuestions),
     }));
+  }
+
+  function applyTypeSelection(typeIds: readonly string[]) {
+    setSavedMessage("");
+    setSettings((current) => ({ ...current, typeCounts: allocateEvenly(current.totalQuestions, typeIds) }));
+  }
+
+  function clearDomain(typeIds: readonly string[]) {
+    setSavedMessage("");
+    setSettings((current) => {
+      const typeCounts = { ...current.typeCounts };
+      typeIds.forEach((typeId) => delete typeCounts[typeId]);
+      return { totalQuestions: countAllocatedQuestions(typeCounts), typeCounts };
+    });
+  }
+
+  function toggleDomain(domainId: string) {
+    setExpandedDomains((current) => current.includes(domainId)
+      ? current.filter((id) => id !== domainId)
+      : [...current, domainId]);
   }
 
   async function save(event: FormEvent) {
@@ -345,9 +378,11 @@ export function ParentMathPractice({ child }: { child: Child }) {
     if (!allocationValid) return;
     setBusy(true);
     setError("");
+    setSavedMessage("");
     try {
       const result = await parentApi.updateMathPracticeSettings(child.id, settings);
       setSettings(result.settings);
+      setSavedMessage("设置已保存");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "数学练习设置保存失败");
     } finally {
@@ -361,40 +396,78 @@ export function ParentMathPractice({ child }: { child: Child }) {
         <div className="math-settings-intro">
           <div>
             <span>每次练习总题数</span>
-            <input aria-label="每次练习总题数" type="number" min={1} max={100} value={settings.totalQuestions} onChange={(event) => setSettings({ ...settings, totalQuestions: Number(event.target.value) })} />
+            <input aria-label="每次练习总题数" type="number" min={1} max={100} value={settings.totalQuestions} onChange={(event) => setTotalQuestions(Number(event.target.value))} />
+            <small>修改后会按当前配比自动换算</small>
           </div>
           <div className={allocationValid ? "is-valid" : "is-invalid"}>
-            <span>当前已分配</span>
+            <span>当前配置</span>
             <strong>{allocatedQuestions} / {settings.totalQuestions}</strong>
-            <small>{allocationValid ? "题目配比完整" : `还需调整 ${Math.abs(settings.totalQuestions - allocatedQuestions)} 道`}</small>
+            <small>{allocationValid ? `已启用 ${activeTypeCount} 种题型` : "请至少保留一种题型"}</small>
           </div>
           <p>这套配置由当前孩子的所有“数学练习”任务共用。任务配置页面只负责出现日期、奖励和重复领取规则。</p>
         </div>
+        <section className="math-settings-presets" aria-labelledby="math-preset-title">
+          <header>
+            <div><h3 id="math-preset-title">快速方案</h3><p>选择后会按当前总题数自动平均分配，也可以继续微调。</p></div>
+            <button type="button" onClick={() => { setSettings(DEFAULT_MATH_PRACTICE_SETTINGS); setSavedMessage(""); }}>恢复默认</button>
+          </header>
+          <div>
+            {MATH_PRACTICE_PRESETS.map((preset) => (
+              <button type="button" key={preset.id} onClick={() => applyTypeSelection(preset.typeIds)}>
+                <strong>{preset.name}</strong><small>{preset.description}</small>
+              </button>
+            ))}
+          </div>
+        </section>
+        <div className="math-settings-toolbar">
+          <label htmlFor="math-type-search"><span>查找题型</span><input id="math-type-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="输入编号或名称，如 N09、排序" /></label>
+          <div><strong>{activeTypeCount}</strong><span>种题型已启用</span><b>{allocatedQuestions} 道</b></div>
+        </div>
         <div className="math-config__domains">
-          {MATH_QUESTION_DOMAINS.map((domain, domainIndex) => {
-            const questionTypes = getMathQuestionTypesByDomain(domain.id);
+          {MATH_QUESTION_CATEGORIES.map((domain, domainIndex) => {
+            const families = getMathQuestionFamiliesByCategory(domain.id);
+            const questionTypes = getMathQuestionTypesByCategory(domain.id);
+            const visibleFamilies = families.map((family) => ({
+              ...family,
+              types: questionTypes.filter((type) => family.typeIds.some((typeId) => typeId === type.id) && (!normalizedSearch || `${type.id} ${type.name} ${type.description} ${family.name}`.toLocaleLowerCase("zh-CN").includes(normalizedSearch))),
+            })).filter((family) => family.types.length > 0);
+            const visibleTypes = visibleFamilies.flatMap((family) => family.types);
+            if (!visibleTypes.length) return null;
             const domainTotal = questionTypes.reduce((sum, type) => sum + (settings.typeCounts[type.id] ?? 0), 0);
-            return <details open={domainIndex === 0} key={domain.id}>
-              <summary><span>{domain.id}</span><strong>{domain.name}</strong><b>{domainTotal} 道</b></summary>
+            const isOpen = Boolean(normalizedSearch) || expandedDomains.includes(domain.id) || (domainIndex === 0 && !expandedDomains.length);
+            return <details open={isOpen} key={domain.id}>
+              <summary onClick={(event) => { event.preventDefault(); if (!normalizedSearch) toggleDomain(domain.id); }}><span>{domainIndex + 1}</span><strong>{domain.name}</strong><b>{domainTotal} 道</b></summary>
               <div>
-                {questionTypes.map((type) => {
-                  const count = settings.typeCounts[type.id] ?? 0;
-                  return <div className="math-config__type" key={type.id}>
-                    <span><b>{type.id}</b><span>{type.name}</span><small>{type.description}</small></span>
-                    <div>
-                      <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}>−</button>
-                      <input aria-label={`${type.name}数量`} type="number" min={0} max={100} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
-                      <button type="button" aria-label={`增加${type.name}`} onClick={() => setTypeCount(type.id, count + 1)}>＋</button>
-                    </div>
-                  </div>;
-                })}
+                <div className="math-config__domain-actions">
+                  <span>本组共 {questionTypes.length} 种题型</span>
+                  <button type="button" onClick={() => applyTypeSelection(questionTypes.map((type) => type.id))}>只练本组</button>
+                  <button type="button" disabled={domainTotal === 0 || domainTotal === allocatedQuestions} onClick={() => clearDomain(questionTypes.map((type) => type.id))}>本组清零</button>
+                </div>
+                {visibleFamilies.map((family) => <section className="math-config__family" key={family.id}>
+                  <header><strong>{family.name}</strong><small>{family.description}</small><span>{family.types.reduce((sum, type) => sum + (settings.typeCounts[type.id] ?? 0), 0)} 道</span></header>
+                  {family.types.map((type) => {
+                    const count = settings.typeCounts[type.id] ?? 0;
+                    return <div className={`math-config__type${count > 0 ? " is-enabled" : ""}`} key={type.id}>
+                      <span><b>{type.id}</b><span>{type.name}</span><small>{type.description} · 难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
+                      <div>
+                        <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}>−</button>
+                        <input aria-label={`${type.name}数量`} type="number" min={0} max={100 - allocatedQuestions + count} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
+                        <button type="button" aria-label={`增加${type.name}`} disabled={allocatedQuestions >= 100} onClick={() => setTypeCount(type.id, count + 1)}>＋</button>
+                      </div>
+                    </div>;
+                  })}
+                </section>)}
               </div>
             </details>;
           })}
         </div>
-        <div className="admin-help">数量为 0 的题型不会出现。所有题型数量相加必须等于每次练习总题数。</div>
+        {normalizedSearch && !MATH_QUESTION_CATEGORIES.some((domain) => getMathQuestionTypesByCategory(domain.id).some((type) => `${type.id} ${type.name} ${type.description}`.toLocaleLowerCase("zh-CN").includes(normalizedSearch))) ? <div className="empty-state">没有找到这个题型</div> : null}
         {error ? <Notice error>{error}</Notice> : null}
-        <div className="form-actions"><button className="primary-button" disabled={busy || !allocationValid}>{busy ? "保存中…" : "保存数学练习设置"}</button></div>
+        <div className="math-settings-savebar">
+          <div><strong>{allocatedQuestions} 道题 · {activeTypeCount} 种题型</strong><small>{allocationValid ? "配比已自动校准，可以直接保存" : "请先选择至少一种题型"}</small></div>
+          {savedMessage ? <span role="status">{savedMessage}</span> : null}
+          <button className="primary-button" disabled={busy || !allocationValid}>{busy ? "保存中…" : "保存数学练习设置"}</button>
+        </div>
       </form>}
       {loading && error ? <Notice error>{error}</Notice> : null}
     </Panel>

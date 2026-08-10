@@ -331,6 +331,23 @@ export type PetDestination = {
   imageUrl: string; audioUrl: string | null; weight: number;
   sortOrder: number; isEnabled: boolean; createdAt: string; updatedAt: string;
 };
+export type PetRoomMascotMotion = "IDLE" | "CLOUD_FLOAT" | "UNDERWATER_SWIM" | "PETAL_SWAY" | "STARGAZE" | "ZERO_GRAVITY" | "SPORT_BOUNCE" | "ADVENTURE_MARCH";
+export type PetRoomTheme = {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  priceStars: number;
+  previewUrl: string;
+  backgroundLandscapeUrl: string;
+  backgroundTabletUrl: string;
+  backgroundPhoneUrl: string;
+  mascotMotion: PetRoomMascotMotion;
+  isEnabled: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
@@ -360,6 +377,9 @@ function uploadContentType(file: File) {
     jpeg: "image/jpeg",
     png: "image/png",
     webp: "image/webp",
+    avif: "image/avif",
+    tif: "image/tiff",
+    tiff: "image/tiff",
     gif: "image/gif",
     mp3: "audio/mpeg",
     m4a: "audio/mp4",
@@ -379,8 +399,20 @@ export const staffApi = {
 };
 
 export const adminApi = {
-  petGrowth: () => api<{ config: PetGrowthConfig; destinations: PetDestination[] }>("/api/admin/pet-growth"),
+  petGrowth: () => api<{ config: PetGrowthConfig; destinations: PetDestination[]; roomThemes: PetRoomTheme[] }>("/api/admin/pet-growth"),
   updatePetGrowthConfig: (data: Omit<PetGrowthConfig, "id" | "updatedAt">) => api<{ config: PetGrowthConfig }>("/api/admin/pet-growth/config", { method: "PUT", body: JSON.stringify(data) }),
+  createPetRoomTheme: (input: { name: string; description: string; priceStars: number; mascotMotion: PetRoomMascotMotion; image: File }) => {
+    const query = new URLSearchParams({ name: input.name, description: input.description, priceStars: String(input.priceStars), mascotMotion: input.mascotMotion });
+    return api<{
+      theme: PetRoomTheme;
+      processing: { source: { width: number; height: number; bytes: number; format: string }; outputBytes: number; format: "webp" };
+    }>(`/api/admin/pet-growth/themes?${query.toString()}`, {
+      method: "POST",
+      headers: { "Content-Type": uploadContentType(input.image) },
+      body: input.image,
+    });
+  },
+  updatePetRoomThemeMotion: (id: string, mascotMotion: PetRoomMascotMotion) => api<{ theme: PetRoomTheme }>(`/api/admin/pet-growth/themes/${encodeURIComponent(id)}/motion`, { method: "PATCH", body: JSON.stringify({ mascotMotion }) }),
   createPetDestination: (data: Omit<PetDestination, "id" | "createdAt" | "updatedAt">) => api<{ destination: PetDestination }>("/api/admin/pet-growth/destinations", { method: "POST", body: JSON.stringify(data) }),
   updatePetDestination: (id: string, data: Partial<Omit<PetDestination, "id" | "createdAt" | "updatedAt">>) => api<{ destination: PetDestination }>(`/api/admin/pet-growth/destinations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   mascotDialogues: () => api<{ dialogues: MascotDialogue[] }>("/api/admin/mascot-dialogues"),

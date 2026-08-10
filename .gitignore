@@ -11,3 +11,5 @@ test-results
 coverage
 packages/assets/generated/
 /hanzi-assets/
+/tmp/imagegen/
+/tmp/pdfs/

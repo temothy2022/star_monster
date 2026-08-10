@@ -4,6 +4,7 @@ import {
   createFamilyWithParent,
 } from "../src/services/account-service.js";
 import { hashSecret, loginCodeLookup, normalizeChildLoginCode } from "../src/lib/crypto.js";
+import { EXPANDED_PET_DESTINATIONS } from "./pet-destination-expansion.js";
 
 try {
   loadEnvFile(".env");
@@ -70,6 +71,13 @@ async function seedPetDestinations() {
       where: { id },
       update: { slug, name, city, country, tier, introduction, funFact, imageUrl, sortOrder, isEnabled: true },
       create: { id, slug, name, city, country, tier, introduction, funFact, imageUrl, sortOrder, isEnabled: true },
+    });
+  }
+  for (const { scene: _scene, ...destination } of EXPANDED_PET_DESTINATIONS) {
+    await prisma.petTravelDestination.upsert({
+      where: { id: destination.id },
+      update: destination,
+      create: destination,
     });
   }
 }

@@ -7,25 +7,29 @@ the metadata consumed by the parent configuration page.
 
 ## Registry layers
 
-- 42 teaching presentation types match the reviewed worksheets.
-- 35 core generator ids represent distinct deterministic math generators.
+- 50 teaching presentation types are organized into 8 curriculum-facing ability categories.
+- 43 core generator ids represent distinct deterministic math generators.
 - 8 response modes describe the child-facing answer controls independently of
   the question content.
-- 6 domains provide the grouping used by the parent configuration page and the
-  static preview catalogue.
+- 8 curriculum categories provide the grouping used by the parent configuration
+  page, worksheet builder and static preview catalogue.
+- 6 legacy code domains remain stable so stored type ids and historical
+  practice records continue to work.
 
-| Domain | Count | Scope |
+| Curriculum category | Count | Scope |
 | --- | ---: | --- |
-| N | 11 | Counting, order and comparison |
-| P | 7 | Number representation, place value and abacus |
-| C | 6 | Symbolic arithmetic |
-| V | 7 | Picture equations and visual arithmetic |
-| W | 7 | Word problems |
-| S | 4 | Position, spatial reasoning and logic |
+| 数与数量 | 9 | Counting, number sequences, comparison and quantity construction |
+| 数位与表征 | 7 | Number representation, place value and abacus |
+| 量感比较 | 4 | Size, height, length and weight |
+| 数的运算 | 6 | Symbolic arithmetic |
+| 看图建模与列式 | 7 | Picture equations and visual arithmetic |
+| 情境应用题 | 9 | Semantic word-problem structures |
+| 顺序、方位与位置 | 6 | Ordinal, selection and relative position |
+| 逻辑与立体空间 | 2 | Logic-grid reasoning and cube counting |
 
 Each teaching type records its core generator, answer controls, visual strategy,
 number range, difficulty range, source worksheet evidence and preview fixture.
-Every one of the 42 types is available in the static child preview and in the
+Every registered type is available in the static child preview and in the
 parent allocation controls.
 
 ## Important boundary
@@ -43,7 +47,7 @@ structure.
 ## Runtime flow
 
 1. The parent chooses a total question count and allocates that total among any
-   of the 42 teaching types.
+   of the registered teaching types.
 2. The daily task stores a configuration snapshot so later template edits do
    not change a child's already-created assignment.
 3. The API builds a deterministic worksheet from that snapshot and sends only

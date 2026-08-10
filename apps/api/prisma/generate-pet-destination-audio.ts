@@ -60,10 +60,16 @@ async function main() {
         kind: "audio",
         data: audio,
       });
-      await prisma.petTravelDestination.update({
-        where: { id: destination.id },
-        data: { audioUrl: storedAudio.publicUrl },
-      });
+      await prisma.$transaction([
+        prisma.petTravelDestination.update({
+          where: { id: destination.id },
+          data: { audioUrl: storedAudio.publicUrl },
+        }),
+        prisma.petTrip.updateMany({
+          where: { destinationId: destination.id },
+          data: { audioUrlSnapshot: storedAudio.publicUrl },
+        }),
+      ]);
       console.log(`[${index + 1}/${destinations.length}] ${destination.name}: ${storedAudio.publicUrl}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

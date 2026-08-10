@@ -399,7 +399,18 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .math-config__domains summary > span { width: 27px; height: 27px; border-radius: 9px; color: #fff; background: #67b8ee; display: grid; place-items: center; font-size: 12px; font-weight: 900; }
 .math-config__domains summary > b { color: #738196; font-size: 12px; }
 .math-config__domains details > div { border-top: 1px solid #e8eef4; }
+.math-config__domain-actions { display: flex; min-height: 46px; align-items: center; justify-content: flex-end; gap: 8px; padding: 7px 12px; border-bottom: 1px solid #e8eef4; background: #f8fbfe; }
+.math-config__domain-actions > span { margin-right: auto; color: #7b8798; font-size: 12px; font-weight: 700; }
+.math-config__domain-actions button { min-height: 30px; padding: 0 11px; border: 1px solid #ccdeeb; border-radius: 8px; color: #43627d; background: #fff; font-size: 12px; font-weight: 800; cursor: pointer; }
+.math-config__domain-actions button:disabled { opacity: .45; cursor: default; }
+.math-config__family { border-bottom: 1px solid #dfe8ef; }
+.math-config__family:last-child { border-bottom: 0; }
+.math-config__family > header { min-height: 42px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 7px 12px; background: #fbfdff; }
+.math-config__family > header strong { color: #3b5672; font-size: 13px; }
+.math-config__family > header small { color: #8996a6; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.math-config__family > header span { color: #6d7e90; font-size: 11px; font-weight: 800; }
 .math-config__type { min-height: 62px; padding: 8px 12px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; border-bottom: 1px dashed #e2e9f0; }
+.math-config__type.is-enabled { background: #fffaf5; box-shadow: inset 3px 0 #f49a58; }
 .math-config__type:last-child { border-bottom: 0; }
 .math-config__type > span { min-width: 0; display: grid; grid-template-columns: 36px 1fr; column-gap: 4px; }
 .math-config__type > span > b { grid-row: 1 / 3; color: #f06f38; align-self: center; font-size: 12px; }
@@ -407,6 +418,7 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .math-config__type > span > small { color: #8a96a6; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .math-config__type > div { display: grid; grid-template-columns: 34px 54px 34px; align-items: center; gap: 4px; }
 .math-config__type > div button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 10px; color: #315171; background: #eaf3f9; font-size: 18px; font-weight: 800; }
+.math-config__type > div button:disabled { opacity: .42; }
 .math-config__type > div input { width: 54px; height: 34px; padding: 0 3px; text-align: center; border-radius: 9px; }
 .math-settings-form { display: grid; gap: 18px; }
 .math-settings-intro { display: grid; grid-template-columns: minmax(180px, .55fr) minmax(210px, .65fr) minmax(280px, 1.4fr); align-items: stretch; gap: 14px; padding: 18px; border: 1px solid #dce5ef; border-radius: 8px; background: #f8fbfe; }
@@ -418,7 +430,28 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .math-settings-intro .is-valid { color: #287658; border-color: #a7dec6; background: #effaf5; }
 .math-settings-intro .is-invalid { color: #a94f2f; border-color: #f0c3ae; background: #fff6f1; }
 .math-settings-intro > p { align-self: center; margin: 0; color: #65758a; font-size: 13px; line-height: 1.75; }
-.math-settings-form > .form-actions { justify-content: flex-end; }
+.math-settings-presets { padding: 16px; border: 1px solid #dce5ef; border-radius: 10px; background: #fff; }
+.math-settings-presets > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.math-settings-presets h3 { margin: 0; color: #263c59; font-size: 16px; }
+.math-settings-presets p { margin: 5px 0 0; color: #7b8798; font-size: 12px; }
+.math-settings-presets > header > button { min-height: 34px; padding: 0 12px; border: 1px solid #d7e0e9; border-radius: 8px; color: #64758a; background: #f8fafc; font-size: 12px; font-weight: 800; cursor: pointer; }
+.math-settings-presets > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.math-settings-presets > div > button { display: grid; min-height: 68px; align-content: center; gap: 5px; padding: 11px 13px; border: 1px solid #dbe6ef; border-radius: 10px; color: #304965; background: #f8fbfe; text-align: left; cursor: pointer; }
+.math-settings-presets > div > button:hover { border-color: #f1a678; background: #fff6ee; }
+.math-settings-presets > div strong { font-size: 13px; }
+.math-settings-presets > div small { color: #7c8999; font-size: 11px; line-height: 1.45; }
+.math-settings-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) auto; align-items: end; gap: 14px; }
+.math-settings-toolbar label { display: grid; gap: 6px; color: #67768a; font-size: 12px; font-weight: 800; }
+.math-settings-toolbar input { min-height: 42px; }
+.math-settings-toolbar > div { display: flex; min-height: 42px; align-items: center; gap: 7px; padding: 0 14px; border: 1px solid #dce5ef; border-radius: 9px; color: #6f7c90; background: #f8fbfe; font-size: 12px; }
+.math-settings-toolbar > div strong { color: #ef7037; font-size: 20px; }
+.math-settings-toolbar > div b { margin-left: 6px; color: #2d4864; }
+.math-settings-savebar { position: sticky; z-index: 5; bottom: 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 18px; padding: 13px 14px 13px 17px; border: 1px solid #d9e3eb; border-radius: 12px; background: #fffffff2; box-shadow: 0 10px 28px #263c5920; backdrop-filter: blur(12px); }
+.math-settings-savebar > div { display: grid; gap: 3px; }
+.math-settings-savebar > div strong { color: #2d425e; font-size: 14px; }
+.math-settings-savebar > div small { color: #7c8999; font-size: 11px; }
+.math-settings-savebar > span { color: #287658; font-size: 12px; font-weight: 800; }
+.math-settings-savebar > button { min-width: 190px; }
 .wish-rule-help {
   margin: -4px 0 0;
   color: #6f7c90;
@@ -1348,6 +1381,9 @@ td { font-size: 13px; }
 @media (max-width: 820px) {
   .math-settings-intro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .math-settings-intro > p { grid-column: 1 / -1; }
+  .math-settings-presets > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .math-settings-savebar { grid-template-columns: minmax(0, 1fr) auto; }
+  .math-settings-savebar > span { grid-column: 1 / -1; grid-row: 2; }
   .admin-app { display: block; }
   .admin-sidebar { display: none; }
   .admin-topbar { top: 0; min-height: 78px; align-items: flex-start; padding: 14px 16px; }
@@ -1529,6 +1565,16 @@ td { font-size: 13px; }
   .metric-grid, .detail-list, .admin-form, .wish-admin-grid { grid-template-columns: 1fr; }
   .math-settings-intro { grid-template-columns: 1fr; padding: 12px; }
   .math-settings-intro > p { grid-column: auto; }
+  .math-settings-presets { padding: 12px; }
+  .math-settings-presets > header { align-items: stretch; flex-direction: column; }
+  .math-settings-presets > div { grid-template-columns: 1fr; }
+  .math-settings-toolbar { grid-template-columns: 1fr; }
+  .math-settings-toolbar > div { justify-content: center; }
+  .math-settings-savebar { position: static; grid-template-columns: 1fr; gap: 10px; }
+  .math-settings-savebar > span { grid-column: auto; grid-row: auto; }
+  .math-settings-savebar > button { width: 100%; min-width: 0; }
+  .math-config__domain-actions { flex-wrap: wrap; }
+  .math-config__domain-actions > span { width: 100%; margin-right: 0; }
   .math-config__type { align-items: stretch; grid-template-columns: 1fr; }
   .math-config__type > div { justify-content: end; }
   .learning-overview-card__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1648,16 +1694,36 @@ td { font-size: 13px; }
 .parent-pet-settings-form label:not(.checkbox) { display: grid; gap: 6px; color: #52647d; font-size: 13px; font-weight: 700; }
 .parent-pet-settings-form select,
 .parent-pet-settings-form input[type="number"] { min-width: 160px; }
-.pet-room-theme-admin-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.pet-room-theme-admin-card { overflow: hidden; display: grid; grid-template-rows: auto 1fr; min-width: 0; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; }
-.pet-room-theme-admin-card > img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: #f7f3e9; }
-.pet-room-theme-admin-card__body { display: grid; align-content: start; gap: 10px; padding: 14px; }
-.pet-room-theme-admin-card__body > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.pet-room-theme-admin-card__body strong { color: #263a5b; font-size: 16px; }
-.pet-room-theme-admin-card__body span { flex: 0 0 auto; color: #6b8d72; font-size: 12px; font-weight: 700; }
-.pet-room-theme-admin-card__body p { min-height: 40px; margin: 0; color: #778294; font-size: 13px; line-height: 1.6; }
+.pet-room-theme-upload { display: grid; grid-template-columns: minmax(250px, .75fr) minmax(420px, 1.5fr); gap: 18px; margin-bottom: 20px; padding: 18px; border: 1px solid #dce5ef; border-radius: 10px; background: #f8fbfe; }
+.pet-room-theme-upload__requirements { display: grid; align-content: start; gap: 7px; padding: 16px; border: 1px solid #f0d8a6; border-radius: 8px; background: #fff9eb; }
+.pet-room-theme-upload__requirements strong { color: #8a5b20; font-size: 13px; }
+.pet-room-theme-upload__requirements b { color: #263a5b; font-size: 25px; font-variant-numeric: tabular-nums; }
+.pet-room-theme-upload__requirements span { color: #755e3c; font-size: 13px; font-weight: 700; }
+.pet-room-theme-upload__requirements small { color: #7a705f; line-height: 1.65; }
+.pet-room-theme-upload__fields { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .45fr); gap: 12px; }
+.pet-room-theme-upload__fields label { min-width: 0; display: grid; align-content: start; gap: 6px; color: #52647d; font-size: 13px; font-weight: 700; }
+.pet-room-theme-upload__fields input,
+.pet-room-theme-upload__fields textarea { width: 100%; min-width: 0; }
+.pet-room-theme-upload__description,
+.pet-room-theme-upload__file { grid-column: 1 / -1; }
+.pet-room-theme-upload__price { display: flex; align-items: center; gap: 8px; }
+.pet-room-theme-upload__price input { min-width: 0; }
+.pet-room-theme-upload__price em { color: #e47e35; font-style: normal; }
+.pet-room-theme-upload__file input { min-height: 44px; padding: 8px; border: 1px dashed #9fb3c7; border-radius: 6px; background: #fff; }
+.pet-room-theme-upload__preview { grid-column: 1 / -1; display: grid; grid-template-columns: 180px 1fr; align-items: center; gap: 14px; padding: 12px; border: 1px solid #d8e4ee; border-radius: 8px; background: #fff; }
+.pet-room-theme-upload__preview img { display: block; width: 180px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 6px; }
+.pet-room-theme-upload__preview > div { min-width: 0; display: grid; gap: 5px; }
+.pet-room-theme-upload__preview strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #263a5b; }
+.pet-room-theme-upload__preview span { color: #52647d; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pet-room-theme-upload__preview small { color: #778294; }
+.pet-room-theme-upload > .form-actions { grid-column: 1 / -1; justify-content: flex-end; margin: 0; }
+.pet-room-theme-admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.pet-room-theme-admin-card { overflow: hidden; display: grid; grid-template-columns: 96px minmax(0, 1fr); min-width: 0; min-height: 74px; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; }
+.pet-room-theme-admin-card > img { display: block; width: 96px; height: 100%; min-height: 74px; object-fit: cover; background: #f7f3e9; }
+.pet-room-theme-admin-card__body { min-width: 0; display: grid; grid-template-columns: minmax(80px, 1fr) minmax(140px, 1.2fr); align-items: center; gap: 10px; padding: 10px 12px; }
+.pet-room-theme-admin-card__body strong { overflow: hidden; color: #263a5b; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .pet-room-theme-admin-card__body label { display: flex; align-items: center; gap: 8px; color: #52647d; font-size: 13px; font-weight: 700; }
-.pet-room-theme-admin-card__body input[type="number"] { min-width: 0; flex: 1; }
+.pet-room-theme-admin-card__body input[type="number"] { width: 78px; min-width: 0; padding: 8px; }
 .pet-room-theme-admin-card__body em { color: #e47e35; font-style: normal; }
 .pet-room-theme-admin-card__body .secondary-button { width: 100%; }
 .pet-room-theme-admin-actions { justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e7e9ed; }
@@ -1666,13 +1732,20 @@ td { font-size: 13px; }
   .pet-config-form fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pet-destination-grid { grid-template-columns: 1fr; }
   .parent-pet-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pet-room-theme-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pet-room-theme-upload { grid-template-columns: 1fr; }
+  .pet-room-theme-admin-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
   .pet-config-form fieldset,
   .pet-destination-card__fields,
   .parent-pet-overview { grid-template-columns: 1fr; }
+  .pet-room-theme-upload { padding: 12px; }
+  .pet-room-theme-upload__fields { grid-template-columns: 1fr; }
+  .pet-room-theme-upload__description,
+  .pet-room-theme-upload__file { grid-column: auto; }
+  .pet-room-theme-upload__preview { grid-template-columns: 90px 1fr; }
+  .pet-room-theme-upload__preview img { width: 90px; }
   .pet-room-theme-admin-grid { grid-template-columns: 1fr; }
   .parent-pet-settings-form { display: grid; align-items: stretch; }
   .parent-pet-settings-form select,

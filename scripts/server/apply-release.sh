@@ -20,6 +20,8 @@ API_SERVICE="${API_SERVICE:-star-monsters-api.service}"
 HANZI_UPLOAD_DIR="${HANZI_UPLOAD_DIR:-/opt/star-monsters/hanzi-assets/v1/uploads}"
 POEM_UPLOAD_DIR="${POEM_UPLOAD_DIR:-/opt/star-monsters/poem-assets/v1/uploads}"
 NGINX_PERFORMANCE_CONF="${NGINX_PERFORMANCE_CONF:-/etc/nginx/conf.d/star-monsters-performance.conf}"
+NGINX_SITE_CONFIG="${NGINX_SITE_CONFIG:-/etc/nginx/sites-enabled/star-monsters}"
+MAX_UPLOAD_SIZE="${MAX_UPLOAD_SIZE:-32m}"
 
 cd "$PROJECT_ROOT"
 
@@ -56,6 +58,11 @@ API_RUN_GROUP="$(id -gn "$API_RUN_USER")"
 sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$HANZI_UPLOAD_DIR"
 sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$POEM_UPLOAD_DIR"
 
+# Keep the built-in travel catalog in sync before generating narration. The
+# sync script clears audio URLs only when narration content changed, so the
+# following generator remains resumable and does not spend credits twice.
+sudo -u "$API_RUN_USER" bash -lc "cd '$PROJECT_ROOT/apps/api' && '$PROJECT_ROOT/apps/api/node_modules/.bin/tsx' prisma/sync-pet-destinations.ts"
+
 # Destination narration is generated once from the system MiniMax account.
 # The script only processes missing rows, so interrupted releases resume safely.
 sudo -u "$API_RUN_USER" bash -lc "cd '$PROJECT_ROOT/apps/api' && '$PROJECT_ROOT/apps/api/node_modules/.bin/tsx' prisma/generate-pet-destination-audio.ts"
@@ -91,6 +98,9 @@ sync_static "apps/super-admin/dist" "$SUPER_WEB_ROOT"
 # the release instead of relying on a one-time manual server change.
 if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.conf ]]; then
   sudo install -m 644 scripts/server/nginx-performance.conf "$NGINX_PERFORMANCE_CONF"
+  if [[ -f "$NGINX_SITE_CONFIG" ]] && sudo grep -qE '^[[:space:]]*client_max_body_size[[:space:]]+' "$NGINX_SITE_CONFIG"; then
+    sudo sed -i -E "s/^([[:space:]]*)client_max_body_size[[:space:]]+[^;]+;/\\1client_max_body_size $MAX_UPLOAD_SIZE;/" "$NGINX_SITE_CONFIG"
+  fi
   sudo nginx -t
   sudo systemctl reload nginx
 fi

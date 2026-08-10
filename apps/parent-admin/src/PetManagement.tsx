@@ -148,14 +148,13 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
         </> : <div className="empty-state">{message || "暂时没有星宠资料"}</div>}
       </PetSection>
 
-      <PetSection title="小屋背景" subtitle="设置孩子解锁新背景时需要消费的星星。价格为 0 时免费解锁。">
+      <PetSection title="小屋背景价格" subtitle="为平台提供的小屋背景设置解锁价格，价格为 0 时免费解锁。">
         {data?.roomThemes.length ? <div className="pet-room-theme-admin-grid">
           {data.roomThemes.map((theme) => (
             <article className="pet-room-theme-admin-card" key={theme.key}>
               <img src={theme.previewUrl} alt={`${theme.name}预览`} loading="lazy" />
               <div className="pet-room-theme-admin-card__body">
-                <div><strong>{theme.name}</strong><span>{theme.isEquipped ? "当前使用" : theme.isOwned ? "已解锁" : "未解锁"}</span></div>
-                <p>{theme.description}</p>
+                <strong>{theme.name}</strong>
                 <label>解锁价格<input type="number" min={0} max={10000} value={prices[theme.key] ?? theme.priceStars} onChange={(event) => setPrices((current) => ({ ...current, [theme.key]: Number(event.target.value) }))} /><em>星</em></label>
               </div>
             </article>

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { unlink } from "node:fs/promises";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -10,6 +12,10 @@ import {
   listPetDestinations,
   updatePetConfig,
 } from "../services/pet-growth-service.js";
+import {
+  PET_ROOM_THEME_IMAGE_BODY_LIMIT,
+  storePetRoomThemeImages,
+} from "../services/pet-room-theme-image-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
 const destinationSchema = z.object({
@@ -58,6 +64,24 @@ const parentRoomThemePatchSchema = z.object({
     priceStars: z.number().int().min(0).max(10000),
   })).min(1).max(50),
 });
+const roomThemeCreateQuerySchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  description: z.string().trim().min(2).max(160),
+  priceStars: z.coerce.number().int().min(0).max(10000),
+  mascotMotion: z.enum([
+    "IDLE",
+    "CLOUD_FLOAT",
+    "UNDERWATER_SWIM",
+    "PETAL_SWAY",
+    "STARGAZE",
+    "ZERO_GRAVITY",
+    "SPORT_BOUNCE",
+    "ADVENTURE_MARCH",
+  ]).default("IDLE"),
+});
+const roomThemeMotionSchema = z.object({
+  mascotMotion: roomThemeCreateQuerySchema.shape.mascotMotion,
+});
 
 async function ownedChild(user: { familyId: string | null }, childId: string) {
   const child = await prisma.childProfile.findFirst({
@@ -71,7 +95,14 @@ async function ownedChild(user: { familyId: string | null }, childId: string) {
 export async function registerPetManagementRoutes(app: FastifyInstance, config: AppConfig) {
   app.get("/api/admin/pet-growth", async (request, reply) => {
     await requireAdmin(request, reply, config);
-    return listPetDestinations();
+    const [growth, roomThemes] = await Promise.all([
+      listPetDestinations(),
+      prisma.petRoomTheme.findMany({
+        where: { ownerFamilyId: null },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      }),
+    ]);
+    return { ...growth, roomThemes };
   });
 
   app.put("/api/admin/pet-growth/config", async (request, reply) => {
@@ -87,6 +118,106 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
       ipAddress: request.ip,
     });
     return { config: updated };
+  });
+
+  app.post(
+    "/api/admin/pet-growth/themes",
+    { bodyLimit: PET_ROOM_THEME_IMAGE_BODY_LIMIT },
+    async (request, reply) => {
+      const { user } = await requireAdmin(request, reply, config);
+      const input = roomThemeCreateQuerySchema.parse(request.query);
+      if (!Buffer.isBuffer(request.body)) {
+        throw new HttpError(400, "PET_ROOM_THEME_IMAGE_INVALID_BODY", "请选择要上传的小屋背景图片");
+      }
+
+      const themeKey = `platform-${randomUUID()}`;
+      const stored = await storePetRoomThemeImages({
+        uploadDir: config.POEM_ASSET_UPLOAD_DIR,
+        themeKey,
+        contentType: request.headers["content-type"] ?? "",
+        data: request.body,
+      });
+      try {
+        const theme = await prisma.$transaction(async (tx) => {
+          const highest = await tx.petRoomTheme.aggregate({ _max: { sortOrder: true } });
+          const created = await tx.petRoomTheme.create({
+            data: {
+              id: `pet-room-theme-${randomUUID()}`,
+              key: themeKey,
+              ownerFamilyId: null,
+              name: input.name,
+              description: input.description,
+              priceStars: input.priceStars,
+              backgroundLandscapeUrl: stored.urls.landscape,
+              backgroundTabletUrl: stored.urls.tablet,
+              backgroundPhoneUrl: stored.urls.phone,
+              previewUrl: stored.urls.preview,
+              ambience: [],
+              mascotMotion: input.mascotMotion,
+              sortOrder: (highest._max.sortOrder ?? 0) + 10,
+            },
+          });
+          await writeAudit(tx, {
+            actorType: "USER",
+            actorId: user.id,
+            action: "PET_ROOM_THEME_CREATED",
+            resourceType: "PetRoomTheme",
+            resourceId: created.id,
+            metadata: {
+              scope: "PLATFORM",
+              key: created.key,
+              name: created.name,
+              source: stored.source,
+              outputBytes: stored.outputBytes,
+              files: Object.fromEntries(Object.entries(stored.files).map(([key, file]) => [key, file.fileName])),
+            },
+            ipAddress: request.ip,
+          });
+          return created;
+        });
+        reply.status(201);
+        return {
+          theme,
+          processing: {
+            source: stored.source,
+            outputBytes: stored.outputBytes,
+            format: "webp" as const,
+          },
+        };
+      } catch (error) {
+        await Promise.all(stored.createdPaths.map((filePath) => unlink(filePath).catch(() => undefined)));
+        throw error;
+      }
+    },
+  );
+
+  app.patch("/api/admin/pet-growth/themes/:id/motion", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const input = roomThemeMotionSchema.parse(request.body);
+    const existing = await prisma.petRoomTheme.findFirst({
+      where: { id, ownerFamilyId: null },
+      select: { id: true },
+    });
+    if (!existing) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "没有找到这个平台小屋背景");
+
+    const theme = await prisma.$transaction(async (tx) => {
+      const updated = await tx.petRoomTheme.update({
+        where: { id },
+        data: { mascotMotion: input.mascotMotion },
+      });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        action: "PET_ROOM_THEME_MOTION_UPDATE",
+        resourceType: "PetRoomTheme",
+        resourceId: id,
+        metadata: { mascotMotion: input.mascotMotion },
+        ipAddress: request.ip,
+      });
+      return updated;
+    });
+    return { theme };
   });
 
   app.post("/api/admin/pet-growth/destinations", async (request, reply) => {
@@ -162,7 +293,12 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
     const updated = await prisma.$transaction(async (tx) => {
       const results = [];
       for (const item of themes) {
-        const theme = await tx.petRoomTheme.findUnique({ where: { key: item.key } });
+        const theme = await tx.petRoomTheme.findFirst({
+          where: {
+            key: item.key,
+            ownerFamilyId: null,
+          },
+        });
         if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", `没有找到小屋背景：${item.key}`);
         results.push(await tx.familyPetRoomThemeSetting.upsert({
           where: { familyId_themeId: { familyId, themeId: theme.id } },
@@ -184,4 +320,5 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
     });
     return { themes: updated };
   });
+
 }

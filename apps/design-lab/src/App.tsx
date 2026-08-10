@@ -69,6 +69,11 @@ const MathPracticePreview = lazy(() =>
     default: module.MathPracticePreview,
   })),
 );
+const MathWorksheetPrintPage = lazy(() =>
+  import("./math-practice/MathWorksheetPrintPage").then((module) => ({
+    default: module.MathWorksheetPrintPage,
+  })),
+);
 const MathPracticeExperience = lazy(() =>
   import("./math-practice/MathPracticeExperience").then((module) => ({
     default: module.MathPracticeExperience,
@@ -245,6 +250,7 @@ type AppRoute =
   | "math-practice-session"
   | "poem-session"
   | "math-preview"
+  | "math-print"
   | "poem-recitation";
 
 const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
@@ -311,6 +317,7 @@ function readRouteFromHash(): AppRoute {
     "math-practice-session",
     "poem-session",
     "math-preview",
+    "math-print",
     "poem-recitation",
   ];
 
@@ -350,6 +357,7 @@ function childPageTitle(route: AppRoute) {
   if (route === "make-ten-session") return "凑十训练";
   if (route === "math-practice-session") return "数学练习";
   if (route === "math-preview") return "数学练习设计室";
+  if (route === "math-print") return "A4 数学练习卷";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
   if (route === "pet-growth") return "星宠小屋";
@@ -730,6 +738,10 @@ export function App() {
 
   if (route === "math-preview") {
     return <MathPracticePreview />;
+  }
+
+  if (route === "math-print") {
+    return <MathWorksheetPrintPage />;
   }
 
   if (route === "poem-recitation") {
