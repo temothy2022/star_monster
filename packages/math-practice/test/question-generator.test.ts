@@ -522,6 +522,19 @@ describe("math practice question generator", () => {
     }
   });
 
+  it("makes S01 a direct picture choice without answer-revealing markers", () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const question = generateMathQuestion({ typeId: "S01", seed });
+      expect(question.visual.kind).toBe("QUEUE");
+      if (question.visual.kind !== "QUEUE") continue;
+      expect(question.visual.selectable).toBe(true);
+      expect(question.visual.showIndices).toBe(false);
+      expect(question.visual.targetIndex).toBeUndefined();
+      expect(question.visual.direction).toBeUndefined();
+      expect(question.response.options?.length).toBeGreaterThan(1);
+    }
+  });
+
   it("generates valid adjacent and patterned number gaps", () => {
     for (let seed = 1; seed <= 80; seed += 1) {
       const adjacent = generateMathQuestion({ typeId: "N06", seed });

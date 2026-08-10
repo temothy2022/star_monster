@@ -367,8 +367,10 @@ function Queue({
 }) {
   if (question.visual.kind !== "QUEUE") return null;
   const { visual } = question;
+  const canSelect = Boolean(visual.selectable && onChange);
+  const isSpatialChoice = question.typeId === "S01";
   function toggleItem(index: number) {
-    if (!visual.selectable || disabled || !onChange) return;
+    if (!canSelect || disabled || !onChange) return;
     const value = `item-${index}`;
     onChange(values.includes(value) ? values.filter((item) => item !== value) : [...values, value]);
   }
@@ -380,11 +382,11 @@ function Queue({
           const content = <>
             {visual.targetIndex === index ? <b aria-label="目标">★</b> : null}
             <Sprite asset={asset} />
-            {visual.selectable ? <i aria-hidden="true">{selected ? "✓" : ""}</i> : visual.showIndices !== false ? <small>{index + 1}</small> : null}
+            {canSelect ? (isSpatialChoice ? null : <i aria-hidden="true">{selected ? "✓" : ""}</i>) : visual.showIndices !== false ? <small>{index + 1}</small> : null}
           </>;
-          return visual.selectable ? (
+          return canSelect ? (
             <button
-              className={`math-queue__item math-queue__item--selectable${selected ? " is-selected" : ""}`}
+              className={`math-queue__item math-queue__item--selectable${isSpatialChoice ? " math-queue__item--spatial-choice" : ""}${selected ? " is-selected" : ""}`}
               type="button"
               disabled={disabled}
               aria-label={`第 ${index + 1} 个小伙伴${selected ? "，已圈选" : ""}`}
@@ -392,7 +394,7 @@ function Queue({
               onClick={() => toggleItem(index)}
               key={`${asset}-${index}`}
             >{content}</button>
-          ) : <span className="math-queue__item" key={`${asset}-${index}`}>{content}</span>;
+          ) : <span className={`math-queue__item${isSpatialChoice ? " math-queue__item--spatial-choice" : ""}`} key={`${asset}-${index}`}>{content}</span>;
         })}
       </div>
       {visual.direction ? (

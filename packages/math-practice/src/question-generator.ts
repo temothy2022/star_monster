@@ -888,7 +888,13 @@ export function generateMathQuestion(
       const position = rng.int(2, assets.length - 1);
       const targetIndex = direction === "LEFT" ? position - 1 : assets.length - position;
       const target = assets[targetIndex]!;
-      return question(input, { prompt: `从${direction === "LEFT" ? "左" : "右"}边数，第 ${position} 个是什么？`, visual: { kind: "QUEUE", assets, targetIndex, direction }, response: optionResponse(assets.map((item) => spriteNames[item])), answer: { values: [spriteNames[target]], display: spriteNames[target] }, explanation: `从${direction === "LEFT" ? "左" : "右"}边开始数，第 ${position} 个是${spriteNames[target]}。` });
+      return question(input, {
+        prompt: `从${direction === "LEFT" ? "左" : "右"}边数，第 ${position} 个是什么？`,
+        visual: { kind: "QUEUE", assets, showIndices: false, selectable: true },
+        response: optionResponse(assets.map((item) => spriteNames[item])),
+        answer: { values: [spriteNames[target]], display: spriteNames[target] },
+        explanation: `从${direction === "LEFT" ? "左" : "右"}边开始数，第 ${position} 个是${spriteNames[target]}。`,
+      });
     }
     case "S02": {
       const assets = rng.shuffle(["chick", "apple", "puppy", "pencil", "bear", "duck"] as const);

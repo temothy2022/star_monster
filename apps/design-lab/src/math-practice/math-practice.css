@@ -996,6 +996,9 @@
 .math-queue__item--selectable.is-selected { border-color: #ff9b55; background: #fff3e7; box-shadow: 0 4px 0 #e9c4a5; }
 .math-queue__item--selectable.is-selected i { border-color: #ef7c3b; background: #ef7c3b; }
 .math-queue__item--selectable:disabled { opacity: 1; }
+.math-queue__item--spatial-choice { transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease; }
+.math-queue__item--spatial-choice.is-selected { z-index: 2; transform: translateY(-3px) scale(1.08); border-color: #ef7c3b; background: #fff3e7; box-shadow: 0 5px 0 #e9c4a5, 0 0 0 3px rgba(239, 124, 59, .12); }
+.math-queue__item--spatial-choice.is-selected .math-sprite { filter: drop-shadow(0 3px 2px rgba(66, 85, 105, .18)); }
 .math-direction {
   width: min(430px, 92%);
   margin: 16px auto 0;

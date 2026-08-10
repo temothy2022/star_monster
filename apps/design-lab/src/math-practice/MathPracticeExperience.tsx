@@ -132,12 +132,14 @@ export function MathPracticeExperience({
   const isInlineVisualSlots = question != null && ["P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
   const isNumberBoxAnswer = question?.typeId === "N07";
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
-  const isDirectVisualAnswer = isLogicGrid || question?.typeId === "N15" || question?.typeId === "N16";
+  const isDirectVisualAnswer = isLogicGrid || question?.typeId === "N15" || question?.typeId === "N16" || question?.typeId === "S01";
   const directVisualComplete = isLogicGrid
     ? logicGridComplete
     : question?.typeId === "N15"
       ? values.length === (question.response.slots ?? 1)
-      : question?.typeId === "N16" && Number(values[0] ?? 0) > 0;
+      : question?.typeId === "N16"
+        ? Number(values[0] ?? 0) > 0
+        : question?.typeId === "S01" && values.length > 0;
 
   function advanceCubeGuide() {
     if (cubeLayerCount === 0) return;
