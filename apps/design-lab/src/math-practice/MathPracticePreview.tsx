@@ -40,7 +40,8 @@ export function MathPracticePreview() {
   const logicGridRowCount = question.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
   const isLogicGrid = question.typeId === "S03" && logicGridRowCount > 0;
   const isInlineSort = question.typeId === "N09";
-  const isInlineVisualSlots = ["N07", "P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
+  const isInlineVisualSlots = ["P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
+  const isNumberBoxAnswer = question.typeId === "N07";
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
   const isDirectVisualAnswer = isLogicGrid || question.typeId === "N15" || question.typeId === "N16";
   const directVisualComplete = isLogicGrid
@@ -178,7 +179,6 @@ export function MathPracticePreview() {
         <div className={`math-question-layout${isDirectVisualAnswer || isInlineVisualSlots ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
           <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
             <div className="math-question-card__prompt">
-              <span>想一想</span>
               <h1>{question.prompt}</h1>
               {isDirectVisualAnswer || isInlineSort || isInlineVisualSlots ? <button className="math-logic-new-question" type="button" onClick={changeQuestion}>换一道</button> : null}
               {question.helper && question.visual.kind !== "NONE" ? <p>{question.helper}</p> : null}
@@ -240,7 +240,9 @@ export function MathPracticePreview() {
                   cubeVisibleLayers={question.typeId === "S04" ? cubeGuideLayers : undefined}
                   cubeAnimatingLayer={question.typeId === "S04" ? cubeAnimatingLayer : undefined}
                   values={values}
+                  activeSlot={isNumberBoxAnswer ? activeNumberSlot : undefined}
                   disabled={feedback === "CORRECT" || feedback === "REVEAL"}
+                  onSlotSelect={isNumberBoxAnswer ? setActiveNumberSlot : undefined}
                   onChange={changeValues}
                 />
               )}
@@ -263,6 +265,8 @@ export function MathPracticePreview() {
               key={`${selectedTypeId}:${seed}:${question.id}:${question.response.mode}`}
               question={question}
               values={values}
+              activeSlot={isNumberBoxAnswer ? activeNumberSlot : undefined}
+              onActiveSlotChange={isNumberBoxAnswer ? setActiveNumberSlot : undefined}
               disabled={feedback === "CORRECT" || feedback === "REVEAL"}
               onChange={changeValues}
               onSubmit={submit}

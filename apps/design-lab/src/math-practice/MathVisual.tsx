@@ -306,6 +306,7 @@ function NumberBond({
   answerValues = [],
   activeSlot = 0,
   slotLabels,
+  showLines = true,
   disabled = false,
   onSlotSelect,
 }: {
@@ -314,15 +315,18 @@ function NumberBond({
   answerValues?: readonly string[];
   activeSlot?: number;
   slotLabels?: readonly string[];
+  showLines?: boolean;
   disabled?: boolean;
   onSlotSelect?: (index: number) => void;
 }) {
   return (
     <div className="math-number-bond" role="group" aria-label="数的组成与分解">
       <span className="math-number-bond__total">{total ?? "?"}</span>
-      <svg className="math-number-bond__lines" viewBox="0 0 360 210" aria-hidden="true">
-        <path d="M180 76 L95 148 M180 76 L265 148" />
-      </svg>
+      {showLines ? (
+        <svg className="math-number-bond__lines" viewBox="0 0 360 210" aria-hidden="true">
+          <path d="M180 76 L95 148 M180 76 L265 148" />
+        </svg>
+      ) : null}
       <div className="math-number-bond__branches">
         {parts.map((part, index) => {
           const value = part ?? answerValues[index] ?? "";
@@ -788,6 +792,7 @@ function MathVisualComponent({
           answerValues={["P03", "P04"].includes(question.typeId) ? values : []}
           activeSlot={activeSlot}
           slotLabels={question.response.slotLabels}
+          showLines={!(["P03", "P04"].includes(question.typeId))}
           disabled={disabled}
           onSlotSelect={["P03", "P04"].includes(question.typeId) ? onSlotSelect : undefined}
         />

@@ -81,6 +81,7 @@ describe("math practice question generator", () => {
       expect(question.visual.tens).toBeLessThanOrEqual(9);
       expect(question.visual.ones).toBeGreaterThanOrEqual(0);
       expect(question.visual.ones).toBeLessThanOrEqual(9);
+      expect(question.visual.tens + question.visual.ones).toBeGreaterThan(0);
       expect(question.visual.showLabels).toBe(false);
       expect(question.answer.values).toEqual([String(question.visual.tens * 10 + question.visual.ones)]);
       seen.add(`${question.visual.tens}-${question.visual.ones}`);
@@ -132,12 +133,14 @@ describe("math practice question generator", () => {
     );
 
     for (const question of questions) {
-      expect(question.visual).toMatchObject({ kind: "ABACUS", tens: 0, ones: 0 });
+      expect(question.visual).toMatchObject({ kind: "ABACUS", ones: 0 });
       const match = question.prompt.match(/十位上是 (\d+)，个位比十位多 (\d+)/);
       expect(match).not.toBeNull();
       if (!match) continue;
       const tens = Number(match[1]);
       const difference = Number(match[2]);
+      expect(question.visual.kind).toBe("ABACUS");
+      if (question.visual.kind === "ABACUS") expect(question.visual.tens).toBe(tens);
       const answer = Number(question.answer.values[0]);
       const base = tens * 10 + tens + difference;
       expect(answer).toBe(question.prompt.includes("添 1 颗") ? base + 1 : base);

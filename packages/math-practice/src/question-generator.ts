@@ -599,7 +599,10 @@ export function generateMathQuestion(
       // runtime alias for old saved settings, but both IDs now use the same
       // unbiased 0–9 tens/ones picture pool and the same child task.
       const tens = rng.int(0, 9);
-      const ones = rng.int(0, 9);
+      // Do not create an all-zero picture: it leaves the child with a blank
+      // visual and no objects to count. Zero is still exercised in either
+      // place whenever the other place contains objects.
+      const ones = tens === 0 ? rng.int(1, 9) : rng.int(0, 9);
       const value = tens * 10 + ones;
       return question(input, {
         prompt: "看图写数。",
@@ -662,10 +665,9 @@ export function generateMathQuestion(
         : `十位上是 ${tens}，个位比十位多 ${difference}，这个数是几？`;
       return question(input, {
         prompt,
-        // The number is encoded by the sentence, not exposed as beads. An
-        // empty counter keeps the place-value visual without giving away the
-        // answer or implying that the tens digit is always 1.
-        visual: { kind: "ABACUS", tens: 0, ones: 0 },
+        // Show the given tens condition on the matching rod. The ones rod
+        // stays empty because its value is what the child must infer.
+        visual: { kind: "ABACUS", tens, ones: 0 },
         response: optionResponse([String(answer - 1), String(answer), String(answer + 1)]),
         answer: { values: [String(answer)], display: String(answer) },
         explanation: afterAdding
