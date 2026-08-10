@@ -41,6 +41,9 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
   const [dailyLimit, setDailyLimit] = useState("");
   const [satiety, setSatiety] = useState(0);
   const [hydration, setHydration] = useState(0);
+  const [redPacketsPerLevel, setRedPacketsPerLevel] = useState(1);
+  const [redPacketMinStars, setRedPacketMinStars] = useState(1);
+  const [redPacketMaxStars, setRedPacketMaxStars] = useState(5);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -57,6 +60,9 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       setDailyLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
       setSatiety(result.pet.satiety);
       setHydration(result.pet.hydration);
+      setRedPacketsPerLevel(result.redPackets.packetsPerLevel);
+      setRedPacketMinStars(result.redPackets.minStars);
+      setRedPacketMaxStars(result.redPackets.maxStars);
       setPrices(Object.fromEntries(result.roomThemes.map((theme) => [theme.key, theme.priceStars])));
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "星宠状态读取失败");
@@ -75,6 +81,9 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       setDailyLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
       setSatiety(result.pet.satiety);
       setHydration(result.pet.hydration);
+      setRedPacketsPerLevel(result.redPackets.packetsPerLevel);
+      setRedPacketMinStars(result.redPackets.minStars);
+      setRedPacketMaxStars(result.redPackets.maxStars);
       setPrices(Object.fromEntries(result.roomThemes.map((theme) => [theme.key, theme.priceStars])));
     }).catch((reason) => {
       if (!cancelled) setMessage(reason instanceof Error ? reason.message : "星宠状态读取失败");
@@ -86,6 +95,10 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
 
   async function savePetSettings(event: FormEvent) {
     event.preventDefault();
+    if (redPacketMaxStars < redPacketMinStars) {
+      setMessage("红包最高奖励不能少于最低奖励");
+      return;
+    }
     setBusy("settings");
     setMessage("");
     try {
@@ -95,6 +108,9 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
         dailySpendLimitStars: dailyLimit.trim() ? Number(dailyLimit) : null,
         satiety: Math.max(0, Math.min(100, Math.round(satiety))),
         hydration: Math.max(0, Math.min(100, Math.round(hydration))),
+        redPacketsPerLevel: Math.max(0, Math.min(10, Math.round(redPacketsPerLevel))),
+        redPacketMinStars: Math.max(1, Math.min(100, Math.round(redPacketMinStars))),
+        redPacketMaxStars: Math.max(1, Math.min(100, Math.round(redPacketMaxStars))),
       });
       setMessage("星宠设置已保存");
       onChanged();
@@ -135,7 +151,7 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
             <div className="parent-pet-overview__level"><span>Lv.{data.pet.level}</span><div><strong>{GROWTH_STAGE_LABELS[data.pet.growthStage]}</strong><small>{data.postcards.length} 张旅行明信片</small></div></div>
             <div className="parent-pet-overview__meter"><span>饱食度</span><i><b style={{ width: `${data.pet.satiety}%` }} /></i><strong>{data.pet.satiety}</strong></div>
             <div className="parent-pet-overview__meter parent-pet-overview__meter--water"><span>饮水状态</span><i><b style={{ width: `${data.pet.hydration}%` }} /></i><strong>{data.pet.hydration}</strong></div>
-            <div className="parent-pet-overview__trip"><span>{data.currentTrip ? data.currentTrip.status === "TRAVELING" ? "旅行中" : "旅行归来" : "当前在家"}</span><strong>{data.currentTrip?.destinationName ?? `今天已消费 ${data.wallet.dailySpent} 星`}</strong></div>
+            <div className="parent-pet-overview__trip"><span>{data.currentTrip ? data.currentTrip.status === "TRAVELING" ? "旅行中" : "旅行归来" : "当前在家"}</span><strong>{data.currentTrip?.destinationName ?? `待领取 ${data.redPackets.availableCount} 个红包`}</strong></div>
           </div>
           <form className="parent-pet-settings-form" onSubmit={savePetSettings}>
             <label>当前星宠<select value={petType} onChange={(event) => setPetType(event.target.value)}>{Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -143,6 +159,12 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
             <label>每日星宠消费上限<input type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
             <label>饱食度<input type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
             <label>饮水状态<input type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
+            <div className="parent-pet-red-packet-settings">
+              <div><strong>星宠升级红包</strong><small>配置只影响之后升级获得的新红包</small></div>
+              <label>每次升级赠送<input type="number" min={0} max={10} value={redPacketsPerLevel} onChange={(event) => setRedPacketsPerLevel(Number(event.target.value))} /><span>个</span></label>
+              <label>最低奖励<input type="number" min={1} max={100} value={redPacketMinStars} onChange={(event) => setRedPacketMinStars(Number(event.target.value))} /><span>星</span></label>
+              <label>最高奖励<input type="number" min={1} max={100} value={redPacketMaxStars} onChange={(event) => setRedPacketMaxStars(Number(event.target.value))} /><span>星</span></label>
+            </div>
             <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "settings" ? "保存中…" : "保存星宠设置"}</button>
           </form>
         </> : <div className="empty-state">{message || "暂时没有星宠资料"}</div>}

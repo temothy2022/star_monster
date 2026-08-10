@@ -32,6 +32,7 @@ export type LeaderboardSettings = {
 export type PetGrowthSummary = {
   pet: { petType: string; nickname: string | null; level: number; experience: number; growthStage: "BABY" | "GROWING" | "MATURE"; satiety: number; hydration: number; currentLevelStart: number; nextLevelExperience: number | null };
   wallet: { starBalance: number; dailySpent: number; dailySpendLimitStars: number | null };
+  redPackets: { availableCount: number; packetsPerLevel: number; minStars: number; maxStars: number };
   travelEnabled: boolean;
   roomThemes: Array<{
     key: string;
@@ -104,6 +105,7 @@ export type TaskTemplate = {
   mathPracticeConfig: {
     totalQuestions: number;
     typeCounts: Record<string, number>;
+    arithmeticItemsPerQuestion: Record<string, number>;
   } | null;
 };
 
@@ -140,6 +142,7 @@ export type MakeTenLearningSettings = {
 export type MathPracticeSettings = {
   totalQuestions: number;
   typeCounts: Record<string, number>;
+  arithmeticItemsPerQuestion: Record<string, number>;
 };
 
 export type MakeTenFactStats = {
@@ -363,6 +366,7 @@ export type LedgerEntry = {
     | "PET_CARE_SPEND"
     | "PET_TRAVEL_SPEND"
     | "PET_ROOM_THEME_SPEND"
+    | "PET_RED_PACKET_REWARD"
     | "PET_REFUND"
     | "MANUAL_ADJUSTMENT";
   amount: number;
@@ -621,7 +625,21 @@ export const staffApi = {
 
 export const parentApi = {
   petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
-  updatePetGrowthSettings: (childId: string, data: { travelEnabled: boolean; dailySpendLimitStars: number | null; satiety?: number; hydration?: number }) => api<{ settings: { travelEnabled: boolean; dailySpendLimitStars: number | null } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
+  updatePetGrowthSettings: (childId: string, data: {
+    travelEnabled: boolean;
+    dailySpendLimitStars: number | null;
+    satiety?: number;
+    hydration?: number;
+    redPacketsPerLevel: number;
+    redPacketMinStars: number;
+    redPacketMaxStars: number;
+  }) => api<{ settings: {
+    travelEnabled: boolean;
+    dailySpendLimitStars: number | null;
+    redPacketsPerLevel: number;
+    redPacketMinStars: number;
+    redPacketMaxStars: number;
+  } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
   updatePetRoomThemes: (themes: Array<{ key: string; priceStars: number }>) => api<{ themes: Array<{ themeId: string; priceStars: number }> }>("/api/parent/pet-growth/themes", { method: "PATCH", body: JSON.stringify({ themes }) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
   updateChild: (id: string, data: Record<string, unknown>) =>

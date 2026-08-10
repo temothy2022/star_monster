@@ -547,6 +547,14 @@
 .math-inline-number-sequence > .math-answer-editor { width: min(420px, 100%); min-height: 0; margin: 0 auto; padding-top: 0; }
 .math-inline-number-sequence > .math-answer-editor .math-keypad { flex: 0 0 auto; }
 .math-inline-number-sequence > .math-answer-editor .math-submit-answer { width: min(390px, 100%); margin: 0 auto; }
+.math-question-card[data-math-type^="C"] .math-inline-number-sequence { width: min(620px, 100%); }
+.math-arithmetic-list { width: min(620px, 100%); display: grid; gap: 9px; padding: 8px 4px; }
+.math-arithmetic-row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 7px 12px; border: 2px solid #dcecf6; border-radius: 15px; background: rgba(255, 255, 255, .9); }
+.math-arithmetic-row__number { width: 24px; color: #8aa1b5; font-weight: 900; }
+.math-arithmetic-row__equation { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; flex: 1; }
+.math-arithmetic-token { min-width: 22px; color: var(--math-ink); font-size: 26px; font-weight: 900; text-align: center; }
+.math-arithmetic-blank { width: 54px; height: 43px; border: 2px dashed #7eb2d9; border-radius: 12px; color: var(--math-ink); background: #fffdf7; font-size: 23px; font-weight: 900; cursor: pointer; }
+.math-arithmetic-blank.is-active { border-style: solid; border-color: var(--math-orange); box-shadow: 0 0 0 4px rgba(255, 122, 61, .14); }
 .math-question-card[data-math-type="P03"] .math-inline-number-sequence,
 .math-question-card[data-math-type="P04"] .math-inline-number-sequence { width: min(900px, 100%); grid-template-columns: minmax(260px, 390px) minmax(320px, 420px); align-items: center; justify-content: center; gap: clamp(20px, 4vw, 48px); }
 

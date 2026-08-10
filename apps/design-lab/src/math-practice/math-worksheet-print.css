@@ -488,6 +488,12 @@
 }
 .math-paper-question--compact .math-paper-answer-line { min-height: 8mm; }
 .math-paper-question--compact .math-paper-hint { padding: 0 0 1mm; }
+.math-paper-question .math-arithmetic-list { width: 100%; gap: 1.5mm; padding: 0; }
+.math-paper-question .math-arithmetic-row { min-height: 0; padding: 1.2mm 2mm; border-width: .35mm; border-radius: 1.8mm; }
+.math-paper-question .math-arithmetic-row__number { width: 5mm; font-size: 8pt; }
+.math-paper-question .math-arithmetic-row__equation { gap: 1.2mm; }
+.math-paper-question .math-arithmetic-token { min-width: 5mm; font-size: 12pt; }
+.math-paper-question .math-arithmetic-blank { width: 11mm; height: 7mm; border-width: .4mm; border-radius: 1.5mm; font-size: 11pt; }
 .math-paper-question--number-strip .math-number-boxes { gap: 1mm; }
 .math-paper-question--number-strip .math-number-boxes span {
   width: 12mm;

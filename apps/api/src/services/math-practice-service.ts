@@ -108,7 +108,7 @@ async function requireMathPracticeAttempt(childId: string, attemptId: string) {
   const snapshotConfig =
     typeof snapshot === "object" && snapshot !== null && !Array.isArray(snapshot) &&
     typeof snapshot.totalQuestions === "number" && snapshot.typeCounts !== undefined
-      ? { totalQuestions: snapshot.totalQuestions, typeCounts: snapshot.typeCounts }
+      ? { totalQuestions: snapshot.totalQuestions, typeCounts: snapshot.typeCounts, arithmeticItemsPerQuestion: snapshot.arithmeticItemsPerQuestion }
       : null;
   const practiceConfig = snapshotConfig ?? fallbackConfig;
   if (!practiceConfig) {
@@ -123,7 +123,8 @@ export async function startMathPracticeSession(childId: string, attemptId: strin
   if (existing) return { session: await serializeSession(existing) };
 
   const typeCounts = normalizeTypeCounts(practiceConfig.typeCounts);
-  const questions = generateMathWorksheet(typeCounts, stableSeed(attemptId));
+  const arithmeticItemsPerQuestion = normalizeTypeCounts(practiceConfig.arithmeticItemsPerQuestion ?? {});
+  const questions = generateMathWorksheet(typeCounts, stableSeed(attemptId), arithmeticItemsPerQuestion);
   if (questions.length !== practiceConfig.totalQuestions || questions.length === 0) {
     throw new HttpError(409, "MATH_PRACTICE_CONFIG_INVALID", "题型数量之和与总题数不一致");
   }

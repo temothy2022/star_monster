@@ -62,6 +62,22 @@ const parentSettingsSchema = z.object({
   dailySpendLimitStars: z.number().int().min(0).max(10000).nullable(),
   satiety: z.number().int().min(0).max(100).optional(),
   hydration: z.number().int().min(0).max(100).optional(),
+  redPacketsPerLevel: z.number().int().min(0).max(10).optional(),
+  redPacketMinStars: z.number().int().min(1).max(100).optional(),
+  redPacketMaxStars: z.number().int().min(1).max(100).optional(),
+}).refine((value) => {
+  const values = [value.redPacketsPerLevel, value.redPacketMinStars, value.redPacketMaxStars];
+  return values.every((item) => item === undefined) || values.every((item) => item !== undefined);
+}, {
+  message: "请完整填写红包数量和奖励范围",
+  path: ["redPacketsPerLevel"],
+}).refine((value) => (
+  value.redPacketMaxStars === undefined
+  || value.redPacketMinStars === undefined
+  || value.redPacketMaxStars >= value.redPacketMinStars
+), {
+  message: "红包最高星星不能少于最低星星",
+  path: ["redPacketMaxStars"],
 });
 const parentRoomThemePatchSchema = z.object({
   themes: z.array(z.object({
@@ -406,7 +422,15 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
       resourceId: profile.id,
       ipAddress: request.ip,
     });
-    return { settings: { travelEnabled: profile.travelEnabled, dailySpendLimitStars: profile.dailySpendLimitStars } };
+    return {
+      settings: {
+        travelEnabled: profile.travelEnabled,
+        dailySpendLimitStars: profile.dailySpendLimitStars,
+        redPacketsPerLevel: profile.redPacketsPerLevel,
+        redPacketMinStars: profile.redPacketMinStars,
+        redPacketMaxStars: profile.redPacketMaxStars,
+      },
+    };
   });
 
   app.patch("/api/parent/pet-growth/themes", async (request, reply) => {

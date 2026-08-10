@@ -21,7 +21,7 @@ the metadata consumed by the parent configuration page.
 | 数与数量 | 9 | Counting, number sequences, comparison and quantity construction |
 | 数位与表征 | 7 | Number representation, place value and abacus |
 | 量感比较 | 4 | Size, height, length and weight |
-| 数的运算 | 6 | Symbolic arithmetic |
+| 数的运算 | 14 | Multi-item arithmetic, number bonds and range/carry-borrow practice |
 | 看图建模与列式 | 7 | Picture equations and visual arithmetic |
 | 情境应用题 | 9 | Semantic word-problem structures |
 | 顺序、方位与位置 | 6 | Ordinal, selection and relative position |

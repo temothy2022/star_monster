@@ -69,6 +69,10 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
     return { heightMm: 52, size: "number-strip", wide: false };
   }
   if (question.typeId === "N09") return { heightMm: 62, size: "sort", wide: false };
+  if (question.visual.kind === "ARITHMETIC_LIST") {
+    const rows = question.visual.items.length;
+    return { heightMm: Math.min(112, Math.max(58, 18 + rows * 10)), size: "compact", wide: false };
+  }
   if (["S02", "S04", "C05", "P01", "P02", "P05", "P06", "P07"].includes(question.typeId)) {
     return { heightMm: 84, size: "tall-visual", wide: false };
   }
@@ -224,7 +228,7 @@ function PaperResponse({ question }: { question: MathQuestion }) {
   // These exercises already contain their own answer area in the prompt or
   // illustration. P01/P02 are picture-to-number exercises, so they need a
   // handwritten answer line on paper even though the screen uses a keypad.
-  if (["S03", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06"].includes(question.typeId)) return null;
+  if (["S03", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId)) return null;
   if (question.response.mode === "R04") return <EquationBlanks question={question} />;
   const options = question.response.options ?? [];
   if (options.length > 0 && question.response.mode !== "R03") {

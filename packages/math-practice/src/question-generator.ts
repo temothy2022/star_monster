@@ -6,6 +6,7 @@ import type { MathDifficulty } from "./types.js";
 import type {
   GenerateMathQuestionInput,
   MathLengthAssetKey,
+  MathArithmeticToken,
   MathQuestion,
   MathQuestionResponse,
   MathLogicPictureKey,
@@ -207,6 +208,65 @@ function generateCubeStructure(rng: SeededRng, difficulty: 1 | 2 | 3) {
   return cubes;
 }
 
+const MULTI_ARITHMETIC_TYPES = new Set<MathQuestionTypeId>([
+  "C01", "C02", "C03", "C04", "C05", "C06",
+  "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14",
+]);
+
+function arithmeticItemCount(input: GenerateMathQuestionInput) {
+  const requested = input.itemsPerQuestion ?? 5;
+  return Math.max(1, Math.min(20, Math.round(Number.isFinite(requested) ? requested : 5)));
+}
+
+function arithmeticItem(tokens: MathArithmeticToken[]) {
+  return { tokens };
+}
+
+function arithmeticQuestion(
+  input: GenerateMathQuestionInput,
+  prompt: string,
+  items: Array<{ tokens: MathArithmeticToken[]; answer: string; explanation: string }>,
+) {
+  return question(input, {
+    prompt,
+    visual: { kind: "ARITHMETIC_LIST", items: items.map(({ tokens }) => arithmeticItem(tokens)) },
+    response: { mode: input.typeId === "C04" ? "R04" : "R01", slots: items.length, maxDigits: 3 },
+    answer: { values: items.map(({ answer }) => answer), display: items.map(({ answer }) => answer).join("，") },
+    explanation: items.map(({ explanation }) => explanation).join("；"),
+  });
+}
+
+function boundedArithmeticItem(
+  rng: SeededRng,
+  maximum: number,
+  carryOrBorrow: boolean,
+  difficulty: MathDifficulty,
+): { tokens: MathArithmeticToken[]; answer: string; explanation: string } {
+  const wantAddition = rng.next() > 0.48;
+  const candidates: Array<{ left: number; right: number; result: number; symbol: "+" | "-" }> = [];
+  for (let left = 0; left <= maximum; left += 1) {
+    for (let right = 1; right <= maximum; right += 1) {
+      if (wantAddition && left + right <= maximum) {
+        const crossed = left % 10 + right % 10 >= 10;
+        if (crossed === carryOrBorrow && (left > 0 || right > 0)) candidates.push({ left, right, result: left + right, symbol: "+" });
+      }
+      if (!wantAddition && left >= right) {
+        const borrowed = left % 10 < right % 10;
+        if (borrowed === carryOrBorrow && left > 0) candidates.push({ left, right, result: left - right, symbol: "-" });
+      }
+    }
+  }
+  // For 10以内进位加法, 5+5=10 is intentionally included; for borrowing,
+  // 10-1 and its neighbours provide the first concrete regrouping examples.
+  const filtered = candidates.filter((item) => difficulty === 1 ? item.left > 0 : true);
+  const chosen = rng.pick(filtered.length ? filtered : candidates);
+  return {
+    tokens: [chosen.left, chosen.symbol, chosen.right, "=", { kind: "BLANK" as const }],
+    answer: String(chosen.result),
+    explanation: `${chosen.left} ${chosen.symbol} ${chosen.right} = ${chosen.result}`,
+  };
+}
+
 export function generateMathQuestion(
   input: GenerateMathQuestionInput,
 ): MathQuestion {
@@ -225,6 +285,78 @@ export function generateMathQuestion(
     : rng.int(Math.max(3, 11 - a), Math.min(9, 20 - a));
   const total = a + b;
   const baseVisual: MathVisualSpec = { kind: "NONE" };
+
+  if (MULTI_ARITHMETIC_TYPES.has(input.typeId)) {
+    const count = arithmeticItemCount(input);
+    const items: Array<{ tokens: MathArithmeticToken[]; answer: string; explanation: string }> = [];
+    for (let index = 0; index < count; index += 1) {
+      if (input.typeId === "C07" || input.typeId === "C08" || input.typeId === "C09" || input.typeId === "C10" || input.typeId === "C11" || input.typeId === "C12" || input.typeId === "C13" || input.typeId === "C14") {
+        const maximum = ({ C07: 10, C08: 20, C09: 50, C10: 100, C11: 10, C12: 20, C13: 50, C14: 100 } as Record<string, number>)[input.typeId]!;
+        const carryOrBorrow = ["C11", "C12", "C13", "C14"].includes(input.typeId);
+        items.push(boundedArithmeticItem(rng, maximum, carryOrBorrow, difficulty));
+        continue;
+      }
+      if (input.typeId === "C01") {
+        const addition = rng.next() > 0.5;
+        const left = addition ? a : total;
+        const right = b;
+        const result = addition ? total : a;
+        items.push({ tokens: [left, addition ? "+" : "-", right, "=", { kind: "BLANK" }], answer: String(result), explanation: `${left} ${addition ? "+" : "-"} ${right} = ${result}` });
+      } else if (input.typeId === "C02") {
+        const addendCount = difficulty === 3 ? 4 : 3;
+        const maximumTotal = difficulty === 1 ? 10 : difficulty === 2 ? 16 : 20;
+        const addends: number[] = [];
+        for (let addendIndex = 0; addendIndex < addendCount; addendIndex += 1) {
+          const remainingSlots = addendCount - addendIndex - 1;
+          const used = addends.reduce((sum, value) => sum + value, 0);
+          addends.push(rng.int(1, Math.min(difficulty === 1 ? 4 : 6, maximumTotal - used - remainingSlots)));
+        }
+        const result = addends.reduce((sum, value) => sum + value, 0);
+        const tokens: MathArithmeticToken[] = [];
+        addends.forEach((value, addendIndex) => { tokens.push(value); if (addendIndex < addends.length - 1) tokens.push("+"); });
+        tokens.push("=", { kind: "BLANK" });
+        items.push({ tokens, answer: String(result), explanation: `${addends.join(" + ")} = ${result}` });
+      } else if (input.typeId === "C03") {
+        const start = difficulty === 1 ? rng.int(7, 10) : difficulty === 2 ? rng.int(11, 16) : rng.int(17, 20);
+        const removalCount = difficulty === 3 ? 3 : 2;
+        const removals: number[] = [];
+        for (let removalIndex = 0; removalIndex < removalCount; removalIndex += 1) {
+          const remaining = start - removals.reduce((sum, value) => sum + value, 0);
+          removals.push(rng.int(1, Math.min(difficulty === 1 ? 3 : 5, remaining - (removalCount - removalIndex))));
+        }
+        const result = start - removals.reduce((sum, value) => sum + value, 0);
+        const tokens: MathArithmeticToken[] = [start];
+        removals.forEach((value) => { tokens.push("-", value); });
+        tokens.push("=", { kind: "BLANK" });
+        items.push({ tokens, answer: String(result), explanation: `${start} - ${removals.join(" - ")} = ${result}` });
+      } else if (input.typeId === "C04") {
+        const addition = rng.next() > 0.5;
+        const left = addition ? a : total;
+        const right = b;
+        const result = addition ? total : a;
+        items.push({ tokens: [left, { kind: "BLANK", placeholder: "○" }, right, "=", result], answer: addition ? "+" : "-", explanation: `${left} ${addition ? "+" : "-"} ${right} = ${result}` });
+      } else if (input.typeId === "C05") {
+        const askTotal = difficulty === 2 && rng.next() > 0.65;
+        items.push(askTotal
+          ? { tokens: [a, "+", b, "=", { kind: "BLANK" }], answer: String(total), explanation: `${a} + ${b} = ${total}` }
+          : { tokens: [a, "+", { kind: "BLANK" }, "=", total], answer: String(b), explanation: `${a} + ${b} = ${total}` });
+      } else {
+        if (difficulty === 1) items.push({ tokens: [a, "+", b, "=", { kind: "BLANK" }], answer: String(total), explanation: `${a} + ${b} = ${total}` });
+        else if (difficulty === 2) items.push({ tokens: [{ kind: "BLANK" }, "+", b, "=", total], answer: String(a), explanation: `${a} + ${b} = ${total}` });
+        else {
+          const missingSubtrahend = rng.next() > 0.5;
+          items.push(missingSubtrahend
+            ? { tokens: [total, "-", { kind: "BLANK" }, "=", a], answer: String(b), explanation: `${total} - ${b} = ${a}` }
+            : { tokens: [{ kind: "BLANK" }, "-", b, "=", a], answer: String(total), explanation: `${total} - ${b} = ${a}` });
+        }
+      }
+    }
+    const labels: Record<string, string> = {
+      C01: "算一算，完成下面的加减法。", C02: "连加算一算。", C03: "连减算一算。", C04: "在○里填上加号或减号。", C05: "把数的分与合填完整。", C06: "把缺少的数填进去。",
+      C07: "算一算：10以内不进位、不退位。", C08: "算一算：20以内不进位、不退位。", C09: "算一算：50以内不进位、不退位。", C10: "算一算：100以内不进位、不退位。", C11: "算一算：10以内进位、退位。", C12: "算一算：20以内进位、退位。", C13: "算一算：50以内进位、退位。", C14: "算一算：100以内进位、退位。",
+    };
+    return arithmeticQuestion(input, labels[input.typeId]!, items);
+  }
 
   switch (input.typeId) {
     case "N01": {
@@ -854,6 +986,7 @@ export function answerMathQuestion(
 export function generateMathWorksheet(
   typeCounts: Partial<Record<MathQuestionTypeId, number>>,
   seed: number,
+  itemsPerQuestion: Partial<Record<MathQuestionTypeId, number>> = {},
 ) {
   const queues: Array<{ typeId: MathQuestionTypeId; questions: MathQuestion[] }> = [];
   const signatures = new Set<string>();
@@ -865,7 +998,7 @@ export function generateMathWorksheet(
       let selected: MathQuestion | null = null;
       let lastCandidate: MathQuestion | null = null;
       for (let attempt = 0; attempt < 512; attempt += 1) {
-        const candidate = generateMathQuestion({ typeId, seed: questionSeed, difficulty });
+        const candidate = generateMathQuestion({ typeId, seed: questionSeed, difficulty, itemsPerQuestion: itemsPerQuestion[typeId] });
         questionSeed += 1;
         lastCandidate = candidate;
         const signature = JSON.stringify([

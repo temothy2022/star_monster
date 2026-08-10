@@ -48,7 +48,7 @@ export function buildFootprintRewardDetails(
     if (
       earnedDateKey !== selectedDateKey ||
       ledger.amount <= 0 ||
-      (ledger.type !== "DAILY_GOAL_BONUS" && ledger.type !== "PLANET_BONUS")
+      !["DAILY_GOAL_BONUS", "PLANET_BONUS", "PET_RED_PACKET_REWARD"].includes(ledger.type)
     ) return [];
 
     const planet = ledger.referenceId
@@ -56,9 +56,11 @@ export function buildFootprintRewardDetails(
       : null;
     const title = ledger.type === "DAILY_GOAL_BONUS"
       ? "完成每日目标"
-      : planet
-        ? `点亮${PLANET_NAMES[planet]}`
-        : "点亮星球";
+      : ledger.type === "PET_RED_PACKET_REWARD"
+        ? "打开星宠升级红包"
+        : planet
+          ? `点亮${PLANET_NAMES[planet]}`
+          : "点亮星球";
 
     return [{
       rewardId: ledger.id,
@@ -156,7 +158,7 @@ export async function getFootprints(
           gte: addBusinessDays(weekStart, -1),
           lt: addBusinessDays(today, 2),
         },
-        type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS"] },
+        type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS", "PET_RED_PACKET_REWARD"] },
       },
       select: {
         id: true,

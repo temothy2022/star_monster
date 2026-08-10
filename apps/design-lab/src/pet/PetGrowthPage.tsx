@@ -12,6 +12,7 @@ import {
   ApiError,
   careForPet,
   getPetGrowth,
+  openPetRedPacket,
   purchasePetRoomTheme,
   revealPetTrip,
   selectPetRoomTheme,
@@ -38,6 +39,8 @@ import drinkingSound from "@star-monsters/assets/audio/pet/drinking.mp3";
 import happyEntrySound from "@star-monsters/assets/audio/pet/happy-entry.mp3";
 import postcardArrivedSound from "@star-monsters/assets/audio/pet/postcard-arrived.mp3";
 import soundToggleIcon from "@star-monsters/assets/images/pet/sound-toggle.webp";
+import redPacketEntryImage from "@star-monsters/assets/images/pet/red-packet-entry.webp";
+import redPacketMainImage from "@star-monsters/assets/images/pet/red-packet-main.webp";
 import {
   createAudioWithSpeechFallback,
   createHtmlAudioPlayback,
@@ -58,8 +61,11 @@ const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
 const PET_ROOM_LAYOUT_STORAGE_KEY = "star-monsters:pet-room-layout:v1";
 const ROOM_DECOR_ENTRY_IMAGE = "/pet-assets/v1/ui/room-decor-entry.webp";
 const PET_LAYOUT_LONG_PRESS_MS = 520;
+const RED_PACKET_RAIN_MS = 1_050;
 type CareKind = "feed" | "drink";
 type RoomNotice = { id: number; message: string };
+type RedPacketStage = "rain" | "ready" | "opening" | "revealed";
+type RedPacketReward = { packetId: string; stars: number; sourceLevel: number };
 type PetLayoutModule = "status" | "map" | "actions";
 type PetLayoutOrientation = "landscape" | "portrait";
 type PetLayoutPosition = { x: number; y: number };
@@ -69,6 +75,20 @@ type StoredPetRoomLayouts = {
   landscape?: PetLayoutPreset;
   portrait?: PetLayoutPreset;
 };
+
+const RED_PACKET_RAIN_ITEMS = Array.from({ length: 28 }, (_, index) => ({
+  left: `${(index * 37 + 7) % 101}%`,
+  delay: `${(index % 8) * 0.08}s`,
+  duration: `${0.82 + (index % 5) * 0.1}s`,
+  scale: `${0.42 + (index % 4) * 0.13}`,
+  rotate: `${(index % 2 === 0 ? 1 : -1) * (12 + (index % 7) * 8)}deg`,
+}));
+
+const RED_PACKET_BURST_ITEMS = Array.from({ length: 22 }, (_, index) => ({
+  angle: `${(360 / 22) * index}deg`,
+  distance: `${116 + (index % 5) * 24}px`,
+  delay: `${(index % 4) * 0.035}s`,
+}));
 type PetLayoutViewport = {
   enabled: boolean;
   orientation: PetLayoutOrientation;
@@ -321,6 +341,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [themeShopOpen, setThemeShopOpen] = useState(false);
   const [themePreviewKey, setThemePreviewKey] = useState<string | null>(null);
   const [themePurchaseConfirm, setThemePurchaseConfirm] = useState<PetRoomTheme | null>(null);
+  const [redPacketStage, setRedPacketStage] = useState<RedPacketStage | null>(null);
+  const [redPacketReward, setRedPacketReward] = useState<RedPacketReward | null>(null);
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(null);
   const [dialogueSpeaking, setDialogueSpeaking] = useState(false);
@@ -334,6 +356,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [draggingLayoutModule, setDraggingLayoutModule] = useState<PetLayoutModule | null>(null);
   const careTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
+  const redPacketRainTimerRef = useRef<number | null>(null);
+  const redPacketClaimKeyRef = useRef<string | null>(null);
   const dialogueAudioCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const petSoundCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const dialogueQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
@@ -573,6 +597,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   useEffect(() => () => {
     if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
     dialogueQueueRef.current?.clear();
     petSoundQueueRef.current?.clear();
     careSoundQueueRef.current?.clear();
@@ -644,6 +669,65 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       setRoomNotice((current) => (current?.id === id ? null : current));
       noticeTimerRef.current = null;
     }, ROOM_NOTICE_MS);
+  }
+
+  function closeRedPacket() {
+    if (redPacketStage === "opening") return;
+    if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
+    redPacketRainTimerRef.current = null;
+    if (redPacketReward) redPacketClaimKeyRef.current = null;
+    setRedPacketStage(null);
+    setRedPacketReward(null);
+  }
+
+  function startRedPacketFlow() {
+    if (!state || state.redPackets.availableCount <= 0 || busy || redPacketStage) return;
+    setRedPacketReward(null);
+    setRedPacketStage("rain");
+    if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
+    redPacketRainTimerRef.current = window.setTimeout(() => {
+      setRedPacketStage("ready");
+      redPacketRainTimerRef.current = null;
+    }, RED_PACKET_RAIN_MS);
+  }
+
+  async function claimRedPacket() {
+    if (!state || redPacketStage !== "ready" || busy) return;
+    const claimKey = redPacketClaimKeyRef.current ?? actionKey("pet-red-packet");
+    redPacketClaimKeyRef.current = claimKey;
+    setBusy("red-packet");
+    setRedPacketStage("opening");
+    try {
+      const [result] = await Promise.all([
+        openPetRedPacket(claimKey),
+        new Promise((resolve) => window.setTimeout(resolve, 620)),
+      ]);
+      setState(result.state);
+      setRedPacketReward(result.reward);
+      redPacketClaimKeyRef.current = null;
+      setRedPacketStage("revealed");
+      setError("");
+      navigator.vibrate?.([24, 35, 55]);
+    } catch (reason) {
+      setRedPacketStage("ready");
+      showRoomNotice(reason instanceof ApiError ? reason.message : "红包暂时没有打开，请再试一次");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function continueRedPackets() {
+    if (!state || state.redPackets.availableCount <= 0) {
+      closeRedPacket();
+      return;
+    }
+    setRedPacketReward(null);
+    redPacketClaimKeyRef.current = null;
+    setRedPacketStage("rain");
+    redPacketRainTimerRef.current = window.setTimeout(() => {
+      setRedPacketStage("ready");
+      redPacketRainTimerRef.current = null;
+    }, RED_PACKET_RAIN_MS);
   }
 
   function captureCurrentRoomLayout(): PetLayoutPreset | null {
@@ -1041,6 +1125,14 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <div className="pet-star-balance" aria-label={`当前有 ${state.wallet.starBalance} 颗星`}><span>★</span><div><small>我的星星</small><strong>{state.wallet.starBalance}</strong></div></div>
         </header>
 
+        {state.redPackets.availableCount > 0 && !trip && !careAnimation && !layoutEditing && (
+          <button className="pet-red-packet-entry" type="button" disabled={Boolean(busy)} onClick={startRedPacketFlow} aria-label={`有 ${state.redPackets.availableCount} 个星宠红包可以打开`}>
+            <span><img src={redPacketEntryImage} alt="" aria-hidden="true" /></span>
+            <strong>升级红包</strong>
+            <b>{state.redPackets.availableCount}</b>
+          </button>
+        )}
+
         <section
           className={roomLayoutModuleClass("pet-status-card", "status")}
           style={roomLayoutModuleStyle("status")}
@@ -1172,6 +1264,62 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           </>
         )}
       </section>
+
+      {redPacketStage && (
+        <div className={`pet-red-packet-modal is-${redPacketStage}`} role="dialog" aria-modal="true" aria-label="星宠升级红包">
+          <div className="pet-red-packet-modal__backdrop" aria-hidden="true" />
+          <div className="pet-red-packet-rain" aria-hidden="true">
+            {RED_PACKET_RAIN_ITEMS.map((item, index) => (
+              <img
+                src={redPacketEntryImage}
+                alt=""
+                key={index}
+                style={{
+                  "--red-packet-left": item.left,
+                  "--red-packet-delay": item.delay,
+                  "--red-packet-duration": item.duration,
+                  "--red-packet-scale": item.scale,
+                  "--red-packet-rotate": item.rotate,
+                } as CSSProperties}
+              />
+            ))}
+          </div>
+          {redPacketStage !== "opening" && (
+            <button className="pet-red-packet-modal__close" type="button" aria-label="关闭红包" onClick={closeRedPacket}>×</button>
+          )}
+          <section className="pet-red-packet-stage" aria-live="polite">
+            {redPacketStage === "rain" && (
+              <div className="pet-red-packet-arriving"><span>★</span><strong>升级惊喜正在降落</strong></div>
+            )}
+            {(redPacketStage === "ready" || redPacketStage === "opening") && (
+              <button className="pet-red-packet-main" type="button" disabled={redPacketStage === "opening"} onClick={() => void claimRedPacket()}>
+                <span className="pet-red-packet-main__halo" aria-hidden="true" />
+                <img src={redPacketMainImage} alt="一个闪闪发光的星宠红包" />
+                <strong>{redPacketStage === "opening" ? "惊喜马上出现" : "点一下，拆开惊喜"}</strong>
+              </button>
+            )}
+            {redPacketStage === "revealed" && redPacketReward && (
+              <div className="pet-red-packet-reward">
+                <div className="pet-red-packet-reward__burst" aria-hidden="true">
+                  {RED_PACKET_BURST_ITEMS.map((item, index) => (
+                    <i key={index} style={{
+                      "--burst-angle": item.angle,
+                      "--burst-distance": item.distance,
+                      "--burst-delay": item.delay,
+                    } as CSSProperties}>★</i>
+                  ))}
+                </div>
+                <div className="pet-red-packet-reward__crown" aria-hidden="true"><span>★</span></div>
+                <small>Lv.{redPacketReward.sourceLevel} 升级红包</small>
+                <h2>太棒啦！</h2>
+                <div className="pet-red-packet-reward__stars"><b>+</b><strong>{redPacketReward.stars}</strong><span>颗星</span></div>
+                <p>星宠把成长的惊喜送给了你</p>
+                <button type="button" onClick={continueRedPackets}>{state.redPackets.availableCount > 0 ? `再开一个（还有 ${state.redPackets.availableCount} 个）` : "收下星星"}</button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
       {careConfirmation && (
         <div className="pet-modal pet-care-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="pet-care-confirm-title">

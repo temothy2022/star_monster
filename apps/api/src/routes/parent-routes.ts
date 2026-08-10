@@ -119,6 +119,7 @@ const makeTenSettingsSchema = z.object({
 const mathPracticeSettingsSchema = z.object({
   totalQuestions: z.number().int().min(1).max(100),
   typeCounts: z.record(z.string(), z.number().int().min(0).max(100)),
+  arithmeticItemsPerQuestion: z.record(z.string(), z.number().int().min(1).max(20)).default({}),
 }).superRefine((input, context) => {
   // Accept the merged P02 alias on read/write so existing parent settings can
   // be migrated to the canonical P01 entry without a validation failure.
@@ -142,6 +143,7 @@ const mathPracticeSettingsSchema = z.object({
 const DEFAULT_MATH_PRACTICE_SETTINGS = {
   totalQuestions: 10,
   typeCounts: { N01: 2, C01: 2, V01: 2, V04: 1, W01: 1, W03: 1, S04: 1 },
+  arithmeticItemsPerQuestion: { C01: 5, C02: 5, C03: 5, C04: 5, C05: 5, C06: 5, C07: 5, C08: 5, C09: 5, C10: 5, C11: 5, C12: 5, C13: 5, C14: 5 },
 };
 
 async function loadMathPracticeSettings(childId: string) {
@@ -150,6 +152,7 @@ async function loadMathPracticeSettings(childId: string) {
     return mathPracticeSettingsSchema.parse({
       totalQuestions: settings.totalQuestions,
       typeCounts: settings.typeCounts,
+      arithmeticItemsPerQuestion: settings.arithmeticItemsPerQuestion,
     });
   }
   const legacy = await prisma.mathPracticeConfig.findFirst({
@@ -157,7 +160,7 @@ async function loadMathPracticeSettings(childId: string) {
     orderBy: { updatedAt: "desc" },
   });
   return mathPracticeSettingsSchema.parse(legacy
-    ? { totalQuestions: legacy.totalQuestions, typeCounts: legacy.typeCounts }
+    ? { totalQuestions: legacy.totalQuestions, typeCounts: legacy.typeCounts, arithmeticItemsPerQuestion: legacy.arithmeticItemsPerQuestion }
     : DEFAULT_MATH_PRACTICE_SETTINGS);
 }
 const leaderboardSettingsSchema = z.object({
@@ -810,6 +813,7 @@ export async function registerParentRoutes(
                 create: {
                   totalQuestions: mathPracticeConfig.totalQuestions,
                   typeCounts: mathPracticeConfig.typeCounts,
+                  arithmeticItemsPerQuestion: mathPracticeConfig.arithmeticItemsPerQuestion,
                 },
               },
             }
@@ -861,7 +865,7 @@ export async function registerParentRoutes(
       }
       return saved;
     });
-    return { settings: { totalQuestions: settings.totalQuestions, typeCounts: settings.typeCounts } };
+    return { settings: { totalQuestions: settings.totalQuestions, typeCounts: settings.typeCounts, arithmeticItemsPerQuestion: settings.arithmeticItemsPerQuestion } };
   });
 
   app.patch(
@@ -899,10 +903,12 @@ export async function registerParentRoutes(
                     create: {
                       totalQuestions: mathPracticeConfig.totalQuestions,
                       typeCounts: mathPracticeConfig.typeCounts,
+                      arithmeticItemsPerQuestion: mathPracticeConfig.arithmeticItemsPerQuestion,
                     },
                     update: {
                       totalQuestions: mathPracticeConfig.totalQuestions,
                       typeCounts: mathPracticeConfig.typeCounts,
+                      arithmeticItemsPerQuestion: mathPracticeConfig.arithmeticItemsPerQuestion,
                     },
                   },
                 }
@@ -946,6 +952,7 @@ export async function registerParentRoutes(
                 ? {
                     totalQuestions: template.mathPracticeConfig.totalQuestions,
                     typeCounts: template.mathPracticeConfig.typeCounts,
+                    arithmeticItemsPerQuestion: template.mathPracticeConfig.arithmeticItemsPerQuestion,
                   }
                 : Prisma.JsonNull,
             }

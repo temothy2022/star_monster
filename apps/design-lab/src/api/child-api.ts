@@ -192,6 +192,12 @@ export type PetGrowthState = {
     dailySpent: number;
     dailySpendLimitStars: number | null;
   };
+  redPackets: {
+    availableCount: number;
+    packetsPerLevel: number;
+    minStars: number;
+    maxStars: number;
+  };
   travelEnabled: boolean;
   travelOptions: Array<{
     tier: PetTravelTier;
@@ -243,6 +249,16 @@ export function getPetGrowth(signal?: AbortSignal) {
 
 export function careForPet(kind: "feed" | "drink", idempotencyKey: string) {
   return request<PetGrowthState>(`/api/child/pet/${kind}`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey }),
+  });
+}
+
+export function openPetRedPacket(idempotencyKey: string) {
+  return request<{
+    state: PetGrowthState;
+    reward: { packetId: string; stars: number; sourceLevel: number };
+  }>("/api/child/pet/red-packets/open", {
     method: "POST",
     body: JSON.stringify({ idempotencyKey }),
   });
@@ -899,7 +915,7 @@ export type FootprintResponse = {
   }>;
   rewards: Array<{
     rewardId: string;
-    type: "DAILY_GOAL_BONUS" | "PLANET_BONUS";
+    type: "DAILY_GOAL_BONUS" | "PLANET_BONUS" | "PET_RED_PACKET_REWARD";
     title: string;
     totalStars: number;
     earnedAt: string;

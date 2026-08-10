@@ -552,6 +552,24 @@ describe("math practice question generator", () => {
     expect(signs).toEqual(new Set(["+", "-"]));
   });
 
+  it("generates a configurable group of arithmetic items and keeps range rules", () => {
+    const ids = ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"] as const;
+    for (const typeId of ids) {
+      const question = generateMathQuestion({ typeId, seed: 20260810, itemsPerQuestion: 6 });
+      expect(question.visual.kind).toBe("ARITHMETIC_LIST");
+      if (question.visual.kind !== "ARITHMETIC_LIST") continue;
+      expect(question.visual.items).toHaveLength(6);
+      expect(question.answer.values).toHaveLength(6);
+      const maximum = ({ C07: 10, C08: 20, C09: 50, C10: 100, C11: 10, C12: 20, C13: 50, C14: 100 } as Record<string, number>)[typeId]!;
+      for (const item of question.visual.items) {
+        const [left, symbol, right] = item.tokens;
+        expect(Number(left)).toBeLessThanOrEqual(maximum);
+        expect(Number(right)).toBeLessThanOrEqual(maximum);
+        expect(symbol === "+" || symbol === "-").toBe(true);
+      }
+    }
+  });
+
   it("keeps spatial picture answers consistent with picture coordinates", () => {
     const labels = { chick: "小鸡", puppy: "小狗", apple: "苹果", pencil: "铅笔", watermelon: "西瓜", bear: "小熊", duck: "鸭子", cake: "蛋糕" } as const;
     for (let seed = 1; seed <= 80; seed += 1) {

@@ -18,6 +18,8 @@ export type MathLogicPictureKey =
   | "tennis"
   | "badminton";
 
+export type MathArithmeticToken = number | "+" | "-" | "=" | { kind: "BLANK"; placeholder?: string };
+
 export type MathLengthAssetKey =
   | "rulers"
   | "crayons"
@@ -29,6 +31,12 @@ export type MathLengthAssetKey =
 
 export type MathVisualSpec =
   | { kind: "NONE" }
+  | {
+      kind: "ARITHMETIC_LIST";
+      items: readonly {
+        tokens: readonly MathArithmeticToken[];
+      }[];
+    }
   | {
       kind: "OBJECT_GROUPS";
       asset: MathSpriteKey;
@@ -128,4 +136,6 @@ export type GenerateMathQuestionInput = {
   typeId: MathQuestionTypeId;
   seed: number;
   difficulty?: MathDifficulty;
+  /** Number of independent arithmetic exercises shown in one question card. */
+  itemsPerQuestion?: number;
 };

@@ -1,4 +1,5 @@
 import { Prisma, type PetCareKind, type PetTravelTier } from "@prisma/client";
+import { randomInt } from "node:crypto";
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
@@ -52,6 +53,38 @@ export function petGrowthStageForLevel(level: number) {
 
 export function petExperienceForNextLevel(level: number) {
   return level >= 30 ? null : level * level * 24;
+}
+
+export function petRedPacketGrantPlan(input: {
+  profileId: string;
+  childId: string;
+  currentLevel: number;
+  nextLevel: number;
+  packetsPerLevel: number;
+  minStars: number;
+  maxStars: number;
+}) {
+  if (input.nextLevel <= input.currentLevel) return [];
+  const packetsPerLevel = Math.max(0, Math.min(10, Math.floor(input.packetsPerLevel)));
+  if (packetsPerLevel === 0) return [];
+  const minStars = Math.max(1, Math.min(input.minStars, input.maxStars));
+  const maxStars = Math.max(minStars, Math.max(input.minStars, input.maxStars));
+  return Array.from(
+    { length: (input.nextLevel - input.currentLevel) * packetsPerLevel },
+    (_, index) => {
+      const levelOffset = Math.floor(index / packetsPerLevel);
+      const packetIndex = (index % packetsPerLevel) + 1;
+      const sourceLevel = input.currentLevel + levelOffset + 1;
+      return {
+        childId: input.childId,
+        profileId: input.profileId,
+        sourceLevel,
+        minStarsSnapshot: minStars,
+        maxStarsSnapshot: maxStars,
+        grantKey: `pet-level:${input.profileId}:${sourceLevel}:packet:${packetIndex}`,
+      };
+    },
+  );
 }
 
 export function settledPetStatus(value: number, settledAt: Date, now: Date, intervalMinutes: number) {
@@ -151,6 +184,31 @@ async function ensureProfile(
     update: {},
     create: { childId },
   });
+}
+
+async function grantLevelUpRedPackets(
+  client: Prisma.TransactionClient,
+  profile: {
+    id: string;
+    childId: string;
+    level: number;
+    redPacketsPerLevel: number;
+    redPacketMinStars: number;
+    redPacketMaxStars: number;
+  },
+  nextLevel: number,
+) {
+  const packets = petRedPacketGrantPlan({
+    profileId: profile.id,
+    childId: profile.childId,
+    currentLevel: profile.level,
+    nextLevel,
+    packetsPerLevel: profile.redPacketsPerLevel,
+    minStars: profile.redPacketMinStars,
+    maxStars: profile.redPacketMaxStars,
+  }).map((packet) => ({ ...packet, updatedAt: new Date() }));
+  if (packets.length === 0) return;
+  await client.petRedPacket.createMany({ data: packets, skipDuplicates: true });
 }
 
 async function settleProfile(
@@ -282,7 +340,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
     await settleProfile(tx, childId, now);
     await refreshTripStatus(tx, childId, now);
   });
-  const [child, profile, config, currentTrip, postcards, tasks, mascotAssets, roomThemes, roomThemeUnlocks] = await Promise.all([
+  const [child, profile, config, currentTrip, postcards, tasks, mascotAssets, roomThemes, roomThemeUnlocks, availableRedPackets] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { nickname: true, petType: true, starBalance: true, familyId: true },
@@ -319,6 +377,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       where: { childId },
       select: { themeId: true },
     }),
+    prisma.petRedPacket.count({ where: { childId, openedAt: null } }),
   ]);
   const familyRoomThemePrices = await getFamilyRoomThemePrices(prisma, child.familyId);
   const petType = child.petType ?? "TUANTUAN";
@@ -373,6 +432,12 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       starBalance: child.starBalance,
       dailySpent,
       dailySpendLimitStars: profile.dailySpendLimitStars,
+    },
+    redPackets: {
+      availableCount: availableRedPackets,
+      packetsPerLevel: profile.redPacketsPerLevel,
+      minStars: profile.redPacketMinStars,
+      maxStars: profile.redPacketMaxStars,
     },
     travelEnabled: profile.travelEnabled,
     travelOptions: (["NEARBY", "CHINA", "WORLD"] as const).map((tier) => ({
@@ -615,6 +680,7 @@ export async function careForPet(input: {
     const after = Math.min(MAX_STATUS, before + restore);
     const experience = profile.experience + experienceAdded;
     const level = petLevelFromExperience(experience);
+    await grantLevelUpRedPackets(tx, profile, level);
     const updatedProfile = await tx.petGrowthProfile.update({
       where: { id: profile.id },
       data: {
@@ -777,6 +843,7 @@ export async function revealPetTrip(childId: string, tripId: string, appConfig: 
     const experienceAdded = trip.experienceRewardSnapshot;
     const experience = profile.experience + experienceAdded;
     const level = petLevelFromExperience(experience);
+    await grantLevelUpRedPackets(tx, profile, level);
     await tx.petGrowthProfile.update({
       where: { id: profile.id },
       data: { experience, level, growthStage: petGrowthStageForLevel(level) },
@@ -791,6 +858,62 @@ export async function revealPetTrip(childId: string, tripId: string, appConfig: 
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   return getPetGrowthState(childId, appConfig);
+}
+
+export async function openPetRedPacket(input: {
+  childId: string;
+  idempotencyKey: string;
+  appConfig: AppConfig;
+}) {
+  let reward: { packetId: string; stars: number; sourceLevel: number } | null = null;
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "ChildProfile" WHERE "id" = ${input.childId} FOR UPDATE`;
+    const existing = await tx.petRedPacket.findUnique({
+      where: { claimKey: input.idempotencyKey },
+    });
+    if (existing) {
+      if (existing.childId !== input.childId || existing.rewardStars === null || existing.openedAt === null) {
+        throw new HttpError(409, "IDEMPOTENCY_KEY_REUSED", "这次开红包操作无法重复使用");
+      }
+      reward = { packetId: existing.id, stars: existing.rewardStars, sourceLevel: existing.sourceLevel };
+      return;
+    }
+    const packet = await tx.petRedPacket.findFirst({
+      where: { childId: input.childId, openedAt: null },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    if (!packet) throw new HttpError(409, "PET_RED_PACKET_EMPTY", "现在还没有可以打开的星宠红包");
+    const minStars = Math.max(1, Math.min(packet.minStarsSnapshot, packet.maxStarsSnapshot));
+    const maxStars = Math.max(minStars, Math.max(packet.minStarsSnapshot, packet.maxStarsSnapshot));
+    const stars = randomInt(minStars, maxStars + 1);
+    const updatedChild = await tx.childProfile.update({
+      where: { id: input.childId },
+      data: {
+        starBalance: { increment: stars },
+        lifetimeStarsEarned: { increment: stars },
+      },
+      select: { starBalance: true },
+    });
+    await tx.petRedPacket.update({
+      where: { id: packet.id },
+      data: { rewardStars: stars, claimKey: input.idempotencyKey, openedAt: new Date() },
+    });
+    await tx.starLedger.create({
+      data: {
+        childId: input.childId,
+        type: "PET_RED_PACKET_REWARD",
+        amount: stars,
+        balanceAfter: updatedChild.starBalance,
+        reason: `星宠升级红包（Lv.${packet.sourceLevel}）`,
+        referenceId: packet.id,
+        idempotencyKey: `pet-red-packet:${packet.id}:reward`,
+      },
+    });
+    reward = { packetId: packet.id, stars, sourceLevel: packet.sourceLevel };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  if (!reward) throw new HttpError(500, "PET_RED_PACKET_OPEN_FAILED", "红包暂时没有打开，请再试一次");
+  const state = await getPetGrowthState(input.childId, input.appConfig);
+  return { state, reward };
 }
 
 export async function listPetDestinations() {

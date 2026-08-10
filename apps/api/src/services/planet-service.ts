@@ -49,6 +49,7 @@ async function reconcileLifetimeStarsEarned(
               "TASK_REWARD_REVERSAL",
               "DAILY_GOAL_BONUS",
               "PLANET_BONUS",
+              "PET_RED_PACKET_REWARD",
             ],
           },
         },

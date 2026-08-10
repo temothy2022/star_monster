@@ -327,7 +327,7 @@ export function ParentMathPractice({ child }: { child: Child }) {
     setLoading(true);
     setError("");
     void parentApi.mathPracticeSettings(child.id)
-      .then((result) => setSettings({ ...result.settings, typeCounts: normalizeLegacyMathTypeCounts(result.settings.typeCounts) }))
+      .then((result) => setSettings({ ...DEFAULT_MATH_PRACTICE_SETTINGS, ...result.settings, typeCounts: normalizeLegacyMathTypeCounts(result.settings.typeCounts), arithmeticItemsPerQuestion: { ...DEFAULT_MATH_PRACTICE_SETTINGS.arithmeticItemsPerQuestion, ...(result.settings.arithmeticItemsPerQuestion ?? {}) } }))
       .catch((reason) => setError(reason instanceof Error ? reason.message : "数学练习设置加载失败"))
       .finally(() => setLoading(false));
   }, [child.id]);
@@ -341,7 +341,7 @@ export function ParentMathPractice({ child }: { child: Child }) {
       const count = Math.max(0, Math.min(100 - otherQuestions, Number.isFinite(nextCount) ? Math.round(nextCount) : 0));
       if (count > 0) typeCounts[typeId] = count;
       else delete typeCounts[typeId];
-      return { totalQuestions: countAllocatedQuestions(typeCounts), typeCounts };
+      return { ...current, totalQuestions: countAllocatedQuestions(typeCounts), typeCounts };
     });
   }
 
@@ -349,8 +349,20 @@ export function ParentMathPractice({ child }: { child: Child }) {
     const totalQuestions = clampMathTotal(nextTotalQuestions);
     setSavedMessage("");
     setSettings((current) => ({
+      ...current,
       totalQuestions,
       typeCounts: rebalanceTypeCounts(current.typeCounts, totalQuestions),
+    }));
+  }
+
+  function setArithmeticItemsPerQuestion(typeId: string, nextValue: number) {
+    setSavedMessage("");
+    setSettings((current) => ({
+      ...current,
+      arithmeticItemsPerQuestion: {
+        ...current.arithmeticItemsPerQuestion,
+        [typeId]: Math.max(1, Math.min(20, Number.isFinite(nextValue) ? Math.round(nextValue) : 5)),
+      },
     }));
   }
 
@@ -364,7 +376,7 @@ export function ParentMathPractice({ child }: { child: Child }) {
     setSettings((current) => {
       const typeCounts = { ...current.typeCounts };
       typeIds.forEach((typeId) => delete typeCounts[typeId]);
-      return { totalQuestions: countAllocatedQuestions(typeCounts), typeCounts };
+      return { ...current, totalQuestions: countAllocatedQuestions(typeCounts), typeCounts };
     });
   }
 
@@ -448,12 +460,14 @@ export function ParentMathPractice({ child }: { child: Child }) {
                   <header><strong>{family.name}</strong><small>{family.description}</small><span>{family.types.reduce((sum, type) => sum + (settings.typeCounts[type.id] ?? 0), 0)} 道</span></header>
                   {family.types.map((type) => {
                     const count = settings.typeCounts[type.id] ?? 0;
+                    const arithmeticItems = type.domain === "C" ? (settings.arithmeticItemsPerQuestion[type.id] ?? 5) : null;
                     return <div className={`math-config__type${count > 0 ? " is-enabled" : ""}`} key={type.id}>
                       <span><b>{type.id}</b><span>{type.name}</span><small>{type.description} · 难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
                       <div>
                         <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}>−</button>
                         <input aria-label={`${type.name}数量`} type="number" min={0} max={100 - allocatedQuestions + count} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
                         <button type="button" aria-label={`增加${type.name}`} disabled={allocatedQuestions >= 100} onClick={() => setTypeCount(type.id, count + 1)}>＋</button>
+                        {arithmeticItems !== null ? <label className="math-config__items-per-question"><span>每题小题</span><input aria-label={`${type.name}每题小题数`} type="number" min={1} max={20} value={arithmeticItems} onChange={(event) => setArithmeticItemsPerQuestion(type.id, Number(event.target.value))} /></label> : null}
                       </div>
                     </div>;
                   })}

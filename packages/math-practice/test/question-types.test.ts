@@ -13,7 +13,7 @@ import {
 
 describe("math practice question type registry", () => {
   it("registers compatible teaching types across the expected six legacy domains", () => {
-    expect(MATH_QUESTION_TYPES).toHaveLength(48);
+    expect(MATH_QUESTION_TYPES).toHaveLength(56);
     expect(MATH_QUESTION_DOMAINS.map((domain) => domain.id)).toEqual([
       "N",
       "P",
@@ -30,7 +30,7 @@ describe("math practice question type registry", () => {
           getMathQuestionTypesByDomain(domain.id).length,
         ]),
       ),
-    ).toEqual({ N: 16, P: 5, C: 6, V: 7, W: 9, S: 5 });
+    ).toEqual({ N: 16, P: 5, C: 14, V: 7, W: 9, S: 5 });
   });
 
   it("maps the teaching types onto every registered core generator", () => {
@@ -38,8 +38,8 @@ describe("math practice question type registry", () => {
       [...MATH_QUESTION_TYPES, ...MATH_LEGACY_QUESTION_TYPES].map((definition) => definition.coreGeneratorId),
     );
 
-    expect(MATH_CORE_GENERATOR_IDS).toHaveLength(43);
-    expect(usedCoreGenerators.size).toBe(43);
+    expect(MATH_CORE_GENERATOR_IDS).toHaveLength(44);
+    expect(usedCoreGenerators.size).toBe(44);
     expect([...usedCoreGenerators].sort()).toEqual(
       [...MATH_CORE_GENERATOR_IDS].sort(),
     );
@@ -56,7 +56,7 @@ describe("math practice question type registry", () => {
     for (const definition of MATH_QUESTION_TYPES) {
       expect(MATH_QUESTION_TYPES_BY_ID[definition.id]).toBe(definition);
     }
-    expect(Object.keys(MATH_QUESTION_TYPES_BY_ID)).toHaveLength(50);
+    expect(Object.keys(MATH_QUESTION_TYPES_BY_ID)).toHaveLength(58);
   });
 
   it("exposes every teaching type exactly once in the eight curriculum categories", () => {
@@ -104,6 +104,7 @@ describe("math practice question type registry", () => {
     );
 
     expect(shared).toEqual({
+      BOUNDED_ARITHMETIC: ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"],
       COMPARE_QUANTITIES: ["N10", "W06"],
       PART_WHOLE_TOTAL: ["V01", "W01", "W02", "W07"],
       PART_WHOLE_MISSING: ["V02", "W04", "W05"],

@@ -5,6 +5,7 @@ import { requireChild } from "../services/auth-service.js";
 import {
   careForPet,
   getPetGrowthState,
+  openPetRedPacket,
   purchasePetRoomTheme,
   revealPetTrip,
   selectPetRoomTheme,
@@ -36,6 +37,12 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
     const { child } = await requireChild(request, reply, config);
     const { idempotencyKey } = actionSchema.parse(request.body);
     return careForPet({ childId: child.id, kind: "DRINK", idempotencyKey, appConfig: config });
+  });
+
+  app.post("/api/child/pet/red-packets/open", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { idempotencyKey } = actionSchema.parse(request.body);
+    return openPetRedPacket({ childId: child.id, idempotencyKey, appConfig: config });
   });
 
   app.post("/api/child/pet/trips", async (request, reply) => {

@@ -15,6 +15,7 @@ export const DEFAULT_MATH_PRACTICE_SETTINGS: MathPracticeSettings = {
     W03: 1,
     S04: 1,
   },
+  arithmeticItemsPerQuestion: Object.fromEntries(["C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].map((typeId) => [typeId, 5])),
 };
 
 const MATH_TYPE_IDS = MATH_QUESTION_CATEGORIES.flatMap((domain) =>

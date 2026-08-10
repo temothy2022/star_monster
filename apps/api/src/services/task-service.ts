@@ -25,6 +25,7 @@ type TaskTemplateWithMathConfig = TaskTemplate & {
   mathPracticeConfig: {
     totalQuestions: number;
     typeCounts: Prisma.JsonValue;
+    arithmeticItemsPerQuestion: Prisma.JsonValue;
   } | null;
 };
 type CompleteTaskTiming = { stage: string; ms: number };
@@ -312,6 +313,7 @@ export async function generateDailyTasks(
         ? {
             totalQuestions: template.mathPracticeConfig.totalQuestions,
             typeCounts: template.mathPracticeConfig.typeCounts,
+            arithmeticItemsPerQuestion: template.mathPracticeConfig.arithmeticItemsPerQuestion,
           }
         : Prisma.JsonNull,
     })),

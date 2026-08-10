@@ -157,6 +157,7 @@ const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
   PET_CARE_SPEND: "星宠照顾",
   PET_TRAVEL_SPEND: "星宠旅行",
   PET_ROOM_THEME_SPEND: "小屋背景",
+  PET_RED_PACKET_REWARD: "星宠红包",
   PET_REFUND: "星宠退款",
   MANUAL_ADJUSTMENT: "手动调整"
 };

@@ -241,7 +241,7 @@ export async function getGrowthAnalyticsForRange(
     const daily = dailyByDate.get(dateKey);
     if (!daily) continue;
     if (ledger.type === "TASK_REWARD") daily.taskStarsEarned += Math.max(0, ledger.amount);
-    if (ledger.type === "DAILY_GOAL_BONUS" || ledger.type === "PLANET_BONUS") {
+    if (ledger.type === "DAILY_GOAL_BONUS" || ledger.type === "PLANET_BONUS" || ledger.type === "PET_RED_PACKET_REWARD") {
       daily.bonusStarsEarned += Math.max(0, ledger.amount);
     }
     if (ledger.type === "TASK_REWARD_REVERSAL") {

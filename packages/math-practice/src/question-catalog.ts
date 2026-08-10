@@ -61,6 +61,7 @@ export const MATH_QUESTION_CATEGORIES = [
       { id: "OPERATOR", name: "巧填符号", description: "填写加号或减号使等式成立", typeIds: ["C04"] },
       { id: "NUMBER_BOND", name: "数的分与合", description: "整体和两个部分之间的关系", typeIds: ["C05"] },
       { id: "MISSING_EQUATION", name: "算式缺数", description: "根据等式结构填写未知数", typeIds: ["C06"] },
+      { id: "RANGE_ARITHMETIC", name: "分段加减", description: "按数的范围练习不进位、不退位、进位和退位", typeIds: ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"] },
     ],
   },
   {

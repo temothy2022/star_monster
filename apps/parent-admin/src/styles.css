@@ -1694,6 +1694,13 @@ td { font-size: 13px; }
 .parent-pet-settings-form label:not(.checkbox) { display: grid; gap: 6px; color: #52647d; font-size: 13px; font-weight: 700; }
 .parent-pet-settings-form select,
 .parent-pet-settings-form input[type="number"] { min-width: 160px; }
+.parent-pet-red-packet-settings { flex: 1 0 100%; display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, .7fr)); align-items: end; gap: 14px; padding: 15px 0; border-block: 1px solid #e8e0d3; background: #fffdf7; }
+.parent-pet-red-packet-settings > div { display: grid; align-self: center; gap: 4px; }
+.parent-pet-red-packet-settings > div strong { color: #8d3e29; font-size: 15px; }
+.parent-pet-red-packet-settings > div small { color: #7f756c; line-height: 1.45; }
+.parent-pet-red-packet-settings label { position: relative; min-width: 0; }
+.parent-pet-red-packet-settings label input[type="number"] { width: 100%; min-width: 0; padding-right: 38px; }
+.parent-pet-red-packet-settings label span { position: absolute; right: 12px; bottom: 12px; color: #d36b32; font-size: 12px; font-weight: 900; pointer-events: none; }
 .pet-room-theme-upload { display: grid; grid-template-columns: minmax(250px, .75fr) minmax(420px, 1.5fr); gap: 18px; margin-bottom: 20px; padding: 18px; border: 1px solid #dce5ef; border-radius: 10px; background: #f8fbfe; }
 .pet-room-theme-upload__requirements { display: grid; align-content: start; gap: 7px; padding: 16px; border: 1px solid #f0d8a6; border-radius: 8px; background: #fff9eb; }
 .pet-room-theme-upload__requirements strong { color: #8a5b20; font-size: 13px; }
@@ -1732,6 +1739,8 @@ td { font-size: 13px; }
   .pet-config-form fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pet-destination-grid { grid-template-columns: 1fr; }
   .parent-pet-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parent-pet-red-packet-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .parent-pet-red-packet-settings > div { grid-column: 1 / -1; }
   .pet-room-theme-upload { grid-template-columns: 1fr; }
   .pet-room-theme-admin-grid { grid-template-columns: 1fr; }
 }
@@ -1750,6 +1759,8 @@ td { font-size: 13px; }
   .parent-pet-settings-form { display: grid; align-items: stretch; }
   .parent-pet-settings-form select,
   .parent-pet-settings-form input[type="number"] { width: 100%; }
+  .parent-pet-red-packet-settings { grid-template-columns: 1fr; }
+  .parent-pet-red-packet-settings > div { grid-column: auto; }
   .parent-pet-overview__settings { display: grid; align-items: stretch; }
   .parent-pet-overview__settings input[type="number"] { width: 100%; }
 }

@@ -151,6 +151,7 @@ enum StarLedgerType {
   PET_CARE_SPEND
   PET_TRAVEL_SPEND
   PET_ROOM_THEME_SPEND
+  PET_RED_PACKET_REWARD
   PET_REFUND
   MANUAL_ADJUSTMENT
 }
@@ -232,14 +233,14 @@ model Family {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  users               User[]
-  children            ChildProfile[]
-  aiConfig            FamilyAiConfig?
-  minimaxConfig       FamilyMinimaxConfig?
-  aiRecommendations   AiRecommendation[]
-  weeklyGrowthReports WeeklyGrowthReport[]
+  users                User[]
+  children             ChildProfile[]
+  aiConfig             FamilyAiConfig?
+  minimaxConfig        FamilyMinimaxConfig?
+  aiRecommendations    AiRecommendation[]
+  weeklyGrowthReports  WeeklyGrowthReport[]
   petRoomThemeSettings FamilyPetRoomThemeSetting[]
-  petRoomThemes         PetRoomTheme[]
+  petRoomThemes        PetRoomTheme[]
 
   @@index([status])
 }
@@ -297,7 +298,7 @@ model ChildProfile {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
-  family                  Family                    @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  family                  Family                        @relation(fields: [familyId], references: [id], onDelete: Restrict)
   sessions                ChildSession[]
   taskTemplates           TaskTemplate[]
   dailyTasks              DailyTask[]
@@ -332,6 +333,7 @@ model ChildProfile {
   petCareActions          PetCareAction[]
   petTrips                PetTrip[]
   petRoomThemeUnlocks     PetRoomThemeUnlock[]
+  petRedPackets           PetRedPacket[]
 
   @@index([familyId, status])
 }
@@ -348,6 +350,9 @@ model PetGrowthProfile {
   hydrationSettledAt   DateTime       @default(now())
   travelEnabled        Boolean        @default(true)
   dailySpendLimitStars Int?
+  redPacketsPerLevel   Int            @default(1)
+  redPacketMinStars    Int            @default(1)
+  redPacketMaxStars    Int            @default(5)
   equippedRoomThemeId  String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -356,30 +361,52 @@ model PetGrowthProfile {
   equippedRoomTheme PetRoomTheme?   @relation(fields: [equippedRoomThemeId], references: [id], onDelete: SetNull)
   careActions       PetCareAction[]
   trips             PetTrip[]
+  redPackets        PetRedPacket[]
+}
+
+model PetRedPacket {
+  id               String    @id @default(cuid())
+  childId          String
+  profileId        String
+  sourceLevel      Int
+  minStarsSnapshot Int
+  maxStarsSnapshot Int
+  rewardStars      Int?
+  grantKey         String    @unique
+  claimKey         String?   @unique
+  openedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  child   ChildProfile     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  profile PetGrowthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([childId, openedAt, createdAt])
+  @@index([profileId, sourceLevel])
 }
 
 model PetRoomTheme {
-  id                      String   @id
-  key                     String   @unique
-  ownerFamilyId           String?
-  name                    String
-  description             String
-  priceStars              Int
-  backgroundLandscapeUrl  String
-  backgroundTabletUrl     String
-  backgroundPhoneUrl      String
-  previewUrl              String
-  ambience                Json
-  mascotMotion            PetRoomMascotMotion @default(IDLE)
-  sortOrder               Int      @default(0)
-  isEnabled               Boolean  @default(true)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  id                     String              @id
+  key                    String              @unique
+  ownerFamilyId          String?
+  name                   String
+  description            String
+  priceStars             Int
+  backgroundLandscapeUrl String
+  backgroundTabletUrl    String
+  backgroundPhoneUrl     String
+  previewUrl             String
+  ambience               Json
+  mascotMotion           PetRoomMascotMotion @default(IDLE)
+  sortOrder              Int                 @default(0)
+  isEnabled              Boolean             @default(true)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
-  ownerFamily     Family?                     @relation(fields: [ownerFamilyId], references: [id], onDelete: Cascade)
+  ownerFamily      Family?                       @relation(fields: [ownerFamilyId], references: [id], onDelete: Cascade)
   equippedProfiles PetGrowthProfile[]
-  unlocks         PetRoomThemeUnlock[]
-  familySettings  FamilyPetRoomThemeSetting[]
+  unlocks          PetRoomThemeUnlock[]
+  familySettings   FamilyPetRoomThemeSetting[]
   mascotAnimations PetRoomThemeMascotAnimation[]
 
   @@index([isEnabled, sortOrder])
@@ -408,15 +435,15 @@ model PetRoomThemeMascotAnimation {
 }
 
 model FamilyPetRoomThemeSetting {
-  id         String       @id @default(cuid())
+  id         String   @id @default(cuid())
   familyId   String
   themeId    String
   priceStars Int
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  theme  PetRoomTheme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  theme  PetRoomTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, themeId])
   @@index([familyId])
@@ -479,29 +506,29 @@ model PetTravelDestination {
 }
 
 model PetTrip {
-  id                      String        @id @default(cuid())
-  childId                 String
-  profileId               String
-  destinationId           String
-  status                  PetTripStatus @default(TRAVELING)
-  tierSnapshot            PetTravelTier
-  destinationNameSnapshot String
-  citySnapshot            String
-  countrySnapshot         String
-  introductionSnapshot    String
-  funFactSnapshot         String
-  imageUrlSnapshot        String
-  audioUrlSnapshot        String?
-  costStars               Int
+  id                       String        @id @default(cuid())
+  childId                  String
+  profileId                String
+  destinationId            String
+  status                   PetTripStatus @default(TRAVELING)
+  tierSnapshot             PetTravelTier
+  destinationNameSnapshot  String
+  citySnapshot             String
+  countrySnapshot          String
+  introductionSnapshot     String
+  funFactSnapshot          String
+  imageUrlSnapshot         String
+  audioUrlSnapshot         String?
+  costStars                Int
   experienceRewardSnapshot Int
-  experienceAwarded       Int           @default(0)
-  departedAt              DateTime      @default(now())
-  returnsAt               DateTime
-  returnedAt              DateTime?
-  revealedAt              DateTime?
-  idempotencyKey          String        @unique
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  experienceAwarded        Int           @default(0)
+  departedAt               DateTime      @default(now())
+  returnsAt                DateTime
+  returnedAt               DateTime?
+  revealedAt               DateTime?
+  idempotencyKey           String        @unique
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
 
   child       ChildProfile         @relation(fields: [childId], references: [id], onDelete: Cascade)
   profile     PetGrowthProfile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -579,8 +606,8 @@ model TaskTemplate {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  child      ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
-  dailyTasks DailyTask[]
+  child              ChildProfile        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dailyTasks         DailyTask[]
   mathPracticeConfig MathPracticeConfig?
 
   @@index([childId, isEnabled, archivedAt])
@@ -974,25 +1001,27 @@ model MakeTenFactProgress {
 }
 
 model MathPracticeConfig {
-  id              String   @id @default(cuid())
-  taskTemplateId  String   @unique
-  totalQuestions  Int      @default(10)
-  typeCounts      Json
-  schemaVersion   Int      @default(1)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  taskTemplateId             String   @unique
+  totalQuestions             Int      @default(10)
+  typeCounts                 Json
+  arithmeticItemsPerQuestion Json     @default("{}")
+  schemaVersion              Int      @default(1)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   taskTemplate TaskTemplate @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
 }
 
 model MathPracticeSettings {
-  id              String   @id @default(cuid())
-  childId         String   @unique
-  totalQuestions  Int      @default(10)
-  typeCounts      Json
-  schemaVersion   Int      @default(1)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                         String   @id @default(cuid())
+  childId                    String   @unique
+  totalQuestions             Int      @default(10)
+  typeCounts                 Json
+  arithmeticItemsPerQuestion Json     @default("{}")
+  schemaVersion              Int      @default(1)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 
   child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
 }
@@ -1127,15 +1156,15 @@ model TaskAttempt {
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  child          ChildProfile            @relation(fields: [childId], references: [id], onDelete: Cascade)
-  dailyTask      DailyTask               @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
-  reward         StarLedger?
-  activeSlot     ActiveTaskSlot?
-  hanziSession   HanziLearningSession?
-  clockSession   ClockLearningSession?
-  makeTenSession MakeTenLearningSession?
+  child               ChildProfile            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dailyTask           DailyTask               @relation(fields: [dailyTaskId], references: [id], onDelete: Cascade)
+  reward              StarLedger?
+  activeSlot          ActiveTaskSlot?
+  hanziSession        HanziLearningSession?
+  clockSession        ClockLearningSession?
+  makeTenSession      MakeTenLearningSession?
   mathPracticeSession MathPracticeSession?
-  poemSession    PoemLearningSession?
+  poemSession         PoemLearningSession?
 
   @@unique([dailyTaskId, attemptNumber])
   @@index([childId, status])

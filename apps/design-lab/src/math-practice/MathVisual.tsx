@@ -168,6 +168,37 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
   );
 }
 
+function ArithmeticList({ question, values, activeSlot = 0, disabled, onSlotSelect }: MathVisualProps) {
+  if (question.visual.kind !== "ARITHMETIC_LIST") return null;
+  return (
+    <div className="math-arithmetic-list" aria-label="多道算式">
+      {question.visual.items.map((item, itemIndex) => (
+        <div className="math-arithmetic-row" key={itemIndex}>
+          <span className="math-arithmetic-row__number">{itemIndex + 1}.</span>
+          <div className="math-arithmetic-row__equation">
+            {item.tokens.map((token, tokenIndex) => {
+              if (typeof token === "object") {
+                const active = activeSlot === itemIndex;
+                return (
+                  <button
+                    className={`math-arithmetic-blank${active ? " is-active" : ""}`}
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`第 ${itemIndex + 1} 题答案`}
+                    onClick={() => onSlotSelect?.(itemIndex)}
+                    key={`${itemIndex}-${tokenIndex}`}
+                  >{values?.[itemIndex] || token.placeholder || "?"}</button>
+                );
+              }
+              return <span key={`${itemIndex}-${tokenIndex}`} className="math-arithmetic-token">{token}</span>;
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Abacus({ tens, ones }: { tens: number; ones: number }) {
   return (
     <div className="math-abacus" aria-label={`十位 ${tens} 颗珠子，个位 ${ones} 颗珠子`}>
@@ -713,6 +744,8 @@ function MathVisualComponent({
   switch (question.visual.kind) {
     case "NONE":
       return <div className="math-plain-helper">{question.helper}</div>;
+    case "ARITHMETIC_LIST":
+      return <ArithmeticList question={question} values={values} activeSlot={activeSlot} disabled={disabled} onSlotSelect={onSlotSelect} />;
     case "OBJECT_GROUPS":
       return <ObjectGroups question={question} />;
     case "ABACUS":

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildFootprintRewardDetails } from "../src/services/footprint-service.js";
 
 describe("footprint reward details", () => {
-  it("shows daily-goal and planet bonuses on the day they were earned", () => {
+  it("shows daily-goal, planet, and pet red packet bonuses on the day they were earned", () => {
     const rewards = buildFootprintRewardDetails(
       [
         {
@@ -18,6 +18,13 @@ describe("footprint reward details", () => {
           amount: 8,
           referenceId: "planet-progress-1",
           createdAt: new Date("2026-08-10T03:00:00.000Z"),
+        },
+        {
+          id: "packet-ledger",
+          type: "PET_RED_PACKET_REWARD",
+          amount: 5,
+          referenceId: "packet-1",
+          createdAt: new Date("2026-08-10T04:00:00.000Z"),
         },
       ],
       [{ id: "planet-progress-1", planet: "VENUS" }],
@@ -37,6 +44,12 @@ describe("footprint reward details", () => {
         title: "点亮金星",
         totalStars: 8,
         planet: "VENUS",
+      }),
+      expect.objectContaining({
+        rewardId: "packet-ledger",
+        title: "打开星宠升级红包",
+        totalStars: 5,
+        planet: null,
       }),
     ]);
   });

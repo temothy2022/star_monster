@@ -5,6 +5,7 @@ import {
   petGrowthStageForLevel,
   petLevelFromExperience,
   parsePetRoomAmbience,
+  petRedPacketGrantPlan,
   settledPetStatus,
 } from "../src/services/pet-growth-service.js";
 
@@ -26,6 +27,44 @@ describe("pet growth rules", () => {
     expect(petExperienceForNextLevel(1)).toBe(24);
     expect(petExperienceForNextLevel(5)).toBe(600);
     expect(petExperienceForNextLevel(30)).toBeNull();
+  });
+
+  it("grants every packet for every crossed pet level with stable keys", () => {
+    expect(petRedPacketGrantPlan({
+      profileId: "profile-1",
+      childId: "child-1",
+      currentLevel: 2,
+      nextLevel: 4,
+      packetsPerLevel: 2,
+      minStars: 2,
+      maxStars: 6,
+    })).toEqual([
+      expect.objectContaining({ sourceLevel: 3, grantKey: "pet-level:profile-1:3:packet:1", minStarsSnapshot: 2, maxStarsSnapshot: 6 }),
+      expect.objectContaining({ sourceLevel: 3, grantKey: "pet-level:profile-1:3:packet:2", minStarsSnapshot: 2, maxStarsSnapshot: 6 }),
+      expect.objectContaining({ sourceLevel: 4, grantKey: "pet-level:profile-1:4:packet:1", minStarsSnapshot: 2, maxStarsSnapshot: 6 }),
+      expect.objectContaining({ sourceLevel: 4, grantKey: "pet-level:profile-1:4:packet:2", minStarsSnapshot: 2, maxStarsSnapshot: 6 }),
+    ]);
+  });
+
+  it("normalizes red packet settings and allows parents to disable future grants", () => {
+    expect(petRedPacketGrantPlan({
+      profileId: "profile-1",
+      childId: "child-1",
+      currentLevel: 1,
+      nextLevel: 2,
+      packetsPerLevel: 0,
+      minStars: 8,
+      maxStars: 3,
+    })).toEqual([]);
+    expect(petRedPacketGrantPlan({
+      profileId: "profile-1",
+      childId: "child-1",
+      currentLevel: 1,
+      nextLevel: 2,
+      packetsPerLevel: 1,
+      minStars: 8,
+      maxStars: 3,
+    })[0]).toEqual(expect.objectContaining({ minStarsSnapshot: 3, maxStarsSnapshot: 8 }));
   });
 
   it("keeps decay remainders independently for different care intervals", () => {

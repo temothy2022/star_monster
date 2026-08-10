@@ -128,7 +128,7 @@ export function MathPracticeExperience({
   const logicGridRowCount = question?.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
   const isLogicGrid = question?.typeId === "S03" && logicGridRowCount > 0;
   const isInlineSort = question?.typeId === "N09";
-  const isInlineVisualSlots = question != null && ["N07", "P03", "P04"].includes(question.typeId);
+  const isInlineVisualSlots = question != null && ["N07", "P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
   const isDirectVisualAnswer = isLogicGrid || question?.typeId === "N15" || question?.typeId === "N16";
   const directVisualComplete = isLogicGrid
