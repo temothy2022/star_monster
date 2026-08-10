@@ -70,6 +70,19 @@ describe("math practice question generator", () => {
     expect(assets.size).toBeGreaterThanOrEqual(6);
   });
 
+  it("keeps N02 wording stable when containers wrap across rows", () => {
+    for (let seed = 1; seed <= 80; seed += 1) {
+      const question = generateMathQuestion({ typeId: "N02", seed });
+      expect(question.prompt).toMatch(/^第 \d+ 组里有几个？$/);
+      expect(question.prompt).not.toMatch(/左|右/);
+      expect(question.explanation).not.toMatch(/左|右/);
+      expect(question.visual.kind).toBe("OBJECT_GROUPS");
+      if (question.visual.kind !== "OBJECT_GROUPS") continue;
+      expect(question.visual.containers).toBe(true);
+      expect(question.visual.groups.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("uses program coordinates as the source of truth for cube counting", () => {
     const structures = new Set<string>();
     for (let seed = 1; seed <= 20; seed += 1) {

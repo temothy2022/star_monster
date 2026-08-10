@@ -534,6 +534,13 @@
 .math-paper-question .math-object-group-label { left: 2mm; font-size: 7pt; }
 .math-paper-question .math-object-group--unknown > span { font-size: 22pt; }
 .math-paper-question .math-container-label { display: none; }
+/* N02 uses a stable group number instead of viewport-dependent left/right
+   wording, so keep those indices visible on the printed page too. */
+.math-paper-question[data-question-type="N02"] .math-container-label {
+  display: block;
+  bottom: 1mm;
+  font-size: 7pt;
+}
 .math-paper-question .math-total-bracket { margin-top: 1mm; font-size: 7pt; }
 .math-paper-question .math-total-bracket strong { padding-top: 1mm; font-size: 11pt; }
 

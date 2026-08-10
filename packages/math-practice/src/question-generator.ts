@@ -233,10 +233,13 @@ export function generateMathQuestion(
     case "N02": {
       const groupCount = difficulty === 1 ? 3 : difficulty === 2 ? 4 : 5;
       const groups = Array.from({ length: groupCount }, () => rng.int(2, difficulty === 1 ? 5 : difficulty === 2 ? 7 : 9));
-      const fromRight = difficulty === 3 || (difficulty === 2 && rng.next() > 0.55);
       const position = difficulty === 1 ? 2 : rng.int(2, groupCount - 1);
-      const targetIndex = fromRight ? groupCount - position : position - 1;
-      return question(input, { prompt: `从${fromRight ? "右" : "左"}边数，第 ${position} 个小盘子里有几个？`, visual: { kind: "OBJECT_GROUPS", asset, groups, containers: true }, response: numericResponse(), answer: { values: [String(groups[targetIndex])], display: String(groups[targetIndex]) }, explanation: `从${fromRight ? "右" : "左"}边数，第 ${position} 个盘子里有 ${groups[targetIndex]} 个。` });
+      const targetIndex = position - 1;
+      // N02 containers can wrap from a row into several rows on an iPad, phone,
+      // or printed page. An absolute left/right prompt would then change meaning
+      // with the viewport. The renderer labels every container by its stable
+      // reading-order index, so the prompt intentionally refers to that index.
+      return question(input, { prompt: `第 ${position} 组里有几个？`, visual: { kind: "OBJECT_GROUPS", asset, groups, containers: true }, response: numericResponse(), answer: { values: [String(groups[targetIndex])], display: String(groups[targetIndex]) }, explanation: `第 ${position} 组里有 ${groups[targetIndex]} 个。` });
     }
     case "N03": {
       const bundle = difficulty === 1 ? 5 : 10;

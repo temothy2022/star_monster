@@ -29,7 +29,7 @@ export const MATH_QUESTION_TYPES = [
     name: "分组或容器内计数",
     domain: "N",
     coreGeneratorId: "COUNT_GROUPED_CONTAINERS",
-    description: "数出盘子、袋子、方框或车厢内的物体数量。",
+    description: "按第几组或第几个容器，数出里面的物体数量。",
     responseModes: ["R01", "R02"],
     sceneStrategy: "PROGRAMMATIC_AND_SPRITES",
     numberRange: "WITHIN_20",

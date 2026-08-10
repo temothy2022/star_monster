@@ -32,8 +32,8 @@ export const MATH_TEACHING_GUIDES_BY_TYPE: Record<MathQuestionTypeId, MathTeachi
   },
   N02: {
     focus: "先定位指定容器，再在容器内准确计数。",
-    commonMistake: "从错误方向找容器，或把相邻容器里的物品也数进去。",
-    hints: ["先只找题目说的那个盘子。", "找到后，只点盘子里面的物品，一个一个数。"],
+    commonMistake: "找错题目指定的组，或把相邻容器里的物品也数进去。",
+    hints: ["先找到标有对应编号的那一组。", "只数这一组里面的物品，一个一个数。"],
     visual: "COUNT",
   },
   N03: {
