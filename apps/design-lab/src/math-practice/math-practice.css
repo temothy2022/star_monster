@@ -283,6 +283,10 @@
 .math-question-layout--sort { grid-template-columns: minmax(0, 1fr); }
 .math-question-layout--logic .math-question-card,
 .math-question-layout--sort .math-question-card { min-height: 0; }
+.math-question-layout--text-only { align-items: start; }
+.math-question-layout--text-only .math-question-card { align-self: start; height: auto; grid-template-rows: auto; }
+.math-question-layout--text-only .math-answer-card { align-self: start; height: auto; min-height: 0; }
+.math-question-layout--text-only .math-question-card__prompt { padding-bottom: 22px; }
 
 .math-question-card,
 .math-answer-card {
@@ -1233,6 +1237,8 @@
   .math-question-layout { display: flex; flex-direction: column; }
   .math-question-card { min-height: 520px; grid-template-rows: auto minmax(245px, 1fr) auto; }
   .math-answer-card { min-height: 515px; }
+  .math-question-layout--text-only .math-question-card,
+  .math-question-layout--text-only .math-answer-card { min-height: 0; }
   .math-question-card__prompt { padding: 18px 18px 9px; }
   .math-question-card__prompt h1 { font-size: 22px; }
   .math-visual-board { margin: 0 14px; }

@@ -82,6 +82,9 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
     return { heightMm: 52, size: "number-strip", wide: false };
   }
   if (question.typeId === "N09") return { heightMm: 62, size: "sort", wide: false };
+  if (question.visual.kind === "NONE" && !question.helper && question.typeId !== "N09") {
+    return { heightMm: 60, size: "compact", wide: false };
+  }
   if (["S02", "S04", "C05", "P01", "P02", "P05", "P06", "P07"].includes(question.typeId)) {
     return { heightMm: 84, size: "tall-visual", wide: false };
   }
@@ -338,6 +341,7 @@ function AbacusBuildOnPaper({ question }: { question: MathQuestion }) {
 function PaperQuestion({ item }: { item: NumberedQuestion }) {
   const { number, question } = item;
   const layout = getPaperQuestionLayout(question);
+  const isTextOnlyQuestion = question.visual.kind === "NONE" && !question.helper && question.typeId !== "N09";
   const style = {
     "--math-paper-question-height": `${layout.heightMm}mm`,
     top: `calc(5mm + ${item.paperTopMm ?? 0}mm)`,
@@ -354,7 +358,7 @@ function PaperQuestion({ item }: { item: NumberedQuestion }) {
         <span>{number}</span>
       <h2>{paperPrompt(question)}</h2>
       </header>
-      {question.typeId === "N09" ? <SortOnPaper question={question} /> : question.typeId === "N16" ? <ConstructQuantityOnPaper question={question} /> : question.typeId === "P06" ? <AbacusBuildOnPaper question={question} /> : (
+      {question.typeId === "N09" ? <SortOnPaper question={question} /> : question.typeId === "N16" ? <ConstructQuantityOnPaper question={question} /> : question.typeId === "P06" ? <AbacusBuildOnPaper question={question} /> : isTextOnlyQuestion ? null : (
         <div className={`math-paper-visual math-paper-visual--${question.visual.kind.toLowerCase()}`}>
           <div className="math-visual-board">
             <MathVisual question={question} disabled />

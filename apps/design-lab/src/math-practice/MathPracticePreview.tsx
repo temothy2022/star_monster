@@ -42,6 +42,7 @@ export function MathPracticePreview() {
   const isInlineSort = question.typeId === "N09";
   const isInlineVisualSlots = ["P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
   const isNumberBoxAnswer = question.typeId === "N07";
+  const isTextOnlyQuestion = question.visual.kind === "NONE" && !question.helper && question.typeId !== "N09";
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
   const isDirectVisualAnswer = isLogicGrid || question.typeId === "N15" || question.typeId === "N16" || question.typeId === "S01";
   const directVisualComplete = isLogicGrid
@@ -178,7 +179,7 @@ export function MathPracticePreview() {
           <button type="button" onClick={() => move(1)} aria-label="下一种题型">›</button>
         </header>
 
-        <div className={`math-question-layout${isDirectVisualAnswer || isInlineVisualSlots ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
+        <div className={`math-question-layout${isDirectVisualAnswer || isInlineVisualSlots ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}${isTextOnlyQuestion ? " math-question-layout--text-only" : ""}`}>
           <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
             <div className="math-question-card__prompt">
               <h1>{question.prompt}</h1>
@@ -203,7 +204,7 @@ export function MathPracticePreview() {
                 </div>
               </details>
             </div>
-            <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : isInlineVisualSlots ? "inline-number-sequence" : question.visual.kind.toLowerCase()}`}>
+            {!isTextOnlyQuestion ? <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : isInlineVisualSlots ? "inline-number-sequence" : question.visual.kind.toLowerCase()}`}>
               {isInlineSort ? (
                 <div className="math-inline-sort-answer">
                   <MathAnswerEditor
@@ -248,7 +249,7 @@ export function MathPracticePreview() {
                   onChange={changeValues}
                 />
               )}
-            </div>
+            </div> : null}
             {isDirectVisualAnswer ? (
               <div className="math-logic-submit">
                 <button className="math-submit-answer" type="button" disabled={!directVisualComplete || feedback === "CORRECT" || feedback === "REVEAL"} onClick={submit}>提交答案</button>
