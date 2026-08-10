@@ -12,6 +12,7 @@ import type {
 } from "../api/child-api";
 
 const LONG_PRESS_MS = 520;
+const REORDER_ANIMATION_MS = 340;
 
 export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   key: TaskDashboardWidgetKey;
@@ -49,15 +50,12 @@ type DragSession = {
   visualTop: number;
   animationFrame: number | null;
   lastSwapAt: number;
+  width: number;
+  height: number;
   target: HTMLElement;
+  overlay: HTMLElement | null;
   activated: boolean;
   timer: number;
-};
-
-type DropPosition = {
-  key: TaskDashboardWidgetKey;
-  left: number;
-  top: number;
 };
 
 function reorder(
@@ -90,12 +88,13 @@ export function TaskDashboard({
   const [draftWidgets, setDraftWidgets] = useState<TaskDashboardWidgetKey[]>(layout.widgets);
   const [pressedWidget, setPressedWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [draggingWidget, setDraggingWidget] = useState<TaskDashboardWidgetKey | null>(null);
+  const [settlingWidget, setSettlingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragSession | null>(null);
+  const dropOverlayRef = useRef<HTMLElement | null>(null);
   const widgetsRef = useRef(draftWidgets);
   const previousRectsRef = useRef<Map<TaskDashboardWidgetKey, DOMRect> | null>(null);
-  const pendingDropRef = useRef<DropPosition | null>(null);
 
   useEffect(() => {
     widgetsRef.current = draftWidgets;
@@ -107,9 +106,12 @@ export function TaskDashboard({
 
   useEffect(() => () => {
     const drag = dragRef.current;
-    if (!drag) return;
-    window.clearTimeout(drag.timer);
-    if (drag.animationFrame !== null) window.cancelAnimationFrame(drag.animationFrame);
+    if (drag) {
+      window.clearTimeout(drag.timer);
+      if (drag.animationFrame !== null) window.cancelAnimationFrame(drag.animationFrame);
+      drag.overlay?.remove();
+    }
+    dropOverlayRef.current?.remove();
   }, []);
 
   useLayoutEffect(() => {
@@ -126,54 +128,29 @@ export function TaskDashboard({
         const deltaX = previous.left - current.left;
         const deltaY = previous.top - current.top;
         if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
-        element.animate(
+        const animation = element.animate(
           [
             { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
             { transform: "translate3d(0, 0, 0)" },
           ],
-          { duration: 320, easing: "cubic-bezier(.2,.78,.2,1)" },
+          {
+            duration: REORDER_ANIMATION_MS,
+            easing: "cubic-bezier(.2,.78,.2,1)",
+            fill: "both",
+          },
         );
+        void animation.finished.catch(() => undefined).finally(() => animation.cancel());
       }
     }
 
     const drag = dragRef.current;
     if (drag?.activated) paintDragPosition(drag);
 
-    const drop = pendingDropRef.current;
-    if (!drop || draggingWidget !== null || !gridRef.current) return;
-    pendingDropRef.current = null;
-    const element = gridRef.current.querySelector<HTMLElement>(`[data-task-widget="${drop.key}"]`);
-    if (!element) return;
-    for (const animation of element.getAnimations()) animation.cancel();
-    const current = element.getBoundingClientRect();
-    const deltaX = drop.left - current.left;
-    const deltaY = drop.top - current.top;
-    element.animate(
-      [
-        { transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(1.025)` },
-        { transform: "translate3d(0, 0, 0) scale(1)" },
-      ],
-      { duration: 240, easing: "cubic-bezier(.2,.82,.2,1)" },
-    );
   }, [draftWidgets, draggingWidget]);
 
-  function widgetBasePosition(element: HTMLElement) {
-    const grid = gridRef.current;
-    if (!grid) {
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, top: rect.top };
-    }
-    const gridRect = grid.getBoundingClientRect();
-    return {
-      left: gridRect.left + element.offsetLeft,
-      top: gridRect.top + element.offsetTop,
-    };
-  }
-
   function paintDragPosition(session: DragSession) {
-    const base = widgetBasePosition(session.target);
-    session.target.style.setProperty("--task-drag-x", `${session.visualLeft - base.left}px`);
-    session.target.style.setProperty("--task-drag-y", `${session.visualTop - base.top}px`);
+    session.overlay?.style.setProperty("--task-drag-x", `${session.visualLeft}px`);
+    session.overlay?.style.setProperty("--task-drag-y", `${session.visualTop}px`);
   }
 
   function scheduleDragPosition(session: DragSession) {
@@ -222,6 +199,17 @@ export function TaskDashboard({
       return;
     }
     if (!editing) enterEditing();
+    const overlay = session.target.cloneNode(true) as HTMLElement;
+    overlay.classList.remove("is-long-pressing", "is-dragging");
+    overlay.classList.add("task-dashboard-drag-overlay");
+    overlay.removeAttribute("data-task-widget");
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.querySelector(".task-dashboard-widget__edit-controls")?.remove();
+    for (const element of overlay.querySelectorAll<HTMLElement>("[id]")) element.removeAttribute("id");
+    overlay.style.width = `${session.width}px`;
+    overlay.style.height = `${session.height}px`;
+    document.body.append(overlay);
+    session.overlay = overlay;
     session.activated = true;
     paintDragPosition(session);
     setPressedWidget(null);
@@ -230,6 +218,7 @@ export function TaskDashboard({
 
   function beginDrag(key: TaskDashboardWidgetKey, event: ReactPointerEvent<HTMLElement>) {
     if (event.button !== 0) return;
+    if (settlingWidget !== null) return;
     const interactive = (event.target as HTMLElement).closest("button, a, input, select, textarea");
     if (interactive) return;
     const previous = dragRef.current;
@@ -237,21 +226,24 @@ export function TaskDashboard({
       window.clearTimeout(previous.timer);
       if (previous.animationFrame !== null) window.cancelAnimationFrame(previous.animationFrame);
     }
-    const base = widgetBasePosition(event.currentTarget);
+    const rect = event.currentTarget.getBoundingClientRect();
     const session: DragSession = {
       key,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      grabOffsetX: event.clientX - base.left,
-      grabOffsetY: event.clientY - base.top,
-      targetLeft: base.left,
-      targetTop: base.top,
-      visualLeft: base.left,
-      visualTop: base.top,
+      grabOffsetX: event.clientX - rect.left,
+      grabOffsetY: event.clientY - rect.top,
+      targetLeft: rect.left,
+      targetTop: rect.top,
+      visualLeft: rect.left,
+      visualTop: rect.top,
       animationFrame: null,
       lastSwapAt: 0,
+      width: rect.width,
+      height: rect.height,
       target: event.currentTarget,
+      overlay: null,
       activated: false,
       timer: 0,
     };
@@ -288,29 +280,29 @@ export function TaskDashboard({
       if (event.clientY < rect.top + 72) scroll.scrollBy({ top: -18, behavior: "auto" });
       if (event.clientY > rect.bottom - 72) scroll.scrollBy({ top: 18, behavior: "auto" });
     }
-    const previousPointerEvents = session.target.style.pointerEvents;
-    session.target.style.pointerEvents = "none";
-    const candidate = document.elementFromPoint(event.clientX, event.clientY)
+    const draggedCenterX = session.targetLeft + session.width / 2;
+    const draggedCenterY = session.targetTop + session.height / 2;
+    const candidate = document.elementFromPoint(draggedCenterX, draggedCenterY)
       ?.closest<HTMLElement>("[data-task-widget]");
-    session.target.style.pointerEvents = previousPointerEvents;
     const targetKey = candidate?.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
     if (!candidate || !targetKey || targetKey === session.key || !WIDGET_BY_KEY.has(targetKey)) return;
     const sourceIndex = widgetsRef.current.indexOf(session.key);
     const targetIndex = widgetsRef.current.indexOf(targetKey);
     if (sourceIndex < 0 || targetIndex < 0) return;
     const rect = candidate.getBoundingClientRect();
-    const sameRow = Math.abs(session.target.offsetTop - candidate.offsetTop)
-      < Math.min(session.target.offsetHeight, candidate.offsetHeight) * .5;
+    const overlapY = Math.min(session.targetTop + session.height, rect.bottom) -
+      Math.max(session.targetTop, rect.top);
+    const sameRow = overlapY > Math.min(session.height, rect.height) * .5;
     const movingForward = targetIndex > sourceIndex;
     if (sameRow) {
       const centerX = rect.left + rect.width / 2;
-      if (movingForward ? event.clientX < centerX : event.clientX > centerX) return;
+      if (movingForward ? draggedCenterX < centerX : draggedCenterX > centerX) return;
     } else {
       const centerY = rect.top + rect.height / 2;
-      if (movingForward ? event.clientY < centerY : event.clientY > centerY) return;
+      if (movingForward ? draggedCenterY < centerY : draggedCenterY > centerY) return;
     }
     const now = performance.now();
-    if (now - session.lastSwapAt < 260) return;
+    if (now - session.lastSwapAt < REORDER_ANIMATION_MS) return;
     const after = movingForward;
     const next = reorder(widgetsRef.current, session.key, targetKey, after);
     if (next !== widgetsRef.current) {
@@ -330,15 +322,28 @@ export function TaskDashboard({
     if (session.target.hasPointerCapture?.(session.pointerId)) {
       session.target.releasePointerCapture(session.pointerId);
     }
-    if (session.activated) {
-      const current = session.target.getBoundingClientRect();
-      pendingDropRef.current = { key: session.key, left: current.left, top: current.top };
-    }
-    session.target.style.removeProperty("--task-drag-x");
-    session.target.style.removeProperty("--task-drag-y");
+    const overlay = session.overlay;
+    const destination = session.target.getBoundingClientRect();
+    if (session.activated && overlay) setSettlingWidget(session.key);
     dragRef.current = null;
     setPressedWidget(null);
     setDraggingWidget(null);
+    if (!overlay) return;
+    const animation = overlay.animate(
+      [
+        { transform: `translate3d(${session.visualLeft}px, ${session.visualTop}px, 0) scale(1.035) rotate(.35deg)` },
+        { transform: `translate3d(${destination.left}px, ${destination.top}px, 0) scale(1) rotate(0deg)` },
+      ],
+      { duration: 260, easing: "cubic-bezier(.2,.82,.2,1)", fill: "forwards" },
+    );
+    dropOverlayRef.current = overlay;
+    void animation.finished.catch(() => undefined).finally(() => {
+      overlay.remove();
+      if (dropOverlayRef.current === overlay) {
+        dropOverlayRef.current = null;
+        setSettlingWidget(null);
+      }
+    });
   }
 
   function moveBy(key: TaskDashboardWidgetKey, amount: -1 | 1) {
@@ -423,6 +428,7 @@ export function TaskDashboard({
                   `task-dashboard-widget--${definition.tone}`,
                   pressedWidget === key ? "is-long-pressing" : "",
                   draggingWidget === key ? "is-dragging" : "",
+                  settlingWidget === key ? "is-drop-placeholder" : "",
                 ].filter(Boolean).join(" ")}
                 data-task-widget={key}
                 aria-label={definition.label}

@@ -113,7 +113,9 @@
 .task-dashboard-shell.is-editing .task-dashboard-widget__content { pointer-events: none; }
 .task-dashboard-widget.is-long-pressing { outline: 4px solid rgb(255 189 72 / 72%); outline-offset: -4px; transform: scale(.985); }
 .task-dashboard-widget.is-long-pressing::after { content: ""; position: absolute; z-index: 20; inset: 0; border: 5px solid rgb(255 174 55 / 45%); border-radius: inherit; pointer-events: none; animation: task-widget-hold 520ms linear both; }
-.task-dashboard-widget.is-dragging { z-index: 40; border-color: #ff9e32; box-shadow: 0 24px 40px rgb(76 49 31 / 25%); transform: translate3d(var(--task-drag-x, 0), var(--task-drag-y, 0), 0) scale(1.035) rotate(.35deg); transition: box-shadow 180ms ease, border-color 180ms ease; animation: none; will-change: transform; }
+.task-dashboard-shell.is-editing .task-dashboard-widget.is-dragging { border-color: #ffb85f; box-shadow: none; opacity: .2; transform: none; transition: opacity 140ms ease, border-color 140ms ease; animation: none; }
+.task-dashboard-shell.is-editing .task-dashboard-widget.is-drop-placeholder { opacity: 0; animation: none; }
+.task-dashboard-drag-overlay { position: fixed !important; z-index: 1000; top: 0; left: 0; margin: 0 !important; pointer-events: none; border-color: #ff9e32; box-shadow: 0 24px 40px rgb(76 49 31 / 25%); opacity: 1; transform: translate3d(var(--task-drag-x, 0), var(--task-drag-y, 0), 0) scale(1.035) rotate(.35deg); transition: none !important; animation: none !important; will-change: transform; }
 
 @keyframes task-widget-hold {
   from { clip-path: inset(0 100% 0 0 round 16px); }
