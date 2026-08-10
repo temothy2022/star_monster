@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { adminApi, type PetDestination, type PetGrowthConfig, type PetRoomMascotMotion, type PetRoomTheme, type PetTravelTier } from "./api";
+import { adminApi, type PetDestination, type PetGrowthConfig, type PetRoomMascotMotion, type PetRoomTheme, type PetRoomThemeMascotAnimation, type PetTravelTier, type PetType } from "./api";
 
 const TIER_LABEL: Record<PetTravelTier, string> = { NEARBY: "附近", CHINA: "中国", WORLD: "世界" };
 const ROOM_MOTION_LABEL: Record<PetRoomMascotMotion, string> = {
@@ -12,6 +12,13 @@ const ROOM_MOTION_LABEL: Record<PetRoomMascotMotion, string> = {
   SPORT_BOUNCE: "球场弹跳",
   ADVENTURE_MARCH: "探险踏步",
 };
+const PET_LABELS: Array<{ type: PetType; name: string }> = [
+  { type: "DOUYA", name: "豆芽" },
+  { type: "PAOPAO", name: "泡泡" },
+  { type: "TUANTUAN", name: "团团" },
+  { type: "MILU", name: "米露" },
+  { type: "SHANSHAN", name: "闪闪" },
+];
 
 const EMPTY_DESTINATION: Omit<PetDestination, "id" | "createdAt" | "updatedAt"> = {
   slug: "", name: "", city: "", country: "中国", tier: "CHINA",
@@ -35,6 +42,7 @@ export function PetGrowthManagement() {
   const [themeImage, setThemeImage] = useState<File | null>(null);
   const [themePreview, setThemePreview] = useState("");
   const [themeDimensions, setThemeDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [expandedAnimationThemeId, setExpandedAnimationThemeId] = useState<string | null>(null);
   const themeFileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -121,6 +129,39 @@ export function PetGrowthManagement() {
     } finally { setBusy(false); }
   }
 
+  function replaceThemeAnimation(themeId: string, animation: PetRoomThemeMascotAnimation) {
+    setRoomThemes((items) => items.map((item) => item.id === themeId
+      ? { ...item, mascotAnimations: [...item.mascotAnimations.filter((entry) => entry.petType !== animation.petType), animation] }
+      : item));
+  }
+
+  async function uploadThemeAnimation(theme: PetRoomTheme, petType: PetType, file: File) {
+    setBusy(true); setMessage("");
+    try {
+      const result = await adminApi.uploadPetRoomThemeMascotAnimation(theme.id, petType, file);
+      replaceThemeAnimation(theme.id, result.animation);
+      const petName = PET_LABELS.find((pet) => pet.type === petType)?.name ?? petType;
+      setMessage(`“${theme.name}”的${petName}动画已上传：${result.processing.source.frameCount} 帧，原文件 ${Math.max(1, Math.round(result.processing.outputBytes / 1024))}KB，未转码`);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "星宠动画上传失败");
+    } finally { setBusy(false); }
+  }
+
+  async function removeThemeAnimation(theme: PetRoomTheme, petType: PetType) {
+    const petName = PET_LABELS.find((pet) => pet.type === petType)?.name ?? petType;
+    if (!window.confirm(`确认移除“${theme.name}”的${petName}专属动画吗？`)) return;
+    setBusy(true); setMessage("");
+    try {
+      await adminApi.deletePetRoomThemeMascotAnimation(theme.id, petType);
+      setRoomThemes((items) => items.map((item) => item.id === theme.id
+        ? { ...item, mascotAnimations: item.mascotAnimations.filter((entry) => entry.petType !== petType) }
+        : item));
+      setMessage(`“${theme.name}”的${petName}动画已移除，将使用动作预设`);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "星宠动画移除失败");
+    } finally { setBusy(false); }
+  }
+
   async function saveDestination(item: PetDestination) {
     setBusy(true); setMessage("");
     try {
@@ -151,7 +192,7 @@ export function PetGrowthManagement() {
     </section>
 
     <section className="admin-panel super-room-theme-panel">
-      <header className="admin-panel__header"><div><h2>小屋背景素材（{roomThemes.length}）</h2><p>平台统一新增素材；各家庭只能为这些背景配置自己的解锁价格</p></div></header>
+      <header className="admin-panel__header"><div><h2>小屋背景与专属动画（{roomThemes.length}）</h2><p>在每个小屋的“配置专属动画”中，为五只星宠分别上传与场景匹配的动画</p></div></header>
       <form className="super-room-theme-upload" onSubmit={createRoomTheme}>
         <div className="super-room-theme-upload__requirements">
           <strong>建议原图尺寸</strong>
@@ -172,7 +213,27 @@ export function PetGrowthManagement() {
         </div> : null}
         <div className="form-actions field-span"><button className="primary-button" disabled={busy || !themeImage || !themeName.trim() || !themeDescription.trim()}>{busy ? "正在处理…" : "新增平台小屋背景"}</button></div>
       </form>
-      {roomThemes.length ? <div className="super-room-theme-list">{roomThemes.map((theme) => <article key={theme.id}><img src={theme.previewUrl} alt="" loading="lazy" /><div><strong>{theme.name}</strong><span>默认 {theme.priceStars} 星</span></div><label>星宠动作<select disabled={busy} value={theme.mascotMotion} onChange={(event) => void saveRoomThemeMotion(theme, event.target.value as PetRoomMascotMotion)}>{Object.entries(ROOM_MOTION_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></article>)}</div> : null}
+      {roomThemes.length ? <div className="super-room-theme-list">{roomThemes.map((theme) => {
+        const isExpanded = expandedAnimationThemeId === theme.id;
+        return <article className={isExpanded ? "is-animation-expanded" : ""} key={theme.id}>
+          <img className="super-room-theme-list__background" src={theme.previewUrl} alt="" loading="lazy" />
+          <div className="super-room-theme-list__summary"><strong>{theme.name}</strong><span>默认 {theme.priceStars} 星 · 已上传 {theme.mascotAnimations.length}/5</span></div>
+          <label className="super-room-theme-list__motion">动作预设<select disabled={busy} value={theme.mascotMotion} onChange={(event) => void saveRoomThemeMotion(theme, event.target.value as PetRoomMascotMotion)}>{Object.entries(ROOM_MOTION_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <button className="super-room-theme-list__toggle" type="button" aria-expanded={isExpanded} onClick={() => setExpandedAnimationThemeId(isExpanded ? null : theme.id)}>{isExpanded ? "收起动画配置" : "配置专属动画"}</button>
+          {isExpanded ? <div className="super-room-animation-panel">
+            <div className="super-room-animation-panel__notice"><strong>动画文件规范</strong><span>建议透明背景、单帧 720×720px；支持 GIF、动态 WebP、APNG/PNG，最大 15MB、180 帧、20 秒。系统只做安全校验，保留原文件、原格式、原画质和原播放节奏。</span></div>
+            <div className="super-room-animation-grid">{PET_LABELS.map((pet) => {
+              const animation = theme.mascotAnimations.find((entry) => entry.petType === pet.type);
+              return <section className="super-room-animation-card" key={pet.type}>
+                <div className="super-room-animation-card__preview">{animation ? <img src={animation.mediaUrl} alt={`${theme.name}${pet.name}动画`} loading="lazy" /> : <span>未上传</span>}</div>
+                <div><strong>{pet.name}</strong><small>{animation ? `${animation.frameCount} 帧 · ${Math.max(1, Math.round(animation.outputBytes / 1024))}KB` : "使用动作预设兜底"}</small></div>
+                <label className="super-room-animation-card__upload"><span>{animation ? "替换" : "上传"}</span><input disabled={busy} type="file" accept=".gif,.webp,.png,image/gif,image/webp,image/png" onChange={(event) => { const input = event.currentTarget; const file = input.files?.[0]; if (file) void uploadThemeAnimation(theme, pet.type, file).finally(() => { input.value = ""; }); }} /></label>
+                {animation ? <button className="super-room-animation-card__remove" type="button" disabled={busy} onClick={() => void removeThemeAnimation(theme, pet.type)}>移除</button> : null}
+              </section>;
+            })}</div>
+          </div> : null}
+        </article>;
+      })}</div> : null}
     </section>
 
     <section className="admin-panel">

@@ -153,6 +153,7 @@ const FALLBACK_ROOM_THEME: PetRoomTheme = {
   previewUrl: "/pet-assets/v1/scenes/pet-room.webp",
   ambience: [],
   mascotMotion: "IDLE",
+  mascotAnimationUrl: null,
   isOwned: true,
   isEquipped: true,
 };
@@ -949,17 +950,19 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     ?? FALLBACK_ROOM_THEME;
   const displayedRoomTheme = roomThemes.find((theme) => theme.key === themePreviewKey)
     ?? equippedRoomTheme;
-  const roomMascotMotion = displayedRoomTheme.isOwned
-    && displayedRoomTheme.mascotMotion !== "IDLE"
+  const canShowRoomMascotAnimation = displayedRoomTheme.isOwned
     && !careAnimation
     && !trip
     && state.pet.satiety >= 30
-    && state.pet.hydration >= 30
-      ? displayedRoomTheme.mascotMotion
-      : "IDLE";
-  const roomMascotImage = roomMascotMotion === "IDLE"
-    ? moodImage
-    : uploadedNeutralImage ?? mascot.images.neutral;
+    && state.pet.hydration >= 30;
+  const roomMascotMotion = canShowRoomMascotAnimation
+    ? displayedRoomTheme.mascotMotion
+    : "IDLE";
+  const roomMascotImage = canShowRoomMascotAnimation && displayedRoomTheme.mascotAnimationUrl
+    ? displayedRoomTheme.mascotAnimationUrl
+    : roomMascotMotion === "IDLE"
+      ? moodImage
+      : uploadedNeutralImage ?? mascot.images.neutral;
   const levelRange = state.pet.nextLevelExperience === null
     ? 1
     : Math.max(1, state.pet.nextLevelExperience - state.pet.currentLevelStart);

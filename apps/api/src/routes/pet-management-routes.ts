@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { unlink } from "node:fs/promises";
+import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -16,6 +17,10 @@ import {
   PET_ROOM_THEME_IMAGE_BODY_LIMIT,
   storePetRoomThemeImages,
 } from "../services/pet-room-theme-image-service.js";
+import {
+  PET_ROOM_THEME_ANIMATION_BODY_LIMIT,
+  storePetRoomThemeAnimation,
+} from "../services/pet-room-theme-animation-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
 const destinationSchema = z.object({
@@ -82,6 +87,10 @@ const roomThemeCreateQuerySchema = z.object({
 const roomThemeMotionSchema = z.object({
   mascotMotion: roomThemeCreateQuerySchema.shape.mascotMotion,
 });
+const roomThemeAnimationParams = z.object({
+  id: z.string().min(1),
+  petType: z.enum(["DOUYA", "PAOPAO", "TUANTUAN", "MILU", "SHANSHAN"]),
+});
 
 async function ownedChild(user: { familyId: string | null }, childId: string) {
   const child = await prisma.childProfile.findFirst({
@@ -100,6 +109,7 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
       prisma.petRoomTheme.findMany({
         where: { ownerFamilyId: null },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        include: { mascotAnimations: { orderBy: { petType: "asc" } } },
       }),
     ]);
     return { ...growth, roomThemes };
@@ -156,6 +166,7 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
               mascotMotion: input.mascotMotion,
               sortOrder: (highest._max.sortOrder ?? 0) + 10,
             },
+            include: { mascotAnimations: true },
           });
           await writeAudit(tx, {
             actorType: "USER",
@@ -205,6 +216,7 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
       const updated = await tx.petRoomTheme.update({
         where: { id },
         data: { mascotMotion: input.mascotMotion },
+        include: { mascotAnimations: { orderBy: { petType: "asc" } } },
       });
       await writeAudit(tx, {
         actorType: "USER",
@@ -218,6 +230,118 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
       return updated;
     });
     return { theme };
+  });
+
+  app.put(
+    "/api/admin/pet-growth/themes/:id/mascot-animations/:petType",
+    { bodyLimit: PET_ROOM_THEME_ANIMATION_BODY_LIMIT },
+    async (request, reply) => {
+      const { user } = await requireAdmin(request, reply, config);
+      const { id, petType } = roomThemeAnimationParams.parse(request.params);
+      if (!Buffer.isBuffer(request.body)) {
+        throw new HttpError(400, "PET_ROOM_THEME_ANIMATION_INVALID_BODY", "请选择要上传的星宠动画");
+      }
+      const theme = await prisma.petRoomTheme.findFirst({
+        where: { id, ownerFamilyId: null },
+        select: { id: true, key: true, name: true },
+      });
+      if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "没有找到这个平台小屋背景");
+
+      const stored = await storePetRoomThemeAnimation({
+        uploadDir: config.POEM_ASSET_UPLOAD_DIR,
+        themeKey: theme.key,
+        petType,
+        contentType: request.headers["content-type"] ?? "",
+        data: request.body,
+      });
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          const previous = await tx.petRoomThemeMascotAnimation.findUnique({
+            where: { themeId_petType: { themeId: id, petType } },
+            select: { fileName: true },
+          });
+          const animation = await tx.petRoomThemeMascotAnimation.upsert({
+            where: { themeId_petType: { themeId: id, petType } },
+            update: {
+              mediaUrl: stored.publicUrl,
+              contentType: stored.contentType,
+              fileName: stored.fileName,
+              sourceWidth: stored.source.width,
+              sourceHeight: stored.source.height,
+              frameCount: stored.source.frameCount,
+              outputBytes: stored.outputBytes,
+              updatedByUserId: user.id,
+            },
+            create: {
+              themeId: id,
+              petType,
+              mediaUrl: stored.publicUrl,
+              contentType: stored.contentType,
+              fileName: stored.fileName,
+              sourceWidth: stored.source.width,
+              sourceHeight: stored.source.height,
+              frameCount: stored.source.frameCount,
+              outputBytes: stored.outputBytes,
+              updatedByUserId: user.id,
+            },
+          });
+          await writeAudit(tx, {
+            actorType: "USER",
+            actorId: user.id,
+            action: "PET_ROOM_THEME_MASCOT_ANIMATION_UPDATE",
+            resourceType: "PetRoomTheme",
+            resourceId: id,
+            metadata: {
+              themeKey: theme.key,
+              petType,
+              fileName: stored.fileName,
+              frameCount: stored.source.frameCount,
+              outputBytes: stored.outputBytes,
+            },
+            ipAddress: request.ip,
+          });
+          return { animation, previousFileName: previous?.fileName ?? null };
+        });
+        if (result.previousFileName && result.previousFileName !== stored.fileName) {
+          await unlink(path.join(config.POEM_ASSET_UPLOAD_DIR, path.basename(result.previousFileName))).catch(() => undefined);
+        }
+        return {
+          animation: result.animation,
+          processing: {
+            source: stored.source,
+            outputBytes: stored.outputBytes,
+            contentType: stored.contentType,
+            processed: stored.processed,
+          },
+        };
+      } catch (error) {
+        if (stored.created) await unlink(stored.filePath).catch(() => undefined);
+        throw error;
+      }
+    },
+  );
+
+  app.delete("/api/admin/pet-growth/themes/:id/mascot-animations/:petType", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    const { id, petType } = roomThemeAnimationParams.parse(request.params);
+    const existing = await prisma.petRoomThemeMascotAnimation.findFirst({
+      where: { themeId: id, petType, theme: { ownerFamilyId: null } },
+    });
+    if (!existing) throw new HttpError(404, "PET_ROOM_THEME_ANIMATION_NOT_FOUND", "这个小屋还没有上传该星宠动画");
+    await prisma.$transaction(async (tx) => {
+      await tx.petRoomThemeMascotAnimation.delete({ where: { id: existing.id } });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        action: "PET_ROOM_THEME_MASCOT_ANIMATION_DELETE",
+        resourceType: "PetRoomTheme",
+        resourceId: id,
+        metadata: { petType, fileName: existing.fileName },
+        ipAddress: request.ip,
+      });
+    });
+    await unlink(path.join(config.POEM_ASSET_UPLOAD_DIR, path.basename(existing.fileName))).catch(() => undefined);
+    return { ok: true };
   });
 
   app.post("/api/admin/pet-growth/destinations", async (request, reply) => {

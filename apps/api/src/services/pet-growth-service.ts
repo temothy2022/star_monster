@@ -313,6 +313,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
     prisma.petRoomTheme.findMany({
       where: { isEnabled: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      include: { mascotAnimations: true },
     }),
     prisma.petRoomThemeUnlock.findMany({
       where: { childId },
@@ -408,6 +409,7 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       previewUrl: theme.previewUrl,
       ambience: parsePetRoomAmbience(theme.ambience),
       mascotMotion: theme.mascotMotion,
+      mascotAnimationUrl: theme.mascotAnimations.find((animation) => animation.petType === petType)?.mediaUrl ?? null,
       isOwned: theme.priceStars === 0 || unlockedRoomThemeIds.has(theme.id),
       isEquipped: theme.id === equippedRoomTheme?.id,
     })),

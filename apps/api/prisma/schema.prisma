@@ -380,9 +380,31 @@ model PetRoomTheme {
   equippedProfiles PetGrowthProfile[]
   unlocks         PetRoomThemeUnlock[]
   familySettings  FamilyPetRoomThemeSetting[]
+  mascotAnimations PetRoomThemeMascotAnimation[]
 
   @@index([isEnabled, sortOrder])
   @@index([ownerFamilyId, isEnabled, sortOrder])
+}
+
+model PetRoomThemeMascotAnimation {
+  id              String   @id @default(cuid())
+  themeId         String
+  petType         PetType
+  mediaUrl        String
+  contentType     String
+  fileName        String
+  sourceWidth     Int
+  sourceHeight    Int
+  frameCount      Int      @default(1)
+  outputBytes     Int
+  updatedByUserId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  theme PetRoomTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([themeId, petType])
+  @@index([petType])
 }
 
 model FamilyPetRoomThemeSetting {

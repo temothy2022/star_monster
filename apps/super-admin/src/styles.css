@@ -112,15 +112,33 @@
 .super-room-theme-upload > .form-actions { grid-column: 1 / -1; margin: 0; }
 .super-room-theme-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 9px; margin-top: 14px; }
 .super-room-theme-list article { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 7px 10px; min-height: 58px; overflow: hidden; border: 1px solid #dfe5ec; border-radius: 8px; background: #fff; }
-.super-room-theme-list img { width: 76px; height: 58px; object-fit: cover; }
-.super-room-theme-list article > div { min-width: 0; display: grid; gap: 3px; padding-right: 10px; }
-.super-room-theme-list article > label { grid-column: 1 / -1; display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 10px 9px; color: #52647d; font-size: 12px; font-weight: 700; }
-.super-room-theme-list article > label select { min-width: 0; padding: 6px 8px; }
+.super-room-theme-list article.is-animation-expanded { grid-column: 1 / -1; }
+.super-room-theme-list__background { width: 76px; height: 58px; object-fit: cover; }
+.super-room-theme-list__summary { min-width: 0; display: grid; gap: 3px; padding-right: 10px; }
+.super-room-theme-list__motion { grid-column: 1 / -1; display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; padding: 0 10px; color: #52647d; font-size: 12px; font-weight: 700; }
+.super-room-theme-list__motion select { min-width: 0; padding: 6px 8px; }
+.super-room-theme-list__toggle { grid-column: 1 / -1; min-height: 34px; border: 0; border-top: 1px solid #e4eaf0; color: #3e6e9e; background: #f3f8fc; font-weight: 800; cursor: pointer; }
 .super-room-theme-list strong { overflow: hidden; color: #263a5b; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .super-room-theme-list span { color: #778294; font-size: 12px; }
+.super-room-animation-panel { grid-column: 1 / -1; display: grid; gap: 12px; padding: 13px; border-top: 1px solid #dfe8f0; background: #f8fbfd; }
+.super-room-animation-panel__notice { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid #ecd29e; border-radius: 7px; background: #fff9e9; }
+.super-room-animation-panel__notice strong { color: #89591f; }
+.super-room-animation-panel__notice span { color: #755e3c; line-height: 1.55; }
+.super-room-animation-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
+.super-room-animation-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; padding: 8px; border: 1px solid #dbe5ed; border-radius: 8px; background: #fff; }
+.super-room-animation-card__preview { grid-column: 1 / -1; display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border-radius: 6px; background-color: #f1f3f5; background-image: linear-gradient(45deg, #e4e8ec 25%, transparent 25%), linear-gradient(-45deg, #e4e8ec 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e4e8ec 75%), linear-gradient(-45deg, transparent 75%, #e4e8ec 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; }
+.super-room-animation-card__preview img { width: 100%; height: 100%; object-fit: contain; }
+.super-room-animation-card__preview span { padding: 24px 4px; color: #8793a3; font-weight: 700; }
+.super-room-animation-card > div:not(.super-room-animation-card__preview) { min-width: 0; display: grid; gap: 2px; }
+.super-room-animation-card small { overflow: hidden; color: #7c8796; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.super-room-animation-card__upload { position: relative; display: inline-grid; place-items: center; min-width: 48px; min-height: 30px; overflow: hidden; border-radius: 6px; color: #fff; background: #3f7db2; font-size: 12px; font-weight: 800; cursor: pointer; }
+.super-room-animation-card__upload span { color: inherit; }
+.super-room-animation-card__upload input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.super-room-animation-card__remove { grid-column: 1 / -1; min-height: 28px; border: 1px solid #e5c6bd; border-radius: 6px; color: #a54d38; background: #fff6f3; font-size: 11px; font-weight: 700; }
 
 @media (max-width: 900px) {
   .super-room-theme-upload { grid-template-columns: 1fr; }
+  .super-room-animation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 980px) {

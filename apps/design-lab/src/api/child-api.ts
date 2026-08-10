@@ -232,6 +232,7 @@ export type PetRoomTheme = {
     placement: "TOP" | "UPPER_RIGHT" | "CENTER" | "BOTTOM_LEFT";
   }>;
   mascotMotion: "IDLE" | "CLOUD_FLOAT" | "UNDERWATER_SWIM" | "PETAL_SWAY" | "STARGAZE" | "ZERO_GRAVITY" | "SPORT_BOUNCE" | "ADVENTURE_MARCH";
+  mascotAnimationUrl: string | null;
   isOwned: boolean;
   isEquipped: boolean;
 };

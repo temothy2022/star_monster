@@ -27,6 +27,7 @@ import { registerMascotAssetRoutes } from "./routes/mascot-asset-routes.js";
 import { prisma } from "./lib/prisma.js";
 import { MASCOT_ASSET_BODY_LIMIT } from "./services/mascot-asset-service.js";
 import { PET_ROOM_THEME_IMAGE_BODY_LIMIT } from "./services/pet-room-theme-image-service.js";
+import { PET_ROOM_THEME_ANIMATION_BODY_LIMIT } from "./services/pet-room-theme-animation-service.js";
 
 export async function buildApp(config: AppConfig) {
   const app = Fastify({
@@ -84,6 +85,7 @@ export async function buildApp(config: AppConfig) {
     [
       "image/jpeg",
       "image/png",
+      "image/apng",
       "image/webp",
       "image/gif",
       "image/avif",
@@ -98,7 +100,7 @@ export async function buildApp(config: AppConfig) {
       "audio/wav",
       "audio/x-wav",
     ],
-    { parseAs: "buffer", bodyLimit: Math.max(MASCOT_ASSET_BODY_LIMIT, PET_ROOM_THEME_IMAGE_BODY_LIMIT) },
+    { parseAs: "buffer", bodyLimit: Math.max(MASCOT_ASSET_BODY_LIMIT, PET_ROOM_THEME_IMAGE_BODY_LIMIT, PET_ROOM_THEME_ANIMATION_BODY_LIMIT) },
     (_request, body, done) => done(null, body),
   );
 

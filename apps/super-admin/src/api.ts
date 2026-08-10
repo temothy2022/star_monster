@@ -332,6 +332,21 @@ export type PetDestination = {
   sortOrder: number; isEnabled: boolean; createdAt: string; updatedAt: string;
 };
 export type PetRoomMascotMotion = "IDLE" | "CLOUD_FLOAT" | "UNDERWATER_SWIM" | "PETAL_SWAY" | "STARGAZE" | "ZERO_GRAVITY" | "SPORT_BOUNCE" | "ADVENTURE_MARCH";
+export type PetType = "DOUYA" | "PAOPAO" | "TUANTUAN" | "MILU" | "SHANSHAN";
+export type PetRoomThemeMascotAnimation = {
+  id: string;
+  themeId: string;
+  petType: PetType;
+  mediaUrl: string;
+  contentType: string;
+  fileName: string;
+  sourceWidth: number;
+  sourceHeight: number;
+  frameCount: number;
+  outputBytes: number;
+  createdAt: string;
+  updatedAt: string;
+};
 export type PetRoomTheme = {
   id: string;
   key: string;
@@ -343,6 +358,7 @@ export type PetRoomTheme = {
   backgroundTabletUrl: string;
   backgroundPhoneUrl: string;
   mascotMotion: PetRoomMascotMotion;
+  mascotAnimations: PetRoomThemeMascotAnimation[];
   isEnabled: boolean;
   sortOrder: number;
   createdAt: string;
@@ -413,6 +429,15 @@ export const adminApi = {
     });
   },
   updatePetRoomThemeMotion: (id: string, mascotMotion: PetRoomMascotMotion) => api<{ theme: PetRoomTheme }>(`/api/admin/pet-growth/themes/${encodeURIComponent(id)}/motion`, { method: "PATCH", body: JSON.stringify({ mascotMotion }) }),
+  uploadPetRoomThemeMascotAnimation: (themeId: string, petType: PetType, file: File) => api<{
+    animation: PetRoomThemeMascotAnimation;
+    processing: { source: { width: number; height: number; frameCount: number; durationMs: number; bytes: number; format: string }; outputBytes: number; contentType: string; processed: false };
+  }>(`/api/admin/pet-growth/themes/${encodeURIComponent(themeId)}/mascot-animations/${petType}`, {
+    method: "PUT",
+    headers: { "Content-Type": uploadContentType(file) },
+    body: file,
+  }),
+  deletePetRoomThemeMascotAnimation: (themeId: string, petType: PetType) => api<{ ok: true }>(`/api/admin/pet-growth/themes/${encodeURIComponent(themeId)}/mascot-animations/${petType}`, { method: "DELETE" }),
   createPetDestination: (data: Omit<PetDestination, "id" | "createdAt" | "updatedAt">) => api<{ destination: PetDestination }>("/api/admin/pet-growth/destinations", { method: "POST", body: JSON.stringify(data) }),
   updatePetDestination: (id: string, data: Partial<Omit<PetDestination, "id" | "createdAt" | "updatedAt">>) => api<{ destination: PetDestination }>(`/api/admin/pet-growth/destinations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   mascotDialogues: () => api<{ dialogues: MascotDialogue[] }>("/api/admin/mascot-dialogues"),
