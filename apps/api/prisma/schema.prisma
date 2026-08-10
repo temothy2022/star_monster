@@ -379,6 +379,7 @@ model PetWasteOccurrence {
   appearsMinute       Int
   positionSeed        Int
   costStarsSnapshot   Int
+  snoozedUntil        DateTime?
   cleanIdempotencyKey String?   @unique
   cleanedAt           DateTime?
   createdAt           DateTime  @default(now())

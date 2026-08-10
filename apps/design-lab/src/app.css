@@ -12261,6 +12261,8 @@ body:has(.footprints-page),
 
 .pet-waste {
   position: absolute;
+  left: clamp(20px, 3vw, 48px);
+  bottom: calc(110px + env(safe-area-inset-bottom));
   z-index: 4;
   width: clamp(78px, 8vw, 108px);
   aspect-ratio: 1;
@@ -12273,10 +12275,9 @@ body:has(.footprints-page),
   transition: transform 180ms ease, filter 180ms ease;
 }
 .pet-waste:not(:disabled):hover { transform: translateY(-4px) scale(1.04); filter: drop-shadow(0 14px 10px rgb(80 50 30 / 26%)); }
-.pet-waste--position-0 { left: 31%; bottom: 20%; }
-.pet-waste--position-1 { left: 60%; bottom: 18%; }
-.pet-waste--position-2 { left: 42%; bottom: 12%; }
-.pet-waste--position-3 { right: 27%; bottom: 27%; }
+.pet-waste--position-1 { margin-left: 22px; }
+.pet-waste--position-2 { margin-left: 44px; }
+.pet-waste--position-3 { margin-left: 66px; }
 .pet-waste__pile { position: absolute; z-index: 2; inset: 19% 0 0; width: 100%; height: 81%; object-fit: contain; }
 .pet-waste__odor { position: absolute; z-index: 1; left: 18%; right: 18%; top: -18%; height: 54%; pointer-events: none; }
 .pet-waste__odor i { position: absolute; bottom: 0; width: 18px; height: 38px; border-left: 4px solid rgb(121 145 88 / 62%); border-radius: 50%; opacity: 0; animation: pet-waste-odor 2.3s ease-in-out infinite; }
@@ -13407,11 +13408,7 @@ body:has(.footprints-page),
   .pet-action-button { min-height: 70px; grid-template-columns: 42px minmax(0, 1fr); padding-inline: 10px; }
   .pet-action-icon { width: 38px; height: 38px; }
   .pet-main-figure { left: 51%; top: 53%; width: min(330px, 43vw); }
-  .pet-waste { width: 104px; }
-  .pet-waste--position-0 { left: 27%; bottom: 34%; }
-  .pet-waste--position-1 { left: auto; right: 23%; bottom: 35%; }
-  .pet-waste--position-2 { left: 41%; bottom: 29%; }
-  .pet-waste--position-3 { right: 33%; bottom: 43%; }
+  .pet-waste { left: 26px; bottom: calc(112px + env(safe-area-inset-bottom)); width: 94px; }
 }
 
 @media (max-width: 699px) {
@@ -13565,6 +13562,11 @@ body:has(.footprints-page),
     top: auto;
     bottom: calc(214px + env(safe-area-inset-bottom));
     width: min(600px, calc(100vw - 44px));
+  }
+
+  .pet-waste {
+    left: 24px;
+    bottom: calc(224px + env(safe-area-inset-bottom));
   }
 
   .pet-room-hud {
@@ -13853,12 +13855,11 @@ body:has(.footprints-page),
     white-space: normal;
   }
 
-  .pet-waste { width: 72px; }
+  .pet-waste { left: 18px; right: auto; top: auto; bottom: calc(246px + env(safe-area-inset-bottom)); width: 68px; }
   .pet-waste.is-cleaning { width: 118px; }
-  .pet-waste--position-0 { left: 14%; top: 47%; bottom: auto; }
-  .pet-waste--position-1 { right: 15%; left: auto; top: 49%; bottom: auto; }
-  .pet-waste--position-2 { left: 39%; top: 58%; bottom: auto; }
-  .pet-waste--position-3 { right: 27%; top: 43%; bottom: auto; }
+  .pet-waste--position-1 { margin-left: 12px; }
+  .pet-waste--position-2 { margin-left: 24px; }
+  .pet-waste--position-3 { margin-left: 36px; }
 
   .pet-map-entry {
     right: 10px;

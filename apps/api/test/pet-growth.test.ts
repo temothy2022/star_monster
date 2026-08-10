@@ -7,6 +7,7 @@ import {
   petManualRedPacketGrantPlan,
   parsePetRoomAmbience,
   petRedPacketGrantPlan,
+  petWasteCooldownUntil,
   petWasteSchedulePlan,
   settledPetStatus,
 } from "../src/services/pet-growth-service.js";
@@ -119,6 +120,16 @@ describe("pet growth rules", () => {
     expect(schedule.map((item) => item.appearsMinute)).toEqual([480, 740, 1000]);
     expect(schedule.map((item) => item.sequence)).toEqual([1, 2, 3]);
     expect(schedule.every((item) => item.costStarsSnapshot === 1)).toBe(true);
+  });
+
+  it("keeps overdue pet waste hidden for at least 90 minutes after cleaning", () => {
+    const now = new Date("2026-08-10T08:00:00.000Z");
+    expect(petWasteCooldownUntil(now, () => 0)).toEqual(
+      new Date("2026-08-10T09:30:00.000Z"),
+    );
+    expect(petWasteCooldownUntil(now, () => 90)).toEqual(
+      new Date("2026-08-10T11:00:00.000Z"),
+    );
   });
 
   it("prioritizes care needs over task progress in room dialogue", () => {

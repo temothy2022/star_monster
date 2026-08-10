@@ -64,6 +64,11 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
 const CARE_ANIMATION_MS = 3_000;
 const WASTE_CLEANING_ANIMATION_MS = 2_600;
 const ROOM_NOTICE_MS = 2_000;
+const PET_DIALOGUE_VISIBLE_MS = 4_000;
+const PET_DIALOGUE_FIRST_DELAY_MIN_MS = 4_000;
+const PET_DIALOGUE_FIRST_DELAY_MAX_MS = 7_000;
+const PET_DIALOGUE_INTERVAL_MIN_MS = 30_000;
+const PET_DIALOGUE_INTERVAL_MAX_MS = 60_000;
 const PET_SOUND_STORAGE_KEY = "star-monsters:pet-sound-enabled";
 const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
 const PET_ROOM_LAYOUT_STORAGE_KEY = "star-monsters:pet-room-layout:v1";
@@ -230,9 +235,13 @@ const PET_FALLBACK_DIALOGUES: Record<PetDialogueContext, string[]> = {
 function pickPetDialogue(
   dialogues: MascotDialogue[],
   context: PetDialogueContext,
+  previousId?: string,
 ): MascotDialogue {
   if (dialogues.length > 0) {
-    return dialogues[Math.floor(Math.random() * dialogues.length)]!;
+    const available = dialogues.length > 1
+      ? dialogues.filter((dialogue) => dialogue.id !== previousId)
+      : dialogues;
+    return available[Math.floor(Math.random() * available.length)]!;
   }
   const fallback = PET_FALLBACK_DIALOGUES[context];
   const index = Math.floor(Math.random() * fallback.length);
@@ -243,6 +252,10 @@ function pickPetDialogue(
     text: fallback[index]!,
     audioUrl: null,
   };
+}
+
+function randomDelay(minimum: number, maximum: number) {
+  return minimum + Math.floor(Math.random() * (maximum - minimum + 1));
 }
 
 function roomDialogueContext(state: PetGrowthState): PetDialogueContext {
@@ -365,6 +378,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [redPacketReward, setRedPacketReward] = useState<RedPacketReward | null>(null);
   const [postcard, setPostcard] = useState<PetTrip | null>(null);
   const [selectedDialogue, setSelectedDialogue] = useState<MascotDialogue | null>(null);
+  const [dialogueVisible, setDialogueVisible] = useState(false);
+  const [dialogueDisplayToken, setDialogueDisplayToken] = useState(0);
   const [dialogueSpeaking, setDialogueSpeaking] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(initialPetSoundEnabled);
   const [now, setNow] = useState(Date.now());
@@ -392,6 +407,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const soundRetryCleanupRef = useRef(new Set<() => void>());
   const postcardSoundTripIdRef = useRef<string | null>(null);
   const entryVisitHandledRef = useRef(false);
+  const dialogueHasShownRef = useRef(false);
   const soundEnabledRef = useRef(soundEnabled);
   const roomNoticeIdRef = useRef(0);
   const petStageRef = useRef<HTMLElement | null>(null);
@@ -651,17 +667,45 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (openAudio.paused) openAudio.load();
   }, [state?.redPackets.availableCount]);
 
+  const dialogueContext = state ? roomDialogueContext(state) : null;
+  const dialogueOptions = state?.dialogues ?? [];
+  const dialogueSignature = dialogueContext
+    ? `${dialogueContext}:${dialogueOptions.map((dialogue) => dialogue.id).join(",")}`
+    : "";
+
   useEffect(() => {
-    if (!state) return;
-    const context = roomDialogueContext(state);
-    const dialogues = state.dialogues ?? [];
+    if (!dialogueContext) return;
     setSelectedDialogue((current) => {
-      const remainsAvailable = current?.context === context && (
-        dialogues.length === 0 || dialogues.some((dialogue) => dialogue.id === current.id)
+      const remainsAvailable = current?.context === dialogueContext && (
+        dialogueOptions.length === 0 || dialogueOptions.some((dialogue) => dialogue.id === current.id)
       );
-      return remainsAvailable ? current : pickPetDialogue(dialogues, context);
+      return remainsAvailable ? current : pickPetDialogue(dialogueOptions, dialogueContext);
     });
-  }, [state]);
+  }, [dialogueSignature]);
+
+  useEffect(() => {
+    if (!state || !dialogueContext || state.currentTrip || careAnimation || dialogueVisible) return;
+    const delay = dialogueHasShownRef.current
+      ? randomDelay(PET_DIALOGUE_INTERVAL_MIN_MS, PET_DIALOGUE_INTERVAL_MAX_MS)
+      : randomDelay(PET_DIALOGUE_FIRST_DELAY_MIN_MS, PET_DIALOGUE_FIRST_DELAY_MAX_MS);
+    const timer = window.setTimeout(() => {
+      setSelectedDialogue((current) => pickPetDialogue(
+        dialogueOptions,
+        dialogueContext,
+        current?.id,
+      ));
+      dialogueHasShownRef.current = true;
+      setDialogueDisplayToken((current) => current + 1);
+      setDialogueVisible(true);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [careAnimation, dialogueContext, dialogueSignature, dialogueVisible, state?.currentTrip?.id]);
+
+  useEffect(() => {
+    if (!dialogueVisible) return;
+    const timer = window.setTimeout(() => setDialogueVisible(false), PET_DIALOGUE_VISIBLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [dialogueDisplayToken, dialogueVisible]);
 
   useEffect(() => {
     if (!selectedDialogue?.audioUrl || dialogueAudioCacheRef.current.has(selectedDialogue.audioUrl)) return;
@@ -690,6 +734,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   function speakPetDialogue() {
     if (!soundEnabledRef.current || !selectedDialogue || careAnimation) return;
+
+    dialogueHasShownRef.current = true;
+    setDialogueDisplayToken((current) => current + 1);
+    setDialogueVisible(true);
 
     if (!selectedDialogue.audioUrl) {
       const text = selectedDialogue.text;
@@ -1398,7 +1446,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
                   <strong>{careAnimation.kind === "feed" ? "正在享用点心" : "正在补充水分"}</strong>
                   <i><b /></i>
                 </div>
-              ) : <p key={selectedDialogue?.id}>{selectedDialogue?.text ?? PET_FALLBACK_DIALOGUES[roomDialogueContext(state)][0]}</p>}
+              ) : dialogueVisible && (
+                <p key={`${selectedDialogue?.id ?? "fallback"}-${dialogueDisplayToken}`}>
+                  {selectedDialogue?.text ?? PET_FALLBACK_DIALOGUES[roomDialogueContext(state)][0]}
+                </p>
+              )}
             </div>
           </>
         )}

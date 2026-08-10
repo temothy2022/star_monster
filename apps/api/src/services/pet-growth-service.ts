@@ -9,6 +9,8 @@ const MAX_STATUS = 100;
 const LOW_PET_STATUS = 30;
 const WASTE_DAY_START_MINUTE = 8 * 60;
 const WASTE_DAY_END_MINUTE = 21 * 60;
+const WASTE_AFTER_CLEAN_MIN_MINUTES = 90;
+const WASTE_AFTER_CLEAN_MAX_MINUTES = 180;
 
 export type PetRoomAmbience = {
   imageUrl: string;
@@ -261,6 +263,15 @@ export function petWasteSchedulePlan(input: {
   });
 }
 
+export function petWasteCooldownUntil(
+  now: Date,
+  randomValue: (maxExclusive: number) => number = (maxExclusive) => randomInt(maxExclusive),
+) {
+  const spread = WASTE_AFTER_CLEAN_MAX_MINUTES - WASTE_AFTER_CLEAN_MIN_MINUTES + 1;
+  const minutes = WASTE_AFTER_CLEAN_MIN_MINUTES + randomValue(spread);
+  return new Date(now.getTime() + minutes * 60_000);
+}
+
 async function ensureDailyWasteSchedule(
   client: Prisma.TransactionClient,
   profile: {
@@ -461,9 +472,16 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       where: {
         childId,
         cleanedAt: null,
-        OR: [
-          { wasteDate: { lt: today } },
-          { wasteDate: today, appearsMinute: { lte: currentMinute } },
+        AND: [
+          {
+            OR: [
+              { wasteDate: { lt: today } },
+              { wasteDate: today, appearsMinute: { lte: currentMinute } },
+            ],
+          },
+          {
+            OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+          },
         ],
       },
       orderBy: [{ wasteDate: "asc" }, { appearsMinute: "asc" }, { sequence: "asc" }],
@@ -472,9 +490,16 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       where: {
         childId,
         cleanedAt: null,
-        OR: [
-          { wasteDate: { lt: today } },
-          { wasteDate: today, appearsMinute: { lte: currentMinute } },
+        AND: [
+          {
+            OR: [
+              { wasteDate: { lt: today } },
+              { wasteDate: today, appearsMinute: { lte: currentMinute } },
+            ],
+          },
+          {
+            OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
+          },
         ],
       },
     }),
@@ -877,6 +902,7 @@ export async function cleanPetWaste(input: {
     if (
       occurrence.wasteDate.getTime() > today.getTime()
       || (occurrence.wasteDate.getTime() === today.getTime() && occurrence.appearsMinute > currentMinute)
+      || (occurrence.snoozedUntil !== null && occurrence.snoozedUntil > now)
     ) {
       throw new HttpError(409, "PET_WASTE_NOT_READY", "小屋现在很干净");
     }
@@ -900,6 +926,15 @@ export async function cleanPetWaste(input: {
     await tx.petWasteOccurrence.update({
       where: { id: occurrence.id },
       data: { cleanedAt: now, cleanIdempotencyKey: input.idempotencyKey },
+    });
+    await tx.petWasteOccurrence.updateMany({
+      where: {
+        childId: input.childId,
+        id: { not: occurrence.id },
+        cleanedAt: null,
+        wasteDate: { lte: today },
+      },
+      data: { snoozedUntil: petWasteCooldownUntil(now) },
     });
     if (cost > 0) {
       const updatedChild = await tx.childProfile.update({
