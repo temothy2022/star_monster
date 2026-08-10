@@ -283,10 +283,54 @@
 .math-question-layout--sort { grid-template-columns: minmax(0, 1fr); }
 .math-question-layout--logic .math-question-card,
 .math-question-layout--sort .math-question-card { min-height: 0; }
-.math-question-layout--text-only { align-items: start; }
-.math-question-layout--text-only .math-question-card { align-self: start; height: auto; grid-template-rows: auto; }
-.math-question-layout--text-only .math-answer-card { align-self: start; height: auto; min-height: 0; }
-.math-question-layout--text-only .math-question-card__prompt { padding-bottom: 22px; }
+.math-question-layout--text-only {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: start;
+  align-items: stretch;
+  gap: 14px;
+}
+.math-question-layout--text-only .math-question-card,
+.math-question-layout--text-only .math-answer-card {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  align-self: stretch;
+}
+.math-question-layout--text-only .math-question-card { grid-template-rows: auto; }
+.math-question-layout--text-only .math-question-card__prompt { padding: 24px 28px 22px; }
+.math-question-layout--text-only .math-answer-card { padding: 18px 24px 22px; }
+.math-question-layout--text-only .math-answer-editor {
+  display: grid;
+  grid-template-columns: minmax(270px, .72fr) minmax(460px, 1.28fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 14px 34px;
+  padding-top: 12px;
+}
+.math-question-layout--text-only .math-equation-slots {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+.math-question-layout--text-only .math-keypad {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 0;
+  flex: none;
+}
+.math-question-layout--text-only .math-keypad:not(.math-keypad--fact-family) .math-keypad__numbers {
+  min-height: 0;
+  max-height: none;
+  flex: none;
+  grid-template-columns: repeat(6, minmax(56px, 1fr));
+  grid-template-rows: repeat(2, 54px);
+}
+.math-question-layout--text-only .math-submit-answer {
+  grid-column: 1;
+  grid-row: 2;
+  margin-top: 0;
+}
 
 .math-question-card,
 .math-answer-card {
@@ -759,6 +803,33 @@
   box-shadow: none !important;
   cursor: default;
 }
+
+@media (max-width: 900px) {
+  .math-question-layout--text-only .math-answer-editor {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+  }
+  .math-question-layout--text-only .math-equation-slots {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .math-question-layout--text-only .math-keypad {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .math-question-layout--text-only .math-submit-answer {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}
+
+@media (max-width: 600px) {
+  .math-question-layout--text-only .math-keypad:not(.math-keypad--fact-family) .math-keypad__numbers {
+    grid-template-columns: repeat(3, minmax(54px, 1fr));
+    grid-template-rows: repeat(4, 54px);
+  }
+}
 .math-option-pad {
   min-height: 0;
   flex: 1;
@@ -1200,7 +1271,8 @@
   .math-preview__stage { padding: 14px 15px 17px; }
   .math-question-layout { grid-template-columns: minmax(0, 1fr) 300px; }
   .math-question-layout--logic,
-  .math-question-layout--sort { grid-template-columns: minmax(0, 1fr); }
+  .math-question-layout--sort,
+  .math-question-layout--text-only { grid-template-columns: minmax(0, 1fr); }
   .math-logic-clues p { font-size: 12px; }
   .math-logic-grid > * { min-height: 44px; }
 }
