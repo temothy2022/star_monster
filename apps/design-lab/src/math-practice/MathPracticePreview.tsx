@@ -26,6 +26,7 @@ export function MathPracticePreview() {
   const [hintLevel, setHintLevel] = useState(0);
   const [attemptCount, setAttemptCount] = useState(0);
   const feedbackTimer = useRef<number | null>(null);
+  const teachingAuditRef = useRef<HTMLDetailsElement>(null);
   const question = useMemo(() => generateMathQuestion({ typeId: selectedTypeId, seed }), [seed, selectedTypeId]);
   const definition = MATH_QUESTION_TYPES.find((item) => item.id === selectedTypeId)!;
   const teachingGuide = getMathTeachingGuide(selectedTypeId);
@@ -47,6 +48,17 @@ export function MathPracticePreview() {
 
   useEffect(() => () => {
     if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const closeAuditOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (teachingAuditRef.current?.open && target instanceof Node && !teachingAuditRef.current.contains(target)) {
+        teachingAuditRef.current.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", closeAuditOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeAuditOnOutsidePointer);
   }, []);
 
   function clearFeedback() {
@@ -176,8 +188,8 @@ export function MathPracticePreview() {
                 disabled={feedback === "CORRECT" || feedback === "REVEAL"}
                 onLevelChange={setHintLevel}
               />
-              <details className="math-teaching-audit">
-                <summary>查看这个题型的教学重点</summary>
+              <details ref={teachingAuditRef} className="math-teaching-audit">
+                <summary><img src={chickUrl} alt="" />教学重点</summary>
                 <div>
                   <p><b>训练目标</b><span>{teachingGuide.focus}</span></p>
                   <p><b>常见错误</b><span>{teachingGuide.commonMistake}</span></p>

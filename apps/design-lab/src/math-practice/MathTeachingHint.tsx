@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   getMathTeachingGuide,
   type MathQuestion,
@@ -74,6 +75,17 @@ export function MathTeachingHint({
   const guide = getMathTeachingGuide(question.typeId as MathQuestionTypeId);
   const currentLevel = Math.max(0, Math.min(2, level));
   const currentHint = currentLevel > 0 ? guide.hints[currentLevel - 1] : null;
+  const hintRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (currentLevel === 0) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !hintRef.current?.contains(target)) onLevelChange(0);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [currentLevel, onLevelChange]);
 
   function openHint(nextLevel: number) {
     const next = Math.max(1, Math.min(2, nextLevel));
@@ -82,7 +94,7 @@ export function MathTeachingHint({
   }
 
   return (
-    <div className={`math-teaching-hint${currentLevel > 0 ? " is-open" : ""}`}>
+    <div ref={hintRef} className={`math-teaching-hint${currentLevel > 0 ? " is-open" : ""}`}>
       {currentLevel === 0 ? (
         <button type="button" disabled={disabled} onClick={() => openHint(1)}>
           <img src={chickUrl} alt="" />
