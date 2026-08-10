@@ -280,9 +280,11 @@ export function TaskDashboard({
       if (event.clientY < rect.top + 72) scroll.scrollBy({ top: -18, behavior: "auto" });
       if (event.clientY > rect.bottom - 72) scroll.scrollBy({ top: 18, behavior: "auto" });
     }
-    const draggedCenterX = session.targetLeft + session.width / 2;
-    const draggedCenterY = session.targetTop + session.height / 2;
-    const candidate = document.elementFromPoint(draggedCenterX, draggedCenterY)
+    // The grid places widgets by their leading corner. Using the center makes a
+    // wide widget hit the card two columns away and prevents valid placements.
+    const placementX = session.targetLeft + Math.min(42, session.width * .12);
+    const placementY = session.targetTop + Math.min(36, session.height * .12);
+    const candidate = document.elementFromPoint(placementX, placementY)
       ?.closest<HTMLElement>("[data-task-widget]");
     const targetKey = candidate?.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
     if (!candidate || !targetKey || targetKey === session.key || !WIDGET_BY_KEY.has(targetKey)) return;
@@ -296,10 +298,10 @@ export function TaskDashboard({
     const movingForward = targetIndex > sourceIndex;
     if (sameRow) {
       const centerX = rect.left + rect.width / 2;
-      if (movingForward ? draggedCenterX < centerX : draggedCenterX > centerX) return;
+      if (movingForward ? placementX < centerX : placementX > centerX) return;
     } else {
       const centerY = rect.top + rect.height / 2;
-      if (movingForward ? draggedCenterY < centerY : draggedCenterY > centerY) return;
+      if (movingForward ? placementY < centerY : placementY > centerY) return;
     }
     const now = performance.now();
     if (now - session.lastSwapAt < REORDER_ANIMATION_MS) return;
