@@ -56,12 +56,29 @@ const logicCharacters: readonly { label: string; asset: MathSpriteKey }[] = [
   { label: "西瓜妹妹", asset: "watermelon" },
 ];
 
-const logicSports: readonly { label: string; asset: MathLogicPictureKey }[] = [
-  { label: "足球", asset: "soccer" },
-  { label: "篮球", asset: "basketball" },
-  { label: "排球", asset: "volleyball" },
-  { label: "网球", asset: "tennis" },
-  { label: "羽毛球", asset: "badminton" },
+const logicScenarios: readonly (readonly { label: string; asset: MathLogicPictureKey }[])[] = [
+  [
+    { label: "足球", asset: "soccer" },
+    { label: "篮球", asset: "basketball" },
+    { label: "排球", asset: "volleyball" },
+    { label: "网球", asset: "tennis" },
+    { label: "羽毛球", asset: "badminton" },
+  ],
+  [
+    { label: "苹果", asset: "apple" },
+    { label: "西瓜", asset: "watermelon" },
+    { label: "蛋糕", asset: "cake" },
+  ],
+  [
+    { label: "铅笔", asset: "pencil" },
+    { label: "书包", asset: "backpack" },
+    { label: "图画书", asset: "book" },
+  ],
+  [
+    { label: "小汽车", asset: "car" },
+    { label: "小火车", asset: "train" },
+    { label: "自行车", asset: "bicycle" },
+  ],
 ];
 
 function rotatingValues<T>(values: readonly T[], offset: number) {
@@ -900,37 +917,41 @@ export function generateMathQuestion(
     case "S03": {
       const scenario = Math.imul(input.seed, 2654435761) >>> 0;
       const allCharacters = rotatingValues(logicCharacters, scenario % logicCharacters.length);
-      const sports = rotatingValues(logicSports, Math.floor(scenario / logicCharacters.length) % logicSports.length).slice(0, 3);
+      const scenarioPictures = logicScenarios[scenario % logicScenarios.length]!;
+      const pictures = rotatingValues(
+        scenarioPictures,
+        Math.floor(scenario / logicCharacters.length) % scenarioPictures.length,
+      ).slice(0, 3);
       const characters = difficulty === 2 ? allCharacters.slice(0, 4) : allCharacters;
       const assignments = difficulty === 2
-        ? [sports[0]!, sports[0]!, sports[1]!, sports[2]!]
-        : [sports[0]!, sports[0]!, sports[1]!, sports[1]!, sports[2]!];
+        ? [pictures[0]!, pictures[0]!, pictures[1]!, pictures[2]!]
+        : [pictures[0]!, pictures[0]!, pictures[1]!, pictures[1]!, pictures[2]!];
       const clues = difficulty === 2 ? [
-        `${characters[0]!.label}想玩${sports[0]!.label}。`,
-        `${characters[1]!.label}要和${characters[0]!.label}一起玩。`,
-        `${characters[2]!.label}想玩${sports[1]!.label}。`,
-        `${characters[3]!.label}不玩${sports[0]!.label}和${sports[1]!.label}。`,
+        `${characters[0]!.label}选择了${pictures[0]!.label}。`,
+        `${characters[1]!.label}要和${characters[0]!.label}选择同一种。`,
+        `${characters[2]!.label}选择了${pictures[1]!.label}。`,
+        `${characters[3]!.label}不选择${pictures[0]!.label}和${pictures[1]!.label}。`,
       ] : [
-        `${characters[0]!.label}想玩${sports[0]!.label}。`,
-        `${characters[1]!.label}要和${characters[0]!.label}一起玩。`,
-        `${characters[2]!.label}不玩${sports[0]!.label}和${sports[2]!.label}。`,
-        `${characters[3]!.label}要和${characters[2]!.label}一起玩。`,
-        `${characters[4]!.label}想自己一个人玩。`,
+        `${characters[0]!.label}选择了${pictures[0]!.label}。`,
+        `${characters[1]!.label}要和${characters[0]!.label}选择同一种。`,
+        `${characters[2]!.label}不选择${pictures[0]!.label}和${pictures[2]!.label}。`,
+        `${characters[3]!.label}要和${characters[2]!.label}选择同一种。`,
+        `${characters[4]!.label}想自己选择一个。`,
       ];
       const answers = characters.map((character, index) => `${character.label}-${assignments[index].label}`);
       return question(input, {
-        prompt: "根据条件，帮每个小伙伴选择一种运动，在表格里打勾。",
+        prompt: "根据条件，帮每个小伙伴完成配对，在表格里打勾。",
         visual: {
           kind: "LOGIC_GRID",
           rows: characters.map((character) => character.label),
           rowAssets: characters.map((character) => character.asset),
-          columns: sports.map((sport) => sport.label),
-          columnAssets: sports.map((sport) => sport.asset),
+          columns: pictures.map((picture) => picture.label),
+          columnAssets: pictures.map((picture) => picture.asset),
           clues,
         },
         response: { mode: "R05", multiSelect: true },
         answer: { values: answers, display: answers.map((value) => value.replace("-", "选")).join("，") },
-        explanation: "先确定想玩的运动，再根据一起玩、排除和独自玩的条件完成表格。",
+        explanation: "先确定已经明确的配对，再根据相同、排除和独自选择的条件完成表格。",
       });
     }
     case "S04": {

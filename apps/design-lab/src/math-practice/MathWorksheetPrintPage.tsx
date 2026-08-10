@@ -57,7 +57,10 @@ const WORKSHEET_ROW_GAP_MM = 4;
 const MAX_PAIRED_HEIGHT_DIFFERENCE_MM = 12;
 
 export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLayout {
-  if (question.typeId === "S03") return { heightMm: 222, size: "logic", wide: true };
+  if (question.typeId === "S03") {
+    const rowCount = question.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 4;
+    return { heightMm: Math.max(104, Math.min(120, 76 + rowCount * 7)), size: "logic", wide: true };
+  }
   if (question.typeId === "V07") return { heightMm: 104, size: "fact-family", wide: true };
   if (question.typeId === "N02") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N15") return { heightMm: 82, size: "wide-visual", wide: true };

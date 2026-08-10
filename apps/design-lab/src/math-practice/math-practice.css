@@ -1090,7 +1090,7 @@
 .math-logic-grid__corner { background: linear-gradient(135deg, #edf8fe 49%, #9fc8df 50%, #edf8fe 51%); }
 .math-logic-grid__picture { background: #f7fcff; }
 .math-logic-grid__picture .math-sprite { width: 40px; height: 40px; }
-.math-logic-picture { width: 40px; height: 40px; overflow: visible; }
+.math-logic-picture { width: 40px; height: 40px; object-fit: contain; overflow: visible; user-select: none; }
 .math-logic-grid > button {
   min-width: 0;
   padding: 0;

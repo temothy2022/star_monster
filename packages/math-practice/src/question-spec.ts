@@ -16,7 +16,16 @@ export type MathLogicPictureKey =
   | "basketball"
   | "volleyball"
   | "tennis"
-  | "badminton";
+  | "badminton"
+  | "apple"
+  | "watermelon"
+  | "cake"
+  | "pencil"
+  | "backpack"
+  | "book"
+  | "car"
+  | "train"
+  | "bicycle";
 
 export type MathArithmeticToken = number | "+" | "-" | "=" | { kind: "BLANK"; placeholder?: string };
 

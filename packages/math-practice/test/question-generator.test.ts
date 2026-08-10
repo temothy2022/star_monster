@@ -347,6 +347,7 @@ describe("math practice question generator", () => {
 
   it("changes the S03 picture puzzle on every consecutive preview seed", () => {
     let previousSignature = "";
+    const pictureThemes = new Set<string>();
     for (let seed = 20260809; seed < 20260829; seed += 1) {
       const question = generateMathQuestion({ typeId: "S03", seed });
       expect(question.visual.kind).toBe("LOGIC_GRID");
@@ -356,6 +357,7 @@ describe("math practice question generator", () => {
         columns: question.visual.columns,
         clues: question.visual.clues,
       });
+      pictureThemes.add(question.visual.columnAssets?.join(",") ?? "");
       expect(signature).not.toBe(previousSignature);
       previousSignature = signature;
       expect(question.visual.rowAssets).toHaveLength(question.difficulty === 2 ? 4 : 5);
@@ -365,6 +367,7 @@ describe("math practice question generator", () => {
       expect(new Set(question.answer.values.map((value) => value.split("-")[1])).size).toBe(3);
       expect(question.answer.values).toHaveLength(question.difficulty === 2 ? 4 : 5);
     }
+    expect(pictureThemes.size).toBeGreaterThanOrEqual(3);
   });
 
   it("keeps every option answer selectable and every editable response complete", () => {

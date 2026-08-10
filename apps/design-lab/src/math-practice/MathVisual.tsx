@@ -22,6 +22,20 @@ import lengthRulersUrl from "@star-monsters/assets/images/math-practice/length-r
 import lengthSpoonsUrl from "@star-monsters/assets/images/math-practice/length-spoons.webp";
 import lengthStrawsUrl from "@star-monsters/assets/images/math-practice/length-straws.webp";
 import lengthToothbrushesUrl from "@star-monsters/assets/images/math-practice/length-toothbrushes.webp";
+import logicAppleUrl from "@star-monsters/assets/images/math-practice/apple.webp";
+import logicWatermelonUrl from "@star-monsters/assets/images/math-practice/watermelon.webp";
+import logicCakeUrl from "@star-monsters/assets/images/math-practice/cake.webp";
+import logicPencilUrl from "@star-monsters/assets/images/math-practice/pencil.webp";
+import logicBackpackUrl from "@star-monsters/assets/images/math-practice/logic/backpack.webp";
+import logicBookUrl from "@star-monsters/assets/images/math-practice/logic/book.webp";
+import logicCarUrl from "@star-monsters/assets/images/math-practice/logic/car.webp";
+import logicTrainUrl from "@star-monsters/assets/images/math-practice/logic/train.webp";
+import logicBicycleUrl from "@star-monsters/assets/images/math-practice/logic/bicycle.webp";
+import logicSoccerUrl from "@star-monsters/assets/images/math-practice/logic/soccer.webp";
+import logicBasketballUrl from "@star-monsters/assets/images/math-practice/logic/basketball.webp";
+import logicVolleyballUrl from "@star-monsters/assets/images/math-practice/logic/volleyball.webp";
+import logicTennisUrl from "@star-monsters/assets/images/math-practice/logic/tennis.webp";
+import logicBadmintonUrl from "@star-monsters/assets/images/math-practice/logic/badminton.webp";
 
 const spriteUrls: Record<MathSpriteKey, string> = {
   apple: appleUrl,
@@ -514,6 +528,15 @@ const logicPictureLabels: Record<MathLogicPictureKey, string> = {
   volleyball: "排球",
   tennis: "网球",
   badminton: "羽毛球",
+  apple: "苹果",
+  watermelon: "西瓜",
+  cake: "蛋糕",
+  pencil: "铅笔",
+  backpack: "书包",
+  book: "图画书",
+  car: "小汽车",
+  train: "小火车",
+  bicycle: "自行车",
 };
 
 const logicRowAssetByLabel: Partial<Record<string, MathSpriteKey>> = {
@@ -532,42 +555,36 @@ const logicColumnAssetByLabel: Partial<Record<string, MathLogicPictureKey>> = {
   排球: "volleyball",
   网球: "tennis",
   羽毛球: "badminton",
+  苹果: "apple",
+  西瓜: "watermelon",
+  蛋糕: "cake",
+  铅笔: "pencil",
+  书包: "backpack",
+  图画书: "book",
+  小汽车: "car",
+  小火车: "train",
+  自行车: "bicycle",
+};
+
+const logicPictureUrls: Record<MathLogicPictureKey, string> = {
+  soccer: logicSoccerUrl,
+  basketball: logicBasketballUrl,
+  volleyball: logicVolleyballUrl,
+  tennis: logicTennisUrl,
+  badminton: logicBadmintonUrl,
+  apple: logicAppleUrl,
+  watermelon: logicWatermelonUrl,
+  cake: logicCakeUrl,
+  pencil: logicPencilUrl,
+  backpack: logicBackpackUrl,
+  book: logicBookUrl,
+  car: logicCarUrl,
+  train: logicTrainUrl,
+  bicycle: logicBicycleUrl,
 };
 
 const LogicPicture = memo(function LogicPicture({ asset }: { asset: MathLogicPictureKey }) {
-  if (asset === "badminton") {
-    return (
-      <svg className="math-logic-picture" viewBox="0 0 64 64" role="img" aria-label={logicPictureLabels[asset]}>
-        <path d="M17 12 40 35 29 46 10 21Z" fill="#fff" stroke="#527a9d" strokeWidth="3" />
-        <path d="m13 18 22 22M19 12l21 23M18 28l18-1M24 35l18-1" fill="none" stroke="#9dc7df" strokeWidth="2" />
-        <path d="M29 46c5 7 13 8 18 3l4-4-11-10Z" fill="#ffd65a" stroke="#b97827" strokeWidth="3" />
-      </svg>
-    );
-  }
-  const fill = asset === "soccer" ? "#fff" : asset === "basketball" ? "#f49a3c" : asset === "volleyball" ? "#75c8eb" : "#cbe85b";
-  return (
-    <svg className="math-logic-picture" viewBox="0 0 64 64" role="img" aria-label={logicPictureLabels[asset]}>
-      <circle cx="32" cy="32" r="24" fill={fill} stroke="#426b8d" strokeWidth="3" />
-      {asset === "soccer" ? (
-        <>
-          <path d="m32 21 8 6-3 10H27l-3-10Z" fill="#3e5268" />
-          <path d="m24 27-9-3m25 3 9-3M27 37l-7 9m17-9 7 9M32 21v-9" fill="none" stroke="#3e5268" strokeWidth="3" />
-        </>
-      ) : null}
-      {asset === "basketball" ? (
-        <>
-          <path d="M8 32h48M32 8v48M15 16c12 7 22 25 34 32M49 16C37 23 27 41 15 48" fill="none" stroke="#874921" strokeWidth="3" />
-        </>
-      ) : null}
-      {asset === "volleyball" ? (
-        <>
-          <path d="M32 8c-4 12-3 18 4 25M10 24c12-1 19 2 26 9M18 50c3-12 8-17 18-17M55 27c-10 5-15 11-16 22" fill="none" stroke="#fff" strokeWidth="5" />
-          <path d="M32 8c-4 12-3 18 4 25M10 24c12-1 19 2 26 9M18 50c3-12 8-17 18-17M55 27c-10 5-15 11-16 22" fill="none" stroke="#477d9e" strokeWidth="2" />
-        </>
-      ) : null}
-      {asset === "tennis" ? <path d="M15 15c17 10 24 24 34 34M49 15C32 25 25 39 15 49" fill="none" stroke="#fff" strokeWidth="4" /> : null}
-    </svg>
-  );
+  return <img className="math-logic-picture" src={logicPictureUrls[asset]} alt={logicPictureLabels[asset]} draggable={false} />;
 });
 
 function SpeakerIcon() {
