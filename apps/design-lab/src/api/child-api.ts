@@ -412,11 +412,38 @@ export type TaskDashboardWidgetKey =
   | "STREAK"
   | "GOAL_BONUS"
   | "LEADERBOARD"
-  | "NOTIFICATIONS";
+  | "NOTIFICATIONS"
+  | "HANZI_REVIEW"
+  | "POEM_REVIEW";
 
 export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
+};
+
+export type DashboardHanziReview = {
+  id: string;
+  character: string;
+  word: string | null;
+  characterAudioUrl: string | null;
+  wordAudioUrl: string | null;
+  nextReviewDate: string;
+};
+
+export type DashboardPoemReview = {
+  id: string;
+  title: string;
+  dynasty: string;
+  author: string;
+  content: string;
+  audioUrl: string | null;
+  nextReviewDate: string;
+};
+
+export type TaskDashboardReviewSummary = {
+  date: string;
+  hanzi: DashboardHanziReview[];
+  poem: DashboardPoemReview | null;
 };
 
 export type MascotAsset = {
@@ -452,6 +479,13 @@ export async function updateTaskDashboardLayout(layout: TaskDashboardLayout) {
   return request<{ layout: TaskDashboardLayout }>(
     "/api/child/tasks/dashboard-layout",
     { method: "PATCH", body: JSON.stringify(layout) },
+  );
+}
+
+export async function getTaskDashboardReviews(signal?: AbortSignal) {
+  return request<TaskDashboardReviewSummary>(
+    "/api/child/tasks/dashboard-reviews",
+    { cache: "no-store", signal },
   );
 }
 

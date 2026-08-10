@@ -13,6 +13,7 @@ import {
   resumeTask,
   startTask,
 } from "../services/task-service.js";
+import { getTaskDashboardReviews } from "../services/dashboard-review-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
 
@@ -34,6 +35,11 @@ export async function registerChildTaskRoutes(
       select: { id: true },
     });
     return { layout };
+  });
+
+  app.get("/api/child/tasks/dashboard-reviews", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    return getTaskDashboardReviews(child.id, config);
   });
 
   app.post("/api/child/tasks/:id/start", async (request, reply) => {

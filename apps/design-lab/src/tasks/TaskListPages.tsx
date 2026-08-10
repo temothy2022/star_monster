@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import balanceStar from "@star-monsters/assets/images/task-list/semantic/balance-star.png";
 import streakFlame from "@star-monsters/assets/images/task-list/semantic/streak-flame.png";
@@ -20,9 +21,13 @@ import addPlus from "@star-monsters/assets/images/task-list/semantic/add-plus.pn
 import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-base.webp";
 import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
 import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
+import reviewAudioPlay from "@star-monsters/assets/images/task-dashboard/review-audio-play.webp";
 import { MASCOTS, useMascot } from "../mascots";
 import {
+  createAudioWithSpeechFallback,
   createHtmlAudioPlayback,
+  createSequentialPlayback,
+  createSpeechPlayback,
   SinglePendingPlaybackQueue,
   stopManagedHtmlAudio,
 } from "../audio/queued-playback";
@@ -33,6 +38,7 @@ import {
   getChildPlanets,
   getChildFootprints,
   getPetNotifications,
+  getTaskDashboardReviews,
   getTodayTasks,
   markChildPlanetNotified,
   updateTaskDashboardLayout,
@@ -40,12 +46,15 @@ import {
   type ChildLeaderboard,
   type ChildLeaderboardEntry,
   type DailyTask,
+  type DashboardHanziReview,
+  type DashboardPoemReview,
   type MascotAsset,
   type MascotDialogue,
   type PetNotificationSummary,
   type TaskAttempt,
   type TodayTaskExperience,
   type TaskDashboardWidgetKey,
+  type TaskDashboardReviewSummary,
 } from "../api/child-api";
 import { PlanetUnlockModal } from "../planets/PlanetUnlockModal";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
@@ -387,6 +396,201 @@ function GoalBonusWidget({
   );
 }
 
+type ReviewAudioSegment = {
+  text: string;
+  audioUrl: string | null;
+};
+
+function useReviewAudioPlayback() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioCacheRef = useRef(new Map<string, HTMLAudioElement>());
+  const queueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  if (!queueRef.current) {
+    queueRef.current = new SinglePendingPlaybackQueue(setIsPlaying);
+  }
+
+  useEffect(() => () => queueRef.current?.clear(), []);
+
+  function play(segments: ReviewAudioSegment[]) {
+    const playable = segments.filter((segment) => segment.text.trim().length > 0);
+    if (playable.length === 0) return;
+    queueRef.current?.enqueue(() => createSequentialPlayback(
+      playable.map((segment) => () => {
+        if (!segment.audioUrl) {
+          return createSpeechPlayback(segment.text, { rate: 0.76, pitch: 1.04 });
+        }
+        const cached = audioCacheRef.current.get(segment.audioUrl);
+        const audio = cached ?? new Audio(segment.audioUrl);
+        if (!cached) {
+          audio.preload = "auto";
+          audioCacheRef.current.set(segment.audioUrl, audio);
+        }
+        return createAudioWithSpeechFallback(audio, segment.text, {
+          rate: 0.76,
+          pitch: 1.04,
+        });
+      }),
+      280,
+    ));
+  }
+
+  return { isPlaying, play };
+}
+
+function HanziReviewWidget({
+  reviews,
+  loading,
+  unavailable,
+}: {
+  reviews: DashboardHanziReview[];
+  loading: boolean;
+  unavailable: boolean;
+}) {
+  const [index, setIndex] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    width: number;
+  } | null>(null);
+  const { isPlaying, play } = useReviewAudioPlayback();
+
+  useEffect(() => {
+    setIndex((current) => Math.min(current, Math.max(0, reviews.length - 1)));
+  }, [reviews.length]);
+
+  function beginSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    if (reviews.length < 2 || event.button !== 0) return;
+    const width = event.currentTarget.getBoundingClientRect().width;
+    dragRef.current = { pointerId: event.pointerId, startX: event.clientX, width };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rawOffset = event.clientX - drag.startX;
+    const atStart = index === 0 && rawOffset > 0;
+    const atEnd = index === reviews.length - 1 && rawOffset < 0;
+    setDragOffset((atStart || atEnd) ? rawOffset * 0.24 : rawOffset);
+  }
+
+  function finishSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const distance = event.clientX - drag.startX;
+    if (Math.abs(distance) >= Math.max(32, drag.width * 0.18)) {
+      setIndex((current) => Math.max(
+        0,
+        Math.min(reviews.length - 1, current + (distance < 0 ? 1 : -1)),
+      ));
+    }
+    dragRef.current = null;
+    setDragOffset(0);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  if (loading) {
+    return <div className="task-widget-review-empty"><i /><span>正在整理复习汉字</span></div>;
+  }
+  if (unavailable) {
+    return <div className="task-widget-review-empty"><i /><span>复习汉字暂时无法读取</span></div>;
+  }
+  if (reviews.length === 0) {
+    return <div className="task-widget-review-empty"><i /><span>暂时没有要复习的汉字</span></div>;
+  }
+
+  return (
+    <div className={`task-widget-hanzi-review${dragRef.current ? " is-swiping" : ""}`}>
+      <div
+        className="task-widget-hanzi-review__viewport"
+        onPointerDown={beginSwipe}
+        onPointerMove={moveSwipe}
+        onPointerUp={finishSwipe}
+        onPointerCancel={finishSwipe}
+      >
+        <div
+          className="task-widget-hanzi-review__track"
+          style={{
+            transform: `translate3d(calc(${-index * 100}% + ${dragOffset}px), 0, 0)`,
+          }}
+        >
+          {reviews.map((review) => (
+            <section className="task-widget-hanzi-review__slide" key={review.id} aria-hidden={reviews[index]?.id !== review.id}>
+              <div className="task-widget-hanzi-review__word">
+                <small>复习汉字</small>
+                <strong>{review.character}</strong>
+                {review.word && <span>{review.word}</span>}
+              </div>
+              <button
+                className={isPlaying && reviews[index]?.id === review.id ? "is-playing" : ""}
+                type="button"
+                aria-label={`播放${review.character}${review.word ? `和${review.word}` : ""}的读音`}
+                tabIndex={reviews[index]?.id === review.id ? 0 : -1}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => play([
+                  { text: review.character, audioUrl: review.characterAudioUrl },
+                  ...(review.word ? [{ text: review.word, audioUrl: review.wordAudioUrl }] : []),
+                ])}
+              >
+                <img src={reviewAudioPlay} alt="" />
+              </button>
+            </section>
+          ))}
+        </div>
+      </div>
+      {reviews.length > 1 && (
+        <div className="task-widget-hanzi-review__dots" aria-label={`第 ${index + 1} 个，共 ${reviews.length} 个`}>
+          {reviews.map((review, dotIndex) => <i className={dotIndex === index ? "is-active" : ""} key={review.id} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PoemReviewWidget({
+  poem,
+  loading,
+  unavailable,
+}: {
+  poem: DashboardPoemReview | null;
+  loading: boolean;
+  unavailable: boolean;
+}) {
+  const { isPlaying, play } = useReviewAudioPlayback();
+  if (loading) {
+    return <div className="task-widget-review-empty"><i /><span>正在挑选今日古诗</span></div>;
+  }
+  if (unavailable) {
+    return <div className="task-widget-review-empty"><i /><span>复习古诗暂时无法读取</span></div>;
+  }
+  if (!poem) {
+    return <div className="task-widget-review-empty"><i /><span>暂时没有要复习的古诗</span></div>;
+  }
+  const readingText = `${poem.title}，${poem.dynasty}，${poem.author}。${poem.content.replace(/\n+/g, "，")}`;
+  const preview = poem.content.split(/\n+/).filter(Boolean).slice(0, 2).join("　");
+  return (
+    <div className="task-widget-poem-review">
+      <div className="task-widget-poem-review__copy">
+        <small>今日古诗</small>
+        <strong>{poem.title}</strong>
+        <span>{poem.dynasty} · {poem.author}</span>
+        <p>{preview}</p>
+      </div>
+      <button
+        className={isPlaying ? "is-playing" : ""}
+        type="button"
+        aria-label={`播放古诗${poem.title}`}
+        onClick={() => play([{ text: readingText, audioUrl: poem.audioUrl }])}
+      >
+        <img src={reviewAudioPlay} alt="" />
+      </button>
+    </div>
+  );
+}
+
 function CompactLeaderboardRow({ entry }: { entry: ChildLeaderboardEntry }) {
   const avatar = entry.avatarUrl ?? (
     entry.avatarKey
@@ -711,6 +915,7 @@ export function TaskExperience({
   const [apiError, setApiError] = useState("");
   const [dailyLeaderboard, setDailyLeaderboard] = useState<ChildLeaderboard | null>(null);
   const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
+  const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
   const onStartAttemptRef = useRef(onStartAttempt);
 
   useEffect(() => {
@@ -875,6 +1080,44 @@ export function TaskExperience({
     { enabled: notificationsEnabled, intervalMs: 30_000 },
   );
 
+  const dashboardReviewsEnabled = variant === "dashboard" && Boolean(
+    experience?.taskDashboardLayout.widgets.some(
+      (widget) => widget === "HANZI_REVIEW" || widget === "POEM_REVIEW",
+    ),
+  );
+
+  useEffect(() => {
+    if (!dashboardReviewsEnabled) {
+      setDashboardReviews(undefined);
+      return;
+    }
+    const controller = new AbortController();
+    setDashboardReviews(undefined);
+    void getTaskDashboardReviews(controller.signal)
+      .then(setDashboardReviews)
+      .catch((reason: unknown) => {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+          return;
+        }
+        if (!controller.signal.aborted) setDashboardReviews(null);
+      });
+    return () => controller.abort();
+  }, [dashboardReviewsEnabled]);
+
+  useLiveRefresh(
+    async (signal) => {
+      try {
+        setDashboardReviews(await getTaskDashboardReviews(signal));
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: dashboardReviewsEnabled, intervalMs: 300_000 },
+  );
+
   useEffect(() => {
     if (experience) {
       reportChildPageReady(
@@ -982,6 +1225,22 @@ export function TaskExperience({
         return <CompactLeaderboardWidget leaderboard={dailyLeaderboard} />;
       case "NOTIFICATIONS":
         return <NotificationWidget notifications={petNotifications} onNavigate={onNavigate} />;
+      case "HANZI_REVIEW":
+        return (
+          <HanziReviewWidget
+            reviews={dashboardReviews?.hanzi ?? []}
+            loading={dashboardReviews === undefined}
+            unavailable={dashboardReviews === null}
+          />
+        );
+      case "POEM_REVIEW":
+        return (
+          <PoemReviewWidget
+            poem={dashboardReviews?.poem ?? null}
+            loading={dashboardReviews === undefined}
+            unavailable={dashboardReviews === null}
+          />
+        );
     }
   }
 

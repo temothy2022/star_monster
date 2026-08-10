@@ -236,6 +236,52 @@ export function createDeferredPlayback(
   };
 }
 
+export function createSequentialPlayback(
+  factories: PlaybackFactory[],
+  pauseMs = 0,
+): PlaybackHandle {
+  let cancelled = false;
+  let active: PlaybackHandle | null = null;
+  let pauseTimer: number | null = null;
+  let finishPause: (() => void) | null = null;
+
+  const wait = () => new Promise<void>((resolve) => {
+    if (pauseMs <= 0 || cancelled) {
+      resolve();
+      return;
+    }
+    finishPause = resolve;
+    pauseTimer = window.setTimeout(() => {
+      pauseTimer = null;
+      finishPause = null;
+      resolve();
+    }, pauseMs);
+  });
+
+  const done = (async () => {
+    for (let index = 0; index < factories.length && !cancelled; index += 1) {
+      active = factories[index]?.() ?? null;
+      await active?.done.catch(() => undefined);
+      active = null;
+      if (index < factories.length - 1) await wait();
+    }
+  })();
+
+  return {
+    done,
+    cancel: () => {
+      if (cancelled) return;
+      cancelled = true;
+      active?.cancel();
+      active = null;
+      if (pauseTimer !== null) window.clearTimeout(pauseTimer);
+      pauseTimer = null;
+      finishPause?.();
+      finishPause = null;
+    },
+  };
+}
+
 export function createCallbackPlayback(
   start: (finished: () => void) => () => void,
 ): PlaybackHandle {

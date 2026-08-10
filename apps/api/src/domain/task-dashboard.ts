@@ -10,6 +10,8 @@ export const TASK_DASHBOARD_WIDGET_KEYS = [
   "GOAL_BONUS",
   "LEADERBOARD",
   "NOTIFICATIONS",
+  "HANZI_REVIEW",
+  "POEM_REVIEW",
 ] as const;
 
 export type TaskDashboardWidgetKey = typeof TASK_DASHBOARD_WIDGET_KEYS[number];
@@ -21,7 +23,17 @@ export type TaskDashboardLayout = {
 
 export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
   version: 1,
-  widgets: ["DAILY_PROGRESS", "BALANCE", "STREAK", "NOTIFICATIONS", "MASCOT", "LEADERBOARD", "TASKS"],
+  widgets: [
+    "DAILY_PROGRESS",
+    "BALANCE",
+    "STREAK",
+    "NOTIFICATIONS",
+    "HANZI_REVIEW",
+    "POEM_REVIEW",
+    "MASCOT",
+    "LEADERBOARD",
+    "TASKS",
+  ],
 };
 
 export const taskDashboardLayoutSchema = z.object({

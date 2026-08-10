@@ -12,6 +12,8 @@ describe("task dashboard layout", () => {
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("MASCOT");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("LEADERBOARD");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("NOTIFICATIONS");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("HANZI_REVIEW");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POEM_REVIEW");
   });
 
   it("keeps a valid child-defined order", () => {

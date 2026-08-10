@@ -30,6 +30,8 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   { key: "GOAL_BONUS", label: "目标奖励", description: "展示达标后可以获得的奖励", size: "small", tone: "purple" },
   { key: "LEADERBOARD", label: "今日排名", description: "查看前三名和自己的今日排名", size: "medium", tone: "indigo" },
   { key: "NOTIFICATIONS", label: "通知", description: "查看新明信片和升级红包", size: "small", tone: "notice" },
+  { key: "HANZI_REVIEW", label: "复习汉字", description: "滑动查看最近要复习的汉字", size: "small", tone: "hanzi" },
+  { key: "POEM_REVIEW", label: "复习古诗", description: "每天听一首需要复习的古诗", size: "medium", tone: "poem" },
 ];
 
 const WIDGET_BY_KEY = new Map(TASK_DASHBOARD_WIDGETS.map((widget) => [widget.key, widget]));
