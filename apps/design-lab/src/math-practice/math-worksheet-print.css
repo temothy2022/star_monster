@@ -625,6 +625,9 @@
 .math-paper-question .math-balance-compare { height: 44mm; transform: scale(.62); }
 .math-paper-question .math-scale-compare { width: 100%; }
 .math-paper-question .math-scale-compare__stage { width: 62mm; }
+.math-paper-question .math-scale-compare__base { right: 29.5%; width: 41%; }
+.math-paper-question .math-scale-compare__beam { transform-origin: 50% 42%; }
+.math-paper-question .math-scale-compare__weights { top: 52%; }
 .math-paper-question .math-scale-compare__weights span { width: 4mm; height: 3mm; border-width: .5mm; border-radius: 1mm; }
 .math-paper-question .math-scale-compare__labels { font-size: 7pt; }
 .math-paper-question .math-spatial-grid { width: 50mm; border-width: .7mm; border-radius: 3mm; }

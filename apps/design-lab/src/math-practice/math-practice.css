@@ -1035,13 +1035,13 @@
 .math-balance-compare > i { position: absolute; z-index: 1; top: 64px; left: 50%; width: 0; height: 0; border-left: 42px solid transparent; border-right: 42px solid transparent; border-bottom: 88px solid #f0b84d; filter: drop-shadow(0 7px 0 #d79931); transform: translateX(-50%); }
 .math-balance-compare__labels { position: absolute; left: 3%; right: 3%; bottom: 0; display: flex; justify-content: space-between; color: #667c94; font-weight: 900; }
 .math-scale-compare { width: min(600px, 100%); padding: 10px 0 0; color: #667c94; font-weight: 900; }
-.math-scale-compare__stage { position: relative; width: min(540px, 100%); margin: 0 auto; aspect-ratio: 1402 / 1122; transform-origin: center; transition: transform 180ms ease; }
-.math-scale-compare--left .math-scale-compare__stage { transform: rotate(-4deg); }
-.math-scale-compare--right .math-scale-compare__stage { transform: rotate(4deg); }
-.math-scale-compare__stage > img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
-.math-scale-compare__weights { position: absolute; top: 30%; width: 24%; height: 13%; display: flex; align-items: flex-end; justify-content: center; gap: 5px; }
-.math-scale-compare__weights--left { left: 8%; }
-.math-scale-compare__weights--right { right: 8%; }
+.math-scale-compare__stage { position: relative; width: min(540px, 100%); aspect-ratio: 3 / 2; margin: 0 auto; }
+.math-scale-compare__base { position: absolute; z-index: 1; right: 29.5%; bottom: 0; width: 41%; height: auto; user-select: none; -webkit-user-drag: none; }
+.math-scale-compare__beam { position: absolute; z-index: 2; inset: 0; transform-origin: 50% 42%; transition: transform 240ms ease; }
+.math-scale-compare__beam > img { display: block; width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+.math-scale-compare__weights { position: absolute; top: 52%; width: 22%; height: 14%; display: flex; align-items: flex-end; justify-content: center; gap: 5px; }
+.math-scale-compare__weights--left { left: 10%; }
+.math-scale-compare__weights--right { right: 10%; }
 .math-scale-compare__weights span { width: clamp(18px, 4vw, 30px); height: clamp(13px, 3vw, 23px); border: 3px solid #2d5a92; border-radius: 8px 8px 12px 12px; background: linear-gradient(180deg, #ffd86a 0%, #f19b4f 100%); box-shadow: inset 0 -4px 0 rgba(188, 91, 52, .22); }
 .math-scale-compare__labels { display: flex; justify-content: space-between; padding: 0 12%; margin-top: -3px; }
 

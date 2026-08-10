@@ -14,7 +14,8 @@ import pencilUrl from "@star-monsters/assets/images/math-practice/pencil.webp";
 import puppyUrl from "@star-monsters/assets/images/math-practice/puppy.webp";
 import stickBundleUrl from "@star-monsters/assets/images/math-practice/stick-bundle.webp";
 import watermelonUrl from "@star-monsters/assets/images/math-practice/watermelon.webp";
-import balanceScaleUrl from "@star-monsters/assets/images/math-practice/balance-scale.png";
+import balanceScaleBaseUrl from "@star-monsters/assets/images/math-practice/balance-scale-base-v2.webp";
+import balanceScaleBeamUrl from "@star-monsters/assets/images/math-practice/balance-scale-beam-v2.webp";
 import lengthCrayonsUrl from "@star-monsters/assets/images/math-practice/length-crayons.webp";
 import lengthPaintbrushesUrl from "@star-monsters/assets/images/math-practice/length-paintbrushes.webp";
 import lengthRibbonsUrl from "@star-monsters/assets/images/math-practice/length-ribbons.webp";
@@ -468,15 +469,19 @@ function AttributeCompare({ question }: { question: VisualQuestion }) {
     if (visual.balanceType === "SCALE") {
       const weights = visual.weights ?? [2, 2];
       const balanceLabel = visual.balance === "EQUAL" ? "两边一样重" : visual.balance === "LEFT" ? "左边较重" : "右边较重";
+      const beamRotation = visual.balance === "LEFT" ? -4 : visual.balance === "RIGHT" ? 4 : 0;
       return (
         <div className={`math-scale-compare math-scale-compare--${visual.balance.toLowerCase()}`} aria-label={`天平，${balanceLabel}`}>
           <div className="math-scale-compare__stage">
-            <img src={balanceScaleUrl} alt="卡通天平" draggable={false} />
-            <div className="math-scale-compare__weights math-scale-compare__weights--left">
-              {Array.from({ length: weights[0] }, (_, index) => <span key={index} aria-hidden="true" />)}
-            </div>
-            <div className="math-scale-compare__weights math-scale-compare__weights--right">
-              {Array.from({ length: weights[1] }, (_, index) => <span key={index} aria-hidden="true" />)}
+            <img className="math-scale-compare__base" src={balanceScaleBaseUrl} alt="卡通天平底座" draggable={false} />
+            <div className="math-scale-compare__beam" style={{ transform: `rotate(${beamRotation}deg)` }}>
+              <img src={balanceScaleBeamUrl} alt="卡通天平横梁和托盘" draggable={false} />
+              <div className="math-scale-compare__weights math-scale-compare__weights--left">
+                {Array.from({ length: weights[0] }, (_, index) => <span key={index} aria-hidden="true" />)}
+              </div>
+              <div className="math-scale-compare__weights math-scale-compare__weights--right">
+                {Array.from({ length: weights[1] }, (_, index) => <span key={index} aria-hidden="true" />)}
+              </div>
             </div>
           </div>
           <div className="math-scale-compare__labels"><small>左边</small><small>右边</small></div>

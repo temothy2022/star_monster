@@ -540,25 +540,24 @@ export function generateMathQuestion(
     case "N14": {
       const balance = rng.pick(["LEFT", "RIGHT", "EQUAL"] as const);
       const balanceType = rng.pick(["SEESAW", "SCALE"] as const);
-      const ask = balance === "EQUAL" ? "EQUAL" : rng.pick(["HEAVIER", "LIGHTER"] as const);
+      const ask = rng.pick(["HEAVIER", "LIGHTER"] as const);
+      const answerSide = balance === "LEFT" ? "左边" : balance === "RIGHT" ? "右边" : "两边";
       const answer = balance === "EQUAL" ? "一样重" : ask === "HEAVIER"
-        ? balance === "LEFT" ? "左边" : "右边"
-        : balance === "LEFT" ? "右边" : "左边";
+        ? balance === "LEFT" ? "左边重" : "右边重"
+        : balance === "LEFT" ? "右边轻" : "左边轻";
       const weightAssets = rng.shuffle([...sprites]).slice(0, 2);
       const weights: readonly [number, number] = balance === "EQUAL"
         ? [2, 2]
         : balance === "LEFT"
           ? [3, 1]
           : [1, 3];
-      const prompt = balance === "EQUAL"
-        ? "看一看，两边的物体一样重吗？"
-        : ask === "HEAVIER" ? "请选出较重的一边。" : "请选出较轻的一边。";
+      const prompt = ask === "HEAVIER" ? "哪一边的物体更重？" : "哪一边的物体更轻？";
       return question(input, {
         prompt,
         visual: { kind: "ATTRIBUTE_COMPARE", asset: weightAssets[0]!, assets: weightAssets, scales: [1, 1], attribute: "WEIGHT", balance, balanceType, weights },
-        response: optionResponse(balance === "EQUAL" ? ["一样重", "不一样重"] : ["左边", "右边"]),
+        response: optionResponse(ask === "HEAVIER" ? ["左边重", "右边重", "一样重"] : ["左边轻", "右边轻", "一样重"]),
         answer: { values: [answer], display: answer },
-        explanation: balance === "EQUAL" ? "两边的物体一样重。" : `${answer}的物体${ask === "HEAVIER" ? "更重" : "更轻"}。`,
+        explanation: balance === "EQUAL" ? "两边的物体一样重。" : `${answerSide}的物体${ask === "HEAVIER" ? "更重" : "更轻"}。`,
       });
     }
     case "N15": {

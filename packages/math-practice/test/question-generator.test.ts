@@ -490,18 +490,18 @@ describe("math practice question generator", () => {
       if (question.visual.kind !== "ATTRIBUTE_COMPARE") continue;
       scenes.add(question.visual.balanceType ?? "SEESAW");
       expect(question.visual.assets).toHaveLength(2);
+      const ask = question.prompt.includes("更轻") ? "LIGHTER" : "HEAVIER";
+      expect(question.response.options).toEqual(ask === "HEAVIER" ? ["左边重", "右边重", "一样重"] : ["左边轻", "右边轻", "一样重"]);
+      prompts.add(ask);
       if (question.visual.balance === "EQUAL") {
-        prompts.add("EQUAL");
-        expect(question.prompt).toContain("一样重");
-        expect(question.response.options).toEqual(["一样重", "不一样重"]);
+        expect(question.prompt).toMatch(/哪一边的物体更(重|轻)？/);
+        expect(question.answer.values).toEqual(["一样重"]);
       } else {
-        prompts.add(question.prompt.includes("较轻") ? "LIGHTER" : "HEAVIER");
-        expect(question.response.options).toEqual(["左边", "右边"]);
         expect(question.visual.weights).toEqual(question.visual.balance === "LEFT" ? [3, 1] : [1, 3]);
       }
     }
     expect(scenes).toEqual(new Set(["SEESAW", "SCALE"]));
-    expect(prompts).toEqual(new Set(["EQUAL", "LIGHTER", "HEAVIER"]));
+    expect(prompts).toEqual(new Set(["LIGHTER", "HEAVIER"]));
   });
 
   it("keeps N05 front and behind counts consistent with the travel direction", () => {
