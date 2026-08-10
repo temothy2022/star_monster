@@ -24,6 +24,7 @@ export function MathPracticePreview() {
   const [cubeGuideLayers, setCubeGuideLayers] = useState<number | null>(null);
   const [cubeAnimatingLayer, setCubeAnimatingLayer] = useState<number | null>(null);
   const [hintLevel, setHintLevel] = useState(0);
+  const [activeNumberSlot, setActiveNumberSlot] = useState(0);
   const [attemptCount, setAttemptCount] = useState(0);
   const feedbackTimer = useRef<number | null>(null);
   const teachingAuditRef = useRef<HTMLDetailsElement>(null);
@@ -38,6 +39,7 @@ export function MathPracticePreview() {
   const logicGridRowCount = question.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
   const isLogicGrid = question.typeId === "S03" && logicGridRowCount > 0;
   const isInlineSort = question.typeId === "N09";
+  const isInlineNumberSequence = question.typeId === "N07";
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
   const isDirectVisualAnswer = isLogicGrid || question.typeId === "N15" || question.typeId === "N16";
   const directVisualComplete = isLogicGrid
@@ -84,6 +86,7 @@ export function MathPracticePreview() {
     setValues([]);
     setCubeGuideLayers(null);
     setCubeAnimatingLayer(null);
+    setActiveNumberSlot(0);
     setHintLevel(0);
     setAttemptCount(0);
     clearFeedback();
@@ -106,6 +109,7 @@ export function MathPracticePreview() {
     setValues([]);
     setCubeGuideLayers(null);
     setCubeAnimatingLayer(null);
+    setActiveNumberSlot(0);
     setHintLevel(0);
     setAttemptCount(0);
     clearFeedback();
@@ -170,12 +174,12 @@ export function MathPracticePreview() {
           <button type="button" onClick={() => move(1)} aria-label="下一种题型">›</button>
         </header>
 
-        <div className={`math-question-layout${isDirectVisualAnswer ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
+        <div className={`math-question-layout${isDirectVisualAnswer || isInlineNumberSequence ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
           <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
             <div className="math-question-card__prompt">
               <span>想一想</span>
               <h1>{question.prompt}</h1>
-              {isDirectVisualAnswer || isInlineSort ? <button className="math-logic-new-question" type="button" onClick={changeQuestion}>换一道</button> : null}
+              {isDirectVisualAnswer || isInlineSort || isInlineNumberSequence ? <button className="math-logic-new-question" type="button" onClick={changeQuestion}>换一道</button> : null}
               {question.helper && question.visual.kind !== "NONE" ? <p>{question.helper}</p> : null}
               {question.typeId === "S04" ? (
                 <button className={`math-cube-guide-button${cubeGuideLayers !== null ? " is-playing" : ""}`} type="button" onClick={advanceCubeGuide}>
@@ -196,13 +200,34 @@ export function MathPracticePreview() {
                 </div>
               </details>
             </div>
-            <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : question.visual.kind.toLowerCase()}`}>
+            <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : isInlineNumberSequence ? "inline-number-sequence" : question.visual.kind.toLowerCase()}`}>
               {isInlineSort ? (
                 <div className="math-inline-sort-answer">
                   <MathAnswerEditor
                     key={`${selectedTypeId}:${seed}:${question.id}:${question.response.mode}:inline`}
                     question={question}
                     values={values}
+                    disabled={feedback === "CORRECT" || feedback === "REVEAL"}
+                    onChange={changeValues}
+                    onSubmit={submit}
+                  />
+                </div>
+              ) : isInlineNumberSequence ? (
+                <div className="math-inline-number-sequence">
+                  <MathVisual
+                    question={question}
+                    values={values}
+                    activeSlot={activeNumberSlot}
+                    disabled={feedback === "CORRECT" || feedback === "REVEAL"}
+                    onSlotSelect={setActiveNumberSlot}
+                  />
+                  <MathAnswerEditor
+                    key={`${selectedTypeId}:${seed}:${question.id}:${question.response.mode}:inline-number-sequence`}
+                    question={question}
+                    values={values}
+                    activeSlot={activeNumberSlot}
+                    onActiveSlotChange={setActiveNumberSlot}
+                    hideSlots
                     disabled={feedback === "CORRECT" || feedback === "REVEAL"}
                     onChange={changeValues}
                     onSubmit={submit}
@@ -226,7 +251,7 @@ export function MathPracticePreview() {
             ) : null}
           </article>
 
-          {!isDirectVisualAnswer && !isInlineSort ? <aside className="math-answer-card">
+          {!isDirectVisualAnswer && !isInlineSort && !isInlineNumberSequence ? <aside className="math-answer-card">
             <div className="math-answer-card__top">
               <span>我的答案</span>
               <button type="button" onClick={() => {

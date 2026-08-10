@@ -5,6 +5,9 @@ type Props = {
   question: Pick<MathQuestion, "id" | "typeId" | "response">;
   values: readonly string[];
   disabled?: boolean;
+  activeSlot?: number;
+  onActiveSlotChange?: (index: number) => void;
+  hideSlots?: boolean;
   onChange: (values: string[]) => void;
   onSubmit: () => void;
 };
@@ -303,8 +306,18 @@ function SortableNumberTiles({
   );
 }
 
-export function MathAnswerEditor({ question, values, disabled = false, onChange, onSubmit }: Props) {
-  const [activeSlot, setActiveSlot] = useState(0);
+export function MathAnswerEditor({
+  question,
+  values,
+  disabled = false,
+  activeSlot: activeSlotProp,
+  onActiveSlotChange,
+  hideSlots = false,
+  onChange,
+  onSubmit,
+}: Props) {
+  const [internalActiveSlot, setInternalActiveSlot] = useState(0);
+  const activeSlot = activeSlotProp ?? internalActiveSlot;
   const response = question.response;
   const isOptionMode = ["R03", "R05", "R06", "R08"].includes(response.mode);
   const isFactFamily = Boolean(response.equationRows && response.equationSlotsPerRow);
@@ -322,9 +335,15 @@ export function MathAnswerEditor({ question, values, disabled = false, onChange,
   }, [isOptionMode, question.typeId, response.options]);
   const operatorSlot = isFactFamily && activeSlot % (response.equationSlotsPerRow ?? 4) === 1;
 
+  function setActiveSlot(nextSlot: number) {
+    setInternalActiveSlot(nextSlot);
+    onActiveSlotChange?.(nextSlot);
+  }
+
   useEffect(() => {
-    setActiveSlot(0);
-  }, [question.id, question.typeId, response.mode]);
+    setInternalActiveSlot(0);
+    onActiveSlotChange?.(0);
+  }, [question.id, question.typeId, response.mode, onActiveSlotChange]);
 
   const complete = useMemo(() => {
     if (response.mode === "R08") return values.length === options.length;
@@ -374,7 +393,7 @@ export function MathAnswerEditor({ question, values, disabled = false, onChange,
   }
 
   return (
-    <div className={`math-answer-editor${isFactFamily ? " is-fact-family" : ""}${disabled ? " is-disabled" : ""}`}>
+    <div className={`math-answer-editor${isFactFamily ? " is-fact-family" : ""}${hideSlots ? " is-inline-number-sequence" : ""}${disabled ? " is-disabled" : ""}`}>
       {isOptionMode ? (
         <>
           {response.mode === "R08" ? (
@@ -407,9 +426,9 @@ export function MathAnswerEditor({ question, values, disabled = false, onChange,
         </>
       ) : (
         <>
-          {isFactFamily
+          {!hideSlots ? (isFactFamily
             ? <FactFamilySlots question={question} values={values} activeSlot={activeSlot} onSelect={setActiveSlot} />
-            : <EquationSlots question={question} values={values} activeSlot={activeSlot} onSelect={setActiveSlot} />}
+            : <EquationSlots question={question} values={values} activeSlot={activeSlot} onSelect={setActiveSlot} />) : null}
           <div className={`math-keypad${isFactFamily ? " math-keypad--fact-family" : ""}`} aria-label="数字和符号选择器">
             <div className="math-keypad__numbers">
               {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (

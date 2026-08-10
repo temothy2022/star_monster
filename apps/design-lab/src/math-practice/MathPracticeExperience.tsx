@@ -31,6 +31,7 @@ export function MathPracticeExperience({
   const [cubeGuideLayers, setCubeGuideLayers] = useState<number | null>(null);
   const [cubeAnimatingLayer, setCubeAnimatingLayer] = useState<number | null>(null);
   const [hintLevel, setHintLevel] = useState(0);
+  const [activeNumberSlot, setActiveNumberSlot] = useState(0);
   const questionStartedAt = useRef(performance.now());
   const feedbackTimer = useRef<number | null>(null);
 
@@ -43,6 +44,7 @@ export function MathPracticeExperience({
         setSession(loaded);
         setCubeGuideLayers(null);
         setCubeAnimatingLayer(null);
+        setActiveNumberSlot(0);
         setHintLevel(0);
         questionStartedAt.current = performance.now();
         reportChildPageReady(
@@ -83,6 +85,7 @@ export function MathPracticeExperience({
         setBusy(false);
         setCubeGuideLayers(null);
         setCubeAnimatingLayer(null);
+        setActiveNumberSlot(0);
         if (result.feedback.correct || result.feedback.revealAnswer) setHintLevel(0);
         questionStartedAt.current = performance.now();
       }, delay);
@@ -125,6 +128,7 @@ export function MathPracticeExperience({
   const logicGridRowCount = question?.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
   const isLogicGrid = question?.typeId === "S03" && logicGridRowCount > 0;
   const isInlineSort = question?.typeId === "N09";
+  const isInlineNumberSequence = question?.typeId === "N07";
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
   const isDirectVisualAnswer = isLogicGrid || question?.typeId === "N15" || question?.typeId === "N16";
   const directVisualComplete = isLogicGrid
@@ -160,7 +164,7 @@ export function MathPracticeExperience({
         ) : null}
 
         {!session.completedAt && question ? (
-          <div className={`math-question-layout${isDirectVisualAnswer ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
+          <div className={`math-question-layout${isDirectVisualAnswer || isInlineNumberSequence ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
             <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
               <div className="math-question-card__prompt">
                 <span>{question.typeId}</span>
@@ -178,13 +182,36 @@ export function MathPracticeExperience({
                   onLevelChange={setHintLevel}
                 />
               </div>
-              <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : question.visual.kind.toLowerCase()}`}>
+              <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : isInlineNumberSequence ? "inline-number-sequence" : question.visual.kind.toLowerCase()}`}>
                 {isInlineSort ? (
                   <div className="math-inline-sort-answer">
                     <MathAnswerEditor
                       key={`${session.id}:${session.currentIndex}:${question.id}:${question.response.mode}:inline`}
                       question={question}
                       values={values}
+                      disabled={busy || Boolean(feedback)}
+                      onChange={setValues}
+                      onSubmit={() => void submit()}
+                    />
+                    {error ? <div className="math-session__error">{error}</div> : null}
+                  </div>
+                ) : isInlineNumberSequence ? (
+                  <div className="math-inline-number-sequence">
+                    <MathVisual
+                      question={question}
+                      values={values}
+                      activeSlot={activeNumberSlot}
+                      disabled={busy || Boolean(feedback)}
+                      onSlotSelect={setActiveNumberSlot}
+                      onChange={setValues}
+                    />
+                    <MathAnswerEditor
+                      key={`${session.id}:${session.currentIndex}:${question.id}:${question.response.mode}:inline-number-sequence`}
+                      question={question}
+                      values={values}
+                      activeSlot={activeNumberSlot}
+                      onActiveSlotChange={setActiveNumberSlot}
+                      hideSlots
                       disabled={busy || Boolean(feedback)}
                       onChange={setValues}
                       onSubmit={() => void submit()}
@@ -210,7 +237,7 @@ export function MathPracticeExperience({
               ) : null}
             </article>
 
-            {!isDirectVisualAnswer && !isInlineSort ? <aside className="math-answer-card">
+            {!isDirectVisualAnswer && !isInlineSort && !isInlineNumberSequence ? <aside className="math-answer-card">
               <div className="math-answer-card__top">
                 <span>我的答案</span>
               </div>

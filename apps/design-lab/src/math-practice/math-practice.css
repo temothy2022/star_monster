@@ -542,6 +542,11 @@
 }
 .math-inline-sort-answer .math-answer-editor { width: 100%; padding-top: 0; }
 .math-inline-sort-answer .math-submit-answer { width: min(390px, 100%); margin-right: auto; margin-left: auto; }
+.math-visual-board--inline-number-sequence { align-items: stretch; padding: 20px clamp(22px, 5vw, 70px); overflow: auto; }
+.math-inline-number-sequence { width: min(560px, 100%); margin: auto; display: grid; align-content: center; gap: 18px; }
+.math-inline-number-sequence > .math-answer-editor { width: min(420px, 100%); min-height: 0; margin: 0 auto; padding-top: 0; }
+.math-inline-number-sequence > .math-answer-editor .math-keypad { flex: 0 0 auto; }
+.math-inline-number-sequence > .math-answer-editor .math-submit-answer { width: min(390px, 100%); margin: 0 auto; }
 
 .math-feedback-toast {
   position: fixed;
@@ -944,8 +949,12 @@
 .math-loose-sticks { min-height: 128px; display: flex; align-items: flex-end; justify-content: center; }
 
 .math-number-boxes { width: min(460px, 100%); display: flex; justify-content: center; gap: clamp(4px, 1vw, 8px); }
-.math-number-boxes span { width: auto; min-width: 48px; max-width: 78px; height: clamp(60px, 8vw, 78px); flex: 1 1 64px; border: 3px solid #7caed0; border-radius: 17px; background: #fff; display: grid; place-items: center; font-size: clamp(27px, 4vw, 34px); font-weight: 900; box-sizing: border-box; }
+.math-number-boxes span,
+.math-number-boxes button { width: auto; min-width: 48px; max-width: 78px; height: clamp(60px, 8vw, 78px); flex: 1 1 64px; border: 3px solid #7caed0; border-radius: 17px; color: var(--math-ink); background: #fff; display: grid; place-items: center; font: inherit; font-size: clamp(27px, 4vw, 34px); font-weight: 900; box-sizing: border-box; }
+.math-number-boxes button { appearance: none; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .math-number-boxes .math-number-box--missing { border-style: dashed; color: var(--math-orange); background: #fff7e9; }
+.math-number-boxes .math-number-box--active { border-style: solid; border-color: var(--math-orange); box-shadow: 0 0 0 5px rgba(255, 122, 61, .16); }
+.math-number-boxes button:disabled { opacity: 1; cursor: default; }
 .math-number-bond { width: min(360px, 100%); }
 .math-number-bond path { stroke: #708aa5; stroke-width: 6; fill: none; }
 .math-number-bond rect { fill: #fff9e9; stroke: #f4b952; stroke-width: 4; }

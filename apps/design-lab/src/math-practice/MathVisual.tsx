@@ -64,13 +64,15 @@ const lengthAssetLabels: Record<MathLengthAssetKey, string> = {
   spoons: "三把长短不同的勺子",
 };
 
-type VisualQuestion = Pick<MathQuestion, "visual" | "helper">;
+type VisualQuestion = Pick<MathQuestion, "typeId" | "visual" | "helper">;
 
 type MathVisualProps = {
   question: VisualQuestion;
   cubeVisibleLayers?: number | null;
   cubeAnimatingLayer?: number | null;
   values?: readonly string[];
+  activeSlot?: number;
+  onSlotSelect?: (index: number) => void;
   disabled?: boolean;
   onChange?: (values: string[]) => void;
 };
@@ -207,14 +209,47 @@ function PlaceValue({ tens, ones }: { tens: number; ones: number }) {
   );
 }
 
-function NumberBoxes({ values }: { values: readonly (number | null)[] }) {
+function NumberBoxes({
+  values,
+  answerValues,
+  interactive,
+  activeSlot,
+  disabled,
+  onSlotSelect,
+}: {
+  values: readonly (number | null)[];
+  answerValues: readonly string[];
+  interactive: boolean;
+  activeSlot: number;
+  disabled: boolean;
+  onSlotSelect?: (index: number) => void;
+}) {
+  let missingSlot = 0;
   return (
     <div className="math-number-boxes">
-      {values.map((value, index) => (
-        <span className={value === null ? "math-number-box--missing" : ""} key={index}>
-          {value ?? "?"}
-        </span>
-      ))}
+      {values.map((value, index) => {
+        const answerSlot = value === null ? missingSlot++ : -1;
+        const answer = interactive && answerSlot >= 0 ? answerValues[answerSlot] : undefined;
+        const className = [
+          value === null ? "math-number-box--missing" : "",
+          interactive && answerSlot === activeSlot ? "math-number-box--active" : "",
+        ].filter(Boolean).join(" ");
+        if (interactive && value === null) {
+          return (
+            <button
+              className={className}
+              type="button"
+              disabled={disabled}
+              aria-label={answer ? `第 ${answerSlot + 1} 个答案是 ${answer}` : `填写第 ${answerSlot + 1} 个缺少的数`}
+              onClick={() => onSlotSelect?.(answerSlot)}
+              key={index}
+            >
+              {answer || "?"}
+            </button>
+          );
+        }
+        return <span className={className} key={index}>{value ?? answer ?? "?"}</span>;
+      })}
     </div>
   );
 }
@@ -615,6 +650,8 @@ function MathVisualComponent({
   cubeVisibleLayers,
   cubeAnimatingLayer,
   values = [],
+  activeSlot = 0,
+  onSlotSelect,
   disabled = false,
   onChange,
 }: MathVisualProps) {
@@ -628,7 +665,16 @@ function MathVisualComponent({
     case "PLACE_VALUE":
       return <PlaceValue tens={question.visual.tens} ones={question.visual.ones} />;
     case "NUMBER_BOXES":
-      return <NumberBoxes values={question.visual.values} />;
+      return (
+        <NumberBoxes
+          values={question.visual.values}
+          answerValues={values}
+          interactive={question.typeId === "N07"}
+          activeSlot={activeSlot}
+          disabled={disabled}
+          onSlotSelect={onSlotSelect}
+        />
+      );
     case "NUMBER_BOND":
       return <NumberBond total={question.visual.total} parts={question.visual.parts} />;
     case "QUEUE":
@@ -656,7 +702,8 @@ function sameValues(first: readonly string[] | undefined, second: readonly strin
 function mathVisualPropsEqual(previous: MathVisualProps, next: MathVisualProps) {
   if (previous.question !== next.question) return false;
   if (previous.cubeVisibleLayers !== next.cubeVisibleLayers || previous.cubeAnimatingLayer !== next.cubeAnimatingLayer) return false;
-  if (!["LOGIC_GRID", "QUEUE", "COUNT_ADJUST"].includes(previous.question.visual.kind)) return true;
+  if (previous.activeSlot !== next.activeSlot) return false;
+  if (!["LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES"].includes(previous.question.visual.kind)) return true;
   return previous.disabled === next.disabled && sameValues(previous.values, next.values);
 }
 
