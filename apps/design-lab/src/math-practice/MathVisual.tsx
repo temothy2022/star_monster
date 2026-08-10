@@ -380,7 +380,7 @@ function Queue({
           const content = <>
             {visual.targetIndex === index ? <b aria-label="目标">★</b> : null}
             <Sprite asset={asset} />
-            {visual.selectable ? <i aria-hidden="true">{selected ? "✓" : ""}</i> : <small>{index + 1}</small>}
+            {visual.selectable ? <i aria-hidden="true">{selected ? "✓" : ""}</i> : visual.showIndices !== false ? <small>{index + 1}</small> : null}
           </>;
           return visual.selectable ? (
             <button
@@ -396,9 +396,13 @@ function Queue({
         })}
       </div>
       {visual.direction ? (
-        <div className={`math-direction math-direction--${visual.direction.toLowerCase()}`}>
-          <span>{visual.direction === "LEFT" ? "←" : "→"}</span>
-          {visual.directionLabel ?? `从${visual.direction === "LEFT" ? "左" : "右"}边数`}
+        <div
+          className={`math-direction math-direction--${visual.direction.toLowerCase()}`}
+          aria-label={`${visual.directionLabel ?? "方向"}：${visual.direction === "LEFT" ? "向左" : "向右"}`}
+        >
+          <span className="math-direction__label">{visual.directionLabel ?? `从${visual.direction === "LEFT" ? "左" : "右"}边数`}</span>
+          <span className="math-direction__trail" aria-hidden="true"><i /><i /><i /></span>
+          <b>{visual.direction === "LEFT" ? "向左" : "向右"}</b>
         </div>
       ) : null}
     </div>

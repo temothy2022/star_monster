@@ -72,6 +72,8 @@ export type MathVisualSpec =
       targetIndex?: number;
       direction?: "LEFT" | "RIGHT";
       directionLabel?: string;
+      /** Show reading-order badges under non-selectable queue items. */
+      showIndices?: boolean;
       selectable?: boolean;
     }
   | {

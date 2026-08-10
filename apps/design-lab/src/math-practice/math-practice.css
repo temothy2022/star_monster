@@ -996,10 +996,56 @@
 .math-queue__item--selectable.is-selected { border-color: #ff9b55; background: #fff3e7; box-shadow: 0 4px 0 #e9c4a5; }
 .math-queue__item--selectable.is-selected i { border-color: #ef7c3b; background: #ef7c3b; }
 .math-queue__item--selectable:disabled { opacity: 1; }
-.math-direction { margin-top: 16px; text-align: center; color: #5c7590; font-weight: 900; }
-.math-direction span { font-size: 26px; color: var(--math-orange); margin-right: 8px; }
-.math-direction--right span { float: right; margin: 0 25% 0 8px; }
-.math-direction--left span { float: left; margin: 0 8px 0 25%; }
+.math-direction {
+  width: min(430px, 92%);
+  margin: 16px auto 0;
+  padding: 9px 14px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(72px, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border: 1.5px solid #f2d08a;
+  border-radius: 999px;
+  color: #617992;
+  background: #fff9ec;
+  font-size: 13px;
+  font-weight: 900;
+}
+.math-direction__label { white-space: nowrap; }
+.math-direction__trail {
+  min-width: 0;
+  height: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  position: relative;
+}
+.math-direction__trail::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 3px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: #f2c56d;
+}
+.math-direction__trail i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  position: relative;
+  border: 2px solid #fff9ec;
+  border-radius: 50%;
+  background: #e99943;
+  box-shadow: 0 0 0 1px #e99943;
+}
+.math-direction__trail i:nth-child(1) { opacity: .5; }
+.math-direction__trail i:nth-child(2) { opacity: .72; }
+.math-direction__trail i:nth-child(3) { opacity: 1; }
+.math-direction--left .math-direction__trail { direction: rtl; }
+.math-direction > b { color: #d97736; white-space: nowrap; }
 
 .math-count-adjust { width: min(680px, 100%); display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 18px; margin: auto; }
 .math-count-adjust > section { min-width: 0; padding: 18px; border: 2px solid #cfe7f6; border-radius: 22px; background: #fff; }

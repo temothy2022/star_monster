@@ -510,6 +510,7 @@ describe("math practice question generator", () => {
       const question = generateMathQuestion({ typeId: "N05", seed });
       expect(question.visual.kind).toBe("QUEUE");
       if (question.visual.kind !== "QUEUE") continue;
+      expect(question.visual.showIndices).toBe(false);
       const targetIndex = question.visual.targetIndex!;
       const frontCount = question.visual.direction === "RIGHT"
         ? question.visual.assets.length - targetIndex - 1
@@ -662,6 +663,7 @@ describe("math practice question generator", () => {
       expect(start.answer.values).toHaveLength(4);
       expect(position.answer.values[0]).toMatch(/左边|右边/);
       expect(position.visual.kind).toBe("QUEUE");
+      if (position.visual.kind === "QUEUE") expect(position.visual.showIndices).toBe(false);
     }
   });
 });

@@ -415,7 +415,7 @@ export function generateMathQuestion(
       const assets = Array.from({ length }, (_, index) => queueSprites[(index + offset) % queueSprites.length]!);
       return question(input, {
         prompt: `队伍朝${direction === "RIGHT" ? "右" : "左"}前进，戴星星的伙伴${relation}有几个小伙伴？`,
-        visual: { kind: "QUEUE", assets, targetIndex, direction, directionLabel: "队伍前进方向" },
+        visual: { kind: "QUEUE", assets, targetIndex, direction, directionLabel: "前进方向", showIndices: false },
         response: numericResponse(),
         answer: { values: [String(count)], display: String(count) },
         explanation: `沿着前进方向看，戴星星的伙伴${relation}有 ${count} 个小伙伴。`,
@@ -979,7 +979,7 @@ export function generateMathQuestion(
       const answer = targetOnLeft ? "左边" : "右边";
       return question(input, {
         prompt: `${spriteNames[target]}在${spriteNames[anchor]}的哪一边？`,
-        visual: { kind: "QUEUE", assets },
+        visual: { kind: "QUEUE", assets, showIndices: false },
         response: optionResponse(["左边", "右边"]),
         answer: { values: [answer], display: answer },
         explanation: `以${spriteNames[anchor]}为参照，${spriteNames[target]}在它的${answer}。`,
