@@ -720,9 +720,12 @@
 }
 
 .math-paper-question[data-question-type="V07"] .math-object-groups {
-  justify-content: center;
+  /* Keep each part against its own side of the half-column card. The
+     space-between distribution widens the visual split without changing the
+     card width, height, or pagination. */
+  justify-content: space-between;
   align-items: center;
-  column-gap: 4mm;
+  column-gap: 10mm;
 }
 
 .math-paper-question[data-question-type="V07"] .math-object-group {
