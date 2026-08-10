@@ -5,6 +5,8 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import balanceStar from "@star-monsters/assets/images/task-list/semantic/balance-star.png";
+import streakFlame from "@star-monsters/assets/images/task-list/semantic/streak-flame.png";
 import bookIcon from "@star-monsters/assets/images/task-list/semantic/task-book.png";
 import trainingIcon from "@star-monsters/assets/images/task-list/semantic/task-training.png";
 import mathIcon from "@star-monsters/assets/images/task-list/semantic/task-math.png";
@@ -15,6 +17,9 @@ import startArrow from "@star-monsters/assets/icons/task-list/semantic/task-star
 import completedStamp from "@star-monsters/assets/images/task-list/semantic/completed-stamp.webp";
 import emptyRocket from "@star-monsters/assets/images/task-list/semantic/empty-rocket.webp";
 import addPlus from "@star-monsters/assets/images/task-list/semantic/add-plus.png";
+import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-base.webp";
+import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
+import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import { useMascot } from "../mascots";
 import {
   createHtmlAudioPlayback,
@@ -276,6 +281,44 @@ function TaskMascotWidget({
   );
 }
 
+function ProgressColumn({
+  earned,
+  goal,
+  balance,
+  mascotContext,
+  dialogues,
+  mascotAssets,
+}: {
+  earned: number;
+  goal: number;
+  balance: number;
+  mascotContext: TodayTaskExperience["mascotContext"];
+  dialogues: MascotDialogue[];
+  mascotAssets: MascotAsset[];
+}) {
+  return (
+    <aside className="task-progress-column">
+      <section className="task-progress-card" aria-labelledby="daily-progress-title">
+        <div className="task-progress-card__decoration" />
+        <h2 id="daily-progress-title">今日一共赚了</h2>
+        <DailyProgress earned={earned} total={goal} />
+        <div className="task-balance">
+          <div className="task-balance__value">
+            <img src={balanceStar} alt="星星" />
+            <strong>{balance}</strong>
+          </div>
+          <span>当前余额</span>
+        </div>
+      </section>
+      <TaskMascotWidget
+        mascotContext={mascotContext}
+        dialogues={dialogues}
+        mascotAssets={mascotAssets}
+      />
+    </aside>
+  );
+}
+
 function DailyProgressWidget({ earned, goal }: { earned: number; goal: number }) {
   const remaining = Math.max(0, goal - earned);
   return (
@@ -409,10 +452,14 @@ function CompletedTaskCard({ task }: { task: TaskItem }) {
 
 function TaskListPanel({
   tasks,
+  streakDays,
+  dashboard = false,
   startingTaskId,
   onStart,
 }: {
   tasks: TaskItem[];
+  streakDays?: number;
+  dashboard?: boolean;
   startingTaskId: string | null;
   onStart?: (task: TaskItem) => void;
 }) {
@@ -423,7 +470,14 @@ function TaskListPanel({
     <section className="task-list-panel" aria-labelledby="my-tasks-title">
       <header className="task-list-panel__header">
         <h2 id="my-tasks-title">我的任务</h2>
-        <span className="task-list-panel__count">{pendingTasks.length} 项待完成</span>
+        {dashboard ? (
+          <span className="task-list-panel__count">{pendingTasks.length} 项待完成</span>
+        ) : (streakDays ?? 0) > 2 ? (
+          <div className="task-streak">
+            <img src={streakFlame} alt="" />
+            <span>连续 {streakDays} 天</span>
+          </div>
+        ) : null}
       </header>
       <div className="task-list-panel__scroll">
         <section className="task-section">
@@ -460,6 +514,33 @@ function EmptyTaskPanel() {
         <button className="task-add-button" type="button"><img src={addPlus} alt="" /><span>家长添加任务</span></button>
       </div>
     </section>
+  );
+}
+
+function CompleteTaskPanel({
+  earned,
+  onOpenMap,
+}: {
+  earned: number;
+  onOpenMap?: () => void;
+}) {
+  return (
+    <main className="task-complete-main">
+      <section className="task-complete-card" aria-labelledby="complete-title">
+        <span className="task-complete-card__shape task-complete-card__shape--top" />
+        <span className="task-complete-card__shape task-complete-card__shape--bottom" />
+        <img className="task-complete-card__base" src={launchBase} alt="星球基地" />
+        <h2 id="complete-title">今天都完成啦！</h2>
+        <p>
+          今天你一共赚取了 <strong>{earned}</strong>
+          <img src={completeStar} alt="星星" />
+        </p>
+        <button type="button" onClick={onOpenMap}>
+          <span>去看航图</span>
+          <img src={compassIcon} alt="" />
+        </button>
+      </section>
+    </main>
   );
 }
 
@@ -506,12 +587,14 @@ function taskItemFromApi(task: DailyTask): TaskItem {
 
 export function TaskExperience({
   view,
+  variant = "legacy",
   onStartAttempt,
   onNavigate,
   initialExperience = null,
   onExperienceChange,
 }: {
   view: TaskView;
+  variant?: "legacy" | "dashboard";
   onStartAttempt?: (attempt: TaskAttempt) => void;
   onNavigate?: (route: ChildRoute) => void;
   initialExperience?: TodayTaskExperience | null;
@@ -622,9 +705,12 @@ export function TaskExperience({
 
   useEffect(() => {
     if (experience) {
-      reportChildPageReady("tasks-partial", "/api/child/tasks/today");
+      reportChildPageReady(
+        variant === "dashboard" ? "tasks-dashboard" : "tasks-partial",
+        "/api/child/tasks/today",
+      );
     }
-  }, [experience]);
+  }, [experience, variant]);
 
   const tasks = useMemo(
     () => experience?.tasks
@@ -691,6 +777,7 @@ export function TaskExperience({
         ) : (
           <TaskListPanel
             tasks={tasks}
+            dashboard
             startingTaskId={startingTaskId}
             onStart={start}
           />
@@ -748,12 +835,44 @@ export function TaskExperience({
           {apiError} · 点击关闭
         </button>
       )}
-      <TaskDashboard
-        layout={experience.taskDashboardLayout}
-        onSave={saveDashboardLayout}
-        renderWidget={renderDashboardWidget}
+      {variant === "dashboard" ? (
+        <TaskDashboard
+          layout={experience.taskDashboardLayout}
+          onSave={saveDashboardLayout}
+          renderWidget={renderDashboardWidget}
+        />
+      ) : effectiveView === "complete" ? (
+        <CompleteTaskPanel
+          earned={experience.earnedToday}
+          onOpenMap={() => onNavigate?.("map")}
+        />
+      ) : (
+        <main className="task-main">
+          <ProgressColumn
+            earned={experience.earnedToday}
+            goal={experience.dailyStarGoal}
+            balance={experience.starBalance}
+            mascotContext={experience.mascotContext}
+            dialogues={experience.mascotDialogues}
+            mascotAssets={experience.mascotAssets ?? []}
+          />
+          {effectiveView === "empty" ? (
+            <EmptyTaskPanel />
+          ) : (
+            <TaskListPanel
+              tasks={tasks}
+              streakDays={experience.streakDays}
+              startingTaskId={startingTaskId}
+              onStart={start}
+            />
+          )}
+        </main>
+      )}
+      <ChildBottomNav
+        active="tasks"
+        onNavigate={onNavigate}
+        navigateActiveTask={variant === "dashboard"}
       />
-      <ChildBottomNav active="tasks" onNavigate={onNavigate} />
       {planetUnlock && (
         <PlanetUnlockModal
           progress={planetUnlock}

@@ -212,6 +212,7 @@ type AppRoute =
   | "step-3"
   | "step-4"
   | "tasks-partial"
+  | "tasks-dashboard"
   | "tasks-complete"
   | "tasks-empty"
   | "untimed-active"
@@ -279,6 +280,7 @@ function readRouteFromHash(): AppRoute {
     "step-3",
     "step-4",
     "tasks-partial",
+    "tasks-dashboard",
     "tasks-complete",
     "tasks-empty",
     "untimed-active",
@@ -351,6 +353,7 @@ function isActiveTaskRoute(route: AppRoute) {
 }
 
 function childPageTitle(route: AppRoute) {
+  if (route === "tasks-dashboard") return "任务桌面";
   if (route.startsWith("tasks-")) return "任务列表";
   if (route.startsWith("planet-") || route === "map") return "航图";
   if (route.startsWith("hanzi-")) return "汉字学习";
@@ -604,10 +607,12 @@ export function App() {
   }
 
   if (route.startsWith("tasks-")) {
-    const view = route.replace("tasks-", "") as TaskView;
+    const dashboard = route === "tasks-dashboard";
+    const view = dashboard ? "partial" : route.replace("tasks-", "") as TaskView;
     return (
       <TaskExperience
         view={view}
+        variant={dashboard ? "dashboard" : "legacy"}
         initialExperience={taskExperienceCache}
         onExperienceChange={setTaskExperienceCache}
         onNavigate={navigate}

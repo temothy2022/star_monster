@@ -26,9 +26,11 @@ function prefetchRoute(route: ChildRoute) {
 export function ChildBottomNav({
   active,
   onNavigate,
+  navigateActiveTask = false,
 }: {
   active: ChildNavItem;
   onNavigate?: (route: ChildRoute) => void;
+  navigateActiveTask?: boolean;
 }) {
   const items = [
     { key: "tasks", label: "任务", icon: navTasks, route: "tasks-partial" as const },
@@ -54,7 +56,7 @@ export function ChildBottomNav({
             onPointerEnter={() => prefetchRoute(item.route)}
             onFocus={() => prefetchRoute(item.route)}
             onClick={() => {
-              if (isActive) return;
+              if (isActive && !(navigateActiveTask && item.key === "tasks")) return;
               onNavigate?.(item.route);
             }}
           >
