@@ -12369,6 +12369,14 @@ body:has(.footprints-page),
   backdrop-filter: blur(8px);
 }
 
+.pet-main-figure p {
+  width: max-content;
+  max-width: min(92vw, 420px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .pet-main-figure p { animation: pet-dialogue-in 260ms ease-out both; }
 @keyframes pet-dialogue-in { from { opacity: 0; transform: translateY(5px) scale(.97); } }
 
@@ -13852,7 +13860,11 @@ body:has(.footprints-page),
     max-width: min(86vw, 310px);
     padding: 9px 13px;
     font-size: 13px;
-    white-space: normal;
+  }
+
+  .pet-main-figure p {
+    max-width: calc(100vw - 28px);
+    white-space: nowrap;
   }
 
   .pet-waste { left: 18px; right: auto; top: auto; bottom: calc(246px + env(safe-area-inset-bottom)); width: 68px; }
@@ -14113,7 +14125,11 @@ body:has(.footprints-page),
   .pet-care-progress {
     max-width: 280px;
     font-size: 12px;
-    white-space: normal;
+  }
+
+  .pet-main-figure p {
+    max-width: calc(100vw - 24px);
+    white-space: nowrap;
   }
 
   .pet-action-rail {

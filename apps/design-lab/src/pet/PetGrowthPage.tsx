@@ -222,14 +222,14 @@ function shanghaiDateKey(date = new Date()) {
 }
 
 const PET_FALLBACK_DIALOGUES: Record<PetDialogueContext, string[]> = {
-  PET_NEEDS_CARE: ["肚子和水杯都有点空啦，先照顾我一下吧。"],
-  PET_HUNGRY: ["肚子在咕咕唱歌，能给我一点点心吗？"],
-  PET_THIRSTY: ["跑了这么久，我想喝一口清凉的水。"],
-  PET_TASK_START: ["新的一天开始啦，做完任务再回来陪我玩吧。"],
-  PET_TASK_PROGRESS: ["欢迎回来！休息一下，再按自己的节奏继续吧。"],
-  PET_TASK_COMPLETE: ["今天辛苦啦，现在我们可以安心玩一会儿。"],
-  PET_RELAX: ["今天没有新任务，我们一起轻松玩一会儿吧。"],
-  PET_GENERAL: ["见到你真开心，来摸摸我吧。"],
+  PET_NEEDS_CARE: ["肚肚和水杯空啦，先照顾我吧！"],
+  PET_HUNGRY: ["肚肚咕咕叫，给我一点点心吧！"],
+  PET_THIRSTY: ["跑累啦，我想喝一口清凉的水。"],
+  PET_TASK_START: ["新的一天开始啦，做完任务再回来！"],
+  PET_TASK_PROGRESS: ["欢迎回来！按自己的节奏继续吧！"],
+  PET_TASK_COMPLETE: ["今天辛苦啦，安心玩一会儿吧！"],
+  PET_RELAX: ["今天没有新任务，一起轻松玩吧！"],
+  PET_GENERAL: ["见到你真开心，来摸摸我吧！"],
 };
 
 function pickPetDialogue(
