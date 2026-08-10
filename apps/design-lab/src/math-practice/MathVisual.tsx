@@ -190,20 +190,20 @@ function StickBundle() {
   );
 }
 
-function PlaceValue({ tens, ones }: { tens: number; ones: number }) {
+function PlaceValue({ tens, ones, showLabels = true }: { tens: number; ones: number; showLabels?: boolean }) {
   return (
     <div className="math-place-value">
       <div className="math-place-value__section">
-        {Array.from({ length: tens }, (_, index) => (
-          <StickBundle key={index} />
-        ))}
-        <span>{tens} 个十</span>
+        <div className="math-place-value__bundles">
+          {Array.from({ length: tens }, (_, index) => <StickBundle key={index} />)}
+        </div>
+        {showLabels ? <span>{tens} 个十</span> : null}
       </div>
       <div className="math-place-value__section">
         <div className="math-loose-sticks">
           {Array.from({ length: ones }, (_, index) => <i key={index} />)}
         </div>
-        <span>{ones} 个一</span>
+        {showLabels ? <span>{ones} 个一</span> : null}
       </div>
     </div>
   );
@@ -663,7 +663,7 @@ function MathVisualComponent({
     case "ABACUS":
       return <Abacus tens={question.visual.tens} ones={question.visual.ones} />;
     case "PLACE_VALUE":
-      return <PlaceValue tens={question.visual.tens} ones={question.visual.ones} />;
+      return <PlaceValue tens={question.visual.tens} ones={question.visual.ones} showLabels={question.visual.showLabels} />;
     case "NUMBER_BOXES":
       return (
         <NumberBoxes

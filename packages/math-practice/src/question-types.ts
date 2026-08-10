@@ -222,28 +222,15 @@ export const MATH_QUESTION_TYPES = [
   defineQuestionType({
     id: "P01",
     slug: "representation-read-write",
-    name: "看图写数与读数",
+    name: "看图写数",
     domain: "P",
     coreGeneratorId: "REPRESENTATION_READ_WRITE",
-    description: "把数量表征转换为阿拉伯数字和中文读法。",
+    description: "数出十捆和单根小棍，把图片表示的数量写成数字。",
     responseModes: ["R01", "R02"],
     sceneStrategy: "PROGRAMMATIC_AND_SPRITES",
-    numberRange: "WITHIN_20",
+    numberRange: "WITHIN_100",
     difficultyRange: [1, 2],
     sourceImageNumbers: [10, 11],
-  }),
-  defineQuestionType({
-    id: "P02",
-    slug: "place-value-compose",
-    name: "几个十和几个一组成一个数",
-    domain: "P",
-    coreGeneratorId: "PLACE_VALUE_COMPOSE",
-    description: "根据十和一的数量写出组成的两位数。",
-    responseModes: ["R01", "R02"],
-    sceneStrategy: "PROGRAMMATIC",
-    numberRange: "WITHIN_20",
-    difficultyRange: [1, 2],
-    sourceImageNumbers: [7, 10, 11],
   }),
   defineQuestionType({
     id: "P03",
@@ -667,10 +654,33 @@ export const MATH_QUESTION_TYPES = [
   }),
 ] as const satisfies readonly MathQuestionTypeDefinition[];
 
-export type MathQuestionTypeId = (typeof MATH_QUESTION_TYPES)[number]["id"];
+/**
+ * P02 was merged into the picture-reading exercise. Keep its definition out
+ * of the user-facing catalogue, but retain a lookup entry so saved parent
+ * settings from older releases continue to generate valid questions.
+ */
+export const MATH_LEGACY_QUESTION_TYPES = [
+  defineQuestionType({
+    id: "P02",
+    slug: "place-value-compose-legacy",
+    name: "看图写数（旧配置）",
+    domain: "P",
+    coreGeneratorId: "PLACE_VALUE_COMPOSE",
+    description: "旧版“几个十和几个一组成一个数”配置，已合并到 P01。",
+    responseModes: ["R01", "R02"],
+    sceneStrategy: "PROGRAMMATIC_AND_SPRITES",
+    numberRange: "WITHIN_100",
+    difficultyRange: [1, 2],
+    sourceImageNumbers: [7, 10, 11],
+  }),
+] as const satisfies readonly MathQuestionTypeDefinition[];
+
+export type MathQuestionTypeId =
+  | (typeof MATH_QUESTION_TYPES)[number]["id"]
+  | (typeof MATH_LEGACY_QUESTION_TYPES)[number]["id"];
 
 export const MATH_QUESTION_TYPES_BY_ID = Object.fromEntries(
-  MATH_QUESTION_TYPES.map((definition) => [definition.id, definition]),
+  [...MATH_QUESTION_TYPES, ...MATH_LEGACY_QUESTION_TYPES].map((definition) => [definition.id, definition]),
 ) as Record<MathQuestionTypeId, (typeof MATH_QUESTION_TYPES)[number]>;
 
 export function getMathQuestionTypesByDomain(

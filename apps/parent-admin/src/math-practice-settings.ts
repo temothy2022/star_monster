@@ -24,7 +24,7 @@ const MATH_TYPE_ID_SET = new Set<string>(MATH_TYPE_IDS);
 
 export const MATH_PRACTICE_PRESETS = [
   { id: "balanced", name: "综合均衡", description: "数感、计算、看图、应用和空间都会练到", typeIds: ["N01", "N04", "P01", "C01", "C02", "V01", "V04", "W01", "W03", "S04"] },
-  { id: "number-sense", name: "数感数序", description: "数数、顺序、相邻数、比较和数位", typeIds: ["N01", "N02", "N03", "N04", "N05", "N06", "N07", "N08", "N15", "N16", "P01", "P02", "P05"] },
+  { id: "number-sense", name: "数感数序", description: "数数、顺序、相邻数、比较和数位", typeIds: ["N01", "N02", "N03", "N04", "N05", "N06", "N07", "N08", "N15", "N16", "P01", "P05"] },
   { id: "calculation", name: "计算专项", description: "加减法、连加连减、填符号和分与合", typeIds: ["C01", "C02", "C03", "C04", "C05", "C06", "V01", "V02", "V03", "V04"] },
   { id: "picture-equations", name: "看图列式", description: "根据图意理解加、减和一图四式", typeIds: ["V01", "V02", "V03", "V04", "V05", "V06", "V07"] },
   { id: "word-problems", name: "应用题", description: "合并、剩余、比较和逆向求未知量", typeIds: ["W01", "W02", "W03", "W04", "W05", "W06", "W07", "W08", "W09"] },
@@ -37,6 +37,15 @@ export function clampMathTotal(value: number) {
 
 export function countAllocatedQuestions(typeCounts: Record<string, number>) {
   return Object.values(typeCounts).reduce((sum, count) => sum + count, 0);
+}
+
+export function normalizeLegacyMathTypeCounts(typeCounts: Record<string, number>) {
+  const normalized = { ...typeCounts };
+  if (normalized.P02) {
+    normalized.P01 = (normalized.P01 ?? 0) + normalized.P02;
+    delete normalized.P02;
+  }
+  return normalized;
 }
 
 export function allocateEvenly(totalQuestions: number, typeIds: readonly string[]) {
@@ -52,7 +61,7 @@ export function allocateEvenly(totalQuestions: number, typeIds: readonly string[
 
 export function rebalanceTypeCounts(typeCounts: Record<string, number>, nextTotalQuestions: number) {
   const totalQuestions = clampMathTotal(nextTotalQuestions);
-  const activeCounts = Object.entries(typeCounts).filter(([typeId, count]) => MATH_TYPE_ID_SET.has(typeId) && count > 0);
+  const activeCounts = Object.entries(normalizeLegacyMathTypeCounts(typeCounts)).filter(([typeId, count]) => MATH_TYPE_ID_SET.has(typeId) && count > 0);
   if (!activeCounts.length) return allocateEvenly(totalQuestions, MATH_PRACTICE_PRESETS[0].typeIds);
   const previousTotal = activeCounts.reduce((sum, [, count]) => sum + count, 0);
   const weighted = activeCounts.map(([typeId, count], index) => {

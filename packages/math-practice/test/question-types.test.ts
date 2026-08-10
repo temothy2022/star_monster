@@ -3,6 +3,7 @@ import {
   getMathQuestionTypesByDomain,
   getMathQuestionTypesByCategory,
   MATH_CORE_GENERATOR_IDS,
+  MATH_LEGACY_QUESTION_TYPES,
   MATH_QUESTION_CATEGORIES,
   MATH_QUESTION_DOMAINS,
   MATH_QUESTION_TYPES,
@@ -12,7 +13,7 @@ import {
 
 describe("math practice question type registry", () => {
   it("registers compatible teaching types across the expected six legacy domains", () => {
-    expect(MATH_QUESTION_TYPES).toHaveLength(50);
+    expect(MATH_QUESTION_TYPES).toHaveLength(49);
     expect(MATH_QUESTION_DOMAINS.map((domain) => domain.id)).toEqual([
       "N",
       "P",
@@ -29,12 +30,12 @@ describe("math practice question type registry", () => {
           getMathQuestionTypesByDomain(domain.id).length,
         ]),
       ),
-    ).toEqual({ N: 16, P: 7, C: 6, V: 7, W: 9, S: 5 });
+    ).toEqual({ N: 16, P: 6, C: 6, V: 7, W: 9, S: 5 });
   });
 
   it("maps the teaching types onto every registered core generator", () => {
     const usedCoreGenerators = new Set(
-      MATH_QUESTION_TYPES.map((definition) => definition.coreGeneratorId),
+      [...MATH_QUESTION_TYPES, ...MATH_LEGACY_QUESTION_TYPES].map((definition) => definition.coreGeneratorId),
     );
 
     expect(MATH_CORE_GENERATOR_IDS).toHaveLength(43);
@@ -71,7 +72,7 @@ describe("math practice question type registry", () => {
   it("only references registered response modes and source images", () => {
     const responseModeIds = new Set(MATH_RESPONSE_MODES.map((mode) => mode.id));
 
-    for (const definition of MATH_QUESTION_TYPES) {
+    for (const definition of [...MATH_QUESTION_TYPES, ...MATH_LEGACY_QUESTION_TYPES]) {
       expect(definition.responseModes.length).toBeGreaterThan(0);
       expect(
         definition.responseModes.every((mode) => responseModeIds.has(mode)),
@@ -90,7 +91,7 @@ describe("math practice question type registry", () => {
 
   it("shares only the intended mathematical cores across presentation types", () => {
     const typesByCore = new Map<string, string[]>();
-    for (const definition of MATH_QUESTION_TYPES) {
+    for (const definition of [...MATH_QUESTION_TYPES, ...MATH_LEGACY_QUESTION_TYPES]) {
       const ids = typesByCore.get(definition.coreGeneratorId) ?? [];
       ids.push(definition.id);
       typesByCore.set(definition.coreGeneratorId, ids);

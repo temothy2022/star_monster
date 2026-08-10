@@ -1,6 +1,6 @@
 import { PlanetKey, Prisma } from "@prisma/client";
 import type { DailyTaskStatus } from "@prisma/client";
-import { MATH_QUESTION_TYPES } from "@star-monsters/math-practice";
+import { MATH_LEGACY_QUESTION_TYPES, MATH_QUESTION_TYPES } from "@star-monsters/math-practice";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
@@ -120,11 +120,23 @@ const mathPracticeSettingsSchema = z.object({
   totalQuestions: z.number().int().min(1).max(100),
   typeCounts: z.record(z.string(), z.number().int().min(0).max(100)),
 }).superRefine((input, context) => {
-  const validIds = new Set<string>(MATH_QUESTION_TYPES.map((item) => item.id));
+  // Accept the merged P02 alias on read/write so existing parent settings can
+  // be migrated to the canonical P01 entry without a validation failure.
+  const validIds = new Set<string>([
+    ...MATH_QUESTION_TYPES,
+    ...MATH_LEGACY_QUESTION_TYPES,
+  ].map((item) => item.id));
   const invalidId = Object.keys(input.typeCounts).find((typeId) => !validIds.has(typeId));
   if (invalidId) context.addIssue({ code: "custom", path: ["typeCounts", invalidId], message: "包含未知的数学题型" });
   const allocated = Object.values(input.typeCounts).reduce((sum, count) => sum + count, 0);
   if (allocated !== input.totalQuestions) context.addIssue({ code: "custom", path: ["typeCounts"], message: "各题型数量之和必须等于题目总数" });
+}).transform((input) => {
+  const typeCounts = { ...input.typeCounts };
+  if (typeCounts.P02) {
+    typeCounts.P01 = (typeCounts.P01 ?? 0) + typeCounts.P02;
+    delete typeCounts.P02;
+  }
+  return { ...input, typeCounts };
 });
 const DEFAULT_MATH_PRACTICE_SETTINGS = {
   totalQuestions: 10,

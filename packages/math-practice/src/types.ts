@@ -85,6 +85,7 @@ export type MathNumberRange =
   | "WITHIN_5"
   | "WITHIN_10"
   | "WITHIN_20"
+  | "WITHIN_100"
   | "NON_NUMERIC";
 
 export type MathQuestionTypeDefinition = {

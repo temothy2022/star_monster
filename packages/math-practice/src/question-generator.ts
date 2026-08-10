@@ -142,7 +142,8 @@ function question(
 function seededDifficulty(typeId: MathQuestionTypeId, seed: number): MathDifficulty {
   const [minimum, maximum] = MATH_QUESTION_TYPES_BY_ID[typeId].difficultyRange;
   if (minimum === maximum) return minimum;
-  const hash = Math.imul(seed ^ typeId.charCodeAt(0) ^ typeId.charCodeAt(2), 2654435761) >>> 0;
+  const difficultyTypeId = typeId === "P02" ? "P01" : typeId;
+  const hash = Math.imul(seed ^ difficultyTypeId.charCodeAt(0) ^ difficultyTypeId.charCodeAt(2), 2654435761) >>> 0;
   const roll = hash % 100;
   if (minimum === 1 && maximum === 2) return roll < 45 ? 1 : 2;
   if (minimum === 2 && maximum === 3) return roll < 70 ? 2 : 3;
@@ -419,13 +420,21 @@ export function generateMathQuestion(
         explanation: `${referenceCount} ${relation === "MORE" ? "+" : "-"} ${difference} = ${targetCount}。`,
       });
     }
-    case "P01": {
-      const ones = difficulty === 1 ? rng.int(1, 5) : rng.int(6, 9);
-      return question(input, { prompt: "看图写数，再读一读。", visual: { kind: "PLACE_VALUE", tens: 1, ones, bundled: true }, response: numericResponse(), answer: { values: [String(10 + ones)], display: `${10 + ones}` }, explanation: `1 个十和 ${ones} 个一组成 ${10 + ones}。` });
-    }
+    case "P01":
     case "P02": {
-      const ones = difficulty === 1 ? rng.int(1, 5) : rng.int(6, 9);
-      return question(input, { prompt: `1 个十和 ${ones} 个一组成的数是多少？`, visual: { kind: "PLACE_VALUE", tens: 1, ones }, response: numericResponse(), answer: { values: [String(10 + ones)], display: String(10 + ones) }, explanation: `10 + ${ones} = ${10 + ones}。` });
+      // P01 is the canonical "read the picture" exercise. P02 remains a
+      // runtime alias for old saved settings, but both IDs now use the same
+      // unbiased 0–9 tens/ones picture pool and the same child task.
+      const tens = rng.int(0, 9);
+      const ones = rng.int(0, 9);
+      const value = tens * 10 + ones;
+      return question(input, {
+        prompt: "看图写数。",
+        visual: { kind: "PLACE_VALUE", tens, ones, bundled: true, showLabels: false },
+        response: numericResponse(),
+        answer: { values: [String(value)], display: String(value) },
+        explanation: `${tens} 个十和 ${ones} 个一组成 ${value}。`,
+      });
     }
     case "P03": {
       const ones = difficulty === 1 ? rng.int(1, 5) : rng.int(6, 9);

@@ -939,10 +939,12 @@
 .math-abacus__bead { width: 56px; height: 15px; margin-top: -2px; border: 3px solid #d56a35; border-radius: 50%; background: #ff9b55; box-sizing: border-box; }
 .math-abacus__column strong { display: block; padding: 6px 11px; background: #fff3c5; border: 2px solid #e7c66e; }
 
-.math-place-value { display: flex; align-items: flex-end; justify-content: center; gap: 44px; }
-.math-place-value__section { min-width: 115px; text-align: center; }
+.math-place-value { display: flex; align-items: flex-end; justify-content: center; gap: 44px; max-width: 100%; }
+.math-place-value__section { min-width: 150px; text-align: center; }
+.math-place-value__section:first-child { width: min(280px, 100%); }
+.math-place-value__bundles { width: 100%; min-height: 136px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); grid-auto-rows: 68px; align-content: end; justify-content: center; gap: 2px; }
 .math-place-value__section > span { display: block; margin-top: 10px; font-weight: 900; color: #5d718b; }
-.math-stick-bundle { width: 108px; height: 132px; display: block; position: relative; margin: 0 auto; object-fit: contain; object-position: center; }
+.math-stick-bundle { width: min(56px, 100%); height: 68px; display: block; position: relative; margin: 0 auto; object-fit: contain; object-position: center; }
 .math-stick-bundle i,
 .math-loose-sticks i { width: 7px; height: 120px; margin: 0 1px; border-radius: 4px; background: #62af82; border: 1px solid #358b61; }
 .math-stick-bundle b { position: absolute; top: 54px; left: 0; right: 0; height: 13px; background: #f0786f; border-radius: 5px; }
@@ -1153,6 +1155,13 @@
   .math-logic-model { grid-template-columns: 1fr; }
   .math-logic-clues { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; }
   .math-object-groups--split { column-gap: 18px; row-gap: 12px; }
+  .math-place-value { gap: 8px; }
+  .math-place-value__section { min-width: 0; }
+  .math-place-value__section:first-child { width: min(58vw, 200px); }
+  .math-place-value__section:nth-child(2) { width: min(30vw, 100px); }
+  .math-place-value__bundles { min-height: 104px; grid-auto-rows: 52px; gap: 1px; }
+  .math-stick-bundle { width: min(42px, 100%); height: 52px; }
+  .math-loose-sticks { min-height: 104px; }
 }
 
 .math-session {

@@ -547,6 +547,8 @@
 .math-paper-question .math-plain-helper { font-size: 24pt; }
 .math-paper-question .math-abacus { gap: 8mm; transform: scale(.62); }
 .math-paper-question .math-place-value { gap: 8mm; transform: scale(.58); }
+.math-paper-question .math-place-value__bundles { min-height: 24mm; grid-template-columns: repeat(5, 10mm); grid-auto-rows: 12mm; gap: .4mm; }
+.math-paper-question .math-place-value__bundles .math-stick-bundle { width: 10mm; height: 12mm; }
 .math-paper-question .math-number-boxes { gap: 2mm; }
 .math-paper-question .math-number-boxes span { width: 15mm; height: 15mm; border-width: .7mm; border-radius: 3mm; font-size: 18pt; }
 .math-paper-question .math-number-bond { max-width: 54mm; max-height: 42mm; }

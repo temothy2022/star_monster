@@ -22,6 +22,7 @@ import {
   allocateEvenly,
   clampMathTotal,
   countAllocatedQuestions,
+  normalizeLegacyMathTypeCounts,
   rebalanceTypeCounts,
 } from "./math-practice-settings";
 
@@ -326,7 +327,7 @@ export function ParentMathPractice({ child }: { child: Child }) {
     setLoading(true);
     setError("");
     void parentApi.mathPracticeSettings(child.id)
-      .then((result) => setSettings(result.settings))
+      .then((result) => setSettings({ ...result.settings, typeCounts: normalizeLegacyMathTypeCounts(result.settings.typeCounts) }))
       .catch((reason) => setError(reason instanceof Error ? reason.message : "数学练习设置加载失败"))
       .finally(() => setLoading(false));
   }, [child.id]);

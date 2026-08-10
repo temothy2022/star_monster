@@ -70,6 +70,35 @@ describe("math practice question generator", () => {
     expect(assets.size).toBeGreaterThanOrEqual(6);
   });
 
+  it("varies both tens bundles and loose sticks for picture number reading", () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 160; seed += 1) {
+      const question = generateMathQuestion({ typeId: "P01", seed });
+      expect(question.prompt).toBe("看图写数。");
+      expect(question.visual.kind).toBe("PLACE_VALUE");
+      if (question.visual.kind !== "PLACE_VALUE") continue;
+      expect(question.visual.tens).toBeGreaterThanOrEqual(0);
+      expect(question.visual.tens).toBeLessThanOrEqual(9);
+      expect(question.visual.ones).toBeGreaterThanOrEqual(0);
+      expect(question.visual.ones).toBeLessThanOrEqual(9);
+      expect(question.visual.showLabels).toBe(false);
+      expect(question.answer.values).toEqual([String(question.visual.tens * 10 + question.visual.ones)]);
+      seen.add(`${question.visual.tens}-${question.visual.ones}`);
+    }
+    expect(new Set(Array.from(seen, (signature) => signature.split("-")[0])).size).toBeGreaterThan(1);
+    expect(new Set(Array.from(seen, (signature) => signature.split("-")[1])).size).toBeGreaterThan(1);
+  });
+
+  it("keeps P02 saved settings as an alias of the merged P01 exercise", () => {
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const canonical = generateMathQuestion({ typeId: "P01", seed });
+      const legacy = generateMathQuestion({ typeId: "P02", seed });
+      expect(legacy.prompt).toBe(canonical.prompt);
+      expect(legacy.visual).toEqual(canonical.visual);
+      expect(legacy.answer).toEqual(canonical.answer);
+    }
+  });
+
   it("keeps N02 wording stable when containers wrap across rows", () => {
     for (let seed = 1; seed <= 80; seed += 1) {
       const question = generateMathQuestion({ typeId: "N02", seed });

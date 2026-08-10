@@ -121,15 +121,15 @@ export const MATH_TEACHING_GUIDES_BY_TYPE: Record<MathQuestionTypeId, MathTeachi
     visual: "COMPARE",
   },
   P01: {
-    focus: "在实物、十进制表征、数字和读法之间转换。",
+    focus: "从十捆和单根小棍的图片读出并写出数量。",
     commonMistake: "把一捆当成一个，或颠倒十位和个位。",
     hints: ["先分清一捆表示10，单个表示1。", "先数十，再数一，把它们合起来。"],
     visual: "PLACE_VALUE",
   },
   P02: {
-    focus: "用十和一组成两位数。",
-    commonMistake: "把几个十和几个一直接相加或把数位写反。",
-    hints: ["一个十就是10，先把十写在十位。", "几个一写在个位，十位和个位合成两位数。"],
+    focus: "旧版看图写数配置的兼容入口。",
+    commonMistake: "把一捆当成一个，或颠倒十位和个位。",
+    hints: ["先分清一捆表示10，单个表示1。", "先数十，再数一，把它们合起来。"],
     visual: "PLACE_VALUE",
   },
   P03: {

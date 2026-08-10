@@ -42,7 +42,7 @@ export type MathVisualSpec =
       unknownGroupIndex?: number;
     }
   | { kind: "ABACUS"; tens: number; ones: number }
-  | { kind: "PLACE_VALUE"; tens: number; ones: number; bundled?: boolean }
+  | { kind: "PLACE_VALUE"; tens: number; ones: number; bundled?: boolean; showLabels?: boolean }
   | { kind: "NUMBER_BOXES"; values: readonly (number | null)[] }
   | {
       kind: "NUMBER_BOND";
