@@ -62,6 +62,10 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
   if (question.typeId === "N02") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N15") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N16") return { heightMm: 104, size: "wide-visual", wide: true };
+  if (question.visual.kind === "ARITHMETIC_LIST") {
+    const rows = question.visual.items.length;
+    return { heightMm: Math.min(112, Math.max(58, 18 + rows * 10)), size: "compact", wide: false };
+  }
   if (["C01", "C02", "C03", "C04", "C06", "N08"].includes(question.typeId)) {
     return { heightMm: 42, size: "compact", wide: false };
   }
@@ -69,10 +73,6 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
     return { heightMm: 52, size: "number-strip", wide: false };
   }
   if (question.typeId === "N09") return { heightMm: 62, size: "sort", wide: false };
-  if (question.visual.kind === "ARITHMETIC_LIST") {
-    const rows = question.visual.items.length;
-    return { heightMm: Math.min(112, Math.max(58, 18 + rows * 10)), size: "compact", wide: false };
-  }
   if (["S02", "S04", "C05", "P01", "P02", "P05", "P06", "P07"].includes(question.typeId)) {
     return { heightMm: 84, size: "tall-visual", wide: false };
   }
