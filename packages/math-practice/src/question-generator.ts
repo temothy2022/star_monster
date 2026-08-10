@@ -462,9 +462,12 @@ export function generateMathQuestion(
       return question(input, { prompt: "看计数器，写出这个数。", visual: { kind: "ABACUS", tens, ones }, response: numericResponse(), answer: { values: [String(value)], display: String(value) }, explanation: `十位 ${tens} 颗、个位 ${ones} 颗，表示 ${value}。` });
     }
     case "P06": {
-      const beadCount = difficulty === 2 ? 1 : 2;
+      // Increase the fixed-bead count gradually: medium questions use one or
+      // two beads, while hard questions use two or three.  Three is the
+      // ceiling so the option grid stays manageable for young children.
+      const beadCount = difficulty === 2 ? rng.int(1, 2) : rng.int(2, 3);
       const answers = Array.from({ length: beadCount + 1 }, (_, tens) => String(tens * 10 + beadCount - tens));
-      const distractors = beadCount === 1 ? ["11", "20"] : ["12"];
+      const distractors = beadCount === 1 ? ["11", "20"] : beadCount === 2 ? ["12"] : ["13"];
       return question(input, { prompt: `把 ${beadCount} 颗珠子放在十位和个位，可以表示哪些数？`, visual: { kind: "ABACUS", tens: 0, ones: 0 }, response: optionResponse(rng.shuffle([...answers, ...distractors]), "R05", true), answer: { values: answers, display: answers.join("、") }, explanation: "把珠子分别放在个位、十位，列出所有不同分法。" });
     }
     case "P07": {

@@ -396,6 +396,25 @@ describe("math practice question generator", () => {
     }
   });
 
+  it("varies P06 fixed-bead counts from one through three", () => {
+    const counts = new Set<number>();
+    for (let seed = 1; seed <= 240; seed += 1) {
+      const question = generateMathQuestion({ typeId: "P06", seed });
+      const match = question.prompt.match(/把 (\d+) 颗珠子/);
+      expect(match).not.toBeNull();
+      if (!match) continue;
+      const beadCount = Number(match[1]);
+      expect(beadCount).toBeGreaterThanOrEqual(1);
+      expect(beadCount).toBeLessThanOrEqual(3);
+      expect(question.answer.values).toEqual(
+        Array.from({ length: beadCount + 1 }, (_, tens) => String(tens * 10 + beadCount - tens)),
+      );
+      expect(new Set(question.response.options).size).toBe(question.response.options?.length ?? 0);
+      counts.add(beadCount);
+    }
+    expect(counts).toEqual(new Set([1, 2, 3]));
+  });
+
   it("uses independently illustrated material sets for length comparison", () => {
     const longestByAsset = {
       rulers: "左边",
