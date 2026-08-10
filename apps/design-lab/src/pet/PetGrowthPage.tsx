@@ -496,7 +496,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     stopRedPacketRainSound();
     const audio = redPacketRainAudioRef.current ?? new Audio(redPacketRainSound);
     audio.preload = "auto";
-    audio.loop = true;
+    audio.loop = false;
     redPacketRainAudioRef.current = audio;
     const playback = createHtmlAudioPlayback(audio);
     redPacketRainPlaybackRef.current = playback;
@@ -636,8 +636,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     openAudio.preload = "auto";
     redPacketRainAudioRef.current = rainAudio;
     redPacketOpenAudioRef.current = openAudio;
-    rainAudio.load();
-    openAudio.load();
+    // Changing the claimed count updates this effect while the opening sound
+    // is still playing. Calling load() here would reset that playback.
+    if (rainAudio.paused) rainAudio.load();
+    if (openAudio.paused) openAudio.load();
   }, [state?.redPackets.availableCount]);
 
   useEffect(() => {
