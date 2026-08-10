@@ -47,7 +47,7 @@ describe("footprint reward details", () => {
       }),
       expect.objectContaining({
         rewardId: "packet-ledger",
-        title: "打开星宠升级红包",
+        title: "打开星宠红包",
         totalStars: 5,
         planet: null,
       }),

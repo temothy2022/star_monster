@@ -11,6 +11,7 @@ import { writeAudit } from "../services/audit-service.js";
 import {
   getPetGrowthState,
   listPetDestinations,
+  petManualRedPacketGrantPlan,
   updatePetConfig,
 } from "../services/pet-growth-service.js";
 import {
@@ -84,6 +85,9 @@ const parentRoomThemePatchSchema = z.object({
     key: z.string().trim().min(1).max(64),
     priceStars: z.number().int().min(0).max(10000),
   })).min(1).max(50),
+});
+const parentRedPacketGrantSchema = z.object({
+  count: z.number().int().min(1).max(50),
 });
 const roomThemeCreateQuerySchema = z.object({
   name: z.string().trim().min(1).max(40),
@@ -431,6 +435,51 @@ export async function registerPetManagementRoutes(app: FastifyInstance, config: 
         redPacketMaxStars: profile.redPacketMaxStars,
       },
     };
+  });
+
+  app.post("/api/parent/children/:id/pet-growth/red-packets/grant", async (request, reply) => {
+    const { user } = await requireParent(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const child = await ownedChild(user, id);
+    const { count } = parentRedPacketGrantSchema.parse(request.body);
+    const batchKey = randomUUID();
+    const grantedCount = await prisma.$transaction(async (tx) => {
+      const profile = await tx.petGrowthProfile.upsert({
+        where: { childId: id },
+        update: {},
+        create: { childId: id },
+      });
+      const packets = petManualRedPacketGrantPlan({
+        profileId: profile.id,
+        childId: id,
+        sourceLevel: profile.level,
+        count,
+        minStars: profile.redPacketMinStars,
+        maxStars: profile.redPacketMaxStars,
+        batchKey,
+      });
+      const result = await tx.petRedPacket.createMany({ data: packets, skipDuplicates: true });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId: child.familyId,
+        action: "PET_RED_PACKET_GRANT",
+        resourceType: "PetGrowthProfile",
+        resourceId: profile.id,
+        metadata: {
+          count: result.count,
+          minStars: profile.redPacketMinStars,
+          maxStars: profile.redPacketMaxStars,
+          batchKey,
+        },
+        ipAddress: request.ip,
+      });
+      return result.count;
+    });
+    const availableCount = await prisma.petRedPacket.count({
+      where: { childId: id, openedAt: null },
+    });
+    return { grantedCount, availableCount };
   });
 
   app.patch("/api/parent/pet-growth/themes", async (request, reply) => {

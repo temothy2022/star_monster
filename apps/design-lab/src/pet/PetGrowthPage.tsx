@@ -38,10 +38,13 @@ import eatingSound from "@star-monsters/assets/audio/pet/eating.mp3";
 import drinkingSound from "@star-monsters/assets/audio/pet/drinking.mp3";
 import happyEntrySound from "@star-monsters/assets/audio/pet/happy-entry.mp3";
 import postcardArrivedSound from "@star-monsters/assets/audio/pet/postcard-arrived.mp3";
+import redPacketOpenSound from "@star-monsters/assets/audio/pet/red-packet-open.mp3";
+import redPacketRainSound from "@star-monsters/assets/audio/pet/red-packet-rain.mp3";
 import soundToggleIcon from "@star-monsters/assets/images/pet/sound-toggle.webp";
 import redPacketEntryImage from "@star-monsters/assets/images/pet/red-packet-entry.webp";
 import redPacketMainImage from "@star-monsters/assets/images/pet/red-packet-main.webp";
 import {
+  clearWebMediaSession,
   createAudioWithSpeechFallback,
   createHtmlAudioPlayback,
   createSpeechPlayback,
@@ -61,7 +64,7 @@ const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
 const PET_ROOM_LAYOUT_STORAGE_KEY = "star-monsters:pet-room-layout:v1";
 const ROOM_DECOR_ENTRY_IMAGE = "/pet-assets/v1/ui/room-decor-entry.webp";
 const PET_LAYOUT_LONG_PRESS_MS = 520;
-const RED_PACKET_RAIN_MS = 1_050;
+const RED_PACKET_RAIN_MS = 3_200;
 type CareKind = "feed" | "drink";
 type RoomNotice = { id: number; message: string };
 type RedPacketStage = "rain" | "ready" | "opening" | "revealed";
@@ -76,12 +79,21 @@ type StoredPetRoomLayouts = {
   portrait?: PetLayoutPreset;
 };
 
-const RED_PACKET_RAIN_ITEMS = Array.from({ length: 28 }, (_, index) => ({
+const RED_PACKET_RAIN_ITEMS = Array.from({ length: 64 }, (_, index) => ({
   left: `${(index * 37 + 7) % 101}%`,
-  delay: `${(index % 8) * 0.08}s`,
-  duration: `${0.82 + (index % 5) * 0.1}s`,
-  scale: `${0.42 + (index % 4) * 0.13}`,
-  rotate: `${(index % 2 === 0 ? 1 : -1) * (12 + (index % 7) * 8)}deg`,
+  delay: `${-((index * 0.17) % 3.8)}s`,
+  duration: `${2.25 + (index % 7) * 0.27}s`,
+  scale: `${0.32 + (index % 6) * 0.16}`,
+  rotate: `${(index % 2 === 0 ? 1 : -1) * (20 + (index % 7) * 13)}deg`,
+  sway: `${(index % 2 === 0 ? 1 : -1) * (18 + (index % 5) * 12)}px`,
+  opacity: `${0.6 + (index % 4) * 0.12}`,
+}));
+
+const RED_PACKET_LIGHT_ITEMS = Array.from({ length: 24 }, (_, index) => ({
+  left: `${(index * 43 + 11) % 100}%`,
+  top: `${(index * 29 + 13) % 94}%`,
+  delay: `${(index % 8) * -0.19}s`,
+  scale: `${0.55 + (index % 5) * 0.22}`,
 }));
 
 const RED_PACKET_BURST_ITEMS = Array.from({ length: 22 }, (_, index) => ({
@@ -364,6 +376,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const petSoundQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const careSoundQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const entrySoundPlaybackRef = useRef<ReturnType<typeof createHtmlAudioPlayback> | null>(null);
+  const redPacketRainAudioRef = useRef<HTMLAudioElement | null>(null);
+  const redPacketRainPlaybackRef = useRef<ReturnType<typeof createHtmlAudioPlayback> | null>(null);
+  const redPacketOpenAudioRef = useRef<HTMLAudioElement | null>(null);
+  const redPacketOpenPlaybackRef = useRef<ReturnType<typeof createHtmlAudioPlayback> | null>(null);
   const soundRetryCleanupRef = useRef(new Set<() => void>());
   const postcardSoundTripIdRef = useRef<string | null>(null);
   const entryVisitHandledRef = useRef(false);
@@ -464,6 +480,43 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     entrySoundPlaybackRef.current?.cancel();
     entrySoundPlaybackRef.current = null;
   }, []);
+  const stopRedPacketRainSound = useCallback(() => {
+    redPacketRainPlaybackRef.current?.cancel();
+    redPacketRainPlaybackRef.current = null;
+    if (redPacketRainAudioRef.current) redPacketRainAudioRef.current.loop = false;
+    clearWebMediaSession();
+  }, []);
+  const stopRedPacketOpenSound = useCallback(() => {
+    redPacketOpenPlaybackRef.current?.cancel();
+    redPacketOpenPlaybackRef.current = null;
+    clearWebMediaSession();
+  }, []);
+  const playRedPacketRainSound = useCallback(() => {
+    if (!soundEnabledRef.current) return;
+    stopRedPacketRainSound();
+    const audio = redPacketRainAudioRef.current ?? new Audio(redPacketRainSound);
+    audio.preload = "auto";
+    audio.loop = true;
+    redPacketRainAudioRef.current = audio;
+    const playback = createHtmlAudioPlayback(audio);
+    redPacketRainPlaybackRef.current = playback;
+    void playback.done.catch(() => undefined);
+  }, [stopRedPacketRainSound]);
+  const playRedPacketOpenSound = useCallback(() => {
+    if (!soundEnabledRef.current) return;
+    stopRedPacketOpenSound();
+    const audio = redPacketOpenAudioRef.current ?? new Audio(redPacketOpenSound);
+    audio.preload = "auto";
+    redPacketOpenAudioRef.current = audio;
+    const playback = createHtmlAudioPlayback(audio);
+    redPacketOpenPlaybackRef.current = playback;
+    void playback.done
+      .catch(() => undefined)
+      .finally(() => {
+        if (redPacketOpenPlaybackRef.current === playback) redPacketOpenPlaybackRef.current = null;
+        clearWebMediaSession();
+      });
+  }, [stopRedPacketOpenSound]);
   const playPetSound = useCallback((url: string, retryOnGesture = false) => {
     if (!soundEnabledRef.current) return;
     let canRetry = retryOnGesture;
@@ -576,6 +629,18 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }, [mascot.activityImages]);
 
   useEffect(() => {
+    if (!state?.redPackets.availableCount) return;
+    const rainAudio = redPacketRainAudioRef.current ?? new Audio(redPacketRainSound);
+    const openAudio = redPacketOpenAudioRef.current ?? new Audio(redPacketOpenSound);
+    rainAudio.preload = "auto";
+    openAudio.preload = "auto";
+    redPacketRainAudioRef.current = rainAudio;
+    redPacketOpenAudioRef.current = openAudio;
+    rainAudio.load();
+    openAudio.load();
+  }, [state?.redPackets.availableCount]);
+
+  useEffect(() => {
     if (!state) return;
     const context = roomDialogueContext(state);
     const dialogues = state.dialogues ?? [];
@@ -602,12 +667,14 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     petSoundQueueRef.current?.clear();
     careSoundQueueRef.current?.clear();
     stopEntrySound();
+    stopRedPacketRainSound();
+    stopRedPacketOpenSound();
     soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
     soundRetryCleanupRef.current.clear();
     const drag = layoutDragRef.current;
     if (drag) window.clearTimeout(drag.timer);
     layoutDragRef.current = null;
-  }, [stopEntrySound]);
+  }, [stopEntrySound, stopRedPacketOpenSound, stopRedPacketRainSound]);
 
   function speakPetDialogue() {
     if (!soundEnabledRef.current || !selectedDialogue || careAnimation) return;
@@ -645,6 +712,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       petSoundQueueRef.current?.clear();
       careSoundQueueRef.current?.clear();
       stopEntrySound();
+      stopRedPacketRainSound();
+      stopRedPacketOpenSound();
       soundRetryCleanupRef.current.forEach((cleanup) => cleanup());
       soundRetryCleanupRef.current.clear();
     }
@@ -675,6 +744,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (redPacketStage === "opening") return;
     if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
     redPacketRainTimerRef.current = null;
+    stopRedPacketRainSound();
+    stopRedPacketOpenSound();
     if (redPacketReward) redPacketClaimKeyRef.current = null;
     setRedPacketStage(null);
     setRedPacketReward(null);
@@ -682,6 +753,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   function startRedPacketFlow() {
     if (!state || state.redPackets.availableCount <= 0 || busy || redPacketStage) return;
+    stopEntrySound();
+    petSoundQueueRef.current?.clear();
+    playRedPacketRainSound();
     setRedPacketReward(null);
     setRedPacketStage("rain");
     if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
@@ -693,6 +767,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   async function claimRedPacket() {
     if (!state || redPacketStage !== "ready" || busy) return;
+    stopRedPacketRainSound();
     const claimKey = redPacketClaimKeyRef.current ?? actionKey("pet-red-packet");
     redPacketClaimKeyRef.current = claimKey;
     setBusy("red-packet");
@@ -706,10 +781,12 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       setRedPacketReward(result.reward);
       redPacketClaimKeyRef.current = null;
       setRedPacketStage("revealed");
+      playRedPacketOpenSound();
       setError("");
       navigator.vibrate?.([24, 35, 55]);
     } catch (reason) {
       setRedPacketStage("ready");
+      playRedPacketRainSound();
       showRoomNotice(reason instanceof ApiError ? reason.message : "红包暂时没有打开，请再试一次");
     } finally {
       setBusy(null);
@@ -723,6 +800,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     }
     setRedPacketReward(null);
     redPacketClaimKeyRef.current = null;
+    stopRedPacketOpenSound();
+    playRedPacketRainSound();
     setRedPacketStage("rain");
     redPacketRainTimerRef.current = window.setTimeout(() => {
       setRedPacketStage("ready");
@@ -1268,6 +1347,18 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       {redPacketStage && (
         <div className={`pet-red-packet-modal is-${redPacketStage}`} role="dialog" aria-modal="true" aria-label="星宠升级红包">
           <div className="pet-red-packet-modal__backdrop" aria-hidden="true" />
+          <div className="pet-red-packet-light-show" aria-hidden="true">
+            <i className="pet-red-packet-light-show__ring" />
+            <i className="pet-red-packet-light-show__ring pet-red-packet-light-show__ring--outer" />
+            {RED_PACKET_LIGHT_ITEMS.map((item, index) => (
+              <b key={index} style={{
+                "--red-packet-light-left": item.left,
+                "--red-packet-light-top": item.top,
+                "--red-packet-light-delay": item.delay,
+                "--red-packet-light-scale": item.scale,
+              } as CSSProperties} />
+            ))}
+          </div>
           <div className="pet-red-packet-rain" aria-hidden="true">
             {RED_PACKET_RAIN_ITEMS.map((item, index) => (
               <img
@@ -1280,6 +1371,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
                   "--red-packet-duration": item.duration,
                   "--red-packet-scale": item.scale,
                   "--red-packet-rotate": item.rotate,
+                  "--red-packet-sway": item.sway,
+                  "--red-packet-opacity": item.opacity,
                 } as CSSProperties}
               />
             ))}
@@ -1310,11 +1403,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
                   ))}
                 </div>
                 <div className="pet-red-packet-reward__crown" aria-hidden="true"><span>★</span></div>
-                <small>Lv.{redPacketReward.sourceLevel} 升级红包</small>
-                <h2>太棒啦！</h2>
+                <h2>红包开出</h2>
                 <div className="pet-red-packet-reward__stars"><b>+</b><strong>{redPacketReward.stars}</strong><span>颗星</span></div>
-                <p>星宠把成长的惊喜送给了你</p>
-                <button type="button" onClick={continueRedPackets}>{state.redPackets.availableCount > 0 ? `再开一个（还有 ${state.redPackets.availableCount} 个）` : "收下星星"}</button>
+                <button type="button" onClick={continueRedPackets}>{state.redPackets.availableCount > 0 ? `再开一个 · ${state.redPackets.availableCount}` : "收下星星"}</button>
               </div>
             )}
           </section>

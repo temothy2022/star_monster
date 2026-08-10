@@ -4,6 +4,7 @@ import {
   petDialogueContext,
   petGrowthStageForLevel,
   petLevelFromExperience,
+  petManualRedPacketGrantPlan,
   parsePetRoomAmbience,
   petRedPacketGrantPlan,
   settledPetStatus,
@@ -65,6 +66,26 @@ describe("pet growth rules", () => {
       minStars: 8,
       maxStars: 3,
     })[0]).toEqual(expect.objectContaining({ minStarsSnapshot: 3, maxStarsSnapshot: 8 }));
+  });
+
+  it("creates separately keyed parent-granted red packets with current reward settings", () => {
+    expect(petManualRedPacketGrantPlan({
+      profileId: "profile-1",
+      childId: "child-1",
+      sourceLevel: 6,
+      count: 2,
+      minStars: 5,
+      maxStars: 2,
+      batchKey: "batch-1",
+    })).toEqual([
+      expect.objectContaining({
+        sourceLevel: 6,
+        minStarsSnapshot: 2,
+        maxStarsSnapshot: 5,
+        grantKey: "pet-manual:profile-1:batch-1:packet:1",
+      }),
+      expect.objectContaining({ grantKey: "pet-manual:profile-1:batch-1:packet:2" }),
+    ]);
   });
 
   it("keeps decay remainders independently for different care intervals", () => {

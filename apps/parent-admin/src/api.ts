@@ -640,6 +640,11 @@ export const parentApi = {
     redPacketMinStars: number;
     redPacketMaxStars: number;
   } }>(`/api/parent/children/${childId}/pet-growth/settings`, { method: "PATCH", body: JSON.stringify(data) }),
+  grantPetRedPackets: (childId: string, count: number) =>
+    api<{ grantedCount: number; availableCount: number }>(
+      `/api/parent/children/${childId}/pet-growth/red-packets/grant`,
+      { method: "POST", body: JSON.stringify({ count }) },
+    ),
   updatePetRoomThemes: (themes: Array<{ key: string; priceStars: number }>) => api<{ themes: Array<{ themeId: string; priceStars: number }> }>("/api/parent/pet-growth/themes", { method: "PATCH", body: JSON.stringify({ themes }) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
   updateChild: (id: string, data: Record<string, unknown>) =>

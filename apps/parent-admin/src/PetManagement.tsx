@@ -44,6 +44,7 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
   const [redPacketsPerLevel, setRedPacketsPerLevel] = useState(1);
   const [redPacketMinStars, setRedPacketMinStars] = useState(1);
   const [redPacketMaxStars, setRedPacketMaxStars] = useState(5);
+  const [redPacketGrantCount, setRedPacketGrantCount] = useState(1);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -139,6 +140,22 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
     }
   }
 
+  async function grantRedPackets() {
+    const count = Math.max(1, Math.min(50, Math.round(redPacketGrantCount)));
+    setRedPacketGrantCount(count);
+    setBusy("red-packet-grant");
+    setMessage("");
+    try {
+      const result = await parentApi.grantPetRedPackets(child.id, count);
+      await load();
+      setMessage(`已补发 ${result.grantedCount} 个红包，当前待领取 ${result.availableCount} 个`);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : "红包补发失败");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   if (loading && !data) {
     return <div className="admin-stack"><PetSection title="星宠管理" subtitle="查看星宠成长、照顾和小屋设置"><div className="empty-state">正在读取星宠资料…</div></PetSection></div>;
   }
@@ -164,6 +181,11 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
               <label>每次升级赠送<input type="number" min={0} max={10} value={redPacketsPerLevel} onChange={(event) => setRedPacketsPerLevel(Number(event.target.value))} /><span>个</span></label>
               <label>最低奖励<input type="number" min={1} max={100} value={redPacketMinStars} onChange={(event) => setRedPacketMinStars(Number(event.target.value))} /><span>星</span></label>
               <label>最高奖励<input type="number" min={1} max={100} value={redPacketMaxStars} onChange={(event) => setRedPacketMaxStars(Number(event.target.value))} /><span>星</span></label>
+              <div className="parent-pet-red-packet-grant">
+                <label>额外补发<input type="number" min={1} max={50} value={redPacketGrantCount} onChange={(event) => setRedPacketGrantCount(Number(event.target.value))} /><span>个</span></label>
+                <button className="primary-button" type="button" disabled={busy !== null} onClick={() => void grantRedPackets()}>{busy === "red-packet-grant" ? "补发中…" : "立即补发"}</button>
+                <small>按当前奖励范围生成，孩子打开后才获得星星</small>
+              </div>
             </div>
             <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "settings" ? "保存中…" : "保存星宠设置"}</button>
           </form>

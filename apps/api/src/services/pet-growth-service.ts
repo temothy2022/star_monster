@@ -87,6 +87,28 @@ export function petRedPacketGrantPlan(input: {
   );
 }
 
+export function petManualRedPacketGrantPlan(input: {
+  profileId: string;
+  childId: string;
+  sourceLevel: number;
+  count: number;
+  minStars: number;
+  maxStars: number;
+  batchKey: string;
+}) {
+  const count = Math.max(0, Math.min(50, Math.floor(input.count)));
+  const minStars = Math.max(1, Math.min(input.minStars, input.maxStars));
+  const maxStars = Math.max(minStars, Math.max(input.minStars, input.maxStars));
+  return Array.from({ length: count }, (_, index) => ({
+    childId: input.childId,
+    profileId: input.profileId,
+    sourceLevel: input.sourceLevel,
+    minStarsSnapshot: minStars,
+    maxStarsSnapshot: maxStars,
+    grantKey: `pet-manual:${input.profileId}:${input.batchKey}:packet:${index + 1}`,
+  }));
+}
+
 export function settledPetStatus(value: number, settledAt: Date, now: Date, intervalMinutes: number) {
   const intervalMs = Math.max(1, intervalMinutes) * 60_000;
   const steps = Math.max(0, Math.floor((now.getTime() - settledAt.getTime()) / intervalMs));
@@ -904,7 +926,9 @@ export async function openPetRedPacket(input: {
         type: "PET_RED_PACKET_REWARD",
         amount: stars,
         balanceAfter: updatedChild.starBalance,
-        reason: `星宠升级红包（Lv.${packet.sourceLevel}）`,
+        reason: packet.grantKey.startsWith("pet-manual:")
+          ? "家长赠送的星宠红包"
+          : `星宠升级红包（Lv.${packet.sourceLevel}）`,
         referenceId: packet.id,
         idempotencyKey: `pet-red-packet:${packet.id}:reward`,
       },

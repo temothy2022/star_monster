@@ -57,7 +57,7 @@ export function buildFootprintRewardDetails(
     const title = ledger.type === "DAILY_GOAL_BONUS"
       ? "完成每日目标"
       : ledger.type === "PET_RED_PACKET_REWARD"
-        ? "打开星宠升级红包"
+        ? "打开星宠红包"
         : planet
           ? `点亮${PLANET_NAMES[planet]}`
           : "点亮星球";

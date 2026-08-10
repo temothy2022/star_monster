@@ -1701,6 +1701,9 @@ td { font-size: 13px; }
 .parent-pet-red-packet-settings label { position: relative; min-width: 0; }
 .parent-pet-red-packet-settings label input[type="number"] { width: 100%; min-width: 0; padding-right: 38px; }
 .parent-pet-red-packet-settings label span { position: absolute; right: 12px; bottom: 12px; color: #d36b32; font-size: 12px; font-weight: 900; pointer-events: none; }
+.parent-pet-red-packet-settings > .parent-pet-red-packet-grant { grid-column: 1 / -1; grid-template-columns: minmax(170px, 220px) auto minmax(220px, 1fr); align-items: end; gap: 12px; padding-top: 13px; border-top: 1px dashed #ead6c1; }
+.parent-pet-red-packet-grant .primary-button { min-height: 42px; white-space: nowrap; }
+.parent-pet-red-packet-settings > .parent-pet-red-packet-grant small { align-self: center; color: #7f756c; line-height: 1.45; }
 .pet-room-theme-upload { display: grid; grid-template-columns: minmax(250px, .75fr) minmax(420px, 1.5fr); gap: 18px; margin-bottom: 20px; padding: 18px; border: 1px solid #dce5ef; border-radius: 10px; background: #f8fbfe; }
 .pet-room-theme-upload__requirements { display: grid; align-content: start; gap: 7px; padding: 16px; border: 1px solid #f0d8a6; border-radius: 8px; background: #fff9eb; }
 .pet-room-theme-upload__requirements strong { color: #8a5b20; font-size: 13px; }
@@ -1741,6 +1744,7 @@ td { font-size: 13px; }
   .parent-pet-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .parent-pet-red-packet-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .parent-pet-red-packet-settings > div { grid-column: 1 / -1; }
+  .parent-pet-red-packet-settings > .parent-pet-red-packet-grant { grid-template-columns: minmax(160px, 1fr) auto minmax(190px, 1fr); }
   .pet-room-theme-upload { grid-template-columns: 1fr; }
   .pet-room-theme-admin-grid { grid-template-columns: 1fr; }
 }
@@ -1761,6 +1765,8 @@ td { font-size: 13px; }
   .parent-pet-settings-form input[type="number"] { width: 100%; }
   .parent-pet-red-packet-settings { grid-template-columns: 1fr; }
   .parent-pet-red-packet-settings > div { grid-column: auto; }
+  .parent-pet-red-packet-settings > .parent-pet-red-packet-grant { grid-column: auto; grid-template-columns: 1fr; align-items: stretch; }
+  .parent-pet-red-packet-grant .primary-button { width: 100%; }
   .parent-pet-overview__settings { display: grid; align-items: stretch; }
   .parent-pet-overview__settings input[type="number"] { width: 100%; }
 }
