@@ -419,6 +419,7 @@ export type TaskDashboardWidgetKey =
 export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
+  columns?: Partial<Record<TaskDashboardWidgetKey, number>>;
 };
 
 export type DashboardHanziReview = {

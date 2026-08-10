@@ -19,6 +19,7 @@ export type TaskDashboardWidgetKey = typeof TASK_DASHBOARD_WIDGET_KEYS[number];
 export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
+  columns?: Partial<Record<TaskDashboardWidgetKey, number>>;
 };
 
 export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
@@ -43,6 +44,13 @@ export const taskDashboardLayoutSchema = z.object({
     .max(TASK_DASHBOARD_WIDGET_KEYS.length)
     .refine((widgets) => new Set(widgets).size === widgets.length, "组件不能重复")
     .refine((widgets) => widgets.includes("TASKS"), "任务列表不能删除"),
+  columns: z.partialRecord(
+    z.enum(TASK_DASHBOARD_WIDGET_KEYS),
+    z.union([z.literal(0), z.literal(4), z.literal(8)]),
+  ).optional(),
+}).refine((layout) => layout.columns?.TASKS !== 8, {
+  message: "任务列表不能超出桌面网格",
+  path: ["columns", "TASKS"],
 });
 
 const storedTaskDashboardLayoutSchema = z.object({
@@ -51,15 +59,26 @@ const storedTaskDashboardLayoutSchema = z.object({
     .min(1)
     .refine((widgets) => new Set(widgets).size === widgets.length, "组件不能重复")
     .refine((widgets) => widgets.includes("TASKS"), "任务列表不能删除"),
+  columns: z.partialRecord(
+    z.enum(TASK_DASHBOARD_WIDGET_KEYS),
+    z.union([z.literal(0), z.literal(4), z.literal(8)]),
+  ).optional(),
 });
 
 export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayout {
   const parsed = storedTaskDashboardLayoutSchema.safeParse(value);
   if (!parsed.success) return { ...DEFAULT_TASK_DASHBOARD_LAYOUT, widgets: [...DEFAULT_TASK_DASHBOARD_LAYOUT.widgets] };
+  const widgets = parsed.data.widgets.filter(
+    (widget): widget is TaskDashboardWidgetKey => widget !== "QUICK_LINKS",
+  );
+  const columns = parsed.data.columns
+    ? Object.fromEntries(Object.entries(parsed.data.columns).filter(([key]) => (
+      widgets.includes(key as TaskDashboardWidgetKey)
+    ))) as Partial<Record<TaskDashboardWidgetKey, number>>
+    : undefined;
   return {
     version: 1,
-    widgets: parsed.data.widgets.filter(
-      (widget): widget is TaskDashboardWidgetKey => widget !== "QUICK_LINKS",
-    ),
+    widgets,
+    ...(columns && Object.keys(columns).length > 0 ? { columns } : {}),
   };
 }

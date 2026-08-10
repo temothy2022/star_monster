@@ -3,6 +3,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -50,6 +51,8 @@ type DragSession = {
   visualTop: number;
   animationFrame: number | null;
   lastSwapAt: number;
+  lastSwapX: number | null;
+  lastSwapY: number | null;
   width: number;
   height: number;
   target: HTMLElement;
@@ -72,6 +75,19 @@ function reorder(
   return next;
 }
 
+function hasSameOrder(
+  first: TaskDashboardWidgetKey[],
+  second: TaskDashboardWidgetKey[],
+) {
+  return first.length === second.length && first.every((key, index) => key === second[index]);
+}
+
+function distanceToRange(value: number, start: number, end: number) {
+  if (value < start) return start - value;
+  if (value > end) return value - end;
+  return 0;
+}
+
 export function TaskDashboard({
   layout,
   onSave,
@@ -86,6 +102,7 @@ export function TaskDashboard({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [draftWidgets, setDraftWidgets] = useState<TaskDashboardWidgetKey[]>(layout.widgets);
+  const [draftColumns, setDraftColumns] = useState<Partial<Record<TaskDashboardWidgetKey, number>>>(layout.columns ?? {});
   const [pressedWidget, setPressedWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [draggingWidget, setDraggingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [settlingWidget, setSettlingWidget] = useState<TaskDashboardWidgetKey | null>(null);
@@ -94,6 +111,7 @@ export function TaskDashboard({
   const dragRef = useRef<DragSession | null>(null);
   const dropOverlayRef = useRef<HTMLElement | null>(null);
   const widgetsRef = useRef(draftWidgets);
+  const columnsRef = useRef(draftColumns);
   const previousRectsRef = useRef<Map<TaskDashboardWidgetKey, DOMRect> | null>(null);
 
   useEffect(() => {
@@ -101,7 +119,14 @@ export function TaskDashboard({
   }, [draftWidgets]);
 
   useEffect(() => {
-    if (!editing) setDraftWidgets(layout.widgets);
+    columnsRef.current = draftColumns;
+  }, [draftColumns]);
+
+  useEffect(() => {
+    if (!editing) {
+      setDraftWidgets(layout.widgets);
+      setDraftColumns(layout.columns ?? {});
+    }
   }, [editing, layout]);
 
   useEffect(() => () => {
@@ -183,8 +208,31 @@ export function TaskDashboard({
     return positions;
   }
 
+  function captureWidgetColumns() {
+    const grid = gridRef.current;
+    if (!grid || window.innerWidth <= 900) return { ...columnsRef.current };
+    const gridRect = grid.getBoundingClientRect();
+    const styles = window.getComputedStyle(grid);
+    const gap = Number.parseFloat(styles.columnGap) || 16;
+    const trackWidth = (gridRect.width - gap * 2) / 3;
+    const step = trackWidth + gap;
+    const columns: Partial<Record<TaskDashboardWidgetKey, number>> = {};
+    for (const element of grid.querySelectorAll<HTMLElement>("[data-task-widget]")) {
+      const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+      if (!key) continue;
+      const rect = element.getBoundingClientRect();
+      const maxLane = WIDGET_BY_KEY.get(key)?.size === "large" ? 1 : 2;
+      const lane = Math.max(0, Math.min(maxLane, Math.round((rect.left - gridRect.left) / step)));
+      columns[key] = lane * 4;
+    }
+    return columns;
+  }
+
   function enterEditing() {
     setDraftWidgets(layout.widgets);
+    const columns = { ...captureWidgetColumns(), ...(layout.columns ?? {}) };
+    columnsRef.current = columns;
+    setDraftColumns(columns);
     setEditing(true);
     setMessage("");
     navigator.vibrate?.(18);
@@ -240,6 +288,8 @@ export function TaskDashboard({
       visualTop: rect.top,
       animationFrame: null,
       lastSwapAt: 0,
+      lastSwapX: null,
+      lastSwapY: null,
       width: rect.width,
       height: rect.height,
       target: event.currentTarget,
@@ -284,10 +334,80 @@ export function TaskDashboard({
     // wide widget hit the card two columns away and prevents valid placements.
     const placementX = session.targetLeft + Math.min(42, session.width * .12);
     const placementY = session.targetTop + Math.min(36, session.height * .12);
-    const candidate = document.elementFromPoint(placementX, placementY)
+    const grid = gridRef.current;
+    if (!grid) return;
+    const gridRect = grid.getBoundingClientRect();
+    if (
+      placementX < gridRect.left || placementX > gridRect.right ||
+      placementY < gridRect.top || placementY > gridRect.bottom
+    ) return;
+
+    const supportsColumnPlacement = window.innerWidth > 900;
+    let targetColumn = columnsRef.current[session.key] ?? 0;
+    if (supportsColumnPlacement) {
+      const gridStyles = window.getComputedStyle(grid);
+      const gridGap = Number.parseFloat(gridStyles.columnGap) || 16;
+      const trackWidth = (gridRect.width - gridGap * 2) / 3;
+      const columnStep = trackWidth + gridGap;
+      const maxLane = WIDGET_BY_KEY.get(session.key)?.size === "large" ? 1 : 2;
+      const targetLane = Math.max(
+        0,
+        Math.min(maxLane, Math.round((session.targetLeft - gridRect.left) / columnStep)),
+      );
+      targetColumn = targetLane * 4;
+      if (columnsRef.current[session.key] !== targetColumn) {
+        previousRectsRef.current = captureWidgetRects(session.key);
+        const columns = { ...columnsRef.current, [session.key]: targetColumn };
+        columnsRef.current = columns;
+        setDraftColumns(columns);
+      }
+    }
+
+    const elements = Array.from(grid.querySelectorAll<HTMLElement>("[data-task-widget]"));
+    const directCandidate = document.elementFromPoint(placementX, placementY)
       ?.closest<HTMLElement>("[data-task-widget]");
+    if (directCandidate?.dataset.taskWidget === session.key) return;
+    const occupiesTargetColumn = (element: HTMLElement) => {
+      const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+      if (!key) return false;
+      const column = columnsRef.current[key];
+      if (!supportsColumnPlacement || column === undefined) return true;
+      const width = WIDGET_BY_KEY.get(key)?.size === "large" ? 8 : 4;
+      return column <= targetColumn && column + width > targetColumn;
+    };
+    let candidate = directCandidate && grid.contains(directCandidate) &&
+      directCandidate.dataset.taskWidget !== session.key && occupiesTargetColumn(directCandidate)
+      ? directCandidate
+      : null;
+
+    // Empty grid cells are valid destinations too. Prefer a widget occupying
+    // the same visual row, then use the nearest edge as the insertion anchor.
+    if (!candidate) {
+      const candidates = elements
+        .filter((element) => (
+          element.dataset.taskWidget !== session.key && occupiesTargetColumn(element)
+        ))
+        .map((element) => ({ element, rect: element.getBoundingClientRect() }));
+      const sameRowCandidates = candidates.filter(({ rect }) => (
+        placementY >= rect.top && placementY <= rect.bottom
+      ));
+      const pool = sameRowCandidates.length > 0 ? sameRowCandidates : candidates;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (const item of pool) {
+        const horizontalDistance = distanceToRange(placementX, item.rect.left, item.rect.right);
+        const verticalDistance = distanceToRange(placementY, item.rect.top, item.rect.bottom);
+        const distance = sameRowCandidates.length > 0
+          ? horizontalDistance + Math.abs(placementY - (item.rect.top + item.rect.height / 2)) * .08
+          : Math.hypot(horizontalDistance, verticalDistance);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          candidate = item.element;
+        }
+      }
+    }
+
     const targetKey = candidate?.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
-    if (!candidate || !targetKey || targetKey === session.key || !WIDGET_BY_KEY.has(targetKey)) return;
+    if (!candidate || !targetKey || !WIDGET_BY_KEY.has(targetKey)) return;
     const sourceIndex = widgetsRef.current.indexOf(session.key);
     const targetIndex = widgetsRef.current.indexOf(targetKey);
     if (sourceIndex < 0 || targetIndex < 0) return;
@@ -295,21 +415,26 @@ export function TaskDashboard({
     const overlapY = Math.min(session.targetTop + session.height, rect.bottom) -
       Math.max(session.targetTop, rect.top);
     const sameRow = overlapY > Math.min(session.height, rect.height) * .5;
-    const movingForward = targetIndex > sourceIndex;
+    let after: boolean;
     if (sameRow) {
       const centerX = rect.left + rect.width / 2;
-      if (movingForward ? placementX < centerX : placementX > centerX) return;
+      after = placementX >= centerX;
     } else {
       const centerY = rect.top + rect.height / 2;
-      if (movingForward ? placementY < centerY : placementY > centerY) return;
+      after = placementY >= centerY;
     }
     const now = performance.now();
     if (now - session.lastSwapAt < REORDER_ANIMATION_MS) return;
-    const after = movingForward;
+    if (
+      session.lastSwapX !== null && session.lastSwapY !== null &&
+      Math.hypot(event.clientX - session.lastSwapX, event.clientY - session.lastSwapY) < 14
+    ) return;
     const next = reorder(widgetsRef.current, session.key, targetKey, after);
-    if (next !== widgetsRef.current) {
+    if (!hasSameOrder(next, widgetsRef.current)) {
       previousRectsRef.current = captureWidgetRects(session.key);
       session.lastSwapAt = now;
+      session.lastSwapX = event.clientX;
+      session.lastSwapY = event.clientY;
       widgetsRef.current = next;
       setDraftWidgets(next);
     }
@@ -349,18 +474,37 @@ export function TaskDashboard({
   }
 
   function moveBy(key: TaskDashboardWidgetKey, amount: -1 | 1) {
+    const column = columnsRef.current[key];
+    const laneWidgets = column === undefined
+      ? widgetsRef.current
+      : widgetsRef.current.filter((widget) => columnsRef.current[widget] === column);
+    const laneIndex = laneWidgets.indexOf(key);
+    const targetKey = laneWidgets[laneIndex + amount];
+    if (laneIndex < 0 || !targetKey) return;
     const index = widgetsRef.current.indexOf(key);
-    const target = index + amount;
-    if (index < 0 || target < 0 || target >= widgetsRef.current.length) return;
+    const target = widgetsRef.current.indexOf(targetKey);
     const next = [...widgetsRef.current];
     [next[index], next[target]] = [next[target]!, next[index]!];
     widgetsRef.current = next;
     setDraftWidgets(next);
   }
 
+  function canMoveBy(key: TaskDashboardWidgetKey, amount: -1 | 1) {
+    const column = draftColumns[key];
+    const laneWidgets = column === undefined
+      ? draftWidgets
+      : draftWidgets.filter((widget) => draftColumns[widget] === column);
+    const index = laneWidgets.indexOf(key);
+    return index >= 0 && index + amount >= 0 && index + amount < laneWidgets.length;
+  }
+
   function removeWidget(key: TaskDashboardWidgetKey) {
     if (WIDGET_BY_KEY.get(key)?.required) return;
     const next = widgetsRef.current.filter((widget) => widget !== key);
+    const columns = { ...columnsRef.current };
+    delete columns[key];
+    columnsRef.current = columns;
+    setDraftColumns(columns);
     widgetsRef.current = next;
     setDraftWidgets(next);
   }
@@ -368,12 +512,19 @@ export function TaskDashboard({
   function addWidget(key: TaskDashboardWidgetKey) {
     if (widgetsRef.current.includes(key)) return;
     const next = [...widgetsRef.current, key];
+    const laneCounts = [0, 1, 2].map((lane) => Object.values(columnsRef.current)
+      .filter((column) => column === lane * 4).length);
+    const lane = laneCounts.indexOf(Math.min(...laneCounts));
+    const columns = { ...columnsRef.current, [key]: lane * 4 };
+    columnsRef.current = columns;
+    setDraftColumns(columns);
     widgetsRef.current = next;
     setDraftWidgets(next);
   }
 
   function cancelEditing() {
     setDraftWidgets(layout.widgets);
+    setDraftColumns(layout.columns ?? {});
     setEditing(false);
     setLibraryOpen(false);
     setMessage("");
@@ -384,7 +535,7 @@ export function TaskDashboard({
     setSaving(true);
     setMessage("");
     try {
-      await onSave({ version: 1, widgets: draftWidgets });
+      await onSave({ version: 1, widgets: draftWidgets, columns: draftColumns });
       setEditing(false);
       setLibraryOpen(false);
       setMessage("桌面布置已保存");
@@ -420,8 +571,9 @@ export function TaskDashboard({
 
       <div className="task-dashboard-scroll" ref={scrollRef}>
         <div className="task-dashboard-grid" ref={gridRef}>
-          {draftWidgets.map((key, index) => {
+          {draftWidgets.map((key) => {
             const definition = WIDGET_BY_KEY.get(key)!;
+            const column = draftColumns[key];
             return (
               <section
                 className={[
@@ -433,6 +585,10 @@ export function TaskDashboard({
                   settlingWidget === key ? "is-drop-placeholder" : "",
                 ].filter(Boolean).join(" ")}
                 data-task-widget={key}
+                data-task-column={column === undefined ? undefined : column}
+                style={column === undefined ? undefined : {
+                  "--task-widget-column": column + 1,
+                } as CSSProperties}
                 aria-label={definition.label}
                 key={key}
                 onPointerDown={(event) => beginDrag(key, event)}
@@ -445,8 +601,8 @@ export function TaskDashboard({
                   <div className="task-dashboard-widget__edit-controls">
                     <span aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
                     <div>
-                      <button type="button" disabled={index === 0} aria-label={`${definition.label}向前移动`} onClick={() => moveBy(key, -1)}>↑</button>
-                      <button type="button" disabled={index === draftWidgets.length - 1} aria-label={`${definition.label}向后移动`} onClick={() => moveBy(key, 1)}>↓</button>
+                      <button type="button" disabled={!canMoveBy(key, -1)} aria-label={`${definition.label}向前移动`} onClick={() => moveBy(key, -1)}>↑</button>
+                      <button type="button" disabled={!canMoveBy(key, 1)} aria-label={`${definition.label}向后移动`} onClick={() => moveBy(key, 1)}>↓</button>
                       {!definition.required && <button className="task-dashboard-widget__remove" type="button" aria-label={`删除${definition.label}`} onClick={() => removeWidget(key)}>×</button>}
                     </div>
                   </div>

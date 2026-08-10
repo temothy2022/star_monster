@@ -20,8 +20,17 @@ describe("task dashboard layout", () => {
     const layout = {
       version: 1 as const,
       widgets: ["BALANCE", "TASKS", "LEADERBOARD", "NOTIFICATIONS"] as const,
+      columns: { BALANCE: 0 as const, TASKS: 4 as const, NOTIFICATIONS: 8 as const },
     };
     expect(normalizeTaskDashboardLayout(layout)).toEqual(layout);
+  });
+
+  it("rejects unsupported dashboard columns", () => {
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: ["TASKS", "TODAY_PLAN"],
+      columns: { TASKS: 8, TODAY_PLAN: 3 },
+    }).success).toBe(false);
   });
 
   it("removes the retired quick links widget without resetting the saved order", () => {
