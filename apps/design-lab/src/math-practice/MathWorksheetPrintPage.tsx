@@ -7,7 +7,7 @@ import {
   type MathQuestion,
   type MathQuestionTypeId,
 } from "@star-monsters/math-practice";
-import chickUrl from "@star-monsters/assets/images/math-practice/chick.webp";
+import { useMascot } from "../mascots";
 import { MathVisual } from "./MathVisual";
 import "./math-practice.css";
 import "./math-worksheet-print.css";
@@ -353,11 +353,16 @@ function PaperQuestion({ item }: { item: NumberedQuestion }) {
   );
 }
 
+function MathPaperMascot({ mood = "neutral" }: { mood?: "neutral" | "focus" | "celebrate" }) {
+  const { mascot } = useMascot();
+  return <img src={mascot.images[mood]} alt="" />;
+}
+
 function PaperHeader({ title, answerKey = false }: { title: string; answerKey?: boolean }) {
   return (
     <header className="math-paper-header">
       <div>
-        <img src={chickUrl} alt="" />
+        <MathPaperMascot />
         <span><small>星宠数学练习</small><strong>{answerKey ? `${title} - 参考答案` : title}</strong></span>
       </div>
       {answerKey ? <b>请家长单独保管</b> : (
@@ -510,7 +515,7 @@ export function MathWorksheetPrintPage() {
     <main className="math-worksheet-builder">
       <header className="math-worksheet-builder__topbar">
         <a href="#pages">← 返回</a>
-        <div><img src={chickUrl} alt="" /><span><small>无需登录 · 打开即用</small><strong>A4 数学练习卷</strong></span></div>
+        <div><MathPaperMascot /><span><small>无需登录 · 打开即用</small><strong>A4 数学练习卷</strong></span></div>
         <b>{questions.length} 道题 · {totalPdfPages} 页 PDF</b>
       </header>
 
@@ -577,7 +582,7 @@ export function MathWorksheetPrintPage() {
 
         <section className="math-worksheet-preview" aria-label="A4 练习卷预览">
           {questions.length === 0 ? (
-            <div className="math-worksheet-empty"><img src={chickUrl} alt="" /><strong>先勾选题型</strong><span>这里会立即显示 A4 练习卷预览。</span></div>
+            <div className="math-worksheet-empty"><MathPaperMascot /><strong>先勾选题型</strong><span>这里会立即显示 A4 练习卷预览。</span></div>
           ) : (
             <>
               {worksheetPages.map((items, index) => (

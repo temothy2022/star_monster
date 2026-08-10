@@ -8,7 +8,7 @@ import {
 } from "../api/child-api";
 import { reportChildPageReady } from "../api/performance-telemetry";
 import { playAnswerSound } from "../audio/feedback-sounds";
-import chickUrl from "@star-monsters/assets/images/math-practice/chick.webp";
+import { useMascot } from "../mascots";
 import { MathAnswerEditor } from "./MathAnswerEditor";
 import { MathTeachingHint } from "./MathTeachingHint";
 import { MathVisual } from "./MathVisual";
@@ -23,6 +23,7 @@ export function MathPracticeExperience({
   onExit: () => void;
   onCompleted: (reward: { baseStars: number; bonusStars: number; dailyGoalBonusStars: number; totalStars: number }) => void;
 }) {
+  const { mascot } = useMascot();
   const [session, setSession] = useState<MathPracticeSession | null>(null);
   const [values, setValues] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<MathPracticeFeedback | null>(null);
@@ -111,8 +112,8 @@ export function MathPracticeExperience({
   if (!session) {
     return (
       <main className="math-session math-session--loading">
-        <img src={chickUrl} alt="正在准备题目的小鸡" />
-        <strong>{error || "小鸡正在准备数学题…"}</strong>
+        <img src={mascot.images.neutral} alt={`${mascot.name}正在准备题目`} />
+        <strong>{error || `${mascot.name}正在准备数学题…`}</strong>
       </main>
     );
   }
@@ -263,7 +264,7 @@ export function MathPracticeExperience({
 
         {session.completedAt ? (
           <section className="math-session__result">
-            <img src={chickUrl} alt="庆祝完成的小鸡" />
+            <img src={mascot.images.celebrate} alt={`${mascot.name}庆祝完成`} />
             <h2>完成</h2>
             <div className="math-session__result-stats">
               <strong>{session.totalQuestions} <small>题</small></strong>

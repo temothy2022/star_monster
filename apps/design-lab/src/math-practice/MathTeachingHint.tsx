@@ -5,7 +5,7 @@ import {
   type MathQuestionTypeId,
   type MathHintVisual,
 } from "@star-monsters/math-practice";
-import chickUrl from "@star-monsters/assets/images/math-practice/chick.webp";
+import { useMascot } from "../mascots";
 
 type HintQuestion = Pick<MathQuestion, "typeId" | "prompt" | "helper" | "response" | "visual">;
 
@@ -72,6 +72,7 @@ export function MathTeachingHint({
   disabled?: boolean;
   onLevelChange: (level: number) => void;
 }) {
+  const { mascot } = useMascot();
   const guide = getMathTeachingGuide(question.typeId as MathQuestionTypeId);
   const currentLevel = Math.max(0, Math.min(2, level));
   const currentHint = currentLevel > 0 ? guide.hints[currentLevel - 1] : null;
@@ -97,13 +98,13 @@ export function MathTeachingHint({
     <div ref={hintRef} className={`math-teaching-hint${currentLevel > 0 ? " is-open" : ""}`}>
       {currentLevel === 0 ? (
         <button type="button" disabled={disabled} onClick={() => openHint(1)}>
-          <img src={chickUrl} alt="" />
-          小鸡提示
+          <img src={mascot.images.focus} alt="" />
+          星宠提示
         </button>
       ) : (
         <section className="math-teaching-hint__panel" aria-live="polite">
           <div className="math-teaching-hint__message">
-            <img src={chickUrl} alt="" />
+            <img src={mascot.images.focus} alt="" />
             <span><small>提示 {currentLevel} / 2</small><strong>{currentHint}</strong></span>
             <button type="button" aria-label="收起提示" onClick={() => onLevelChange(0)}>×</button>
           </div>

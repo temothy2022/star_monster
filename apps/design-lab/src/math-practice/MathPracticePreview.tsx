@@ -11,12 +11,13 @@ import {
 import { MathAnswerEditor } from "./MathAnswerEditor";
 import { MathTeachingHint } from "./MathTeachingHint";
 import { MathVisual } from "./MathVisual";
-import chickUrl from "@star-monsters/assets/images/math-practice/chick.webp";
+import { useMascot } from "../mascots";
 import "./math-practice.css";
 
 type Feedback = "IDLE" | "WRONG" | "REVEAL" | "CORRECT";
 
 export function MathPracticePreview() {
+  const { mascot } = useMascot();
   const [selectedTypeId, setSelectedTypeId] = useState<MathQuestionTypeId>("N01");
   const [seed, setSeed] = useState(20260809);
   const [values, setValues] = useState<string[]>([]);
@@ -136,7 +137,7 @@ export function MathPracticePreview() {
       <aside className="math-preview__catalog">
         <a className="math-preview__back" href="#pages">← 返回页面清单</a>
         <div className="math-preview__catalog-title">
-          <img src={chickUrl} alt="小鸡数学向导" />
+          <img src={mascot.images.neutral} alt={`${mascot.name}数学向导`} />
           <div><strong>数学练习设计室</strong><small>{MATH_QUESTION_TYPES.length} 种题型逐一检查</small></div>
         </div>
         <div className="math-preview__catalog-scroll">
@@ -193,7 +194,7 @@ export function MathPracticePreview() {
                 onLevelChange={setHintLevel}
               />
               <details ref={teachingAuditRef} className="math-teaching-audit">
-                <summary><img src={chickUrl} alt="" />教学重点</summary>
+                <summary><img src={mascot.images.focus} alt="" />教学重点</summary>
                 <div>
                   <p><b>训练目标</b><span>{teachingGuide.focus}</span></p>
                   <p><b>常见错误</b><span>{teachingGuide.commonMistake}</span></p>
