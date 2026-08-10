@@ -40,12 +40,23 @@ type DragSession = {
   pointerId: number;
   startX: number;
   startY: number;
-  startOffsetLeft: number;
-  startOffsetTop: number;
-  startScrollTop: number;
+  grabOffsetX: number;
+  grabOffsetY: number;
+  targetLeft: number;
+  targetTop: number;
+  visualLeft: number;
+  visualTop: number;
+  animationFrame: number | null;
+  lastSwapAt: number;
   target: HTMLElement;
   activated: boolean;
   timer: number;
+};
+
+type DropPosition = {
+  key: TaskDashboardWidgetKey;
+  left: number;
+  top: number;
 };
 
 function reorder(
@@ -83,6 +94,7 @@ export function TaskDashboard({
   const dragRef = useRef<DragSession | null>(null);
   const widgetsRef = useRef(draftWidgets);
   const previousRectsRef = useRef<Map<TaskDashboardWidgetKey, DOMRect> | null>(null);
+  const pendingDropRef = useRef<DropPosition | null>(null);
 
   useEffect(() => {
     widgetsRef.current = draftWidgets;
@@ -94,31 +106,95 @@ export function TaskDashboard({
 
   useEffect(() => () => {
     const drag = dragRef.current;
-    if (drag) window.clearTimeout(drag.timer);
+    if (!drag) return;
+    window.clearTimeout(drag.timer);
+    if (drag.animationFrame !== null) window.cancelAnimationFrame(drag.animationFrame);
   }, []);
 
   useLayoutEffect(() => {
     const previousRects = previousRectsRef.current;
     previousRectsRef.current = null;
-    if (!previousRects || !gridRef.current) return;
-    for (const element of gridRef.current.querySelectorAll<HTMLElement>("[data-task-widget]")) {
-      const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
-      if (!key || key === draggingWidget) continue;
-      const previous = previousRects.get(key);
-      if (!previous) continue;
-      const current = element.getBoundingClientRect();
-      const deltaX = previous.left - current.left;
-      const deltaY = previous.top - current.top;
-      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
-      element.animate(
-        [
-          { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
-          { transform: "translate3d(0, 0, 0)" },
-        ],
-        { duration: 240, easing: "cubic-bezier(.2,.82,.2,1)" },
-      );
+    if (previousRects && gridRef.current) {
+      for (const element of gridRef.current.querySelectorAll<HTMLElement>("[data-task-widget]")) {
+        const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+        if (!key || key === draggingWidget) continue;
+        const previous = previousRects.get(key);
+        if (!previous) continue;
+        for (const animation of element.getAnimations()) animation.cancel();
+        const current = element.getBoundingClientRect();
+        const deltaX = previous.left - current.left;
+        const deltaY = previous.top - current.top;
+        if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
+        element.animate(
+          [
+            { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
+            { transform: "translate3d(0, 0, 0)" },
+          ],
+          { duration: 320, easing: "cubic-bezier(.2,.78,.2,1)" },
+        );
+      }
     }
+
+    const drag = dragRef.current;
+    if (drag?.activated) paintDragPosition(drag);
+
+    const drop = pendingDropRef.current;
+    if (!drop || draggingWidget !== null || !gridRef.current) return;
+    pendingDropRef.current = null;
+    const element = gridRef.current.querySelector<HTMLElement>(`[data-task-widget="${drop.key}"]`);
+    if (!element) return;
+    for (const animation of element.getAnimations()) animation.cancel();
+    const current = element.getBoundingClientRect();
+    const deltaX = drop.left - current.left;
+    const deltaY = drop.top - current.top;
+    element.animate(
+      [
+        { transform: `translate3d(${deltaX}px, ${deltaY}px, 0) scale(1.025)` },
+        { transform: "translate3d(0, 0, 0) scale(1)" },
+      ],
+      { duration: 240, easing: "cubic-bezier(.2,.82,.2,1)" },
+    );
   }, [draftWidgets, draggingWidget]);
+
+  function widgetBasePosition(element: HTMLElement) {
+    const grid = gridRef.current;
+    if (!grid) {
+      const rect = element.getBoundingClientRect();
+      return { left: rect.left, top: rect.top };
+    }
+    const gridRect = grid.getBoundingClientRect();
+    return {
+      left: gridRect.left + element.offsetLeft,
+      top: gridRect.top + element.offsetTop,
+    };
+  }
+
+  function paintDragPosition(session: DragSession) {
+    const base = widgetBasePosition(session.target);
+    session.target.style.setProperty("--task-drag-x", `${session.visualLeft - base.left}px`);
+    session.target.style.setProperty("--task-drag-y", `${session.visualTop - base.top}px`);
+  }
+
+  function scheduleDragPosition(session: DragSession) {
+    if (session.animationFrame !== null) return;
+    const tick = () => {
+      session.animationFrame = null;
+      if (dragRef.current !== session || !session.activated) return;
+      const deltaX = session.targetLeft - session.visualLeft;
+      const deltaY = session.targetTop - session.visualTop;
+      const settled = Math.abs(deltaX) < .35 && Math.abs(deltaY) < .35;
+      if (settled) {
+        session.visualLeft = session.targetLeft;
+        session.visualTop = session.targetTop;
+      } else {
+        session.visualLeft += deltaX * .34;
+        session.visualTop += deltaY * .34;
+      }
+      paintDragPosition(session);
+      if (!settled) session.animationFrame = window.requestAnimationFrame(tick);
+    };
+    session.animationFrame = window.requestAnimationFrame(tick);
+  }
 
   function captureWidgetRects(exclude?: TaskDashboardWidgetKey) {
     const positions = new Map<TaskDashboardWidgetKey, DOMRect>();
@@ -146,8 +222,7 @@ export function TaskDashboard({
     }
     if (!editing) enterEditing();
     session.activated = true;
-    session.target.style.setProperty("--task-drag-x", "0px");
-    session.target.style.setProperty("--task-drag-y", "0px");
+    paintDragPosition(session);
     setPressedWidget(null);
     setDraggingWidget(session.key);
   }
@@ -157,15 +232,24 @@ export function TaskDashboard({
     const interactive = (event.target as HTMLElement).closest("button, a, input, select, textarea");
     if (interactive) return;
     const previous = dragRef.current;
-    if (previous) window.clearTimeout(previous.timer);
+    if (previous) {
+      window.clearTimeout(previous.timer);
+      if (previous.animationFrame !== null) window.cancelAnimationFrame(previous.animationFrame);
+    }
+    const base = widgetBasePosition(event.currentTarget);
     const session: DragSession = {
       key,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      startOffsetLeft: event.currentTarget.offsetLeft,
-      startOffsetTop: event.currentTarget.offsetTop,
-      startScrollTop: scrollRef.current?.scrollTop ?? 0,
+      grabOffsetX: event.clientX - base.left,
+      grabOffsetY: event.clientY - base.top,
+      targetLeft: base.left,
+      targetTop: base.top,
+      visualLeft: base.left,
+      visualTop: base.top,
+      animationFrame: null,
+      lastSwapAt: 0,
       target: event.currentTarget,
       activated: false,
       timer: 0,
@@ -194,11 +278,9 @@ export function TaskDashboard({
       return;
     }
     event.preventDefault();
-    const dragX = event.clientX - session.startX + session.startOffsetLeft - session.target.offsetLeft;
-    const dragY = event.clientY - session.startY + session.startOffsetTop - session.target.offsetTop +
-      ((scrollRef.current?.scrollTop ?? 0) - session.startScrollTop);
-    session.target.style.setProperty("--task-drag-x", `${dragX}px`);
-    session.target.style.setProperty("--task-drag-y", `${dragY}px`);
+    session.targetLeft = event.clientX - session.grabOffsetX;
+    session.targetTop = event.clientY - session.grabOffsetY;
+    scheduleDragPosition(session);
     const scroll = scrollRef.current;
     if (scroll) {
       const rect = scroll.getBoundingClientRect();
@@ -212,14 +294,27 @@ export function TaskDashboard({
     session.target.style.pointerEvents = previousPointerEvents;
     const targetKey = candidate?.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
     if (!candidate || !targetKey || targetKey === session.key || !WIDGET_BY_KEY.has(targetKey)) return;
+    const sourceIndex = widgetsRef.current.indexOf(session.key);
+    const targetIndex = widgetsRef.current.indexOf(targetKey);
+    if (sourceIndex < 0 || targetIndex < 0) return;
     const rect = candidate.getBoundingClientRect();
-    const sameRow = event.clientY >= rect.top && event.clientY <= rect.bottom;
-    const after = sameRow
-      ? event.clientX > rect.left + rect.width / 2
-      : event.clientY > rect.top + rect.height / 2;
+    const sameRow = Math.abs(session.target.offsetTop - candidate.offsetTop)
+      < Math.min(session.target.offsetHeight, candidate.offsetHeight) * .5;
+    const movingForward = targetIndex > sourceIndex;
+    if (sameRow) {
+      const centerX = rect.left + rect.width / 2;
+      if (movingForward ? event.clientX < centerX : event.clientX > centerX) return;
+    } else {
+      const centerY = rect.top + rect.height / 2;
+      if (movingForward ? event.clientY < centerY : event.clientY > centerY) return;
+    }
+    const now = performance.now();
+    if (now - session.lastSwapAt < 260) return;
+    const after = movingForward;
     const next = reorder(widgetsRef.current, session.key, targetKey, after);
     if (next !== widgetsRef.current) {
       previousRectsRef.current = captureWidgetRects(session.key);
+      session.lastSwapAt = now;
       widgetsRef.current = next;
       setDraftWidgets(next);
     }
@@ -229,9 +324,14 @@ export function TaskDashboard({
     const session = dragRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
     window.clearTimeout(session.timer);
+    if (session.animationFrame !== null) window.cancelAnimationFrame(session.animationFrame);
     if (session.activated) event.preventDefault();
     if (session.target.hasPointerCapture?.(session.pointerId)) {
       session.target.releasePointerCapture(session.pointerId);
+    }
+    if (session.activated) {
+      const current = session.target.getBoundingClientRect();
+      pendingDropRef.current = { key: session.key, left: current.left, top: current.top };
     }
     session.target.style.removeProperty("--task-drag-x");
     session.target.style.removeProperty("--task-drag-y");

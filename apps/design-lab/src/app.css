@@ -106,12 +106,20 @@
 .task-dashboard-widget--indigo { background: #f1f3ff; }
 .task-dashboard-widget--notice { background: #eef8ff; }
 
+.task-dashboard-shell:not(.is-editing) .task-dashboard-widget[data-task-widget="MASCOT"] {
+  overflow: visible;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.task-dashboard-shell:not(.is-editing) .task-dashboard-widget[data-task-widget="MASCOT"] .task-mascot-area__glow { display: none; }
+
 .task-dashboard-widget__content { width: 100%; height: 100%; min-height: 0; }
 .task-dashboard-shell.is-editing .task-dashboard-widget { touch-action: none; animation: task-widget-ready 900ms ease-in-out infinite alternate; }
 .task-dashboard-shell.is-editing .task-dashboard-widget__content { pointer-events: none; }
 .task-dashboard-widget.is-long-pressing { outline: 4px solid rgb(255 189 72 / 72%); outline-offset: -4px; transform: scale(.985); }
 .task-dashboard-widget.is-long-pressing::after { content: ""; position: absolute; z-index: 20; inset: 0; border: 5px solid rgb(255 174 55 / 45%); border-radius: inherit; pointer-events: none; animation: task-widget-hold 520ms linear both; }
-.task-dashboard-widget.is-dragging { z-index: 40; border-color: #ff9e32; box-shadow: 0 24px 40px rgb(76 49 31 / 25%); transform: translate3d(var(--task-drag-x, 0), var(--task-drag-y, 0), 0) scale(1.035) rotate(.35deg); transition: box-shadow 150ms ease, border-color 150ms ease; animation: none; will-change: transform; }
+.task-dashboard-widget.is-dragging { z-index: 40; border-color: #ff9e32; box-shadow: 0 24px 40px rgb(76 49 31 / 25%); transform: translate3d(var(--task-drag-x, 0), var(--task-drag-y, 0), 0) scale(1.035) rotate(.35deg); transition: box-shadow 180ms ease, border-color 180ms ease; animation: none; will-change: transform; }
 
 @keyframes task-widget-hold {
   from { clip-path: inset(0 100% 0 0 round 16px); }
