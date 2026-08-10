@@ -226,17 +226,18 @@
 }
 
 .math-teaching-audit {
-  position: absolute;
+  position: static;
   z-index: 15;
-  top: 75px;
-  right: 24px;
-  width: min(520px, calc(100% - 48px));
+  width: auto;
+  display: inline-block;
+  margin: 9px 0 0 7px;
+  vertical-align: top;
   color: #506b85;
   font-size: 12px;
 }
 .math-teaching-audit > summary {
   width: max-content;
-  margin-left: auto;
+  margin-left: 0;
   padding: 7px 11px;
   border: 1px solid #d6e5ee;
   border-radius: 10px;
@@ -249,7 +250,12 @@
 .math-teaching-audit > summary::-webkit-details-marker { display: none; }
 .math-teaching-audit[open] > summary { color: #a86027; border-color: #efcb83; background: #fff8e8; }
 .math-teaching-audit > div {
-  margin-top: 7px;
+  position: absolute;
+  left: 18px;
+  top: calc(100% + 8px);
+  width: min(520px, calc(100% - 36px));
+  box-sizing: border-box;
+  margin-top: 0;
   padding: 11px 13px;
   border: 2px solid #d9e7ef;
   border-radius: 14px;

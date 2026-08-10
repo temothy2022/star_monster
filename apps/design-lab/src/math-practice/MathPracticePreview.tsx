@@ -158,14 +158,6 @@ export function MathPracticePreview() {
           <button type="button" onClick={() => move(1)} aria-label="下一种题型">›</button>
         </header>
 
-        <details className="math-teaching-audit">
-          <summary>查看这个题型的教学重点</summary>
-          <div>
-            <p><b>训练目标</b><span>{teachingGuide.focus}</span></p>
-            <p><b>常见错误</b><span>{teachingGuide.commonMistake}</span></p>
-          </div>
-        </details>
-
         <div className={`math-question-layout${isDirectVisualAnswer ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
           <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
             <div className="math-question-card__prompt">
@@ -184,6 +176,13 @@ export function MathPracticePreview() {
                 disabled={feedback === "CORRECT" || feedback === "REVEAL"}
                 onLevelChange={setHintLevel}
               />
+              <details className="math-teaching-audit">
+                <summary>查看这个题型的教学重点</summary>
+                <div>
+                  <p><b>训练目标</b><span>{teachingGuide.focus}</span></p>
+                  <p><b>常见错误</b><span>{teachingGuide.commonMistake}</span></p>
+                </div>
+              </details>
             </div>
             <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : question.visual.kind.toLowerCase()}`}>
               {isInlineSort ? (
