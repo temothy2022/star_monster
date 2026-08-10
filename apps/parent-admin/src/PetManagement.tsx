@@ -41,6 +41,10 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
   const [dailyLimit, setDailyLimit] = useState("");
   const [satiety, setSatiety] = useState(0);
   const [hydration, setHydration] = useState(0);
+  const [satietyDecayMinutes, setSatietyDecayMinutes] = useState(120);
+  const [hydrationDecayMinutes, setHydrationDecayMinutes] = useState(90);
+  const [dailyWasteCount, setDailyWasteCount] = useState(2);
+  const [wasteCleanCostStars, setWasteCleanCostStars] = useState(1);
   const [redPacketsPerLevel, setRedPacketsPerLevel] = useState(1);
   const [redPacketMinStars, setRedPacketMinStars] = useState(1);
   const [redPacketMaxStars, setRedPacketMaxStars] = useState(5);
@@ -61,6 +65,10 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       setDailyLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
       setSatiety(result.pet.satiety);
       setHydration(result.pet.hydration);
+      setSatietyDecayMinutes(result.statusDecay.satietyMinutes);
+      setHydrationDecayMinutes(result.statusDecay.hydrationMinutes);
+      setDailyWasteCount(result.waste.dailyCount);
+      setWasteCleanCostStars(result.waste.cleanCostStars);
       setRedPacketsPerLevel(result.redPackets.packetsPerLevel);
       setRedPacketMinStars(result.redPackets.minStars);
       setRedPacketMaxStars(result.redPackets.maxStars);
@@ -82,6 +90,10 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
       setDailyLimit(result.wallet.dailySpendLimitStars === null ? "" : String(result.wallet.dailySpendLimitStars));
       setSatiety(result.pet.satiety);
       setHydration(result.pet.hydration);
+      setSatietyDecayMinutes(result.statusDecay.satietyMinutes);
+      setHydrationDecayMinutes(result.statusDecay.hydrationMinutes);
+      setDailyWasteCount(result.waste.dailyCount);
+      setWasteCleanCostStars(result.waste.cleanCostStars);
       setRedPacketsPerLevel(result.redPackets.packetsPerLevel);
       setRedPacketMinStars(result.redPackets.minStars);
       setRedPacketMaxStars(result.redPackets.maxStars);
@@ -109,6 +121,10 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
         dailySpendLimitStars: dailyLimit.trim() ? Number(dailyLimit) : null,
         satiety: Math.max(0, Math.min(100, Math.round(satiety))),
         hydration: Math.max(0, Math.min(100, Math.round(hydration))),
+        satietyDecayMinutes: Math.max(10, Math.min(10080, Math.round(satietyDecayMinutes))),
+        hydrationDecayMinutes: Math.max(10, Math.min(10080, Math.round(hydrationDecayMinutes))),
+        dailyWasteCount: Math.max(0, Math.min(8, Math.round(dailyWasteCount))),
+        wasteCleanCostStars: Math.max(0, Math.min(100, Math.round(wasteCleanCostStars))),
         redPacketsPerLevel: Math.max(0, Math.min(10, Math.round(redPacketsPerLevel))),
         redPacketMinStars: Math.max(1, Math.min(100, Math.round(redPacketMinStars))),
         redPacketMaxStars: Math.max(1, Math.min(100, Math.round(redPacketMaxStars))),
@@ -176,6 +192,13 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
             <label>每日星宠消费上限<input type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
             <label>饱食度<input type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
             <label>饮水状态<input type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
+            <div className="parent-pet-care-rules">
+              <div><strong>日常照顾规则</strong><small>衰减数值表示每隔多少分钟下降 1 点，数值越小消耗越快。当天排泄计划生成后，次数调整从次日生效。</small></div>
+              <label>饱食度衰减<input type="number" min={10} max={10080} value={satietyDecayMinutes} onChange={(event) => setSatietyDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
+              <label>饮水状态衰减<input type="number" min={10} max={10080} value={hydrationDecayMinutes} onChange={(event) => setHydrationDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
+              <label>每日出现粑粑<input type="number" min={0} max={8} value={dailyWasteCount} onChange={(event) => setDailyWasteCount(Number(event.target.value))} /><span>次</span></label>
+              <label>每次清理消耗<input type="number" min={0} max={100} value={wasteCleanCostStars} onChange={(event) => setWasteCleanCostStars(Number(event.target.value))} /><span>星</span></label>
+            </div>
             <div className="parent-pet-red-packet-settings">
               <div><strong>星宠升级红包</strong><small>配置只影响之后升级获得的新红包</small></div>
               <label>每次升级赠送<input type="number" min={0} max={10} value={redPacketsPerLevel} onChange={(event) => setRedPacketsPerLevel(Number(event.target.value))} /><span>个</span></label>

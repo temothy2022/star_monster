@@ -1694,6 +1694,13 @@ td { font-size: 13px; }
 .parent-pet-settings-form label:not(.checkbox) { display: grid; gap: 6px; color: #52647d; font-size: 13px; font-weight: 700; }
 .parent-pet-settings-form select,
 .parent-pet-settings-form input[type="number"] { min-width: 160px; }
+.parent-pet-care-rules { flex: 1 0 100%; display: grid; grid-template-columns: minmax(250px, 1.4fr) repeat(4, minmax(145px, .7fr)); align-items: end; gap: 14px; padding: 15px 0; border-block: 1px solid #dce8df; background: #fbfdf9; }
+.parent-pet-care-rules > div { display: grid; align-self: center; gap: 4px; }
+.parent-pet-care-rules > div strong { color: #3f6b50; font-size: 15px; }
+.parent-pet-care-rules > div small { color: #68776d; line-height: 1.45; }
+.parent-pet-care-rules label { position: relative; min-width: 0; }
+.parent-pet-care-rules label input[type="number"] { width: 100%; min-width: 0; padding-right: 72px; }
+.parent-pet-care-rules label span { position: absolute; right: 12px; bottom: 12px; color: #4f8060; font-size: 11px; font-weight: 900; pointer-events: none; }
 .parent-pet-red-packet-settings { flex: 1 0 100%; display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(3, minmax(150px, .7fr)); align-items: end; gap: 14px; padding: 15px 0; border-block: 1px solid #e8e0d3; background: #fffdf7; }
 .parent-pet-red-packet-settings > div { display: grid; align-self: center; gap: 4px; }
 .parent-pet-red-packet-settings > div strong { color: #8d3e29; font-size: 15px; }
@@ -1742,6 +1749,8 @@ td { font-size: 13px; }
   .pet-config-form fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pet-destination-grid { grid-template-columns: 1fr; }
   .parent-pet-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parent-pet-care-rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parent-pet-care-rules > div { grid-column: 1 / -1; }
   .parent-pet-red-packet-settings { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .parent-pet-red-packet-settings > div { grid-column: 1 / -1; }
   .parent-pet-red-packet-settings > .parent-pet-red-packet-grant { grid-template-columns: minmax(160px, 1fr) auto minmax(190px, 1fr); }
@@ -1763,6 +1772,8 @@ td { font-size: 13px; }
   .parent-pet-settings-form { display: grid; align-items: stretch; }
   .parent-pet-settings-form select,
   .parent-pet-settings-form input[type="number"] { width: 100%; }
+  .parent-pet-care-rules { grid-template-columns: 1fr; }
+  .parent-pet-care-rules > div { grid-column: auto; }
   .parent-pet-red-packet-settings { grid-template-columns: 1fr; }
   .parent-pet-red-packet-settings > div { grid-column: auto; }
   .parent-pet-red-packet-settings > .parent-pet-red-packet-grant { grid-column: auto; grid-template-columns: 1fr; align-items: stretch; }

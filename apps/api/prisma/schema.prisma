@@ -334,34 +334,61 @@ model ChildProfile {
   petTrips                PetTrip[]
   petRoomThemeUnlocks     PetRoomThemeUnlock[]
   petRedPackets           PetRedPacket[]
+  petWasteOccurrences     PetWasteOccurrence[]
 
   @@index([familyId, status])
 }
 
 model PetGrowthProfile {
-  id                   String         @id @default(cuid())
-  childId              String         @unique
-  level                Int            @default(1)
-  experience           Int            @default(0)
-  growthStage          PetGrowthStage @default(BABY)
-  satiety              Int            @default(78)
-  hydration            Int            @default(82)
-  satietySettledAt     DateTime       @default(now())
-  hydrationSettledAt   DateTime       @default(now())
-  travelEnabled        Boolean        @default(true)
-  dailySpendLimitStars Int?
-  redPacketsPerLevel   Int            @default(1)
-  redPacketMinStars    Int            @default(1)
-  redPacketMaxStars    Int            @default(5)
-  equippedRoomThemeId  String?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  id                    String         @id @default(cuid())
+  childId               String         @unique
+  level                 Int            @default(1)
+  experience            Int            @default(0)
+  growthStage           PetGrowthStage @default(BABY)
+  satiety               Int            @default(78)
+  hydration             Int            @default(82)
+  satietySettledAt      DateTime       @default(now())
+  hydrationSettledAt    DateTime       @default(now())
+  satietyDecayMinutes   Int?
+  hydrationDecayMinutes Int?
+  dailyWasteCount       Int            @default(2)
+  wasteCleanCostStars   Int            @default(1)
+  travelEnabled         Boolean        @default(true)
+  dailySpendLimitStars  Int?
+  redPacketsPerLevel    Int            @default(1)
+  redPacketMinStars     Int            @default(1)
+  redPacketMaxStars     Int            @default(5)
+  equippedRoomThemeId   String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
-  child             ChildProfile    @relation(fields: [childId], references: [id], onDelete: Cascade)
-  equippedRoomTheme PetRoomTheme?   @relation(fields: [equippedRoomThemeId], references: [id], onDelete: SetNull)
+  child             ChildProfile         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  equippedRoomTheme PetRoomTheme?        @relation(fields: [equippedRoomThemeId], references: [id], onDelete: SetNull)
   careActions       PetCareAction[]
   trips             PetTrip[]
   redPackets        PetRedPacket[]
+  wasteOccurrences  PetWasteOccurrence[]
+}
+
+model PetWasteOccurrence {
+  id                  String    @id @default(cuid())
+  childId             String
+  profileId           String
+  wasteDate           DateTime  @db.Date
+  sequence            Int
+  appearsMinute       Int
+  positionSeed        Int
+  costStarsSnapshot   Int
+  cleanIdempotencyKey String?   @unique
+  cleanedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  child   ChildProfile     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  profile PetGrowthProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, wasteDate, sequence])
+  @@index([childId, wasteDate, cleanedAt, appearsMinute])
 }
 
 model PetRedPacket {

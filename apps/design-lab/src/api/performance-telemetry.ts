@@ -61,6 +61,7 @@ const IMPORTANT_MUTATIONS = new Set([
   "redeem_wish",
   "feed_pet",
   "give_pet_water",
+  "clean_pet_waste",
   "start_pet_trip",
   "reveal_postcard",
   "purchase_pet_room_theme",
@@ -97,6 +98,10 @@ export function normalizeApiPath(path: string) {
     .replace(
       /^\/api\/child\/pet\/(feed|drink)$/,
       "/api/child/pet/$1",
+    )
+    .replace(
+      /^\/api\/child\/pet\/waste\/[^/]+\/clean$/,
+      "/api/child/pet/waste/:id/clean",
     )
     .replace(
       /^\/api\/child\/pet\/trips\/[^/]+\/reveal$/,
@@ -143,6 +148,7 @@ function operationFor(path: string) {
     "/api/child/wishes/:id/redeem": "redeem_wish",
     "/api/child/pet/feed": "feed_pet",
     "/api/child/pet/drink": "give_pet_water",
+    "/api/child/pet/waste/:id/clean": "clean_pet_waste",
     "/api/child/pet/trips": "start_pet_trip",
     "/api/child/pet/trips/:id/reveal": "reveal_postcard",
     "/api/child/pet/room-themes/:key/purchase": "purchase_pet_room_theme",

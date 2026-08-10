@@ -11,6 +11,7 @@ import {
 import {
   ApiError,
   careForPet,
+  cleanPetWaste,
   getPetGrowth,
   openPetRedPacket,
   purchasePetRoomTheme,
@@ -43,6 +44,9 @@ import redPacketRainSound from "@star-monsters/assets/audio/pet/red-packet-rain.
 import soundToggleIcon from "@star-monsters/assets/images/pet/sound-toggle.webp";
 import redPacketEntryImage from "@star-monsters/assets/images/pet/red-packet-entry.webp";
 import redPacketMainImage from "@star-monsters/assets/images/pet/red-packet-main.webp";
+import petWasteImage from "@star-monsters/assets/images/pet/pet-waste.webp";
+import petCleaningBroomImage from "@star-monsters/assets/images/pet/pet-cleaning-broom.webp";
+import petCleaningDustpanImage from "@star-monsters/assets/images/pet/pet-cleaning-dustpan.webp";
 import {
   clearWebMediaSession,
   createAudioWithSpeechFallback,
@@ -58,6 +62,7 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
 };
 
 const CARE_ANIMATION_MS = 3_000;
+const WASTE_CLEANING_ANIMATION_MS = 2_600;
 const ROOM_NOTICE_MS = 2_000;
 const PET_SOUND_STORAGE_KEY = "star-monsters:pet-sound-enabled";
 const PET_ENTRY_SOUND_DATE_KEY = "star-monsters:pet-entry-sound-date";
@@ -66,6 +71,7 @@ const ROOM_DECOR_ENTRY_IMAGE = "/pet-assets/v1/ui/room-decor-entry.webp";
 const PET_LAYOUT_LONG_PRESS_MS = 520;
 const RED_PACKET_RAIN_MS = 3_200;
 type CareKind = "feed" | "drink";
+type PetWaste = NonNullable<PetGrowthState["waste"]["active"]>;
 type RoomNotice = { id: number; message: string };
 type RedPacketStage = "rain" | "ready" | "opening" | "revealed";
 type RedPacketReward = { packetId: string; stars: number; sourceLevel: number };
@@ -347,6 +353,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [busy, setBusy] = useState<string | null>(null);
   const [careAnimation, setCareAnimation] = useState<{ kind: CareKind; startedAt: number } | null>(null);
   const [careConfirm, setCareConfirm] = useState<CareKind | null>(null);
+  const [wasteConfirm, setWasteConfirm] = useState<PetWaste | null>(null);
+  const [wasteCleaning, setWasteCleaning] = useState<{ waste: PetWaste; startedAt: number } | null>(null);
   const [roomNotice, setRoomNotice] = useState<RoomNotice | null>(null);
   const [travelOpen, setTravelOpen] = useState(false);
   const [albumOpen, setAlbumOpen] = useState(false);
@@ -367,6 +375,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const [pressedLayoutModule, setPressedLayoutModule] = useState<PetLayoutModule | null>(null);
   const [draggingLayoutModule, setDraggingLayoutModule] = useState<PetLayoutModule | null>(null);
   const careTimerRef = useRef<number | null>(null);
+  const wasteCleaningTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const redPacketRainTimerRef = useRef<number | null>(null);
   const redPacketClaimKeyRef = useRef<string | null>(null);
@@ -663,6 +672,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   useEffect(() => () => {
     if (careTimerRef.current !== null) window.clearTimeout(careTimerRef.current);
+    if (wasteCleaningTimerRef.current !== null) window.clearTimeout(wasteCleaningTimerRef.current);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
     dialogueQueueRef.current?.clear();
@@ -1041,6 +1051,31 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     }
   }
 
+  async function cleanWaste() {
+    if (!state || !wasteConfirm || busy || wasteCleaning) return;
+    const waste = wasteConfirm;
+    setBusy("waste");
+    try {
+      const result = await cleanPetWaste(waste.id, actionKey("pet-waste"));
+      setState(result);
+      setWasteConfirm(null);
+      setError("");
+      const startedAt = Date.now();
+      setWasteCleaning({ waste, startedAt });
+      if (wasteCleaningTimerRef.current !== null) window.clearTimeout(wasteCleaningTimerRef.current);
+      wasteCleaningTimerRef.current = window.setTimeout(() => {
+        setWasteCleaning(null);
+        showRoomNotice("小屋清理干净啦！");
+        wasteCleaningTimerRef.current = null;
+      }, WASTE_CLEANING_ANIMATION_MS);
+    } catch (reason) {
+      setWasteConfirm(null);
+      showRoomNotice(reason instanceof ApiError ? reason.message : "小屋暂时没有清理成功");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function depart(tier: PetTravelTier) {
     if (busy) return;
     setBusy(`travel-${tier}`);
@@ -1117,8 +1152,10 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     ?? FALLBACK_ROOM_THEME;
   const displayedRoomTheme = roomThemes.find((theme) => theme.key === themePreviewKey)
     ?? equippedRoomTheme;
+  const visibleWaste = wasteCleaning?.waste ?? state.waste.active;
   const canShowRoomMascotAnimation = displayedRoomTheme.isOwned
     && !careAnimation
+    && !wasteCleaning
     && !trip
     && state.pet.satiety >= 30
     && state.pet.hydration >= 30;
@@ -1261,6 +1298,25 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <span className="pet-map-entry__arrow" aria-hidden="true">›</span>
         </button>
 
+        {visibleWaste && !trip && (
+          <button
+            className={`pet-waste pet-waste--position-${visibleWaste.positionSeed % 4}${wasteCleaning ? " is-cleaning" : ""}`}
+            type="button"
+            disabled={Boolean(wasteCleaning) || Boolean(busy)}
+            aria-label={wasteCleaning ? "正在清理星宠粑粑" : "发现星宠粑粑，点击清理"}
+            onClick={() => setWasteConfirm(visibleWaste)}
+          >
+            <span className="pet-waste__odor" aria-hidden="true"><i /><i /><i /></span>
+            <img className="pet-waste__pile" src={petWasteImage} alt="" />
+            {wasteCleaning && (
+              <span className="pet-waste__tools" aria-hidden="true">
+                <img className="pet-waste__dustpan" src={petCleaningDustpanImage} alt="" />
+                <img className="pet-waste__broom" src={petCleaningBroomImage} alt="" />
+              </span>
+            )}
+          </button>
+        )}
+
         <aside
           className={roomLayoutModuleClass("pet-action-rail", "actions")}
           style={roomLayoutModuleStyle("actions")}
@@ -1273,19 +1329,19 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           onPointerCancel={finishRoomLayoutDrag}
           onClickCapture={blockRoomLayoutClick}
         >
-          <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation)} onClick={() => setTravelOpen(true)}>
+          <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => setTravelOpen(true)}>
             <span className="pet-action-icon pet-action-icon--travel" aria-hidden="true">✦</span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "去看看远方" : "旅行已关闭"}</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--feed" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => requestCare("feed")}>
+          <button className="pet-action-button pet-action-button--feed" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => requestCare("feed")}>
             <span className="pet-action-icon pet-action-icon--snack" aria-hidden="true"><i /></span><div><strong>{busy === "feed" ? "准备点心…" : careAnimation?.kind === "feed" ? "正在吃点心" : "喂点心"}</strong><small>使用 {state.careOptions.feed.costStars} 颗星</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => requestCare("drink")}>
+          <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => requestCare("drink")}>
             <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><i /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
           </button>
           <button
             className="pet-action-button pet-action-button--decorate"
             type="button"
-            disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)}
+            disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)}
             onClick={() => {
               setThemePreviewKey(equippedRoomTheme.key);
               setThemeShopOpen(true);
@@ -1293,7 +1349,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           >
             <span className="pet-action-icon pet-action-icon--decorate" aria-hidden="true"><img src={ROOM_DECOR_ENTRY_IMAGE} alt="" /></span><div><strong>布置小屋</strong><small>{equippedRoomTheme.name}</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation)} onClick={() => setAlbumOpen(true)}>
+          <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => setAlbumOpen(true)}>
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><i /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
           </button>
         </aside>
@@ -1439,6 +1495,27 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
               <button type="button" disabled={Boolean(busy) || state.wallet.starBalance < careConfirmation.costStars} onClick={() => void care(careConfirmation.kind)}>
                 {busy === careConfirmation.kind ? "正在准备…" : careConfirmation.actionText}
               </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {wasteConfirm && (
+        <div className="pet-modal pet-waste-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="pet-waste-confirm-title">
+          <button className="pet-modal__backdrop" type="button" aria-label="暂时不清理" disabled={busy === "waste"} onClick={() => setWasteConfirm(null)} />
+          <section className="pet-waste-confirm">
+            <div className="pet-waste-confirm__scene" aria-hidden="true">
+              <img src={petWasteImage} alt="" />
+              <span><i /><i /><i /></span>
+            </div>
+            <small>小屋清洁任务</small>
+            <h2 id="pet-waste-confirm-title">帮{mascot.name}把小屋打扫干净吗？</h2>
+            <p>扫走粑粑，小屋马上恢复清清爽爽。</p>
+            <div className="pet-waste-confirm__cost"><b>★</b><span>需要 <strong>{wasteConfirm.costStars}</strong> 颗星</span></div>
+            {state.wallet.starBalance < wasteConfirm.costStars && <div className="pet-care-confirm__warning">星星余额不足，暂时不能清理</div>}
+            <div className="pet-care-confirm__actions">
+              <button type="button" disabled={busy === "waste"} onClick={() => setWasteConfirm(null)}>等一会儿</button>
+              <button type="button" disabled={Boolean(busy) || state.wallet.starBalance < wasteConfirm.costStars} onClick={() => void cleanWaste()}>{busy === "waste" ? "正在准备工具…" : "一起打扫"}</button>
             </div>
           </section>
         </div>

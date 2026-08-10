@@ -33,6 +33,13 @@ export type PetGrowthSummary = {
   pet: { petType: string; nickname: string | null; level: number; experience: number; growthStage: "BABY" | "GROWING" | "MATURE"; satiety: number; hydration: number; currentLevelStart: number; nextLevelExperience: number | null };
   wallet: { starBalance: number; dailySpent: number; dailySpendLimitStars: number | null };
   redPackets: { availableCount: number; packetsPerLevel: number; minStars: number; maxStars: number };
+  statusDecay: { satietyMinutes: number; hydrationMinutes: number };
+  waste: {
+    active: null | { id: string; appearsMinute: number; positionSeed: number; costStars: number };
+    pendingCount: number;
+    dailyCount: number;
+    cleanCostStars: number;
+  };
   travelEnabled: boolean;
   roomThemes: Array<{
     key: string;
@@ -630,12 +637,20 @@ export const parentApi = {
     dailySpendLimitStars: number | null;
     satiety?: number;
     hydration?: number;
+    satietyDecayMinutes: number;
+    hydrationDecayMinutes: number;
+    dailyWasteCount: number;
+    wasteCleanCostStars: number;
     redPacketsPerLevel: number;
     redPacketMinStars: number;
     redPacketMaxStars: number;
   }) => api<{ settings: {
     travelEnabled: boolean;
     dailySpendLimitStars: number | null;
+    satietyDecayMinutes: number | null;
+    hydrationDecayMinutes: number | null;
+    dailyWasteCount: number;
+    wasteCleanCostStars: number;
     redPacketsPerLevel: number;
     redPacketMinStars: number;
     redPacketMaxStars: number;

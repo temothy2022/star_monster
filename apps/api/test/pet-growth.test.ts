@@ -7,6 +7,7 @@ import {
   petManualRedPacketGrantPlan,
   parsePetRoomAmbience,
   petRedPacketGrantPlan,
+  petWasteSchedulePlan,
   settledPetStatus,
 } from "../src/services/pet-growth-service.js";
 
@@ -102,6 +103,22 @@ describe("pet growth rules", () => {
       settledAt: new Date("2026-08-07T03:00:00.000Z"),
       changed: true,
     });
+  });
+
+  it("spreads the configured pet waste count across stable daytime windows", () => {
+    const schedule = petWasteSchedulePlan({
+      childId: "child-1",
+      profileId: "profile-1",
+      wasteDate: new Date("2026-08-10T00:00:00.000Z"),
+      count: 3,
+      costStars: 1,
+      randomValue: () => 0,
+    });
+
+    expect(schedule).toHaveLength(3);
+    expect(schedule.map((item) => item.appearsMinute)).toEqual([480, 740, 1000]);
+    expect(schedule.map((item) => item.sequence)).toEqual([1, 2, 3]);
+    expect(schedule.every((item) => item.costStarsSnapshot === 1)).toBe(true);
   });
 
   it("prioritizes care needs over task progress in room dialogue", () => {

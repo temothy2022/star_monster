@@ -209,6 +209,13 @@ export type PetGrowthState = {
     feed: { costStars: number; restore: number; experience: number };
     drink: { costStars: number; restore: number; experience: number };
   };
+  statusDecay: { satietyMinutes: number; hydrationMinutes: number };
+  waste: {
+    active: null | { id: string; appearsMinute: number; positionSeed: number; costStars: number };
+    pendingCount: number;
+    dailyCount: number;
+    cleanCostStars: number;
+  };
   mascotAssets: Array<{
     slot: "TASK_IDLE" | "NEUTRAL" | "FOCUS" | "CELEBRATE" | "HUNGRY" | "EATING" | "DRINKING" | "TRAVEL" | "SLEEPING";
     mediaUrl: string;
@@ -249,6 +256,13 @@ export function getPetGrowth(signal?: AbortSignal) {
 
 export function careForPet(kind: "feed" | "drink", idempotencyKey: string) {
   return request<PetGrowthState>(`/api/child/pet/${kind}`, {
+    method: "POST",
+    body: JSON.stringify({ idempotencyKey }),
+  });
+}
+
+export function cleanPetWaste(wasteId: string, idempotencyKey: string) {
+  return request<PetGrowthState>(`/api/child/pet/waste/${encodeURIComponent(wasteId)}/clean`, {
     method: "POST",
     body: JSON.stringify({ idempotencyKey }),
   });

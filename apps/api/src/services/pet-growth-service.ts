@@ -3,10 +3,12 @@ import { randomInt } from "node:crypto";
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
-import { businessDateAt } from "../lib/time.js";
+import { businessDateAt, businessMinuteOfDayAt } from "../lib/time.js";
 
 const MAX_STATUS = 100;
 const LOW_PET_STATUS = 30;
+const WASTE_DAY_START_MINUTE = 8 * 60;
+const WASTE_DAY_END_MINUTE = 21 * 60;
 
 export type PetRoomAmbience = {
   imageUrl: string;
@@ -233,6 +235,59 @@ async function grantLevelUpRedPackets(
   await client.petRedPacket.createMany({ data: packets, skipDuplicates: true });
 }
 
+export function petWasteSchedulePlan(input: {
+  childId: string;
+  profileId: string;
+  wasteDate: Date;
+  count: number;
+  costStars: number;
+  randomValue?: (maxExclusive: number) => number;
+}) {
+  const count = Math.max(0, Math.min(8, Math.floor(input.count)));
+  if (count === 0) return [];
+  const randomValue = input.randomValue ?? ((maxExclusive: number) => randomInt(maxExclusive));
+  const windowSize = Math.floor((WASTE_DAY_END_MINUTE - WASTE_DAY_START_MINUTE) / count);
+  return Array.from({ length: count }, (_, index) => {
+    const offset = randomValue(Math.max(1, windowSize));
+    return {
+      childId: input.childId,
+      profileId: input.profileId,
+      wasteDate: input.wasteDate,
+      sequence: index + 1,
+      appearsMinute: WASTE_DAY_START_MINUTE + index * windowSize + offset,
+      positionSeed: randomValue(4),
+      costStarsSnapshot: Math.max(0, Math.min(100, Math.floor(input.costStars))),
+    };
+  });
+}
+
+async function ensureDailyWasteSchedule(
+  client: Prisma.TransactionClient,
+  profile: {
+    id: string;
+    childId: string;
+    dailyWasteCount: number;
+    wasteCleanCostStars: number;
+  },
+  wasteDate: Date,
+) {
+  if (profile.dailyWasteCount <= 0) return;
+  const existingCount = await client.petWasteOccurrence.count({
+    where: { childId: profile.childId, wasteDate },
+  });
+  if (existingCount > 0) return;
+
+  const schedule = petWasteSchedulePlan({
+    childId: profile.childId,
+    profileId: profile.id,
+    wasteDate,
+    count: profile.dailyWasteCount,
+    costStars: profile.wasteCleanCostStars,
+  });
+  if (schedule.length === 0) return;
+  await client.petWasteOccurrence.createMany({ data: schedule, skipDuplicates: true });
+}
+
 async function settleProfile(
   client: Prisma.TransactionClient | typeof prisma,
   childId: string,
@@ -246,13 +301,13 @@ async function settleProfile(
     profile.satiety,
     profile.satietySettledAt,
     now,
-    config.satietyDecayMinutes,
+    profile.satietyDecayMinutes ?? config.satietyDecayMinutes,
   );
   const hydration = settledPetStatus(
     profile.hydration,
     profile.hydrationSettledAt,
     now,
-    config.hydrationDecayMinutes,
+    profile.hydrationDecayMinutes ?? config.hydrationDecayMinutes,
   );
   if (satiety.changed || hydration.changed) {
     return {
@@ -358,11 +413,13 @@ function serializeTrip(trip: {
 export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
   const now = new Date();
   const today = businessDateAt(now, appConfig.APP_TIME_ZONE);
+  const currentMinute = businessMinuteOfDayAt(now, appConfig.APP_TIME_ZONE);
   await prisma.$transaction(async (tx) => {
-    await settleProfile(tx, childId, now);
+    const { profile } = await settleProfile(tx, childId, now);
+    await ensureDailyWasteSchedule(tx, profile, today);
     await refreshTripStatus(tx, childId, now);
   });
-  const [child, profile, config, currentTrip, postcards, tasks, mascotAssets, roomThemes, roomThemeUnlocks, availableRedPackets] = await Promise.all([
+  const [child, profile, config, currentTrip, postcards, tasks, mascotAssets, roomThemes, roomThemeUnlocks, availableRedPackets, activeWaste, pendingWasteCount] = await Promise.all([
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: { nickname: true, petType: true, starBalance: true, familyId: true },
@@ -400,6 +457,27 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
       select: { themeId: true },
     }),
     prisma.petRedPacket.count({ where: { childId, openedAt: null } }),
+    prisma.petWasteOccurrence.findFirst({
+      where: {
+        childId,
+        cleanedAt: null,
+        OR: [
+          { wasteDate: { lt: today } },
+          { wasteDate: today, appearsMinute: { lte: currentMinute } },
+        ],
+      },
+      orderBy: [{ wasteDate: "asc" }, { appearsMinute: "asc" }, { sequence: "asc" }],
+    }),
+    prisma.petWasteOccurrence.count({
+      where: {
+        childId,
+        cleanedAt: null,
+        OR: [
+          { wasteDate: { lt: today } },
+          { wasteDate: today, appearsMinute: { lte: currentMinute } },
+        ],
+      },
+    }),
   ]);
   const familyRoomThemePrices = await getFamilyRoomThemePrices(prisma, child.familyId);
   const petType = child.petType ?? "TUANTUAN";
@@ -477,6 +555,21 @@ export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
         restore: config.drinkRestore,
         experience: config.drinkExperience,
       },
+    },
+    statusDecay: {
+      satietyMinutes: profile.satietyDecayMinutes ?? config.satietyDecayMinutes,
+      hydrationMinutes: profile.hydrationDecayMinutes ?? config.hydrationDecayMinutes,
+    },
+    waste: {
+      active: activeWaste ? {
+        id: activeWaste.id,
+        appearsMinute: activeWaste.appearsMinute,
+        positionSeed: activeWaste.positionSeed,
+        costStars: activeWaste.costStarsSnapshot,
+      } : null,
+      pendingCount: pendingWasteCount,
+      dailyCount: profile.dailyWasteCount,
+      cleanCostStars: profile.wasteCleanCostStars,
     },
     mascotAssets: mascotAssets
       .filter((asset) => asset.petType === petType)
@@ -744,6 +837,88 @@ export async function careForPet(input: {
       },
     });
     return updatedProfile;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  return getPetGrowthState(input.childId, input.appConfig);
+}
+
+export async function cleanPetWaste(input: {
+  childId: string;
+  wasteId: string;
+  idempotencyKey: string;
+  appConfig: AppConfig;
+}) {
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "ChildProfile" WHERE "id" = ${input.childId} FOR UPDATE`;
+    const repeated = await tx.petWasteOccurrence.findUnique({
+      where: { cleanIdempotencyKey: input.idempotencyKey },
+      select: { childId: true },
+    });
+    if (repeated) {
+      if (repeated.childId === input.childId) return;
+      throw new HttpError(409, "IDEMPOTENCY_KEY_REUSED", "这次清理操作无法重复使用");
+    }
+
+    await refreshTripStatus(tx, input.childId, now);
+    const activeTrip = await tx.petTrip.findFirst({
+      where: { childId: input.childId, status: { in: ["TRAVELING", "RETURNED"] } },
+      select: { id: true },
+    });
+    if (activeTrip) throw new HttpError(409, "PET_AWAY", "星宠旅行回来后再清理小屋吧");
+
+    const occurrence = await tx.petWasteOccurrence.findFirst({
+      where: { id: input.wasteId, childId: input.childId },
+    });
+    if (!occurrence) throw new HttpError(404, "PET_WASTE_NOT_FOUND", "这个粑粑已经不在小屋里了");
+    if (occurrence.cleanedAt) throw new HttpError(409, "PET_WASTE_ALREADY_CLEANED", "这个粑粑已经清理干净了");
+
+    const currentMinute = businessMinuteOfDayAt(now, input.appConfig.APP_TIME_ZONE);
+    const today = businessDateAt(now, input.appConfig.APP_TIME_ZONE);
+    if (
+      occurrence.wasteDate.getTime() > today.getTime()
+      || (occurrence.wasteDate.getTime() === today.getTime() && occurrence.appearsMinute > currentMinute)
+    ) {
+      throw new HttpError(409, "PET_WASTE_NOT_READY", "小屋现在很干净");
+    }
+
+    const child = await tx.childProfile.findUniqueOrThrow({
+      where: { id: input.childId },
+      select: { starBalance: true },
+    });
+    const profile = await ensureProfile(tx, input.childId);
+    const cost = occurrence.costStarsSnapshot;
+    if (child.starBalance < cost) throw new HttpError(409, "INSUFFICIENT_STARS", "星星余额不足");
+    await assertSpendAllowed({
+      client: tx,
+      childId: input.childId,
+      limit: profile.dailySpendLimitStars,
+      cost,
+      now,
+      config: input.appConfig,
+    });
+
+    await tx.petWasteOccurrence.update({
+      where: { id: occurrence.id },
+      data: { cleanedAt: now, cleanIdempotencyKey: input.idempotencyKey },
+    });
+    if (cost > 0) {
+      const updatedChild = await tx.childProfile.update({
+        where: { id: input.childId },
+        data: { starBalance: { decrement: cost } },
+        select: { starBalance: true },
+      });
+      await tx.starLedger.create({
+        data: {
+          childId: input.childId,
+          type: "PET_CARE_SPEND",
+          amount: -cost,
+          balanceAfter: updatedChild.starBalance,
+          reason: "给星宠清理小屋",
+          referenceId: occurrence.id,
+          idempotencyKey: `pet-waste:${occurrence.id}:spend`,
+        },
+      });
+    }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   return getPetGrowthState(input.childId, input.appConfig);
 }

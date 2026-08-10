@@ -4,6 +4,7 @@ import type { AppConfig } from "../config.js";
 import { requireChild } from "../services/auth-service.js";
 import {
   careForPet,
+  cleanPetWaste,
   getPetGrowthState,
   openPetRedPacket,
   purchasePetRoomTheme,
@@ -19,6 +20,7 @@ const travelSchema = actionSchema.extend({
   tier: z.enum(["NEARBY", "CHINA", "WORLD"]),
 });
 const tripParams = z.object({ id: z.string().min(1) });
+const wasteParams = z.object({ id: z.string().min(1) });
 const roomThemeParams = z.object({ key: z.string().trim().min(1).max(64) });
 
 export async function registerChildPetRoutes(app: FastifyInstance, config: AppConfig) {
@@ -37,6 +39,13 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
     const { child } = await requireChild(request, reply, config);
     const { idempotencyKey } = actionSchema.parse(request.body);
     return careForPet({ childId: child.id, kind: "DRINK", idempotencyKey, appConfig: config });
+  });
+
+  app.post("/api/child/pet/waste/:id/clean", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { id } = wasteParams.parse(request.params);
+    const { idempotencyKey } = actionSchema.parse(request.body);
+    return cleanPetWaste({ childId: child.id, wasteId: id, idempotencyKey, appConfig: config });
   });
 
   app.post("/api/child/pet/red-packets/open", async (request, reply) => {
