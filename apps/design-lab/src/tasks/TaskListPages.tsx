@@ -175,20 +175,48 @@ function TaskMascotWidget({
   mascotContext,
   dialogues,
   mascotAssets,
+  petWidget,
+  dashboard = false,
 }: {
   mascotContext: TodayTaskExperience["mascotContext"];
   dialogues: MascotDialogue[];
   mascotAssets: MascotAsset[];
+  petWidget?: TodayTaskExperience["petWidget"];
+  dashboard?: boolean;
 }) {
   const { mascot } = useMascot();
   const audioCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const candidates = useMemo(() => dialogues, [dialogues]);
-  const taskMascotImage =
-    mascotAssets.find(
-      (asset) => asset.petType === mascot.type && asset.slot === "TASK_IDLE",
-    )?.mediaUrl ??
-    mascot.taskImage ??
-    mascot.images.neutral;
+  const uploadedMascotImages = useMemo(
+    () => new Map(
+      mascotAssets
+        .filter((asset) => asset.petType === mascot.type)
+        .map((asset) => [asset.slot, asset.mediaUrl]),
+    ),
+    [mascot.type, mascotAssets],
+  );
+  const idleMascotImage = useMemo(
+    () => Math.random() < .42
+      ? uploadedMascotImages.get("SLEEPING") ?? mascot.activityImages.sleeping
+      : uploadedMascotImages.get("NEUTRAL") ?? mascot.images.neutral,
+    [mascot.activityImages.sleeping, mascot.images.neutral, uploadedMascotImages],
+  );
+  const dashboardMascotImage = useMemo(() => {
+    if (!petWidget) return idleMascotImage;
+    if (petWidget.currentTripStatus === "TRAVELING") {
+      return uploadedMascotImages.get("TRAVEL") ?? mascot.activityImages.travel;
+    }
+    if (petWidget.currentTripStatus === "RETURNED") {
+      return uploadedMascotImages.get("CELEBRATE") ?? mascot.images.celebrate;
+    }
+    if (petWidget.satiety < 30 || petWidget.hydration < 30) {
+      return uploadedMascotImages.get("HUNGRY") ?? mascot.activityImages.hungry;
+    }
+    return petWidget.roomMascotAnimationUrl ?? idleMascotImage;
+  }, [idleMascotImage, mascot.activityImages, mascot.images.celebrate, petWidget, uploadedMascotImages]);
+  const taskMascotImage = dashboard
+    ? dashboardMascotImage
+    : uploadedMascotImages.get("TASK_IDLE") ?? mascot.taskImage ?? mascot.images.neutral;
   const [displayedMascotImage, setDisplayedMascotImage] = useState(
     mascot.images.neutral,
   );
@@ -272,9 +300,33 @@ function TaskMascotWidget({
     });
   }
 
+  const levelRange = !petWidget || petWidget.nextLevelExperience === null
+    ? 1
+    : Math.max(1, petWidget.nextLevelExperience - petWidget.currentLevelStart);
+  const levelProgress = !petWidget
+    ? 0
+    : petWidget.nextLevelExperience === null
+      ? 100
+      : Math.min(100, Math.max(
+          0,
+          ((petWidget.experience - petWidget.currentLevelStart) / levelRange) * 100,
+        ));
+  const remainingExperience = petWidget?.nextLevelExperience === null
+    ? null
+    : Math.max(0, (petWidget?.nextLevelExperience ?? 0) - (petWidget?.experience ?? 0));
+
   return (
-    <section className="task-mascot-area task-mascot-area--widget" aria-label={`${mascot.name}的鼓励`}>
+    <section className={`task-mascot-area task-mascot-area--widget${dashboard ? " task-mascot-area--dashboard-widget" : ""}`} aria-label={`${mascot.name}的鼓励`}>
       <div className="task-mascot-area__glow" />
+      {dashboard && petWidget && (
+        <div className="task-mascot-status" aria-label={`${mascot.name}等级 ${petWidget.level}，成长进度 ${Math.round(levelProgress)}%`}>
+          <div>
+            <span><b>Lv.{petWidget.level}</b>{mascot.name}的成长</span>
+            <strong>{remainingExperience === null ? "最高等级" : `离升级还差 ${remainingExperience} 点`}</strong>
+          </div>
+          <i><b style={{ width: `${levelProgress}%` }} /></i>
+        </div>
+      )}
       <button
         className={`task-mascot-figure${isSpeaking ? " task-mascot-figure--speaking" : ""}`}
         type="button"
@@ -739,10 +791,6 @@ function NotificationWidget({
 
   return (
     <div className="task-widget-notifications" aria-live="polite">
-      <header>
-        <strong>通知</strong>
-        {notificationCount > 0 && <span>{notificationCount}</span>}
-      </header>
       <div className="task-widget-notifications__list">
         {notifications === undefined && (
           <div className="task-widget-notifications__empty is-loading"><i /><small>正在查看新消息</small></div>
@@ -990,11 +1038,24 @@ export function TaskExperience({
   const [dashboardLeaderboards, setDashboardLeaderboards] = useState<CompactLeaderboards | null>(null);
   const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
   const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
+  const [phoneLayout, setPhoneLayout] = useState(() => window.matchMedia(
+    "(max-width: 600px), (pointer: coarse) and (max-height: 600px)",
+  ).matches);
   const onStartAttemptRef = useRef(onStartAttempt);
+  const dashboardActive = variant === "dashboard" && !phoneLayout;
 
   useEffect(() => {
     onStartAttemptRef.current = onStartAttempt;
   }, [onStartAttempt]);
+
+  useEffect(() => {
+    const media = window.matchMedia(
+      "(max-width: 600px), (pointer: coarse) and (max-height: 600px)",
+    );
+    const update = () => setPhoneLayout(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   function updateExperience(nextExperience: TodayTaskExperience) {
     setExperience(nextExperience);
@@ -1085,7 +1146,7 @@ export function TaskExperience({
     { enabled: Boolean(experience), intervalMs: 10_000 },
   );
 
-  const leaderboardEnabled = variant === "dashboard" && Boolean(
+  const leaderboardEnabled = dashboardActive && Boolean(
     experience?.taskDashboardLayout.widgets.includes("LEADERBOARD"),
   );
 
@@ -1119,7 +1180,7 @@ export function TaskExperience({
     { enabled: leaderboardEnabled, intervalMs: 60_000 },
   );
 
-  const notificationsEnabled = variant === "dashboard" && Boolean(
+  const notificationsEnabled = dashboardActive && Boolean(
     experience?.taskDashboardLayout.widgets.includes("NOTIFICATIONS"),
   );
 
@@ -1154,7 +1215,7 @@ export function TaskExperience({
     { enabled: notificationsEnabled, intervalMs: 30_000 },
   );
 
-  const dashboardReviewsEnabled = variant === "dashboard" && Boolean(
+  const dashboardReviewsEnabled = dashboardActive && Boolean(
     experience?.taskDashboardLayout.widgets.some(
       (widget) => widget === "HANZI_REVIEW" || widget === "POEM_REVIEW",
     ),
@@ -1195,11 +1256,11 @@ export function TaskExperience({
   useEffect(() => {
     if (experience) {
       reportChildPageReady(
-        variant === "dashboard" ? "tasks-dashboard" : "tasks-partial",
+        dashboardActive ? "tasks-dashboard" : "tasks-partial",
         "/api/child/tasks/today",
       );
     }
-  }, [experience, variant]);
+  }, [dashboardActive, experience]);
 
   const tasks = useMemo(
     () => experience?.tasks
@@ -1281,6 +1342,8 @@ export function TaskExperience({
             mascotContext={experience!.mascotContext}
             dialogues={experience!.mascotDialogues}
             mascotAssets={experience!.mascotAssets ?? []}
+            petWidget={experience!.petWidget}
+            dashboard
           />
         );
       case "TODAY_PLAN":
@@ -1342,7 +1405,7 @@ export function TaskExperience({
           {apiError} · 点击关闭
         </button>
       )}
-      {variant === "dashboard" ? (
+      {dashboardActive ? (
         <TaskDashboard
           layout={experience.taskDashboardLayout}
           onSave={saveDashboardLayout}
@@ -1378,7 +1441,7 @@ export function TaskExperience({
       <ChildBottomNav
         active="tasks"
         onNavigate={onNavigate}
-        navigateActiveTask={variant === "dashboard"}
+        navigateActiveTask={dashboardActive}
       />
       {planetUnlock && (
         <PlanetUnlockModal

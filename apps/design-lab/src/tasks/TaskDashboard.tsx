@@ -14,6 +14,8 @@ import type {
 
 const LONG_PRESS_MS = 520;
 const REORDER_ANIMATION_MS = 340;
+const MIN_TASK_ROWS = 27;
+const MAX_TASK_ROWS = 60;
 
 export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   key: TaskDashboardWidgetKey;
@@ -61,6 +63,13 @@ type DragSession = {
   timer: number;
 };
 
+type ResizeSession = {
+  pointerId: number;
+  startY: number;
+  startRows: number;
+  rowStep: number;
+};
+
 function reorder(
   widgets: TaskDashboardWidgetKey[],
   source: TaskDashboardWidgetKey,
@@ -103,12 +112,14 @@ export function TaskDashboard({
   const [message, setMessage] = useState("");
   const [draftWidgets, setDraftWidgets] = useState<TaskDashboardWidgetKey[]>(layout.widgets);
   const [draftColumns, setDraftColumns] = useState<Partial<Record<TaskDashboardWidgetKey, number>>>(layout.columns ?? {});
+  const [draftTaskRows, setDraftTaskRows] = useState<number | undefined>(layout.taskRows);
   const [pressedWidget, setPressedWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [draggingWidget, setDraggingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [settlingWidget, setSettlingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragSession | null>(null);
+  const resizeRef = useRef<ResizeSession | null>(null);
   const dropOverlayRef = useRef<HTMLElement | null>(null);
   const widgetsRef = useRef(draftWidgets);
   const columnsRef = useRef(draftColumns);
@@ -126,6 +137,7 @@ export function TaskDashboard({
     if (!editing) {
       setDraftWidgets(layout.widgets);
       setDraftColumns(layout.columns ?? {});
+      setDraftTaskRows(layout.taskRows);
     }
   }, [editing, layout]);
 
@@ -171,7 +183,7 @@ export function TaskDashboard({
     const drag = dragRef.current;
     if (drag?.activated) paintDragPosition(drag);
 
-  }, [draftWidgets, draggingWidget]);
+  }, [draftWidgets, draftTaskRows, draggingWidget]);
 
   function paintDragPosition(session: DragSession) {
     session.overlay?.style.setProperty("--task-drag-x", `${session.visualLeft}px`);
@@ -230,6 +242,7 @@ export function TaskDashboard({
 
   function enterEditing() {
     setDraftWidgets(layout.widgets);
+    setDraftTaskRows(layout.taskRows);
     const columns = { ...captureWidgetColumns(), ...(layout.columns ?? {}) };
     columnsRef.current = columns;
     setDraftColumns(columns);
@@ -253,6 +266,7 @@ export function TaskDashboard({
     overlay.removeAttribute("data-task-widget");
     overlay.setAttribute("aria-hidden", "true");
     overlay.querySelector(".task-dashboard-widget__edit-controls")?.remove();
+    overlay.querySelector(".task-dashboard-widget__resize-handle")?.remove();
     for (const element of overlay.querySelectorAll<HTMLElement>("[id]")) element.removeAttribute("id");
     overlay.style.width = `${session.width}px`;
     overlay.style.height = `${session.height}px`;
@@ -473,29 +487,51 @@ export function TaskDashboard({
     });
   }
 
-  function moveBy(key: TaskDashboardWidgetKey, amount: -1 | 1) {
-    const column = columnsRef.current[key];
-    const laneWidgets = column === undefined
-      ? widgetsRef.current
-      : widgetsRef.current.filter((widget) => columnsRef.current[widget] === column);
-    const laneIndex = laneWidgets.indexOf(key);
-    const targetKey = laneWidgets[laneIndex + amount];
-    if (laneIndex < 0 || !targetKey) return;
-    const index = widgetsRef.current.indexOf(key);
-    const target = widgetsRef.current.indexOf(targetKey);
-    const next = [...widgetsRef.current];
-    [next[index], next[target]] = [next[target]!, next[index]!];
-    widgetsRef.current = next;
-    setDraftWidgets(next);
+  function beginTaskResize(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (!editing || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const widget = event.currentTarget.closest<HTMLElement>("[data-task-widget='TASKS']");
+    const grid = gridRef.current;
+    if (!widget || !grid) return;
+    const styles = window.getComputedStyle(grid);
+    const rowHeight = Number.parseFloat(styles.gridAutoRows) || 1;
+    const rowGap = Number.parseFloat(styles.rowGap) || 16;
+    const startRows = draftTaskRows ?? Math.round(
+      (widget.getBoundingClientRect().height + rowGap) / (rowHeight + rowGap),
+    );
+    resizeRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startRows,
+      rowStep: rowHeight + rowGap,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function canMoveBy(key: TaskDashboardWidgetKey, amount: -1 | 1) {
-    const column = draftColumns[key];
-    const laneWidgets = column === undefined
-      ? draftWidgets
-      : draftWidgets.filter((widget) => draftColumns[widget] === column);
-    const index = laneWidgets.indexOf(key);
-    return index >= 0 && index + amount >= 0 && index + amount < laneWidgets.length;
+  function resizeTask(event: ReactPointerEvent<HTMLButtonElement>) {
+    const session = resizeRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const nextRows = Math.max(
+      MIN_TASK_ROWS,
+      Math.min(MAX_TASK_ROWS, session.startRows + Math.round((event.clientY - session.startY) / session.rowStep)),
+    );
+    if (nextRows === draftTaskRows) return;
+    previousRectsRef.current = captureWidgetRects("TASKS");
+    setDraftTaskRows(nextRows);
+  }
+
+  function finishTaskResize(event: ReactPointerEvent<HTMLButtonElement>) {
+    const session = resizeRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    resizeRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   function removeWidget(key: TaskDashboardWidgetKey) {
@@ -525,6 +561,7 @@ export function TaskDashboard({
   function cancelEditing() {
     setDraftWidgets(layout.widgets);
     setDraftColumns(layout.columns ?? {});
+    setDraftTaskRows(layout.taskRows);
     setEditing(false);
     setLibraryOpen(false);
     setMessage("");
@@ -535,7 +572,12 @@ export function TaskDashboard({
     setSaving(true);
     setMessage("");
     try {
-      await onSave({ version: 1, widgets: draftWidgets, columns: draftColumns });
+      await onSave({
+        version: 1,
+        widgets: draftWidgets,
+        columns: draftColumns,
+        ...(draftTaskRows !== undefined ? { taskRows: draftTaskRows } : {}),
+      });
       setEditing(false);
       setLibraryOpen(false);
       setMessage("桌面布置已保存");
@@ -574,6 +616,12 @@ export function TaskDashboard({
           {draftWidgets.map((key) => {
             const definition = WIDGET_BY_KEY.get(key)!;
             const column = draftColumns[key];
+            const widgetStyle = {
+              ...(column === undefined ? {} : { "--task-widget-column": column + 1 }),
+              ...(key === "TASKS" && draftTaskRows !== undefined
+                ? { "--task-widget-rows": draftTaskRows }
+                : {}),
+            } as CSSProperties;
             return (
               <section
                 className={[
@@ -586,9 +634,8 @@ export function TaskDashboard({
                 ].filter(Boolean).join(" ")}
                 data-task-widget={key}
                 data-task-column={column === undefined ? undefined : column}
-                style={column === undefined ? undefined : {
-                  "--task-widget-column": column + 1,
-                } as CSSProperties}
+                data-task-rows={key === "TASKS" && draftTaskRows !== undefined ? draftTaskRows : undefined}
+                style={Object.keys(widgetStyle).length > 0 ? widgetStyle : undefined}
                 aria-label={definition.label}
                 key={key}
                 onPointerDown={(event) => beginDrag(key, event)}
@@ -600,16 +647,26 @@ export function TaskDashboard({
                 {editing && (
                   <div className="task-dashboard-widget__edit-controls">
                     <span aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
-                    <div>
-                      <button type="button" disabled={!canMoveBy(key, -1)} aria-label={`${definition.label}向前移动`} onClick={() => moveBy(key, -1)}>↑</button>
-                      <button type="button" disabled={!canMoveBy(key, 1)} aria-label={`${definition.label}向后移动`} onClick={() => moveBy(key, 1)}>↓</button>
-                      {!definition.required && <button className="task-dashboard-widget__remove" type="button" aria-label={`删除${definition.label}`} onClick={() => removeWidget(key)}>×</button>}
-                    </div>
+                    {!definition.required && <div>
+                      <button className="task-dashboard-widget__remove" type="button" aria-label={`删除${definition.label}`} onClick={() => removeWidget(key)}>×</button>
+                    </div>}
                   </div>
                 )}
                 <div className="task-dashboard-widget__content">
                   {renderWidget(key)}
                 </div>
+                {editing && key === "TASKS" && (
+                  <button
+                    className="task-dashboard-widget__resize-handle"
+                    type="button"
+                    aria-label="调整我的任务高度"
+                    title="上下拖动调整高度"
+                    onPointerDown={beginTaskResize}
+                    onPointerMove={resizeTask}
+                    onPointerUp={finishTaskResize}
+                    onPointerCancel={finishTaskResize}
+                  ><i /><i /><i /></button>
+                )}
               </section>
             );
           })}

@@ -401,6 +401,16 @@ export type TodayTaskExperience = {
   mascotContext: "START" | "PROGRESS" | "COMPLETE" | "EMPTY";
   mascotDialogues: MascotDialogue[];
   mascotAssets: MascotAsset[];
+  petWidget: {
+    level: number;
+    experience: number;
+    currentLevelStart: number;
+    nextLevelExperience: number | null;
+    satiety: number;
+    hydration: number;
+    currentTripStatus: "TRAVELING" | "RETURNED" | null;
+    roomMascotAnimationUrl: string | null;
+  };
 };
 
 export type TaskDashboardWidgetKey =
@@ -420,6 +430,7 @@ export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
   columns?: Partial<Record<TaskDashboardWidgetKey, number>>;
+  taskRows?: number;
 };
 
 export type DashboardHanziReview = {
@@ -450,7 +461,7 @@ export type TaskDashboardReviewSummary = {
 export type MascotAsset = {
   id: string;
   petType: PetType;
-  slot: "TASK_IDLE";
+  slot: "TASK_IDLE" | "NEUTRAL" | "CELEBRATE" | "HUNGRY" | "TRAVEL" | "SLEEPING";
   mediaUrl: string;
   updatedAt: string;
 };

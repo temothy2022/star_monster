@@ -20,6 +20,7 @@ export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
   columns?: Partial<Record<TaskDashboardWidgetKey, number>>;
+  taskRows?: number;
 };
 
 export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
@@ -48,6 +49,7 @@ export const taskDashboardLayoutSchema = z.object({
     z.enum(TASK_DASHBOARD_WIDGET_KEYS),
     z.union([z.literal(0), z.literal(4), z.literal(8)]),
   ).optional(),
+  taskRows: z.number().int().min(27).max(60).optional(),
 }).refine((layout) => layout.columns?.TASKS !== 8, {
   message: "任务列表不能超出桌面网格",
   path: ["columns", "TASKS"],
@@ -63,6 +65,7 @@ const storedTaskDashboardLayoutSchema = z.object({
     z.enum(TASK_DASHBOARD_WIDGET_KEYS),
     z.union([z.literal(0), z.literal(4), z.literal(8)]),
   ).optional(),
+  taskRows: z.number().int().min(27).max(60).optional(),
 });
 
 export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayout {
@@ -80,5 +83,6 @@ export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayou
     version: 1,
     widgets,
     ...(columns && Object.keys(columns).length > 0 ? { columns } : {}),
+    ...(parsed.data.taskRows !== undefined ? { taskRows: parsed.data.taskRows } : {}),
   };
 }

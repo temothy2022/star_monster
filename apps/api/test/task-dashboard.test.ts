@@ -21,8 +21,22 @@ describe("task dashboard layout", () => {
       version: 1 as const,
       widgets: ["BALANCE", "TASKS", "LEADERBOARD", "NOTIFICATIONS"] as const,
       columns: { BALANCE: 0 as const, TASKS: 4 as const, NOTIFICATIONS: 8 as const },
+      taskRows: 42,
     };
     expect(normalizeTaskDashboardLayout(layout)).toEqual(layout);
+  });
+
+  it("keeps task height within the supported desktop range", () => {
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: ["TASKS"],
+      taskRows: 27,
+    }).success).toBe(true);
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: ["TASKS"],
+      taskRows: 61,
+    }).success).toBe(false);
   });
 
   it("rejects unsupported dashboard columns", () => {

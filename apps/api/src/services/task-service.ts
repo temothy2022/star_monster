@@ -20,6 +20,7 @@ import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { normalizeTaskDashboardLayout } from "../domain/task-dashboard.js";
 import { businessDateAt } from "../lib/time.js";
+import { petExperienceForNextLevel } from "./pet-growth-service.js";
 
 type AttemptWithTask = TaskAttempt & { dailyTask: DailyTask };
 type TaskTemplateWithMathConfig = TaskTemplate & {
@@ -502,11 +503,33 @@ export async function getTodayTaskExperience(
     prisma.childProfile.findUniqueOrThrow({
       where: { id: childId },
       select: {
+        petType: true,
         dailyStarGoal: true,
         dailyGoalBonusEnabled: true,
         dailyGoalBonusStars: true,
         starBalance: true,
         taskDashboardLayout: true,
+        petGrowthProfile: {
+          select: {
+            level: true,
+            experience: true,
+            satiety: true,
+            hydration: true,
+            equippedRoomTheme: {
+              select: {
+                mascotAnimations: {
+                  select: { petType: true, mediaUrl: true },
+                },
+              },
+            },
+            trips: {
+              where: { status: { in: ["TRAVELING", "RETURNED"] } },
+              orderBy: { departedAt: "desc" },
+              take: 1,
+              select: { status: true, returnsAt: true },
+            },
+          },
+        },
       },
     }),
     prisma.dailyTask.findMany({
@@ -587,7 +610,7 @@ export async function getTodayTaskExperience(
       select: { id: true, key: true, context: true, text: true, audioUrl: true },
     }),
     prisma.mascotAsset.findMany({
-      where: { slot: "TASK_IDLE" },
+      where: { slot: { in: ["TASK_IDLE", "NEUTRAL", "CELEBRATE", "HUNGRY", "TRAVEL", "SLEEPING"] } },
       select: { id: true, petType: true, slot: true, mediaUrl: true, updatedAt: true },
     }),
   ]);
@@ -615,6 +638,15 @@ export async function getTodayTaskExperience(
         : completedCount > 0
           ? "PROGRESS"
           : "START";
+  const petType = child.petType ?? "TUANTUAN";
+  const petProfile = child.petGrowthProfile;
+  const petLevel = petProfile?.level ?? 1;
+  const currentTrip = petProfile?.trips[0];
+  const currentTripStatus = currentTrip
+    ? currentTrip.status === "TRAVELING" && currentTrip.returnsAt <= now
+      ? "RETURNED"
+      : currentTrip.status
+    : null;
 
   const activeAttempt = activeSlot?.attempt;
   const activeRemaining =
@@ -645,7 +677,19 @@ export async function getTodayTaskExperience(
       (dialogue) =>
         dialogue.context === mascotContext || dialogue.context === "GENERAL",
     ),
-    mascotAssets,
+    mascotAssets: mascotAssets.filter((asset) => asset.petType === petType),
+    petWidget: {
+      level: petLevel,
+      experience: petProfile?.experience ?? 0,
+      currentLevelStart: petLevel <= 1 ? 0 : (petLevel - 1) ** 2 * 24,
+      nextLevelExperience: petExperienceForNextLevel(petLevel),
+      satiety: petProfile?.satiety ?? 78,
+      hydration: petProfile?.hydration ?? 82,
+      currentTripStatus,
+      roomMascotAnimationUrl: petProfile?.equippedRoomTheme?.mascotAnimations.find(
+        (animation) => animation.petType === petType,
+      )?.mediaUrl ?? null,
+    },
     mascotContext,
     active: activeAttempt
       ? {
