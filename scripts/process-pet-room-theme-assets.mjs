@@ -26,6 +26,12 @@ const themes = [
   { key: "great-wall", ambience: [], backgroundPosition: sharp.gravity.west },
   { key: "basketball-court", ambience: [], backgroundPosition: sharp.gravity.west },
   { key: "space-guardian", ambience: [], backgroundPosition: sharp.gravity.center },
+  { key: "giza-pyramids", ambience: [], backgroundPosition: sharp.gravity.center },
+  { key: "eiffel-tower", ambience: [], backgroundPosition: sharp.gravity.center },
+  { key: "sydney-opera-house", ambience: [], backgroundPosition: sharp.gravity.center },
+  { key: "machu-picchu", ambience: [], backgroundPosition: sharp.gravity.center },
+  { key: "taj-mahal", ambience: [], backgroundPosition: sharp.gravity.center },
+  { key: "tower-bridge", ambience: [], backgroundPosition: sharp.gravity.center },
 ];
 
 function run(command, args) {
