@@ -52,7 +52,8 @@ type PaperQuestionLayout = {
   wide: boolean;
 };
 
-const WORKSHEET_BODY_HEIGHT_MM = 244;
+const WORKSHEET_FIRST_PAGE_BODY_HEIGHT_MM = 244;
+const WORKSHEET_CONTINUATION_BODY_HEIGHT_MM = 262;
 const WORKSHEET_ROW_GAP_MM = 4;
 const MAX_PAIRED_HEIGHT_DIFFERENCE_MM = 12;
 
@@ -120,6 +121,9 @@ export function paginateWorksheetQuestions(questions: readonly MathQuestion[]) {
   let questionNumber = 1;
 
   const nextTop = (columnBottom: number) => columnBottom === 0 ? 0 : columnBottom + WORKSHEET_ROW_GAP_MM;
+  const pageBodyHeight = () => pages.length === 0
+    ? WORKSHEET_FIRST_PAGE_BODY_HEIGHT_MM
+    : WORKSHEET_CONTINUATION_BODY_HEIGHT_MM;
   const startNewPage = () => {
     if (currentPage.length > 0) pages.push(currentPage);
     currentPage = [];
@@ -147,7 +151,7 @@ export function paginateWorksheetQuestions(questions: readonly MathQuestion[]) {
 
     if (layout.wide) {
       let topMm = Math.max(nextTop(columnBottoms[0]), nextTop(columnBottoms[1]));
-      if (topMm + layout.heightMm > WORKSHEET_BODY_HEIGHT_MM && currentPage.length > 0) {
+      if (topMm + layout.heightMm > pageBodyHeight() && currentPage.length > 0) {
         startNewPage();
         topMm = 0;
       }
@@ -164,7 +168,7 @@ export function paginateWorksheetQuestions(questions: readonly MathQuestion[]) {
 
     if (canPair && nextQuestion && nextLayout) {
       let topMm = Math.max(nextTop(columnBottoms[0]), nextTop(columnBottoms[1]));
-      if (topMm + Math.max(layout.heightMm, nextLayout.heightMm) > WORKSHEET_BODY_HEIGHT_MM && currentPage.length > 0) {
+      if (topMm + Math.max(layout.heightMm, nextLayout.heightMm) > pageBodyHeight() && currentPage.length > 0) {
         startNewPage();
         topMm = 0;
       }
@@ -176,10 +180,10 @@ export function paginateWorksheetQuestions(questions: readonly MathQuestion[]) {
 
     let column: 0 | 1 = columnBottoms[0] <= columnBottoms[1] ? 0 : 1;
     let topMm = nextTop(columnBottoms[column]);
-    if (topMm + layout.heightMm > WORKSHEET_BODY_HEIGHT_MM) {
+    if (topMm + layout.heightMm > pageBodyHeight()) {
       const otherColumn: 0 | 1 = column === 0 ? 1 : 0;
       const otherTopMm = nextTop(columnBottoms[otherColumn]);
-      if (otherTopMm + layout.heightMm <= WORKSHEET_BODY_HEIGHT_MM) {
+      if (otherTopMm + layout.heightMm <= pageBodyHeight()) {
         column = otherColumn;
         topMm = otherTopMm;
       } else if (currentPage.length > 0) {
@@ -388,7 +392,7 @@ function WorksheetPage({
 }) {
   return (
     <section className="math-print-page" data-math-pdf-page="worksheet">
-      <PaperHeader title={title} />
+      {pageNumber === 1 ? <PaperHeader title={title} /> : null}
       <div className="math-paper-question-grid">
         {items.map((item) => <PaperQuestion item={item} key={item.number} />)}
       </div>
