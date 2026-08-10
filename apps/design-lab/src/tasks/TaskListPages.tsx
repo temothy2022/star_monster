@@ -330,8 +330,8 @@ function DailyProgressWidget({ earned, goal }: { earned: number; goal: number })
   const remaining = Math.max(0, goal - earned);
   return (
     <div className="task-widget-progress">
-      <div className="task-widget-heading"><small>今日进度</small><strong>{remaining > 0 ? `还差 ${remaining} 颗星` : "目标达成"}</strong></div>
       <DailyProgress earned={earned} total={goal} />
+      <div className="task-widget-heading"><small>今日进度</small><strong>{remaining > 0 ? `还差 ${remaining} 颗星` : "目标达成"}</strong></div>
     </div>
   );
 }
@@ -383,19 +383,6 @@ function GoalBonusWidget({
     <div className="task-widget-goal-bonus">
       <span className="task-widget-goal-bonus__gift" aria-hidden="true"><i /></span>
       <div><small>目标奖励</small><strong>{goalReached ? "已经领取" : potential > 0 ? `达标 +${potential}` : "完成目标"}</strong><span>{earned > 0 ? `今天已获得 ${earned} 颗奖励星` : "向今天的目标前进"}</span></div>
-    </div>
-  );
-}
-
-function QuickLinksWidget({ onNavigate }: { onNavigate?: (route: ChildRoute) => void }) {
-  return (
-    <div className="task-widget-links">
-      <div className="task-widget-heading"><small>快捷入口</small><strong>去哪里看看？</strong></div>
-      <div>
-        <button type="button" onClick={() => onNavigate?.("pet-growth")}><i className="task-widget-link-icon task-widget-link-icon--pet" aria-hidden="true" /><span>星宠</span></button>
-        <button type="button" onClick={() => onNavigate?.("wishes-requested")}><i className="task-widget-link-icon task-widget-link-icon--wish" aria-hidden="true" /><span>星愿</span></button>
-        <button type="button" onClick={() => onNavigate?.("footprints")}><i className="task-widget-link-icon task-widget-link-icon--footprint" aria-hidden="true" /><span>足迹</span></button>
-      </div>
     </div>
   );
 }
@@ -991,8 +978,6 @@ export function TaskExperience({
             goalReached={experience!.earnedToday >= experience!.dailyStarGoal}
           />
         );
-      case "QUICK_LINKS":
-        return <QuickLinksWidget onNavigate={onNavigate} />;
       case "LEADERBOARD":
         return <CompactLeaderboardWidget leaderboard={dailyLeaderboard} />;
       case "NOTIFICATIONS":

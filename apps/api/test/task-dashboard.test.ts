@@ -17,9 +17,19 @@ describe("task dashboard layout", () => {
   it("keeps a valid child-defined order", () => {
     const layout = {
       version: 1 as const,
-      widgets: ["BALANCE", "TASKS", "QUICK_LINKS", "LEADERBOARD", "NOTIFICATIONS"] as const,
+      widgets: ["BALANCE", "TASKS", "LEADERBOARD", "NOTIFICATIONS"] as const,
     };
     expect(normalizeTaskDashboardLayout(layout)).toEqual(layout);
+  });
+
+  it("removes the retired quick links widget without resetting the saved order", () => {
+    expect(normalizeTaskDashboardLayout({
+      version: 1,
+      widgets: ["BALANCE", "QUICK_LINKS", "TASKS", "MASCOT"],
+    })).toEqual({
+      version: 1,
+      widgets: ["BALANCE", "TASKS", "MASCOT"],
+    });
   });
 
   it("rejects duplicate widgets and layouts without the task list", () => {

@@ -22,13 +22,12 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   required?: boolean;
 }> = [
   { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", required: true },
-  { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green" },
+  { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "small", tone: "green" },
   { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow" },
   { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink" },
   { key: "TODAY_PLAN", label: "今日计划", description: "待完成、已完成和预计时间", size: "medium", tone: "blue" },
   { key: "STREAK", label: "连续记录", description: "记录坚持完成任务的天数", size: "small", tone: "orange" },
   { key: "GOAL_BONUS", label: "目标奖励", description: "展示达标后可以获得的奖励", size: "small", tone: "purple" },
-  { key: "QUICK_LINKS", label: "快捷入口", description: "快速前往星宠、星愿和足迹", size: "medium", tone: "teal" },
   { key: "LEADERBOARD", label: "今日排名", description: "查看前三名和自己的今日排名", size: "medium", tone: "indigo" },
   { key: "NOTIFICATIONS", label: "通知", description: "查看新明信片和升级红包", size: "small", tone: "notice" },
 ];

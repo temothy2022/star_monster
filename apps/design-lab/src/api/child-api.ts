@@ -411,7 +411,6 @@ export type TaskDashboardWidgetKey =
   | "TODAY_PLAN"
   | "STREAK"
   | "GOAL_BONUS"
-  | "QUICK_LINKS"
   | "LEADERBOARD"
   | "NOTIFICATIONS";
 

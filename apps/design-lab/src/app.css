@@ -92,7 +92,7 @@
   transition: box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease;
 }
 
-.task-dashboard-widget--large { grid-column: span 8; grid-row: span 31; }
+.task-dashboard-widget--large { grid-column: span 8; grid-row: span 33; }
 .task-dashboard-widget--wide { grid-column: span 4; grid-row: span 22; }
 .task-dashboard-widget--medium { grid-column: span 4; grid-row: span 15; }
 .task-dashboard-widget--small { grid-column: span 4; grid-row: span 12; }
@@ -105,14 +105,6 @@
 .task-dashboard-widget--teal { background: #edfbf8; }
 .task-dashboard-widget--indigo { background: #f1f3ff; }
 .task-dashboard-widget--notice { background: #eef8ff; }
-
-.task-dashboard-shell:not(.is-editing) .task-dashboard-widget[data-task-widget="MASCOT"] {
-  overflow: visible;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-}
-.task-dashboard-shell:not(.is-editing) .task-dashboard-widget[data-task-widget="MASCOT"] .task-mascot-area__glow { display: none; }
 
 .task-dashboard-widget__content { width: 100%; height: 100%; min-height: 0; }
 .task-dashboard-shell.is-editing .task-dashboard-widget { touch-action: none; animation: task-widget-ready 900ms ease-in-out infinite alternate; }
@@ -225,10 +217,12 @@
 .task-widget-heading small { color: #758396; font-size: 13px; font-weight: 800; }
 .task-widget-heading strong { font-size: 21px; line-height: 1.25; }
 
-.task-widget-progress { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr) 150px; align-items: center; gap: 10px; padding: 24px; }
-.task-dashboard-widget .task-widget-progress .daily-progress { position: relative; inset: auto; width: 145px; height: 145px; transform: none; }
-.task-dashboard-widget .task-widget-progress .daily-progress svg { width: 145px; height: 145px; }
-.task-dashboard-widget .task-widget-progress .daily-progress__label { font-size: 25px; letter-spacing: 0; }
+.task-widget-progress { display: flex; height: 100%; align-items: center; gap: 18px; padding: 22px; }
+.task-dashboard-widget .task-widget-progress .daily-progress { position: relative; inset: auto; width: 72px; height: 72px; flex: 0 0 72px; transform: none; }
+.task-dashboard-widget .task-widget-progress .daily-progress svg { width: 72px; height: 72px; }
+.task-dashboard-widget .task-widget-progress .daily-progress__label { font-size: 15px; letter-spacing: 0; }
+.task-widget-progress .task-widget-heading { min-width: 0; }
+.task-widget-progress .task-widget-heading strong { overflow: hidden; font-size: 22px; text-overflow: ellipsis; white-space: nowrap; }
 
 .task-widget-balance,
 .task-widget-streak,
@@ -264,21 +258,6 @@
 .task-widget-goal-bonus__gift i::after { content: ""; position: absolute; z-index: 1; top: -29px; width: 29px; height: 22px; border: 7px solid #ffe078; border-radius: 50% 50% 12% 50%; }
 .task-widget-goal-bonus__gift i::before { left: 6px; transform: rotate(18deg); }
 .task-widget-goal-bonus__gift i::after { right: 6px; transform: scaleX(-1) rotate(18deg); }
-
-.task-widget-links { display: grid; height: 100%; align-content: space-between; gap: 17px; padding: 23px; }
-.task-widget-links > div:last-child { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.task-widget-links button { display: grid; min-width: 0; min-height: 92px; place-content: center; gap: 7px; border: 1px solid rgb(37 59 89 / 17%); border-radius: 10px; color: #253b59; background: rgb(255 255 255 / 68%); font: inherit; font-size: 12px; font-weight: 800; }
-.task-widget-link-icon { position: relative; display: block; width: 38px; height: 38px; margin: auto; }
-.task-widget-link-icon--pet { border: 3px solid #52688b; border-radius: 50%; }
-.task-widget-link-icon--pet::before,
-.task-widget-link-icon--pet::after { content: ""; position: absolute; top: -7px; width: 15px; height: 17px; border: 3px solid #52688b; border-radius: 70% 30% 55% 45%; background: #edfbf8; }
-.task-widget-link-icon--pet::before { left: -2px; transform: rotate(-22deg); }
-.task-widget-link-icon--pet::after { right: -2px; transform: scaleX(-1) rotate(-22deg); }
-.task-widget-link-icon--wish::before { content: "★"; display: grid; width: 38px; height: 38px; place-items: center; color: #f2ae2f; font-size: 35px; line-height: 1; }
-.task-widget-link-icon--footprint::before,
-.task-widget-link-icon--footprint::after { content: ""; position: absolute; border-radius: 55% 45% 60% 40%; background: #ef7e5c; transform: rotate(-24deg); }
-.task-widget-link-icon--footprint::before { left: 5px; bottom: 1px; width: 18px; height: 25px; }
-.task-widget-link-icon--footprint::after { top: 0; right: 3px; width: 15px; height: 21px; }
 
 .task-dashboard-widget .task-mascot-area--widget { position: relative; inset: auto; width: 100%; height: 100%; min-height: 0; overflow: hidden; }
 .task-dashboard-widget .task-mascot-area--widget .task-mascot-area__glow { top: 34%; bottom: 4%; left: 3%; width: 43%; height: auto; }
@@ -374,7 +353,7 @@
   .task-dashboard-widget--small,
   .task-dashboard-add-tile { grid-column: span 3; }
   .task-dashboard-widget--wide { grid-row: span 20; }
-  .task-dashboard-widget--large { grid-row: span 29; }
+  .task-dashboard-widget--large { grid-row: span 31; }
 }
 
 @media (max-width: 600px) {
@@ -392,14 +371,18 @@
   .task-dashboard-widget--medium { grid-column: span 2; }
   .task-dashboard-widget--small,
   .task-dashboard-add-tile { min-height: 0; grid-column: span 1; grid-row: span 15; }
-  .task-dashboard-widget--large { grid-row: span 37; }
+  .task-dashboard-widget--large { grid-row: span 39; }
   .task-dashboard-widget--wide { grid-row: span 27; }
   .task-dashboard-widget--medium { grid-row: span 19; }
   .task-dashboard-widget--small { grid-row: span 15; }
-  .task-widget-progress { padding: 18px; }
+  .task-widget-progress,
   .task-widget-balance,
   .task-widget-streak,
   .task-widget-goal-bonus { flex-direction: column; justify-content: center; gap: 9px; padding: 14px 10px; text-align: center; }
+  .task-dashboard-widget .task-widget-progress .daily-progress { width: 52px; height: 52px; flex-basis: 52px; }
+  .task-dashboard-widget .task-widget-progress .daily-progress svg { width: 52px; height: 52px; }
+  .task-dashboard-widget .task-widget-progress .daily-progress__label { font-size: 11px; }
+  .task-widget-progress .task-widget-heading strong { font-size: 18px; }
   .task-widget-balance__star { width: 52px; height: 52px; flex-basis: 52px; border-radius: 17px; font-size: 30px; }
   .task-widget-balance strong,
   .task-widget-streak strong,
@@ -438,7 +421,7 @@
   .task-dashboard-shell { bottom: calc(86px + env(safe-area-inset-bottom)); }
   .task-dashboard-topbar { min-height: 62px; padding-top: max(5px, env(safe-area-inset-top)); }
   .task-dashboard-scroll { top: 62px; }
-  .task-dashboard-widget--large { grid-row: span 25; }
+  .task-dashboard-widget--large { grid-row: span 27; }
   .task-dashboard-widget--wide { grid-row: span 19; }
   .task-dashboard-widget--medium { grid-row: span 13; }
   .task-dashboard-widget--small { grid-row: span 11; }
