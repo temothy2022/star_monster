@@ -286,19 +286,6 @@ export const MATH_QUESTION_TYPES = [
   }),
 
   defineQuestionType({
-    id: "C01",
-    slug: "one-step-arithmetic",
-    name: "10或20以内一步加减",
-    domain: "C",
-    coreGeneratorId: "ONE_STEP_ARITHMETIC",
-    description: "完成10或20以内的一步加法或减法。",
-    responseModes: ["R01"],
-    sceneStrategy: "NONE",
-    numberRange: "WITHIN_20",
-    difficultyRange: [1, 3],
-    sourceImageNumbers: [19],
-  }),
-  defineQuestionType({
     id: "C02",
     slug: "chain-addition",
     name: "连加",
@@ -751,6 +738,19 @@ export const MATH_QUESTION_TYPES = [
  * older releases continue to generate valid questions.
  */
 export const MATH_LEGACY_QUESTION_TYPES = [
+  defineQuestionType({
+    id: "C01",
+    slug: "one-step-arithmetic-legacy",
+    name: "10或20以内一步加减（旧配置）",
+    domain: "C",
+    coreGeneratorId: "ONE_STEP_ARITHMETIC",
+    description: "旧版一步加减配置，已拆分到按范围和进退位练习。",
+    responseModes: ["R01"],
+    sceneStrategy: "NONE",
+    numberRange: "WITHIN_20",
+    difficultyRange: [1, 3],
+    sourceImageNumbers: [19],
+  }),
   defineQuestionType({
     id: "P02",
     slug: "place-value-compose-legacy",

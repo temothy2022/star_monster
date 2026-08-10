@@ -5,6 +5,7 @@ import {
   MATH_CORE_GENERATOR_IDS,
   MATH_LEGACY_QUESTION_TYPES,
   MATH_QUESTION_CATEGORIES,
+  MATH_QUESTION_CATEGORY_BY_TYPE,
   MATH_QUESTION_DOMAINS,
   MATH_QUESTION_TYPES,
   MATH_QUESTION_TYPES_BY_ID,
@@ -13,7 +14,7 @@ import {
 
 describe("math practice question type registry", () => {
   it("registers compatible teaching types across the expected six legacy domains", () => {
-    expect(MATH_QUESTION_TYPES).toHaveLength(56);
+    expect(MATH_QUESTION_TYPES).toHaveLength(55);
     expect(MATH_QUESTION_DOMAINS.map((domain) => domain.id)).toEqual([
       "N",
       "P",
@@ -30,7 +31,7 @@ describe("math practice question type registry", () => {
           getMathQuestionTypesByDomain(domain.id).length,
         ]),
       ),
-    ).toEqual({ N: 16, P: 5, C: 14, V: 7, W: 9, S: 5 });
+    ).toEqual({ N: 16, P: 5, C: 13, V: 7, W: 9, S: 5 });
   });
 
   it("maps the teaching types onto every registered core generator", () => {
@@ -67,6 +68,8 @@ describe("math practice question type registry", () => {
     expect(categorizedIds).toHaveLength(MATH_QUESTION_TYPES.length);
     expect(new Set(categorizedIds).size).toBe(MATH_QUESTION_TYPES.length);
     expect([...categorizedIds].sort()).toEqual(MATH_QUESTION_TYPES.map((type) => type.id).sort());
+    expect(categorizedIds).not.toContain("C01");
+    expect(MATH_QUESTION_CATEGORY_BY_TYPE.C01.family.id).toBe("RANGE_ARITHMETIC");
   });
 
   it("only references registered response modes and source images", () => {

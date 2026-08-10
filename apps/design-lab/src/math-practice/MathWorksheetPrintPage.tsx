@@ -25,7 +25,7 @@ const MAX_TOTAL = 120;
 const DEFAULT_COUNTS: TypeCounts = {
   N01: 1,
   N06: 1,
-  C01: 2,
+  C07: 2,
   V01: 1,
   W01: 1,
   S04: 1,

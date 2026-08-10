@@ -121,8 +121,9 @@ const mathPracticeSettingsSchema = z.object({
   typeCounts: z.record(z.string(), z.number().int().min(0).max(100)),
   arithmeticItemsPerQuestion: z.record(z.string(), z.number().int().min(1).max(20)).default({}),
 }).superRefine((input, context) => {
-  // Accept the merged P02 alias on read/write so existing parent settings can
-  // be migrated to the canonical P01 entry without a validation failure.
+  // Accept legacy IDs on read/write so existing parent settings can be
+  // migrated without a validation failure. They are not exposed by the new
+  // picker, but old task snapshots may still need their original generator.
   const validIds = new Set<string>([
     ...MATH_QUESTION_TYPES,
     ...MATH_LEGACY_QUESTION_TYPES,
@@ -142,8 +143,8 @@ const mathPracticeSettingsSchema = z.object({
 });
 const DEFAULT_MATH_PRACTICE_SETTINGS = {
   totalQuestions: 10,
-  typeCounts: { N01: 2, C01: 2, V01: 2, V04: 1, W01: 1, W03: 1, S04: 1 },
-  arithmeticItemsPerQuestion: { C01: 5, C02: 5, C03: 5, C04: 5, C05: 5, C06: 5, C07: 5, C08: 5, C09: 5, C10: 5, C11: 5, C12: 5, C13: 5, C14: 5 },
+  typeCounts: { N01: 2, C07: 2, V01: 2, V04: 1, W01: 1, W03: 1, S04: 1 },
+  arithmeticItemsPerQuestion: { C02: 5, C03: 5, C04: 5, C05: 5, C06: 5, C07: 5, C08: 5, C09: 5, C10: 5, C11: 5, C12: 5, C13: 5, C14: 5 },
 };
 
 async function loadMathPracticeSettings(childId: string) {
