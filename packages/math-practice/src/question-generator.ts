@@ -142,7 +142,7 @@ function question(
 function seededDifficulty(typeId: MathQuestionTypeId, seed: number): MathDifficulty {
   const [minimum, maximum] = MATH_QUESTION_TYPES_BY_ID[typeId].difficultyRange;
   if (minimum === maximum) return minimum;
-  const difficultyTypeId = typeId === "P02" ? "P01" : typeId;
+  const difficultyTypeId = typeId === "P02" ? "P01" : typeId === "P04" ? "P03" : typeId;
   const hash = Math.imul(seed ^ difficultyTypeId.charCodeAt(0) ^ difficultyTypeId.charCodeAt(2), 2654435761) >>> 0;
   const roll = hash % 100;
   if (minimum === 1 && maximum === 2) return roll < 45 ? 1 : 2;
@@ -436,20 +436,24 @@ export function generateMathQuestion(
         explanation: `${tens} 个十和 ${ones} 个一组成 ${value}。`,
       });
     }
-    case "P03": {
-      const ones = difficulty === 1 ? rng.int(1, 5) : rng.int(6, 9);
-      const value = 10 + ones;
-      return question(input, { prompt: `${value} 里面有几个十和几个一？`, visual: { kind: "NUMBER_BOXES", values: [value] }, response: { ...numericResponse(2), slotLabels: ["几个十", "几个一"] }, answer: { values: ["1", String(ones)], display: `1 个十，${ones} 个一` }, explanation: `${value} 由 1 个十和 ${ones} 个一组成。` });
-    }
+    case "P03":
     case "P04": {
-      const ones = difficulty === 1 ? rng.int(1, 5) : difficulty === 2 ? rng.int(6, 9) : (rng.next() > 0.5 ? 0 : rng.int(1, 9));
-      const tens = difficulty === 3 && ones === 0 ? 2 : 1;
+      // P03 is the canonical decomposition exercise. P04 remains a runtime
+      // alias for old settings, but both now use the same two-branch model.
+      const tens = difficulty === 1
+        ? rng.int(1, 3)
+        : difficulty === 2
+          ? rng.int(2, 7)
+          : rng.int(7, 9);
+      const ones = rng.int(0, difficulty === 1 ? 5 : 9);
       const value = tens * 10 + ones;
-      const askTens = difficulty === 1 ? false : rng.next() > 0.5;
-      const digit = askTens ? tens : ones;
-      const place = askTens ? "十位" : "个位";
-      const unit = askTens ? "十" : "一";
-      return question(input, { prompt: `${value} 的${place}上是几？它表示几个${unit}？`, visual: { kind: "NUMBER_BOXES", values: [value] }, response: { ...numericResponse(2), slotLabels: ["数位上的数", `表示几个${unit}`] }, answer: { values: [String(digit), String(digit)], display: `${place}是 ${digit}，表示 ${digit} 个${unit}` }, explanation: `从右边起${askTens ? "第二" : "第一"}位是${place}。` });
+      return question(input, {
+        prompt: "把这个数分成几个十和几个一。",
+        visual: { kind: "NUMBER_BOND", total: value, parts: [null, null] },
+        response: { ...numericResponse(2, 1), slotLabels: ["几个十", "几个一"] },
+        answer: { values: [String(tens), String(ones)], display: `${tens} 个十，${ones} 个一` },
+        explanation: `${value} 的十位是 ${tens}，个位是 ${ones}，所以由 ${tens} 个十和 ${ones} 个一组成。`,
+      });
     }
     case "P05": {
       const tens = difficulty === 1 ? 0 : (rng.next() > 0.2 ? 1 : 2);

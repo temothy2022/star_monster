@@ -551,7 +551,10 @@
 .math-paper-question .math-place-value__bundles .math-stick-bundle { width: 10mm; height: 12mm; }
 .math-paper-question .math-number-boxes { gap: 2mm; }
 .math-paper-question .math-number-boxes span { width: 15mm; height: 15mm; border-width: .7mm; border-radius: 3mm; font-size: 18pt; }
-.math-paper-question .math-number-bond { max-width: 54mm; max-height: 42mm; }
+.math-paper-question .math-number-bond { width: 56mm; max-width: 100%; }
+.math-paper-question .math-number-bond__total,
+.math-paper-question .math-number-bond__field > span { border-width: .7mm; border-radius: 2mm; font-size: 16pt; }
+.math-paper-question .math-number-bond__field small { margin-top: 1mm; font-size: 7pt; }
 .math-paper-question .math-queue { gap: .5mm; }
 .math-paper-question .math-queue__item .math-sprite { width: 10mm; height: 10mm; }
 .math-paper-question .math-queue__item b { top: -3mm; font-size: 12pt; }

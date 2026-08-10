@@ -235,26 +235,13 @@ export const MATH_QUESTION_TYPES = [
   defineQuestionType({
     id: "P03",
     slug: "place-value-decompose",
-    name: "把一个数分解成几个十和几个一",
+    name: "数的组成与数位意义",
     domain: "P",
     coreGeneratorId: "PLACE_VALUE_DECOMPOSE",
-    description: "把一个两位数分解为十位和个位的数量。",
+    description: "沿分支把两位数分解为几个十和几个一。",
     responseModes: ["R02"],
     sceneStrategy: "PROGRAMMATIC",
-    numberRange: "WITHIN_20",
-    difficultyRange: [1, 2],
-    sourceImageNumbers: [10, 11],
-  }),
-  defineQuestionType({
-    id: "P04",
-    slug: "place-value-meaning",
-    name: "数位名称与数字表示的意义",
-    domain: "P",
-    coreGeneratorId: "PLACE_VALUE_MEANING",
-    description: "认识十位和个位，并说明某位数字表示几个十或几个一。",
-    responseModes: ["R01", "R02"],
-    sceneStrategy: "PROGRAMMATIC",
-    numberRange: "WITHIN_20",
+    numberRange: "WITHIN_100",
     difficultyRange: [1, 3],
     sourceImageNumbers: [10, 11],
   }),
@@ -655,9 +642,9 @@ export const MATH_QUESTION_TYPES = [
 ] as const satisfies readonly MathQuestionTypeDefinition[];
 
 /**
- * P02 was merged into the picture-reading exercise. Keep its definition out
- * of the user-facing catalogue, but retain a lookup entry so saved parent
- * settings from older releases continue to generate valid questions.
+ * Merged teaching types stay out of the user-facing catalogue, but retain
+ * lookup entries so saved parent settings and active task snapshots from
+ * older releases continue to generate valid questions.
  */
 export const MATH_LEGACY_QUESTION_TYPES = [
   defineQuestionType({
@@ -672,6 +659,19 @@ export const MATH_LEGACY_QUESTION_TYPES = [
     numberRange: "WITHIN_100",
     difficultyRange: [1, 2],
     sourceImageNumbers: [7, 10, 11],
+  }),
+  defineQuestionType({
+    id: "P04",
+    slug: "place-value-meaning-legacy",
+    name: "数的组成与数位意义（旧配置）",
+    domain: "P",
+    coreGeneratorId: "PLACE_VALUE_MEANING",
+    description: "旧版数位意义配置，已合并到 P03。",
+    responseModes: ["R02"],
+    sceneStrategy: "PROGRAMMATIC",
+    numberRange: "WITHIN_100",
+    difficultyRange: [1, 3],
+    sourceImageNumbers: [10, 11],
   }),
 ] as const satisfies readonly MathQuestionTypeDefinition[];
 

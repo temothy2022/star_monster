@@ -132,9 +132,10 @@ const mathPracticeSettingsSchema = z.object({
   if (allocated !== input.totalQuestions) context.addIssue({ code: "custom", path: ["typeCounts"], message: "各题型数量之和必须等于题目总数" });
 }).transform((input) => {
   const typeCounts = { ...input.typeCounts };
-  if (typeCounts.P02) {
-    typeCounts.P01 = (typeCounts.P01 ?? 0) + typeCounts.P02;
-    delete typeCounts.P02;
+  for (const [legacyId, canonicalId] of [["P02", "P01"], ["P04", "P03"]] as const) {
+    if (!(legacyId in typeCounts)) continue;
+    typeCounts[canonicalId] = (typeCounts[canonicalId] ?? 0) + (typeCounts[legacyId] ?? 0);
+    delete typeCounts[legacyId];
   }
   return { ...input, typeCounts };
 });

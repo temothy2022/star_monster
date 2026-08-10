@@ -99,6 +99,43 @@ describe("math practice question generator", () => {
     }
   });
 
+  it("varies P03 tens and ones and renders the answers inside a two-branch model", () => {
+    const tensSeen = new Set<number>();
+    const onesSeen = new Set<number>();
+    for (let seed = 1; seed <= 240; seed += 1) {
+      const question = generateMathQuestion({ typeId: "P03", seed });
+      expect(question.prompt).toBe("把这个数分成几个十和几个一。");
+      expect(question.visual.kind).toBe("NUMBER_BOND");
+      if (question.visual.kind !== "NUMBER_BOND") continue;
+      const total = question.visual.total;
+      expect(total).not.toBeNull();
+      const tens = Number(question.answer.values[0]);
+      const ones = Number(question.answer.values[1]);
+      expect(tens).toBeGreaterThanOrEqual(1);
+      expect(tens).toBeLessThanOrEqual(9);
+      expect(ones).toBeGreaterThanOrEqual(0);
+      expect(ones).toBeLessThanOrEqual(9);
+      expect(total).toBe(tens * 10 + ones);
+      expect(question.visual.parts).toEqual([null, null]);
+      expect(question.response.slotLabels).toEqual(["几个十", "几个一"]);
+      tensSeen.add(tens);
+      onesSeen.add(ones);
+    }
+    expect(tensSeen.size).toBe(9);
+    expect(onesSeen.size).toBe(10);
+  });
+
+  it("keeps P04 saved settings as an alias of the merged P03 exercise", () => {
+    for (let seed = 1; seed <= 30; seed += 1) {
+      const canonical = generateMathQuestion({ typeId: "P03", seed });
+      const legacy = generateMathQuestion({ typeId: "P04", seed });
+      expect(legacy.prompt).toBe(canonical.prompt);
+      expect(legacy.visual).toEqual(canonical.visual);
+      expect(legacy.response).toEqual(canonical.response);
+      expect(legacy.answer).toEqual(canonical.answer);
+    }
+  });
+
   it("keeps N02 wording stable when containers wrap across rows", () => {
     for (let seed = 1; seed <= 80; seed += 1) {
       const question = generateMathQuestion({ typeId: "N02", seed });

@@ -41,8 +41,8 @@ export const MATH_QUESTION_CATEGORIES = [
   {
     id: "PLACE_VALUE", name: "数位与表征", order: 2, families: [
       { id: "READ_REPRESENTATION", name: "看图写数", description: "从十捆和单根小棍的图片读写数字", typeIds: ["P01"] },
-      { id: "COMPOSE_DECOMPOSE", name: "十和一的分解", description: "把两位数分成几个十和几个一", typeIds: ["P03"] },
-      { id: "PLACE_MEANING", name: "数位意义与推理", description: "理解十位个位并根据条件推理", typeIds: ["P04", "P07"] },
+      { id: "COMPOSE_DECOMPOSE", name: "数的组成与数位意义", description: "沿分支把两位数分成几个十和几个一", typeIds: ["P03"] },
+      { id: "PLACE_MEANING", name: "数位条件推理", description: "根据十位和个位条件推理数字", typeIds: ["P07"] },
       { id: "ABACUS", name: "计数器读数与拨数", description: "看珠写数和用珠表示数", typeIds: ["P05", "P06"] },
     ],
   },
@@ -120,10 +120,12 @@ const questionCategoryEntries: MathQuestionCategoryEntry[] = MATH_QUESTION_CATEG
   ),
 ).map(([typeId, value]) => [typeId, value] as MathQuestionCategoryEntry);
 
-// P02 is intentionally absent from the picker after the merge. Point legacy
-// lookups at P01's family so old saved settings still have a valid category.
-const p01Category = questionCategoryEntries.find(([typeId]) => typeId === "P01")?.[1];
-if (p01Category) questionCategoryEntries.push(["P02" as MathQuestionTypeId, p01Category]);
+// Merged IDs stay absent from the picker. Point legacy lookups at their
+// canonical family so old saved settings still have a valid category.
+for (const [legacyId, canonicalId] of [["P02", "P01"], ["P04", "P03"]] as const) {
+  const category = questionCategoryEntries.find(([typeId]) => typeId === canonicalId)?.[1];
+  if (category) questionCategoryEntries.push([legacyId as MathQuestionTypeId, category]);
+}
 
 export const MATH_QUESTION_CATEGORY_BY_TYPE = Object.fromEntries(
   questionCategoryEntries,

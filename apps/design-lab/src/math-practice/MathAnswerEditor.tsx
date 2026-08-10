@@ -371,6 +371,7 @@ export function MathAnswerEditor({
     const next = Array.from({ length: slotCount }, (_, index) => values[index] ?? "");
     next[activeSlot] = nextValue;
     onChange(next);
+    if (maxDigits === 1 && activeSlot < slotCount - 1) setActiveSlot(activeSlot + 1);
   }
 
   function removeDigit() {

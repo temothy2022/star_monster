@@ -133,16 +133,16 @@ export const MATH_TEACHING_GUIDES_BY_TYPE: Record<MathQuestionTypeId, MathTeachi
     visual: "PLACE_VALUE",
   },
   P03: {
-    focus: "把两位数分解为几个十和几个一。",
+    focus: "理解两位数由几个十和几个一组成。",
     commonMistake: "把十位数字当成个位数量。",
-    hints: ["看十位数字，它表示几个十。", "看个位数字，它表示几个一。"],
-    visual: "PLACE_VALUE",
+    hints: ["先看左边的十位，它告诉你有几个十。", "再看右边的个位，把几个十和几个一分别填进分支框。"],
+    visual: "PART_WHOLE",
   },
   P04: {
-    focus: "理解同一数字处在不同数位时的意义。",
-    commonMistake: "只说数字本身，不说明它表示几个十或几个一。",
-    hints: ["先指一指数位：左边十位，右边个位。", "数字在哪一位，就表示几个十或几个一。"],
-    visual: "PLACE_VALUE",
+    focus: "旧版数位意义配置的兼容入口。",
+    commonMistake: "把十位数字当成个位数量。",
+    hints: ["先看左边的十位，它告诉你有几个十。", "再看右边的个位，把几个十和几个一分别填进分支框。"],
+    visual: "PART_WHOLE",
   },
   P05: {
     focus: "把十位杆、个位杆的珠子转换为两位数。",

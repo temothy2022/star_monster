@@ -41,9 +41,10 @@ export function countAllocatedQuestions(typeCounts: Record<string, number>) {
 
 export function normalizeLegacyMathTypeCounts(typeCounts: Record<string, number>) {
   const normalized = { ...typeCounts };
-  if (normalized.P02) {
-    normalized.P01 = (normalized.P01 ?? 0) + normalized.P02;
-    delete normalized.P02;
+  for (const [legacyId, canonicalId] of [["P02", "P01"], ["P04", "P03"]] as const) {
+    if (!(legacyId in normalized)) continue;
+    normalized[canonicalId] = (normalized[canonicalId] ?? 0) + (normalized[legacyId] ?? 0);
+    delete normalized[legacyId];
   }
   return normalized;
 }

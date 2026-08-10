@@ -64,7 +64,7 @@ const lengthAssetLabels: Record<MathLengthAssetKey, string> = {
   spoons: "三把长短不同的勺子",
 };
 
-type VisualQuestion = Pick<MathQuestion, "typeId" | "visual" | "helper">;
+type VisualQuestion = Pick<MathQuestion, "typeId" | "visual" | "helper" | "response">;
 
 type MathVisualProps = {
   question: VisualQuestion;
@@ -254,17 +254,52 @@ function NumberBoxes({
   );
 }
 
-function NumberBond({ total, parts }: { total: number | null; parts: readonly [number | null, number | null] }) {
+function NumberBond({
+  total,
+  parts,
+  answerValues = [],
+  activeSlot = 0,
+  slotLabels,
+  disabled = false,
+  onSlotSelect,
+}: {
+  total: number | null;
+  parts: readonly [number | null, number | null];
+  answerValues?: readonly string[];
+  activeSlot?: number;
+  slotLabels?: readonly string[];
+  disabled?: boolean;
+  onSlotSelect?: (index: number) => void;
+}) {
   return (
-    <svg className="math-number-bond" viewBox="0 0 360 210" role="img" aria-label="数的分与合">
-      <path d="M180 84 L95 152 M180 84 L265 152" />
-      <rect x="132" y="18" width="96" height="66" rx="16" />
-      <rect x="47" y="142" width="96" height="58" rx="16" />
-      <rect x="217" y="142" width="96" height="58" rx="16" />
-      <text x="180" y="62">{total ?? "?"}</text>
-      <text x="95" y="181">{parts[0] ?? "?"}</text>
-      <text x="265" y="181">{parts[1] ?? "?"}</text>
-    </svg>
+    <div className="math-number-bond" role="group" aria-label="数的组成与分解">
+      <span className="math-number-bond__total">{total ?? "?"}</span>
+      <svg className="math-number-bond__lines" viewBox="0 0 360 210" aria-hidden="true">
+        <path d="M180 76 L95 148 M180 76 L265 148" />
+      </svg>
+      <div className="math-number-bond__branches">
+        {parts.map((part, index) => {
+          const value = part ?? answerValues[index] ?? "";
+          const label = slotLabels?.[index];
+          return (
+            <div className="math-number-bond__field" key={index}>
+              {onSlotSelect ? (
+                <button
+                  className={activeSlot === index ? "is-active" : ""}
+                  type="button"
+                  disabled={disabled}
+                  aria-label={`${label ?? `第 ${index + 1} 个分支`}，${value ? `已填写 ${value}` : "未填写"}`}
+                  onClick={() => onSlotSelect(index)}
+                >
+                  {value || <span>?</span>}
+                </button>
+              ) : <span>{value || "?"}</span>}
+              {label ? <small>{label}</small> : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -676,7 +711,17 @@ function MathVisualComponent({
         />
       );
     case "NUMBER_BOND":
-      return <NumberBond total={question.visual.total} parts={question.visual.parts} />;
+      return (
+        <NumberBond
+          total={question.visual.total}
+          parts={question.visual.parts}
+          answerValues={["P03", "P04"].includes(question.typeId) ? values : []}
+          activeSlot={activeSlot}
+          slotLabels={question.response.slotLabels}
+          disabled={disabled}
+          onSlotSelect={["P03", "P04"].includes(question.typeId) ? onSlotSelect : undefined}
+        />
+      );
     case "QUEUE":
       return <Queue question={question} values={values} disabled={disabled} onChange={onChange} />;
     case "COUNT_ADJUST":
@@ -703,7 +748,7 @@ function mathVisualPropsEqual(previous: MathVisualProps, next: MathVisualProps) 
   if (previous.question !== next.question) return false;
   if (previous.cubeVisibleLayers !== next.cubeVisibleLayers || previous.cubeAnimatingLayer !== next.cubeAnimatingLayer) return false;
   if (previous.activeSlot !== next.activeSlot) return false;
-  if (!["LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES"].includes(previous.question.visual.kind)) return true;
+  if (!["LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES", "NUMBER_BOND"].includes(previous.question.visual.kind)) return true;
   return previous.disabled === next.disabled && sameValues(previous.values, next.values);
 }
 

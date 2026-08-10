@@ -224,7 +224,7 @@ function PaperResponse({ question }: { question: MathQuestion }) {
   // These exercises already contain their own answer area in the prompt or
   // illustration. P01/P02 are picture-to-number exercises, so they need a
   // handwritten answer line on paper even though the screen uses a keypad.
-  if (["S03", "N09", "N04", "N05", "N15", "N16", "P06"].includes(question.typeId)) return null;
+  if (["S03", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06"].includes(question.typeId)) return null;
   if (question.response.mode === "R04") return <EquationBlanks question={question} />;
   const options = question.response.options ?? [];
   if (options.length > 0 && question.response.mode !== "R03") {

@@ -128,7 +128,7 @@ export function MathPracticeExperience({
   const logicGridRowCount = question?.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
   const isLogicGrid = question?.typeId === "S03" && logicGridRowCount > 0;
   const isInlineSort = question?.typeId === "N09";
-  const isInlineNumberSequence = question?.typeId === "N07";
+  const isInlineVisualSlots = question != null && ["N07", "P03", "P04"].includes(question.typeId);
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;
   const isDirectVisualAnswer = isLogicGrid || question?.typeId === "N15" || question?.typeId === "N16";
   const directVisualComplete = isLogicGrid
@@ -164,7 +164,7 @@ export function MathPracticeExperience({
         ) : null}
 
         {!session.completedAt && question ? (
-          <div className={`math-question-layout${isDirectVisualAnswer || isInlineNumberSequence ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
+          <div className={`math-question-layout${isDirectVisualAnswer || isInlineVisualSlots ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}`}>
             <article className="math-question-card" data-math-type={question.typeId} data-math-hint-level={hintLevel}>
               <div className="math-question-card__prompt">
                 <span>{question.typeId}</span>
@@ -182,7 +182,7 @@ export function MathPracticeExperience({
                   onLevelChange={setHintLevel}
                 />
               </div>
-              <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : isInlineNumberSequence ? "inline-number-sequence" : question.visual.kind.toLowerCase()}`}>
+              <div className={`math-visual-board math-visual-board--${isInlineSort ? "inline-sort" : isInlineVisualSlots ? "inline-number-sequence" : question.visual.kind.toLowerCase()}`}>
                 {isInlineSort ? (
                   <div className="math-inline-sort-answer">
                     <MathAnswerEditor
@@ -195,7 +195,7 @@ export function MathPracticeExperience({
                     />
                     {error ? <div className="math-session__error">{error}</div> : null}
                   </div>
-                ) : isInlineNumberSequence ? (
+                ) : isInlineVisualSlots ? (
                   <div className="math-inline-number-sequence">
                     <MathVisual
                       question={question}
@@ -237,7 +237,7 @@ export function MathPracticeExperience({
               ) : null}
             </article>
 
-            {!isDirectVisualAnswer && !isInlineSort && !isInlineNumberSequence ? <aside className="math-answer-card">
+            {!isDirectVisualAnswer && !isInlineSort && !isInlineVisualSlots ? <aside className="math-answer-card">
               <div className="math-answer-card__top">
                 <span>我的答案</span>
               </div>

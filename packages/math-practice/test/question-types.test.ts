@@ -13,7 +13,7 @@ import {
 
 describe("math practice question type registry", () => {
   it("registers compatible teaching types across the expected six legacy domains", () => {
-    expect(MATH_QUESTION_TYPES).toHaveLength(49);
+    expect(MATH_QUESTION_TYPES).toHaveLength(48);
     expect(MATH_QUESTION_DOMAINS.map((domain) => domain.id)).toEqual([
       "N",
       "P",
@@ -30,7 +30,7 @@ describe("math practice question type registry", () => {
           getMathQuestionTypesByDomain(domain.id).length,
         ]),
       ),
-    ).toEqual({ N: 16, P: 6, C: 6, V: 7, W: 9, S: 5 });
+    ).toEqual({ N: 16, P: 5, C: 6, V: 7, W: 9, S: 5 });
   });
 
   it("maps the teaching types onto every registered core generator", () => {
