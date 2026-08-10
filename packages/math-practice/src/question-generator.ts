@@ -325,13 +325,13 @@ export function generateMathQuestion(
         const groups = rng.shuffle([first, second, second + rng.int(1, 3)]);
         const target = askMost ? Math.max(...groups) : Math.min(...groups);
         const answerIndex = groups.indexOf(target);
-        const verticalPositions = ["上面", "中间", "下面"] as const;
+        const groupLabels = ["A", "B", "C"] as const;
         return question(input, {
           prompt: `数一数，哪一组${askMost ? "最多" : "最少"}？`,
-          visual: { kind: "OBJECT_GROUPS", asset, groups, orientation: "VERTICAL", groupLabels: verticalPositions },
-          response: optionResponse(verticalPositions),
-          answer: { values: [verticalPositions[answerIndex]!], display: verticalPositions[answerIndex]! },
-          explanation: `${verticalPositions[answerIndex]}一组有 ${target} 个，数量${askMost ? "最多" : "最少"}。`,
+          visual: { kind: "OBJECT_GROUPS", asset, groups, orientation: "VERTICAL", groupLabels },
+          response: optionResponse(groupLabels),
+          answer: { values: [groupLabels[answerIndex]!], display: groupLabels[answerIndex]! },
+          explanation: `${groupLabels[answerIndex]}组有 ${target} 个，数量${askMost ? "最多" : "最少"}。`,
         });
       }
       if (difficulty === 1) {

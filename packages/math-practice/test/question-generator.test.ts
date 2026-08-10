@@ -83,6 +83,20 @@ describe("math practice question generator", () => {
     }
   });
 
+  it("labels N10 three-group choices with A, B and C", () => {
+    for (let seed = 1; seed <= 80; seed += 1) {
+      const question = generateMathQuestion({ typeId: "N10", seed, difficulty: 3 });
+      expect(question.response.options).toEqual(["A", "B", "C"]);
+      expect(question.answer.values).toHaveLength(1);
+      expect(question.answer.values[0]).toMatch(/^[ABC]$/);
+      expect(question.prompt).not.toContain("中间");
+      expect(question.explanation).not.toContain("中间");
+      expect(question.visual.kind).toBe("OBJECT_GROUPS");
+      if (question.visual.kind !== "OBJECT_GROUPS") continue;
+      expect(question.visual.groupLabels).toEqual(["A", "B", "C"]);
+    }
+  });
+
   it("uses program coordinates as the source of truth for cube counting", () => {
     const structures = new Set<string>();
     for (let seed = 1; seed <= 20; seed += 1) {
