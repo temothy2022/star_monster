@@ -30,6 +30,7 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   { key: "GOAL_BONUS", label: "目标奖励", description: "展示达标后可以获得的奖励", size: "small", tone: "purple" },
   { key: "QUICK_LINKS", label: "快捷入口", description: "快速前往星宠、星愿和足迹", size: "medium", tone: "teal" },
   { key: "LEADERBOARD", label: "今日排名", description: "查看前三名和自己的今日排名", size: "medium", tone: "indigo" },
+  { key: "NOTIFICATIONS", label: "通知", description: "查看新明信片和升级红包", size: "small", tone: "notice" },
 ];
 
 const WIDGET_BY_KEY = new Map(TASK_DASHBOARD_WIDGETS.map((widget) => [widget.key, widget]));

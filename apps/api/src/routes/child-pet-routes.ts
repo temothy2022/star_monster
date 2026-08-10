@@ -6,6 +6,7 @@ import {
   careForPet,
   cleanPetWaste,
   getPetGrowthState,
+  getPetNotificationSummary,
   openPetRedPacket,
   purchasePetRoomTheme,
   revealPetTrip,
@@ -27,6 +28,11 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
   app.get("/api/child/pet", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     return getPetGrowthState(child.id, config);
+  });
+
+  app.get("/api/child/pet/notifications", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    return getPetNotificationSummary(child.id);
   });
 
   app.post("/api/child/pet/feed", async (request, reply) => {

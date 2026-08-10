@@ -421,6 +421,36 @@ function serializeTrip(trip: {
   };
 }
 
+export async function getPetNotificationSummary(childId: string, now = new Date()) {
+  const [returnedPostcard, redPacketCount] = await Promise.all([
+    prisma.petTrip.findFirst({
+      where: {
+        childId,
+        status: { in: ["TRAVELING", "RETURNED"] },
+        returnsAt: { lte: now },
+      },
+      orderBy: { departedAt: "desc" },
+      select: {
+        id: true,
+        destinationNameSnapshot: true,
+      },
+    }),
+    prisma.petRedPacket.count({
+      where: { childId, openedAt: null },
+    }),
+  ]);
+
+  return {
+    returnedPostcard: returnedPostcard
+      ? {
+          tripId: returnedPostcard.id,
+          destinationName: returnedPostcard.destinationNameSnapshot,
+        }
+      : null,
+    redPacketCount,
+  };
+}
+
 export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
   const now = new Date();
   const today = businessDateAt(now, appConfig.APP_TIME_ZONE);

@@ -121,6 +121,7 @@ function operationFor(path: string) {
   const operations: Record<string, string> = {
     "/api/child/tasks/today": "load_tasks",
     "/api/child/pet": "load_pet_growth",
+    "/api/child/pet/notifications": "load_pet_notifications",
     "/api/child/planets": "load_planets",
     "/api/child/wishes": "load_wishes",
     "/api/child/footprints": "load_footprints",

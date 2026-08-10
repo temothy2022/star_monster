@@ -230,6 +230,14 @@ export type PetGrowthState = {
   postcards: PetTrip[];
 };
 
+export type PetNotificationSummary = {
+  returnedPostcard: null | {
+    tripId: string;
+    destinationName: string;
+  };
+  redPacketCount: number;
+};
+
 export type PetRoomTheme = {
   key: string;
   name: string;
@@ -252,6 +260,13 @@ export type PetRoomTheme = {
 
 export function getPetGrowth(signal?: AbortSignal) {
   return request<PetGrowthState>("/api/child/pet", { cache: "no-store", signal });
+}
+
+export function getPetNotifications(signal?: AbortSignal) {
+  return request<PetNotificationSummary>("/api/child/pet/notifications", {
+    cache: "no-store",
+    signal,
+  });
 }
 
 export function careForPet(kind: "feed" | "drink", idempotencyKey: string) {
@@ -397,7 +412,8 @@ export type TaskDashboardWidgetKey =
   | "STREAK"
   | "GOAL_BONUS"
   | "QUICK_LINKS"
-  | "LEADERBOARD";
+  | "LEADERBOARD"
+  | "NOTIFICATIONS";
 
 export type TaskDashboardLayout = {
   version: 1;

@@ -32,6 +32,7 @@ import {
   ApiError,
   getChildPlanets,
   getChildFootprints,
+  getPetNotifications,
   getTodayTasks,
   markChildPlanetNotified,
   updateTaskDashboardLayout,
@@ -41,6 +42,7 @@ import {
   type DailyTask,
   type MascotAsset,
   type MascotDialogue,
+  type PetNotificationSummary,
   type TaskAttempt,
   type TodayTaskExperience,
   type TaskDashboardWidgetKey,
@@ -458,6 +460,53 @@ function CompactLeaderboardWidget({ leaderboard }: { leaderboard: ChildLeaderboa
   );
 }
 
+function NotificationWidget({
+  notifications,
+  onNavigate,
+}: {
+  notifications: PetNotificationSummary | null | undefined;
+  onNavigate?: (route: ChildRoute) => void;
+}) {
+  const returnedPostcard = notifications?.returnedPostcard ?? null;
+  const redPacketCount = notifications?.redPacketCount ?? 0;
+  const notificationCount = (returnedPostcard ? 1 : 0) + (redPacketCount > 0 ? 1 : 0);
+  const openPetHome = () => onNavigate?.("pet-growth");
+
+  return (
+    <div className="task-widget-notifications" aria-live="polite">
+      <header>
+        <strong>通知</strong>
+        {notificationCount > 0 && <span>{notificationCount}</span>}
+      </header>
+      <div className="task-widget-notifications__list">
+        {notifications === undefined && (
+          <div className="task-widget-notifications__empty is-loading"><i /><small>正在查看新消息</small></div>
+        )}
+        {notifications === null && (
+          <div className="task-widget-notifications__empty"><i /><small>稍后再来看看</small></div>
+        )}
+        {notifications && notificationCount === 0 && (
+          <div className="task-widget-notifications__empty"><i /><small>暂时没有新消息</small></div>
+        )}
+        {returnedPostcard && (
+          <button type="button" onClick={openPetHome}>
+            <i className="task-widget-notifications__icon is-postcard" aria-hidden="true"><b /></i>
+            <span><strong>明信片到了</strong><small>来自{returnedPostcard.destinationName}</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+        )}
+        {redPacketCount > 0 && (
+          <button type="button" onClick={openPetHome}>
+            <i className="task-widget-notifications__icon is-packet" aria-hidden="true"><b /></i>
+            <span><strong>{redPacketCount} 个升级红包</strong><small>去拆开惊喜</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PendingTaskCard({
   task,
   starting,
@@ -674,6 +723,7 @@ export function TaskExperience({
   const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
   const [dailyLeaderboard, setDailyLeaderboard] = useState<ChildLeaderboard | null>(null);
+  const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
   const onStartAttemptRef = useRef(onStartAttempt);
 
   useEffect(() => {
@@ -803,6 +853,41 @@ export function TaskExperience({
     { enabled: leaderboardEnabled, intervalMs: 60_000 },
   );
 
+  const notificationsEnabled = variant === "dashboard" && Boolean(
+    experience?.taskDashboardLayout.widgets.includes("NOTIFICATIONS"),
+  );
+
+  useEffect(() => {
+    if (!notificationsEnabled) {
+      setPetNotifications(undefined);
+      return;
+    }
+    const controller = new AbortController();
+    void getPetNotifications(controller.signal)
+      .then(setPetNotifications)
+      .catch((reason: unknown) => {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+          return;
+        }
+        if (!controller.signal.aborted) setPetNotifications(null);
+      });
+    return () => controller.abort();
+  }, [notificationsEnabled]);
+
+  useLiveRefresh(
+    async (signal) => {
+      try {
+        setPetNotifications(await getPetNotifications(signal));
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: notificationsEnabled, intervalMs: 30_000 },
+  );
+
   useEffect(() => {
     if (experience) {
       reportChildPageReady(
@@ -910,6 +995,8 @@ export function TaskExperience({
         return <QuickLinksWidget onNavigate={onNavigate} />;
       case "LEADERBOARD":
         return <CompactLeaderboardWidget leaderboard={dailyLeaderboard} />;
+      case "NOTIFICATIONS":
+        return <NotificationWidget notifications={petNotifications} onNavigate={onNavigate} />;
     }
   }
 

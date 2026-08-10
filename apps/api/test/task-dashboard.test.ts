@@ -11,12 +11,13 @@ describe("task dashboard layout", () => {
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("TASKS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("MASCOT");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("LEADERBOARD");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("NOTIFICATIONS");
   });
 
   it("keeps a valid child-defined order", () => {
     const layout = {
       version: 1 as const,
-      widgets: ["BALANCE", "TASKS", "QUICK_LINKS", "LEADERBOARD"] as const,
+      widgets: ["BALANCE", "TASKS", "QUICK_LINKS", "LEADERBOARD", "NOTIFICATIONS"] as const,
     };
     expect(normalizeTaskDashboardLayout(layout)).toEqual(layout);
   });
