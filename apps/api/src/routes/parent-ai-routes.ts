@@ -2,6 +2,7 @@ import { Prisma, type AiRecommendationKind } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  legacyCompactWeeklyGrowthResponseSchema,
   legacyWeeklyGrowthResponseSchema,
   rewardAuditResponseSchema,
   scheduleResponseSchema,
@@ -179,23 +180,77 @@ function weeklyReportResponse(
   report: Awaited<ReturnType<typeof latestWeeklyGrowthReport>>,
 ) {
   if (!report) return null;
+  const metrics =
+    report.metricsPayload &&
+    typeof report.metricsPayload === "object" &&
+    !Array.isArray(report.metricsPayload)
+      ? report.metricsPayload
+      : null;
+  const period =
+    metrics?.period &&
+    typeof metrics.period === "object" &&
+    !Array.isArray(metrics.period)
+      ? metrics.period
+      : null;
+  const analysisStart =
+    typeof period?.from === "string"
+      ? period.from
+      : report.weekStart.toISOString().slice(0, 10);
+  const analysisEnd =
+    typeof period?.to === "string"
+      ? period.to
+      : report.weekEnd.toISOString().slice(0, 10);
   const parsed = weeklyGrowthResponseSchema.safeParse(report.responsePayload);
-  const legacy = parsed.success
+  const compactLegacy = parsed.success
+    ? null
+    : legacyCompactWeeklyGrowthResponseSchema.safeParse(report.responsePayload);
+  const legacy = parsed.success || compactLegacy?.success
     ? null
     : legacyWeeklyGrowthResponseSchema.safeParse(report.responsePayload);
   const analysis = parsed.success
     ? parsed.data
+    : compactLegacy?.success
+      ? {
+          summary: compactLegacy.data.summary,
+          dataQuality: "LIMITED" as const,
+          doingWell: compactLegacy.data.strengths.map((evidence, index) => ({
+            templateId: `legacy-compact-strength-${index}`,
+            title: `坚持表现 ${index + 1}`,
+            evidence,
+            nextStep: "继续保持当前安排",
+          })),
+          needsAdjustment: compactLegacy.data.focus
+            ? [{
+                templateId: "legacy-compact-focus",
+                title: "优先关注",
+                evidence: compactLegacy.data.focus,
+                nextStep: compactLegacy.data.suggestions[0] ?? "继续观察",
+              }]
+            : [],
+          cadenceChanges: [],
+          recommendedSchedule: [],
+          parentActions: compactLegacy.data.suggestions,
+        }
     : legacy?.success
       ? {
           summary: legacy.data.summary,
-          strengths: legacy.data.progressHighlights
-            .slice(0, 2)
-            .map((item) => `${item.title}：${item.evidence}`),
-          focus: legacy.data.focusAreas[0]
-            ? `${legacy.data.focusAreas[0].title}：${legacy.data.focusAreas[0].evidence}`
-            : null,
-          suggestions: legacy.data.nextWeekSuggestions
-            .slice(0, 2)
+          dataQuality: "LIMITED" as const,
+          doingWell: legacy.data.progressHighlights.slice(0, 3).map((item, index) => ({
+            templateId: `legacy-strength-${index}`,
+            title: item.title,
+            evidence: item.evidence,
+            nextStep: "继续保持当前安排",
+          })),
+          needsAdjustment: legacy.data.focusAreas.slice(0, 3).map((item, index) => ({
+            templateId: `legacy-focus-${index}`,
+            title: item.title,
+            evidence: item.evidence,
+            nextStep: item.suggestion,
+          })),
+          cadenceChanges: [],
+          recommendedSchedule: [],
+          parentActions: legacy.data.nextWeekSuggestions
+            .slice(0, 3)
             .map((item) => item.action),
         }
       : null;
@@ -204,6 +259,8 @@ function weeklyReportResponse(
     status: report.status,
     weekStart: report.weekStart,
     weekEnd: report.weekEnd,
+    analysisStart,
+    analysisEnd,
     generatedAt: report.generatedAt,
     model: report.model,
     analysis,

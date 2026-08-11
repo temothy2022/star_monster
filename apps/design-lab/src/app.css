@@ -15922,37 +15922,6 @@ body,
   animation: task-reward-modal-arrive 0.58s cubic-bezier(0.18, 0.88, 0.32, 1.24) both;
 }
 
-.task-reward-modal__eyebrow {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 18px;
-  border: 2px solid #253b59;
-  border-radius: 999px;
-  background: #ffe9a8;
-  color: #9b4c13;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 22px;
-}
-
-.task-reward-modal h1 {
-  margin: 10px 0 0;
-  color: #253b59;
-  font-size: 38px;
-  font-weight: 900;
-  line-height: 1.18;
-}
-
-.task-reward-modal__encouragement {
-  margin: 7px 0 0;
-  color: #66748a;
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 26px;
-}
-
 .task-reward-stage {
   position: relative;
   width: 342px;
@@ -16091,18 +16060,6 @@ body,
   color: #9b4c13;
 }
 
-.task-reward-modal__task {
-  max-width: 100%;
-  margin: 12px 0 0;
-  overflow: hidden;
-  color: #647187;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 22px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .task-reward-modal__continue {
   display: inline-flex;
   width: min(300px, 100%);
@@ -16201,23 +16158,6 @@ body,
     border-radius: 20px;
   }
 
-  .task-reward-modal__eyebrow {
-    min-height: 32px;
-    padding: 3px 14px;
-    font-size: 14px;
-  }
-
-  .task-reward-modal h1 {
-    margin-top: 8px;
-    font-size: 29px;
-  }
-
-  .task-reward-modal__encouragement {
-    margin-top: 5px;
-    font-size: 15px;
-    line-height: 22px;
-  }
-
   .task-reward-stage {
     width: 250px;
     height: 204px;
@@ -16239,19 +16179,11 @@ body,
   .task-reward-total strong { font-size: 43px; line-height: 47px; }
   .task-reward-total img { width: 34px; height: 34px; }
   .task-reward-breakdown { margin-top: 12px; font-size: 13px; }
-  .task-reward-modal__task { margin-top: 10px; font-size: 14px; }
   .task-reward-modal__continue { height: 54px; margin-top: 13px; font-size: 19px; }
 }
 
 @media (orientation: landscape) and (max-height: 700px) {
   .task-reward-modal {
-    grid-template-areas:
-      "eyebrow stage"
-      "title stage"
-      "encouragement stage"
-      "total stage"
-      "breakdown task"
-      "continue continue";
     grid-template-columns: minmax(250px, 0.95fr) minmax(270px, 1.05fr);
     column-gap: 22px;
     width: min(820px, calc(100vw - 32px));
@@ -16259,32 +16191,21 @@ body,
     padding: 20px 30px 18px;
   }
 
-  .task-reward-modal__eyebrow { grid-area: eyebrow; }
-  .task-reward-modal h1 { grid-area: title; font-size: 31px; }
-  .task-reward-modal__encouragement { grid-area: encouragement; font-size: 15px; }
-  .task-reward-stage { grid-area: stage; width: 300px; height: 258px; margin: 0; align-self: center; }
+  .task-reward-stage { grid-column: 2; grid-row: 1 / span 2; width: 300px; height: 258px; margin: 0; align-self: center; }
   .task-reward-stage__halo { width: 300px; height: 300px; }
   .task-reward-stage__mascot { width: 178px; height: 178px; }
   .task-reward-stage__orbit--one { width: 210px; height: 88px; }
   .task-reward-stage__orbit--two { width: 260px; height: 112px; }
-  .task-reward-total { grid-area: total; margin-top: 10px; }
-  .task-reward-breakdown { grid-area: breakdown; margin-top: 12px; }
-  .task-reward-modal__task { grid-area: task; align-self: center; margin-top: 12px; }
-  .task-reward-modal__continue { grid-area: continue; height: 52px; margin-top: 13px; }
+  .task-reward-total { grid-column: 1; grid-row: 1; margin-top: 10px; }
+  .task-reward-breakdown { grid-column: 1; grid-row: 2; margin-top: 12px; }
+  .task-reward-modal__continue { grid-column: 1 / -1; grid-row: 3; height: 52px; margin-top: 13px; }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
   .task-reward-modal {
-    grid-template-areas:
-      "eyebrow stage"
-      "title stage"
-      "total stage"
-      "breakdown task"
-      "continue continue";
     padding: 14px 24px 13px;
   }
 
-  .task-reward-modal__encouragement { display: none; }
   .task-reward-stage { width: 246px; height: 202px; }
   .task-reward-stage__halo { width: 242px; height: 242px; }
   .task-reward-stage__mascot { width: 146px; height: 146px; }
@@ -16293,7 +16214,6 @@ body,
   .task-reward-total { min-height: 58px; }
   .task-reward-total strong { font-size: 40px; line-height: 44px; }
   .task-reward-breakdown { min-height: 34px; margin-top: 8px; }
-  .task-reward-modal__task { margin-top: 8px; }
   .task-reward-modal__continue { height: 48px; margin-top: 9px; }
 }
 

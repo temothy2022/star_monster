@@ -3,6 +3,7 @@ import {
   parentApi,
   type Child,
   type GrowthAnalytics,
+  type WeeklyGrowthAnalysis,
   type WeeklyGrowthReport,
 } from "./api";
 
@@ -220,6 +221,17 @@ function responseTime(value: number | null) {
   return value === null ? "—" : `${(value / 1000).toFixed(2)} 秒`;
 }
 
+const WEEKDAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+function recommendedCadence(
+  item: WeeklyGrowthAnalysis["recommendedSchedule"][number],
+) {
+  if (item.frequency === "DAILY") return "每天";
+  if (item.frequency === "WORKDAYS") return "工作日";
+  if (item.frequency === "AUTOMATIC_DUE") return "按复习到期日";
+  return item.weekdays.map((weekday) => WEEKDAY_LABELS[weekday] ?? `星期${weekday}`).join("、");
+}
+
 function LearningMastery({ learning }: { learning: LearningOverviewData }) {
   const hanziMastered = learning.hanzi.progress.MASTERED ?? 0;
   const hanziLearning = learning.hanzi.progress.LEARNING ?? 0;
@@ -309,19 +321,40 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
   const analysis = report?.analysis;
   return (
     <DashboardSection
-      title="AI 成长周报"
-      subtitle="一句总结和少量下周建议"
+      title="AI 任务诊断与排布"
+      subtitle="由小学教育视角分析最近四个完整周，给出可直接执行的任务调整方案"
       className="weekly-growth-report"
       actions={configured ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void generate()}>{busy ? "分析中…" : report ? "重新分析" : "立即生成"}</button> : null}
     >
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
-      {loading ? <div className="empty-state">正在读取成长周报…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>尚未启用 DeepSeek</strong><p>请先到“智能与设置 → AI 助手”保存并启用 DeepSeek 密钥，系统之后会每周自动生成报告。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的周报</strong><p>系统会自动分析上一完整周，也可以现在生成第一份报告。</p></div> : <>
-        <div className="weekly-growth-report__summary"><div><span>{fullDate(report.weekStart)} – {fullDate(report.weekEnd)}</span><h3>{analysis.summary}</h3></div><small>{report.generatedAt ? `${fullDate(report.generatedAt)}生成` : ""}</small></div>
-        <div className="weekly-growth-report__compact">
-          {analysis.strengths.length ? <div><span>做得好</span>{analysis.strengths.slice(0, 2).map((item) => <p key={item}>{item}</p>)}</div> : null}
-          {analysis.focus ? <div><span>关注</span><p>{analysis.focus}</p></div> : null}
-          <div><span>下周建议</span>{analysis.suggestions.slice(0, 2).map((item, index) => <p key={item}><b>{index + 1}</b>{item}</p>)}</div>
+      {loading ? <div className="empty-state">正在读取任务诊断…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>尚未启用 DeepSeek</strong><p>请先到“智能与设置 → AI 助手”保存并启用 DeepSeek 密钥，系统之后会每周自动分析任务安排。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>系统会分析最近四个完整周，也可以现在生成第一份任务诊断。</p></div> : <>
+        <div className="weekly-growth-report__summary">
+          <div><span>{fullDate(report.analysisStart)} – {fullDate(report.analysisEnd)}</span><h3>{analysis.summary}</h3></div>
+          <div className="weekly-growth-report__meta"><em className={analysis.dataQuality === "SUFFICIENT" ? "is-ready" : "is-limited"}>{analysis.dataQuality === "SUFFICIENT" ? "数据充分" : "样本较少"}</em><small>{report.generatedAt ? `${fullDate(report.generatedAt)}生成` : ""}</small></div>
         </div>
+
+        <div className="weekly-growth-report__diagnosis">
+          <section className="weekly-growth-report__finding weekly-growth-report__finding--strong">
+            <header><span>坚持得好</span><small>{analysis.doingWell.length} 项</small></header>
+            {analysis.doingWell.length ? analysis.doingWell.map((item) => <article key={item.templateId}><strong>{item.title}</strong><p>{item.evidence}</p><small>{item.nextStep}</small></article>) : <p className="weekly-growth-report__placeholder">暂时没有样本足够、表现稳定的任务。</p>}
+          </section>
+          <section className="weekly-growth-report__finding weekly-growth-report__finding--focus">
+            <header><span>需要调整</span><small>{analysis.needsAdjustment.length} 项</small></header>
+            {analysis.needsAdjustment.length ? analysis.needsAdjustment.map((item) => <article key={item.templateId}><strong>{item.title}</strong><p>{item.evidence}</p><small>{item.nextStep}</small></article>) : <p className="weekly-growth-report__placeholder">当前没有明显需要优先调整的任务。</p>}
+          </section>
+        </div>
+
+        {analysis.cadenceChanges.length ? <section className="weekly-growth-report__cadence">
+          <header><div><span>建议改为周期安排</span><small>这些任务不必保持当前出现频率</small></div></header>
+          <div>{analysis.cadenceChanges.map((item) => <article key={item.templateId}><strong>{item.title}</strong><div><del>{item.currentCadence}</del><i>→</i><b>{item.recommendedCadence}</b></div><p>{item.reason}</p></article>)}</div>
+        </section> : null}
+
+        {analysis.recommendedSchedule.length ? <section className="weekly-growth-report__schedule">
+          <header><span>推荐任务排布</span><small>可按此方案到任务管理中调整</small></header>
+          <div>{analysis.recommendedSchedule.map((item) => <article key={item.templateId}><div><strong>{item.title}</strong><b>{recommendedCadence(item)}</b></div><p>{item.reason}</p></article>)}</div>
+        </section> : null}
+
+        <section className="weekly-growth-report__actions"><span>建议先做</span><ol>{analysis.parentActions.map((item) => <li key={item}>{item}</li>)}</ol></section>
       </>}
     </DashboardSection>
   );

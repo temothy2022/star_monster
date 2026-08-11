@@ -455,11 +455,33 @@ export type GrowthAnalytics = {
   };
 };
 
+export type WeeklyGrowthTaskFinding = {
+  templateId: string;
+  title: string;
+  evidence: string;
+  nextStep: string;
+};
+
 export type WeeklyGrowthAnalysis = {
   summary: string;
-  strengths: string[];
-  focus: string | null;
-  suggestions: string[];
+  dataQuality: "SUFFICIENT" | "LIMITED";
+  doingWell: WeeklyGrowthTaskFinding[];
+  needsAdjustment: WeeklyGrowthTaskFinding[];
+  cadenceChanges: Array<{
+    templateId: string;
+    title: string;
+    currentCadence: string;
+    recommendedCadence: string;
+    reason: string;
+  }>;
+  recommendedSchedule: Array<{
+    templateId: string;
+    title: string;
+    frequency: "DAILY" | "WORKDAYS" | "SELECTED_WEEKDAYS" | "AUTOMATIC_DUE";
+    weekdays: number[];
+    reason: string;
+  }>;
+  parentActions: string[];
 };
 
 export type WeeklyGrowthReport = {
@@ -467,6 +489,8 @@ export type WeeklyGrowthReport = {
   status: "GENERATING" | "COMPLETED" | "FAILED";
   weekStart: string;
   weekEnd: string;
+  analysisStart: string;
+  analysisEnd: string;
   generatedAt: string | null;
   model: string | null;
   analysis: WeeklyGrowthAnalysis | null;

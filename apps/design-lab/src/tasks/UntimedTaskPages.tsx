@@ -137,11 +137,9 @@ export function UntimedTaskActive({
 
 export function UntimedTaskComplete({
   onContinue,
-  taskTitle = "3 本 RAZ 阅读",
   rewardStars = 3,
 }: {
   onContinue: () => void;
-  taskTitle?: string;
   rewardStars?: number;
 }) {
   const { mascot } = useMascot();
@@ -152,8 +150,6 @@ export function UntimedTaskComplete({
 
   return (
     <TaskCompletionRewardModal
-      title="太棒了，完成啦！"
-      taskTitle={taskTitle}
       baseStars={rewardStars}
       mascotImage={mascot.images.celebrate}
       mascotName={mascot.name}

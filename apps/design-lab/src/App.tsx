@@ -827,7 +827,6 @@ export function App() {
   if (route === "untimed-complete") {
     return (
       <UntimedTaskComplete
-        taskTitle={lastCompletion?.taskTitle}
         rewardStars={lastCompletion?.totalStars}
         onContinue={() => navigate(DEFAULT_TASK_ROUTE)}
       />
@@ -931,7 +930,6 @@ export function App() {
   if (route === "timed-complete") {
     return (
       <TimedTaskComplete
-        taskTitle={lastCompletion?.taskTitle}
         baseStars={lastCompletion?.baseStars}
         bonusStars={lastCompletion?.bonusStars}
         onBack={() => navigate(DEFAULT_TASK_ROUTE)}

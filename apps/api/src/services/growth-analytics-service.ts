@@ -11,6 +11,7 @@ import {
   addBusinessDays,
   businessDateAt,
   businessDateKey,
+  startOfBusinessWeek,
 } from "../lib/time.js";
 
 type GrowthRange = {
@@ -152,6 +153,10 @@ export async function getGrowthAnalyticsForRange(
       abandonedAttempts: number;
       starsEarned: number;
       completedElapsedSeconds: number;
+      weeklyBreakdown: Map<
+        string,
+        { weekStart: string; scheduledDays: number; completedDays: number }
+      >;
     }
   >();
   const categoryByKey = new Map(
@@ -212,6 +217,7 @@ export async function getGrowthAnalyticsForRange(
       abandonedAttempts: 0,
       starsEarned: 0,
       completedElapsedSeconds: 0,
+      weeklyBreakdown: new Map(),
     };
     taskSummary.title = task.titleSnapshot;
     taskSummary.category = normalizedCategory;
@@ -223,6 +229,15 @@ export async function getGrowthAnalyticsForRange(
     taskSummary.abandonedAttempts += abandonedAttempts;
     taskSummary.starsEarned += starsEarned;
     taskSummary.completedElapsedSeconds += elapsedSeconds;
+    const weekStart = businessDateKey(startOfBusinessWeek(task.taskDate));
+    const weekly = taskSummary.weeklyBreakdown.get(weekStart) ?? {
+      weekStart,
+      scheduledDays: 0,
+      completedDays: 0,
+    };
+    weekly.scheduledDays += 1;
+    weekly.completedDays += completed ? 1 : 0;
+    taskSummary.weeklyBreakdown.set(weekStart, weekly);
     taskById.set(task.templateId, taskSummary);
 
     const categorySummary = categoryByKey.get(normalizedCategory);
@@ -334,9 +349,13 @@ export async function getGrowthAnalyticsForRange(
   const daily = Array.from(dailyByDate.values());
   const tasks = Array.from(taskById.values())
     .map((task) => {
-      const { completedElapsedSeconds, ...summary } = task;
+      const { completedElapsedSeconds, weeklyBreakdown, ...summary } = task;
       return {
         ...summary,
+        weeklyBreakdown: Array.from(weeklyBreakdown.values()).map((week) => ({
+          ...week,
+          completionRate: clampRate(week.completedDays, week.scheduledDays),
+        })),
         categoryLabel: TASK_CATEGORY_LABELS[task.category],
         completionRate: clampRate(task.completedDays, task.scheduledDays),
         averageMinutes: task.completedAttempts

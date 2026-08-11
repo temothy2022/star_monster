@@ -319,11 +319,66 @@ export const legacyWeeklyGrowthResponseSchema = z.object({
   disclaimer: z.string().min(1).max(240),
 });
 
-export const weeklyGrowthResponseSchema = z.object({
+export const legacyCompactWeeklyGrowthResponseSchema = z.object({
   summary: z.string().min(1).max(180),
   strengths: z.array(z.string().min(1).max(100)).max(2),
   focus: z.string().min(1).max(120).nullable(),
   suggestions: z.array(z.string().min(1).max(140)).min(1).max(2),
+});
+
+const weeklyGrowthTaskFindingSchema = z.object({
+  templateId: z.string().min(1),
+  title: z.string().min(1).max(60),
+  evidence: z.string().min(1).max(120),
+  nextStep: z.string().min(1).max(100),
+});
+
+const weeklyGrowthCadenceChangeSchema = z.object({
+  templateId: z.string().min(1),
+  title: z.string().min(1).max(60),
+  currentCadence: z.string().min(1).max(40),
+  recommendedCadence: z.string().min(1).max(40),
+  reason: z.string().min(1).max(120),
+});
+
+const weeklyGrowthScheduleItemSchema = z
+  .object({
+    templateId: z.string().min(1),
+    title: z.string().min(1).max(60),
+    frequency: z.enum([
+      "DAILY",
+      "WORKDAYS",
+      "SELECTED_WEEKDAYS",
+      "AUTOMATIC_DUE",
+    ]),
+    weekdays: z.array(z.number().int().min(0).max(6)).max(7),
+    reason: z.string().min(1).max(100),
+  })
+  .superRefine((item, context) => {
+    if (item.frequency === "SELECTED_WEEKDAYS" && item.weekdays.length === 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["weekdays"],
+        message: "指定星期的任务至少需要一天",
+      });
+    }
+    if (item.frequency !== "SELECTED_WEEKDAYS" && item.weekdays.length > 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["weekdays"],
+        message: "非指定星期任务的 weekdays 必须为空数组",
+      });
+    }
+  });
+
+export const weeklyGrowthResponseSchema = z.object({
+  summary: z.string().min(1).max(120),
+  dataQuality: z.enum(["SUFFICIENT", "LIMITED"]),
+  doingWell: z.array(weeklyGrowthTaskFindingSchema).max(4),
+  needsAdjustment: z.array(weeklyGrowthTaskFindingSchema).max(4),
+  cadenceChanges: z.array(weeklyGrowthCadenceChangeSchema).max(6),
+  recommendedSchedule: z.array(weeklyGrowthScheduleItemSchema).max(24),
+  parentActions: z.array(z.string().min(1).max(100)).min(1).max(3),
 });
 
 export type TaskAdviceResponse = z.infer<typeof taskAdviceResponseSchema>;

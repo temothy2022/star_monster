@@ -350,23 +350,51 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .weekly-growth-report__summary span,
 .weekly-growth-report__summary small { color: #7c8698; font-size: 11px; }
 .weekly-growth-report__summary h3 { max-width: 920px; margin: 8px 0 0; color: #31445b; font-size: 18px; line-height: 1.65; }
-.weekly-growth-report__columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 22px 0; }
-.weekly-growth-report__columns > div { min-width: 0; }
-.weekly-growth-report__columns h4 { margin: 0 0 12px; color: #607086; font-size: 12px; }
-.weekly-growth-report__columns article { padding: 10px 0; border-bottom: 1px solid #edf0f3; }
-.weekly-growth-report__columns article:last-child { border-bottom: 0; }
-.weekly-growth-report__columns article strong { font-size: 13px; }
-.weekly-growth-report__columns article p,
-.weekly-growth-report__columns article small { display: block; margin: 5px 0 0; color: #6d788a; font-size: 11px; line-height: 1.65; }
-.weekly-growth-report__columns article small { color: #2f7567; }
-.weekly-growth-report__footer { display: grid; gap: 6px; padding: 15px 17px; border-radius: 8px; background: #f3f7f6; }
-.weekly-growth-report__footer p { margin: 0; color: #4b5e6e; font-size: 12px; line-height: 1.6; }
-.weekly-growth-report__footer > small { color: #8791a1; font-size: 10px; }
-.weekly-growth-report__compact { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding-top: 18px; }
-.weekly-growth-report__compact > div { min-width: 0; padding: 14px 16px; border-radius: 8px; background: #f6f8f8; }
-.weekly-growth-report__compact span { display: block; margin-bottom: 8px; color: #607086; font-size: 11px; font-weight: 800; }
-.weekly-growth-report__compact p { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; color: #4b5e6e; font-size: 12px; line-height: 1.55; }
-.weekly-growth-report__compact b { display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; border-radius: 50%; color: #2f7567; background: #dcefe9; font-size: 10px; }
+.weekly-growth-report__meta { display: flex; align-items: flex-end; flex-direction: column; gap: 7px; white-space: nowrap; }
+.weekly-growth-report__meta em { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-style: normal; font-weight: 800; }
+.weekly-growth-report__meta .is-ready { color: #267565; background: #e1f2ec; }
+.weekly-growth-report__meta .is-limited { color: #98691f; background: #fff0d5; }
+.weekly-growth-report__diagnosis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-top: 18px; }
+.weekly-growth-report__finding { min-width: 0; overflow: hidden; border: 1px solid #e2e8e6; border-radius: 8px; background: #fbfcfc; }
+.weekly-growth-report__finding > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #e4eae8; }
+.weekly-growth-report__finding > header span { color: #334c61; font-size: 13px; font-weight: 800; }
+.weekly-growth-report__finding > header small { color: #7b8997; font-size: 10px; }
+.weekly-growth-report__finding--strong > header { background: #eaf7f1; }
+.weekly-growth-report__finding--focus > header { background: #fff3e7; }
+.weekly-growth-report__finding article { display: grid; gap: 4px; padding: 12px 14px; border-bottom: 1px solid #edf0f1; }
+.weekly-growth-report__finding article:last-child { border-bottom: 0; }
+.weekly-growth-report__finding article strong { color: #30445a; font-size: 13px; }
+.weekly-growth-report__finding article p { margin: 0; color: #687789; font-size: 11px; line-height: 1.55; }
+.weekly-growth-report__finding article small { color: #2f7567; font-size: 11px; line-height: 1.55; }
+.weekly-growth-report__finding--focus article small { color: #a45c28; }
+.weekly-growth-report__placeholder { margin: 0; padding: 18px 14px; color: #8993a0; font-size: 11px; }
+.weekly-growth-report__cadence,
+.weekly-growth-report__schedule { margin-top: 18px; padding-top: 17px; border-top: 1px solid #e4e8ec; }
+.weekly-growth-report__cadence > header,
+.weekly-growth-report__schedule > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.weekly-growth-report__cadence > header div { display: flex; align-items: baseline; gap: 10px; }
+.weekly-growth-report__cadence > header span,
+.weekly-growth-report__schedule > header span { color: #344b60; font-size: 13px; font-weight: 800; }
+.weekly-growth-report__cadence > header small,
+.weekly-growth-report__schedule > header small { color: #83909e; font-size: 10px; }
+.weekly-growth-report__cadence > div { display: grid; gap: 8px; }
+.weekly-growth-report__cadence article { display: grid; grid-template-columns: minmax(130px, .75fr) minmax(190px, 1fr) minmax(220px, 1.5fr); align-items: center; gap: 14px; padding: 10px 12px; border-radius: 8px; background: #f8f9fa; }
+.weekly-growth-report__cadence article strong { color: #34485e; font-size: 12px; }
+.weekly-growth-report__cadence article > div { display: flex; align-items: center; gap: 7px; font-size: 11px; }
+.weekly-growth-report__cadence article del { color: #8d98a5; }
+.weekly-growth-report__cadence article i { color: #a4aebb; font-style: normal; }
+.weekly-growth-report__cadence article b { color: #2e7567; }
+.weekly-growth-report__cadence article p { margin: 0; color: #687789; font-size: 11px; line-height: 1.5; }
+.weekly-growth-report__schedule > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.weekly-growth-report__schedule article { min-width: 0; padding: 10px 12px; border: 1px solid #e4e9ec; border-radius: 8px; }
+.weekly-growth-report__schedule article > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.weekly-growth-report__schedule article strong { min-width: 0; overflow: hidden; color: #34485e; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.weekly-growth-report__schedule article b { flex: 0 0 auto; padding: 3px 7px; border-radius: 5px; color: #2f7567; background: #e7f3ef; font-size: 10px; }
+.weekly-growth-report__schedule article p { margin: 6px 0 0; color: #758191; font-size: 10px; line-height: 1.5; }
+.weekly-growth-report__actions { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; margin-top: 18px; padding: 14px 16px; border-radius: 8px; background: #f2f7f5; }
+.weekly-growth-report__actions > span { color: #2f7567; font-size: 12px; font-weight: 800; }
+.weekly-growth-report__actions ol { display: grid; gap: 6px; margin: 0; padding-left: 22px; }
+.weekly-growth-report__actions li { color: #526575; font-size: 11px; line-height: 1.55; }
 .detail-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; margin: 0; }
 .detail-list div { display: flex; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid #edf0f3; }
 .detail-list div:nth-last-child(-n+2) { border-bottom: 0; }
@@ -1557,8 +1585,10 @@ td { font-size: 13px; }
   .growth-insight-grid { grid-template-columns: 1fr; }
   .growth-insight-grid > div { border-right: 0; border-bottom: 1px solid #e5e8ed; }
   .growth-insight-grid > div:last-child { border-bottom: 0; }
-  .weekly-growth-report__columns { grid-template-columns: 1fr; gap: 6px; }
-  .weekly-growth-report__compact { grid-template-columns: 1fr; gap: 10px; }
+  .weekly-growth-report__diagnosis,
+  .weekly-growth-report__schedule > div { grid-template-columns: 1fr; }
+  .weekly-growth-report__cadence article { grid-template-columns: minmax(120px, .7fr) minmax(180px, 1fr); }
+  .weekly-growth-report__cadence article p { grid-column: 1 / -1; }
   .growth-task-summary { grid-template-columns: 1fr; }
   .growth-category-grid { grid-template-columns: 1fr; }
 }
@@ -1657,6 +1687,13 @@ td { font-size: 13px; }
   .growth-performance-list__heading { gap: 8px; }
   .growth-performance-list__heading > div:last-child { align-items: flex-end; }
   .weekly-growth-report__summary { flex-direction: column; }
+  .weekly-growth-report__meta { align-items: flex-start; }
+  .weekly-growth-report__cadence > header,
+  .weekly-growth-report__cadence > header div,
+  .weekly-growth-report__schedule > header { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .weekly-growth-report__cadence article { grid-template-columns: 1fr; gap: 7px; }
+  .weekly-growth-report__cadence article p { grid-column: auto; }
+  .weekly-growth-report__actions { grid-template-columns: 1fr; gap: 8px; }
   .leaderboard-preview-list { grid-template-columns: 1fr; }
   .leaderboard-setting-control { padding: 13px; }
 }

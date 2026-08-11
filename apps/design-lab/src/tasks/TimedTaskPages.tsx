@@ -209,7 +209,7 @@ export function TimedTaskActive({
               <LoadingDots label="正在完成" />
             ) : (
               <>
-                <span>{paused ? "继续任务" : "继续答题"}</span>
+                <span>{paused ? "继续任务" : "完成啦"}</span>
                 <img src={startArrowIcon} alt="" />
               </>
             )}
@@ -242,8 +242,7 @@ export function TimedTaskComplete({
   onBack,
   baseStars = 2,
   bonusStars = 1,
-  taskTitle,
-}: TimedTaskProps & { baseStars?: number; bonusStars?: number; taskTitle?: string }) {
+}: TimedTaskProps & { baseStars?: number; bonusStars?: number }) {
   const { mascot } = useMascot();
 
   useEffect(() => {
@@ -252,8 +251,6 @@ export function TimedTaskComplete({
 
   return (
     <TaskCompletionRewardModal
-      title={bonusStars > 0 ? "速度惊人！" : "太棒了，完成啦！"}
-      taskTitle={taskTitle}
       baseStars={baseStars}
       bonusStars={bonusStars}
       mascotImage={mascot.images.celebrate}

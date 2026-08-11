@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { weeklyGrowthResponseSchema } from "../src/ai/schemas.js";
 import { growthAnalyticsRange } from "../src/services/growth-analytics-service.js";
-import { previousCompletedGrowthWeek } from "../src/services/weekly-growth-report-service.js";
+import {
+  previousCompletedGrowthWeek,
+  previousCompletedGrowthWindow,
+} from "../src/services/weekly-growth-report-service.js";
 
 describe("成长统计时间范围", () => {
   it("按上海业务日期计算最近 30 天", () => {
@@ -22,25 +25,41 @@ describe("成长统计时间范围", () => {
     expect(period.weekStart.toISOString().slice(0, 10)).toBe("2026-07-27");
     expect(period.weekEnd.toISOString().slice(0, 10)).toBe("2026-08-02");
   });
+
+  it("任务诊断观察最近四个完整周", () => {
+    const period = previousCompletedGrowthWindow(
+      new Date("2026-08-07T04:00:00.000Z"),
+      "Asia/Shanghai",
+    );
+    expect(period.from.toISOString().slice(0, 10)).toBe("2026-07-06");
+    expect(period.to.toISOString().slice(0, 10)).toBe("2026-08-02");
+    expect(period.days).toBe(28);
+  });
 });
 
 describe("DeepSeek 成长周报结构", () => {
   it("接受简洁且可执行的结构化分析", () => {
     const result = weeklyGrowthResponseSchema.safeParse({
-      summary: "本周任务完成较稳定，数学练习仍有提升空间。",
-      strengths: ["生活习惯任务安排 5 天，完成 5 天。"],
-      focus: "数学任务安排 4 天，只完成 2 天。",
-      suggestions: ["下周把数学练习缩短到 5 分钟并固定在晚饭前。"],
+      summary: "生活习惯稳定，数学专项适合改为间隔练习。",
+      dataQuality: "SUFFICIENT",
+      doingWell: [{ templateId: "habit", title: "刷牙", evidence: "完成 27/28 个安排日", nextStep: "保持每天安排" }],
+      needsAdjustment: [{ templateId: "math", title: "数学练习", evidence: "完成 6/16 个安排日", nextStep: "缩短单次时长" }],
+      cadenceChanges: [{ templateId: "math", title: "数学练习", currentCadence: "每天", recommendedCadence: "周一、三、五", reason: "专项练习需要间隔" }],
+      recommendedSchedule: [{ templateId: "math", title: "数学练习", frequency: "SELECTED_WEEKDAYS", weekdays: [1, 3, 5], reason: "分散练习" }],
+      parentActions: ["先试行两周"],
     });
     expect(result.success).toBe(true);
   });
 
-  it("拒绝超过两条的泛化建议", () => {
+  it("拒绝超过三条的家长行动", () => {
     const result = weeklyGrowthResponseSchema.safeParse({
-      summary: "本周数据有限。",
-      strengths: [],
-      focus: null,
-      suggestions: ["建议一", "建议二", "建议三"],
+      summary: "样本有限，先保持观察。",
+      dataQuality: "LIMITED",
+      doingWell: [],
+      needsAdjustment: [],
+      cadenceChanges: [],
+      recommendedSchedule: [],
+      parentActions: ["建议一", "建议二", "建议三", "建议四"],
     });
     expect(result.success).toBe(false);
   });

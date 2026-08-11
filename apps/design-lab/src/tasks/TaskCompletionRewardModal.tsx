@@ -5,8 +5,6 @@ import arrowIcon from "@star-monsters/assets/icons/untimed-task/arrow.svg";
 export const taskCompletionRewardHalo = rewardHalo;
 
 type TaskCompletionRewardModalProps = {
-  title: string;
-  taskTitle?: string;
   baseStars: number;
   bonusStars?: number;
   mascotImage: string;
@@ -16,8 +14,6 @@ type TaskCompletionRewardModalProps = {
 };
 
 export function TaskCompletionRewardModal({
-  title,
-  taskTitle,
   baseStars,
   bonusStars = 0,
   mascotImage,
@@ -35,11 +31,7 @@ export function TaskCompletionRewardModal({
         {Array.from({ length: 10 }, (_, index) => <i key={index} />)}
       </div>
 
-      <section className="task-reward-modal" role="dialog" aria-modal="true" aria-labelledby="task-reward-title">
-        <span className="task-reward-modal__eyebrow">任务完成</span>
-        <h1 id="task-reward-title">{title}</h1>
-        <p className="task-reward-modal__encouragement">你的努力变成闪闪发光的星星啦！</p>
-
+      <section className="task-reward-modal" role="dialog" aria-modal="true" aria-label="任务奖励">
         <div className="task-reward-stage">
           <img className="task-reward-stage__halo" src={rewardHalo} alt="" />
           <span className="task-reward-stage__orbit task-reward-stage__orbit--one" aria-hidden="true" />
@@ -60,8 +52,6 @@ export function TaskCompletionRewardModal({
             <span className="task-reward-breakdown__bonus">速度加奖 <strong>+{bonusStars}</strong></span>
           </div>
         ) : null}
-
-        {taskTitle ? <p className="task-reward-modal__task">{taskTitle}</p> : null}
 
         <button className="task-reward-modal__continue" type="button" onClick={onContinue}>
           <span>收下星星</span>
