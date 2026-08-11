@@ -51,7 +51,7 @@ import petActionTravelIcon from "@star-monsters/assets/images/pet/ui-icons/pet-a
 import petActionSnackIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-snack.webp";
 import petActionWaterIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-water.webp";
 import petActionAlbumIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-album.webp";
-import wishEntryIcon from "@star-monsters/assets/icons/wishes/request-sparkle.svg";
+import petActionWishIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-wish.webp";
 import petTripNearbyIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-nearby.webp";
 import petTripChinaIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-china.webp";
 import petTripWorldIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-world.webp";
@@ -1424,7 +1424,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><img src={petActionAlbumIcon} alt="" /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
           </button>
           <button className="pet-action-button pet-action-button--wish" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => onNavigate("wishes-requested")}>
-            <span className="pet-action-icon pet-action-icon--wish" aria-hidden="true"><img src={wishEntryIcon} alt="" /></span><div><strong>星愿</strong><small>兑换小愿望</small></div>
+            <span className="pet-action-icon pet-action-icon--wish" aria-hidden="true"><img src={petActionWishIcon} alt="" /></span><div><strong>星愿</strong><small>兑换小愿望</small></div>
           </button>
         </aside>
 

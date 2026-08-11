@@ -1831,13 +1831,17 @@ input[type="reset"] {
   margin: 0 auto;
 }
 
+.task-list-panel--full {
+  --task-list-full-header-height: 160px;
+}
+
 .task-list-panel--full .task-list-panel__header {
   position: relative;
   top: auto;
   right: auto;
   left: auto;
   display: grid;
-  min-height: 118px;
+  min-height: var(--task-list-full-header-height);
   height: auto;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1878,7 +1882,12 @@ input[type="reset"] {
   background: #ff7a3d;
   box-shadow: 0 3px 0 rgb(165 60 0 / 24%);
 }
-.task-list-panel--full .task-list-panel__scroll { top: 118px; right: 34px; bottom: 28px; left: 34px; }
+.task-list-panel--full .task-list-panel__scroll {
+  top: var(--task-list-full-header-height);
+  right: 34px;
+  bottom: 28px;
+  left: 34px;
+}
 .task-list-panel--full .task-list-filter-empty { display: grid; min-height: 180px; place-items: center; color: #7f8b98; font-weight: 800; }
 
 .task-progress-column {
@@ -2747,15 +2756,24 @@ input[type="reset"] {
     width: auto;
   }
 
+  .task-list-panel--full {
+    --task-list-full-header-height: 146px;
+  }
+
   .task-list-panel--full .task-list-panel__header {
-    min-height: 126px;
+    min-height: var(--task-list-full-header-height);
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 16px 18px 10px;
   }
 
   .task-list-panel--full .task-list-panel__header h2 { font-size: 24px; }
   .task-list-panel--full .task-list-panel__header .task-list-panel__count { font-size: 11px; }
-  .task-list-panel--full .task-list-panel__scroll { top: 126px; right: 18px; bottom: 18px; left: 18px; }
+  .task-list-panel--full .task-list-panel__scroll {
+    top: var(--task-list-full-header-height);
+    right: 18px;
+    bottom: 18px;
+    left: 18px;
+  }
   .task-category-filter { gap: 6px; }
   .task-category-filter button { min-height: 32px; padding-inline: 13px; font-size: 13px; }
 
@@ -3208,55 +3226,66 @@ input[type="reset"] {
   }
 }
 
-/* 儿童端全局底部导航：统一继承 Figma「B 任务列表」母版 */
+/* 儿童端全局底部导航：四个一级入口，使用独立的儿童应用图标 */
 .child-bottom-nav {
   position: fixed;
   z-index: 30;
-  bottom: 14px;
+  bottom: 10px;
   left: 50%;
   display: flex;
-  width: min(680px, calc(100% - 24px));
-  height: 88px;
+  width: min(736px, calc(100% - 24px));
+  height: 92px;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 7px 18px;
-  border: 2px solid #e3c9bd;
-  border-radius: 20px 20px 0 0;
-  background: rgb(255 253 247 / 96%);
-  box-shadow: 0 -8px 26px rgba(37, 59, 89, 0.13);
+  gap: 6px;
+  padding: 8px 12px;
+  border: 2px solid #e0c7bb;
+  border-radius: 26px 26px 0 0;
+  background: rgb(255 253 247 / 98%);
+  box-shadow: 0 -10px 28px rgb(37 59 89 / 15%);
   transform: translateX(-50%);
 }
 
 .child-bottom-nav__item {
   display: flex;
-  width: 112px;
-  height: 61px;
+  width: 132px;
+  height: 74px;
   flex: 1 1 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  padding: 0;
+  gap: 3px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 15px;
+  border-radius: 18px;
   background: transparent;
   color: #584239;
-  font: 500 16px/20px var(--sm-font-sans);
+  font: 700 16px/20px var(--sm-font-sans);
   cursor: pointer;
+  transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 }
 
 .child-bottom-nav__item--active {
   background: #ff7a3d;
   color: #584239;
-  box-shadow: 0 4px 0 rgb(165 60 0 / 18%);
+  box-shadow: 0 4px 0 rgb(165 60 0 / 20%);
+  transform: translateY(-3px);
 }
 
 .child-bottom-nav__item img {
   display: block;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #fff8e8;
   object-fit: contain;
+  transition: transform 160ms ease;
+}
+
+.child-bottom-nav__item--active img {
+  background: #fff5df;
+  transform: scale(1.06);
 }
 
 .child-bottom-nav__item:active:not([aria-disabled="true"]) {
@@ -6083,15 +6112,15 @@ input[type="reset"] {
 
   .child-bottom-nav__item {
     width: auto;
-    height: 56px;
+    height: 60px;
     flex: 1 1 25%;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 16px;
   }
 
   .child-bottom-nav__item img {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
   }
 
   .wish-confirm-sheet {
@@ -8079,20 +8108,20 @@ body:has(.planet-map-page),
 
 @media (max-width: 700px) {
   .child-bottom-nav {
-    height: 76px;
-    padding: 0 18px;
+    height: calc(78px + env(safe-area-inset-bottom));
+    padding: 4px 12px env(safe-area-inset-bottom);
   }
 
   .child-bottom-nav__item {
     width: 68px;
-    height: 56px;
+    height: 64px;
     flex-basis: 68px;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .child-bottom-nav__item img {
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
   }
 }
 

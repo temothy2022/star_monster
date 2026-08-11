@@ -1124,9 +1124,13 @@ function TaskListPanel({
 }) {
   const [categoryFilter, setCategoryFilter] = useState<TaskCategoryFilter>("ALL");
   const availableFilters = useMemo(() => {
-    const filters = new Set<Exclude<TaskCategoryFilter, "ALL">>();
-    tasks.forEach((task) => filters.add(taskCategoryFilterFor(task.category)));
-    return ["ALL" as const, ...Array.from(filters)];
+    const presentFilters = new Set(
+      tasks.map((task) => taskCategoryFilterFor(task.category)),
+    );
+    return [
+      "ALL" as const,
+      ...TASK_CATEGORY_FILTER_ORDER.filter((filter) => presentFilters.has(filter)),
+    ];
   }, [tasks]);
   const filteredTasks = categoryFilter === "ALL"
     ? tasks
@@ -1283,6 +1287,15 @@ function taskItemFromApi(task: DailyTask): TaskItem {
 }
 
 type TaskCategoryFilter = "ALL" | "CHINESE" | "MATH" | "ENGLISH" | "EXERCISE" | "LIFE" | "OTHER";
+
+const TASK_CATEGORY_FILTER_ORDER: Exclude<TaskCategoryFilter, "ALL">[] = [
+  "CHINESE",
+  "MATH",
+  "ENGLISH",
+  "EXERCISE",
+  "LIFE",
+  "OTHER",
+];
 
 const TASK_CATEGORY_LABELS: Record<TaskCategoryFilter, string> = {
   ALL: "全部",

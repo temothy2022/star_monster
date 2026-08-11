@@ -1,7 +1,7 @@
-import navTasks from "@star-monsters/assets/images/task-list/semantic/nav-tasks.png";
-import navMap from "@star-monsters/assets/images/task-list/semantic/nav-map.png";
-import navFootprints from "@star-monsters/assets/images/task-list/semantic/nav-trail.png";
-import navHome from "@star-monsters/assets/images/task-list/semantic/compass.png";
+import navTasks from "@star-monsters/assets/images/task-list/navigation/nav-tasks.webp";
+import navPet from "@star-monsters/assets/images/task-list/navigation/nav-pet.webp";
+import navFootprints from "@star-monsters/assets/images/task-list/navigation/nav-footprints.webp";
+import navHome from "@star-monsters/assets/images/task-list/navigation/nav-home.webp";
 
 export type ChildRoute =
   | "home"
@@ -36,7 +36,7 @@ export function ChildBottomNav({
   const items = [
     { key: "home", label: "首页", icon: navHome, route: "home" as const },
     { key: "tasks", label: "任务", icon: navTasks, route: "tasks" as const },
-    { key: "pet", label: "星宠", icon: navMap, route: "pet-growth" as const },
+    { key: "pet", label: "星宠", icon: navPet, route: "pet-growth" as const },
     { key: "footprints", label: "足迹", icon: navFootprints, route: "footprints" as const },
   ];
 
