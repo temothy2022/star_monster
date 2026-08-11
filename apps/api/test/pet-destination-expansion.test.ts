@@ -11,6 +11,15 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
+function expandedAssetPath(imageUrl: string) {
+  const url = new URL(imageUrl, "https://pet-assets.local");
+  return {
+    pathname: url.pathname,
+    version: url.searchParams.get("v"),
+    filePath: path.join(repoRoot, "packages/assets/static", url.pathname),
+  };
+}
+
 describe("pet destination expansion catalog", () => {
   it("adds exactly 50 destinations to each travel tier", () => {
     const tierCounts = new Map<string, number>();
@@ -29,10 +38,12 @@ describe("pet destination expansion catalog", () => {
     expect(new Set(EXPANDED_PET_DESTINATIONS.map((item) => item.slug)).size).toBe(150);
     expect(new Set(EXPANDED_PET_DESTINATIONS.map((item) => item.imageUrl)).size).toBe(150);
     for (const destination of EXPANDED_PET_DESTINATIONS) {
+      const asset = expandedAssetPath(destination.imageUrl);
       expect(destination.introduction.length, destination.name).toBeGreaterThanOrEqual(85);
       expect(destination.funFact.length, destination.name).toBeGreaterThanOrEqual(25);
-      expect(destination.imageUrl).toBe(`/pet-assets/v1/destinations/expanded/${destination.slug}.webp`);
-      expect(existsSync(path.join(repoRoot, "packages/assets/static", destination.imageUrl))).toBe(true);
+      expect(asset.pathname).toBe(`/pet-assets/v1/destinations/expanded/${destination.slug}.webp`);
+      expect(asset.version).toMatch(/^\d{8}$/);
+      expect(existsSync(asset.filePath)).toBe(true);
     }
   });
 
@@ -55,7 +66,7 @@ describe("pet destination expansion catalog", () => {
     ];
     for (const destination of samples) {
       expect(destination).toBeDefined();
-      const metadata = await sharp(path.join(repoRoot, "packages/assets/static", destination!.imageUrl)).metadata();
+      const metadata = await sharp(expandedAssetPath(destination!.imageUrl).filePath).metadata();
       expect(metadata).toMatchObject({ width: 900, height: 675, format: "webp" });
     }
   });

@@ -129,6 +129,7 @@ export function TaskDashboard({
   const dragRef = useRef<DragSession | null>(null);
   const resizeRef = useRef<ResizeSession | null>(null);
   const dropOverlayRef = useRef<HTMLElement | null>(null);
+  const dropCleanupTimerRef = useRef<number | null>(null);
   const widgetsRef = useRef(draftWidgets);
   const columnsRef = useRef(draftColumns);
   const previousRectsRef = useRef<Map<TaskDashboardWidgetKey, DOMRect> | null>(null);
@@ -149,14 +150,42 @@ export function TaskDashboard({
     }
   }, [editing, layout]);
 
-  useEffect(() => () => {
-    const drag = dragRef.current;
-    if (drag) {
-      window.clearTimeout(drag.timer);
-      if (drag.animationFrame !== null) window.cancelAnimationFrame(drag.animationFrame);
-      drag.overlay?.remove();
-    }
-    dropOverlayRef.current?.remove();
+  useEffect(() => {
+    // A drag preview lives under document.body. Clean up anything left behind by
+    // an interrupted Safari touch gesture before this dashboard starts.
+    removeDetachedDragOverlays();
+
+    const finishFromWindow = (event: PointerEvent) => {
+      const session = dragRef.current;
+      if (!session || session.pointerId !== event.pointerId) return;
+      finishDragSession(session, true);
+    };
+    const cancelFromWindow = (event: PointerEvent) => {
+      const session = dragRef.current;
+      if (!session || session.pointerId !== event.pointerId) return;
+      finishDragSession(session, false);
+    };
+    const cancelActiveGesture = () => finishDragSession(dragRef.current, false);
+    const cancelWhenHidden = () => {
+      if (document.visibilityState === "hidden") cancelActiveGesture();
+    };
+
+    window.addEventListener("pointerup", finishFromWindow);
+    window.addEventListener("pointercancel", cancelFromWindow, true);
+    window.addEventListener("blur", cancelActiveGesture);
+    window.addEventListener("pagehide", cancelActiveGesture);
+    document.addEventListener("lostpointercapture", cancelFromWindow, true);
+    document.addEventListener("visibilitychange", cancelWhenHidden);
+
+    return () => {
+      window.removeEventListener("pointerup", finishFromWindow);
+      window.removeEventListener("pointercancel", cancelFromWindow, true);
+      window.removeEventListener("blur", cancelActiveGesture);
+      window.removeEventListener("pagehide", cancelActiveGesture);
+      document.removeEventListener("lostpointercapture", cancelFromWindow, true);
+      document.removeEventListener("visibilitychange", cancelWhenHidden);
+      clearAllDragArtifacts();
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -196,6 +225,110 @@ export function TaskDashboard({
   function paintDragPosition(session: DragSession) {
     session.overlay?.style.setProperty("--task-drag-x", `${session.visualLeft}px`);
     session.overlay?.style.setProperty("--task-drag-y", `${session.visualTop}px`);
+  }
+
+  function removeDetachedDragOverlays() {
+    for (const overlay of document.querySelectorAll<HTMLElement>(".task-dashboard-drag-overlay")) {
+      for (const animation of overlay.getAnimations()) animation.cancel();
+      overlay.remove();
+    }
+  }
+
+  function clearDropCleanupTimer() {
+    if (dropCleanupTimerRef.current === null) return;
+    window.clearTimeout(dropCleanupTimerRef.current);
+    dropCleanupTimerRef.current = null;
+  }
+
+  function removeSettlingOverlay(updateState = true) {
+    clearDropCleanupTimer();
+    const overlay = dropOverlayRef.current;
+    dropOverlayRef.current = null;
+    if (overlay) {
+      for (const animation of overlay.getAnimations()) animation.cancel();
+      overlay.remove();
+    }
+    if (updateState) setSettlingWidget(null);
+  }
+
+  function clearAllDragArtifacts() {
+    const session = dragRef.current;
+    dragRef.current = null;
+    if (session) {
+      window.clearTimeout(session.timer);
+      if (session.animationFrame !== null) window.cancelAnimationFrame(session.animationFrame);
+      try {
+        if (session.target.hasPointerCapture?.(session.pointerId)) {
+          session.target.releasePointerCapture(session.pointerId);
+        }
+      } catch {
+        // The element may already be detached while navigating to another page.
+      }
+      session.overlay?.remove();
+    }
+    removeSettlingOverlay(false);
+    removeDetachedDragOverlays();
+  }
+
+  function finishDragSession(session: DragSession | null, animateDrop: boolean) {
+    if (!session || dragRef.current !== session) return;
+
+    // Clear the ref before releasing capture. Safari can synchronously emit
+    // lostpointercapture, which must not finish the same drag twice.
+    dragRef.current = null;
+    window.clearTimeout(session.timer);
+    if (session.animationFrame !== null) window.cancelAnimationFrame(session.animationFrame);
+    session.animationFrame = null;
+    try {
+      if (session.target.hasPointerCapture?.(session.pointerId)) {
+        session.target.releasePointerCapture(session.pointerId);
+      }
+    } catch {
+      // Pointer capture may already have been cancelled by iPadOS.
+    }
+
+    setPressedWidget(null);
+    setDraggingWidget(null);
+    const overlay = session.overlay;
+    if (!overlay) return;
+
+    if (!animateDrop || !session.target.isConnected) {
+      overlay.remove();
+      setSettlingWidget(null);
+      return;
+    }
+
+    removeSettlingOverlay(false);
+    setSettlingWidget(session.key);
+    dropOverlayRef.current = overlay;
+    const removeOverlay = () => {
+      if (dropOverlayRef.current !== overlay) {
+        overlay.remove();
+        return;
+      }
+      clearDropCleanupTimer();
+      dropOverlayRef.current = null;
+      overlay.remove();
+      setSettlingWidget(null);
+    };
+
+    try {
+      const destination = session.target.getBoundingClientRect();
+      const animation = overlay.animate(
+        [
+          { transform: `translate3d(${session.visualLeft}px, ${session.visualTop}px, 0) scale(1.035) rotate(.35deg)` },
+          { transform: `translate3d(${destination.left}px, ${destination.top}px, 0) scale(1) rotate(0deg)` },
+        ],
+        { duration: 260, easing: "cubic-bezier(.2,.82,.2,1)", fill: "forwards" },
+      );
+      animation.onfinish = removeOverlay;
+      animation.oncancel = removeOverlay;
+      // WebKit has occasionally left Animation.finished pending after a touch
+      // interruption. The timer guarantees the body-level clone is removed.
+      dropCleanupTimerRef.current = window.setTimeout(removeOverlay, 420);
+    } catch {
+      removeOverlay();
+    }
   }
 
   function scheduleDragPosition(session: DragSession) {
@@ -268,6 +401,8 @@ export function TaskDashboard({
       return;
     }
     if (!editing) enterEditing();
+    removeSettlingOverlay();
+    removeDetachedDragOverlays();
     const overlay = session.target.cloneNode(true) as HTMLElement;
     overlay.classList.remove("is-long-pressing", "is-dragging");
     overlay.classList.add("task-dashboard-drag-overlay");
@@ -292,10 +427,7 @@ export function TaskDashboard({
     const interactive = (event.target as HTMLElement).closest("button, a, input, select, textarea");
     if (interactive) return;
     const previous = dragRef.current;
-    if (previous) {
-      window.clearTimeout(previous.timer);
-      if (previous.animationFrame !== null) window.cancelAnimationFrame(previous.animationFrame);
-    }
+    if (previous) finishDragSession(previous, false);
     const rect = event.currentTarget.getBoundingClientRect();
     const session: DragSession = {
       key,
@@ -465,34 +597,8 @@ export function TaskDashboard({
   function finishDrag(event: ReactPointerEvent<HTMLElement>) {
     const session = dragRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
-    window.clearTimeout(session.timer);
-    if (session.animationFrame !== null) window.cancelAnimationFrame(session.animationFrame);
     if (session.activated) event.preventDefault();
-    if (session.target.hasPointerCapture?.(session.pointerId)) {
-      session.target.releasePointerCapture(session.pointerId);
-    }
-    const overlay = session.overlay;
-    const destination = session.target.getBoundingClientRect();
-    if (session.activated && overlay) setSettlingWidget(session.key);
-    dragRef.current = null;
-    setPressedWidget(null);
-    setDraggingWidget(null);
-    if (!overlay) return;
-    const animation = overlay.animate(
-      [
-        { transform: `translate3d(${session.visualLeft}px, ${session.visualTop}px, 0) scale(1.035) rotate(.35deg)` },
-        { transform: `translate3d(${destination.left}px, ${destination.top}px, 0) scale(1) rotate(0deg)` },
-      ],
-      { duration: 260, easing: "cubic-bezier(.2,.82,.2,1)", fill: "forwards" },
-    );
-    dropOverlayRef.current = overlay;
-    void animation.finished.catch(() => undefined).finally(() => {
-      overlay.remove();
-      if (dropOverlayRef.current === overlay) {
-        dropOverlayRef.current = null;
-        setSettlingWidget(null);
-      }
-    });
+    finishDragSession(session, true);
   }
 
   function beginWidgetResize(key: TaskDashboardWidgetKey, event: ReactPointerEvent<HTMLButtonElement>) {

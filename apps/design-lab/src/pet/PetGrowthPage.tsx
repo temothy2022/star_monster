@@ -349,9 +349,18 @@ function Postcard({ trip, mascotImage, mascotName, soundEnabled, onClose }: { tr
       <article className="pet-postcard">
         <button className="pet-postcard__close" type="button" onClick={onClose} aria-label="关闭明信片">×</button>
         <div className="pet-postcard__image-wrap">
-          <img className="pet-postcard__destination" src={trip.imageUrl} alt={trip.destinationName} decoding="async" />
-          <img className="pet-postcard__travel-mascot" src={mascotImage} alt={`${mascotName}在${trip.destinationName}旅行`} decoding="async" />
-          <span>旅行明信片</span>
+          <img className="pet-postcard__image-backdrop" src={trip.imageUrl} alt="" aria-hidden="true" decoding="async" />
+          <div className="pet-postcard__paper">
+            <div className="pet-postcard__photo">
+              <img className="pet-postcard__destination" src={trip.imageUrl} alt={trip.destinationName} decoding="async" />
+              <img className="pet-postcard__travel-mascot" src={mascotImage} alt={`${mascotName}在${trip.destinationName}旅行`} decoding="async" />
+              <span>旅行明信片</span>
+            </div>
+            <div className="pet-postcard__paper-footer">
+              <div><small>寄自</small><strong>{trip.city}</strong></div>
+              <span className="pet-postcard__postmark" aria-hidden="true"><i /><i /><i /></span>
+            </div>
+          </div>
         </div>
         <div
           className="pet-postcard__content"

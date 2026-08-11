@@ -1013,11 +1013,13 @@ function TaskListScrollRail({
     };
   }, [targetRef]);
 
+  const railInset = 5;
+  const usableTrackHeight = Math.max(0, metrics.trackHeight - railInset * 2);
   const maxScroll = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
-  const thumbHeight = metrics.trackHeight > 0 && metrics.scrollHeight > 0
-    ? Math.min(metrics.trackHeight, Math.max(48, metrics.trackHeight * (metrics.clientHeight / metrics.scrollHeight)))
-    : 48;
-  const thumbTravel = Math.max(0, metrics.trackHeight - thumbHeight);
+  const thumbHeight = usableTrackHeight > 0 && metrics.scrollHeight > 0
+    ? Math.min(usableTrackHeight, Math.max(112, usableTrackHeight * (metrics.clientHeight / metrics.scrollHeight)))
+    : 112;
+  const thumbTravel = Math.max(0, usableTrackHeight - thumbHeight);
   const thumbTop = maxScroll > 0 ? (metrics.scrollTop / maxScroll) * thumbTravel : 0;
 
   function scrollFromPointer(clientY: number, grabOffset: number) {
@@ -1025,7 +1027,7 @@ function TaskListScrollRail({
     const track = trackRef.current;
     if (!target || !track || maxScroll <= 0 || thumbTravel <= 0) return;
     const trackRect = track.getBoundingClientRect();
-    const nextThumbTop = Math.max(0, Math.min(thumbTravel, clientY - trackRect.top - grabOffset));
+    const nextThumbTop = Math.max(0, Math.min(thumbTravel, clientY - trackRect.top - railInset - grabOffset));
     target.scrollTop = (nextThumbTop / thumbTravel) * maxScroll;
   }
 
@@ -1035,7 +1037,9 @@ function TaskListScrollRail({
     event.stopPropagation();
     const trackRect = event.currentTarget.getBoundingClientRect();
     const hitThumb = (event.target as HTMLElement).closest(".task-list-scroll-rail__thumb");
-    const grabOffset = hitThumb ? event.clientY - trackRect.top - thumbTop : thumbHeight / 2;
+    const grabOffset = hitThumb
+      ? event.clientY - trackRect.top - railInset - thumbTop
+      : thumbHeight / 2;
     dragRef.current = { pointerId: event.pointerId, grabOffset };
     event.currentTarget.setPointerCapture(event.pointerId);
     scrollFromPointer(event.clientY, grabOffset);
