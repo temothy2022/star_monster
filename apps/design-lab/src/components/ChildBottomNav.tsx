@@ -1,16 +1,18 @@
 import navTasks from "@star-monsters/assets/images/task-list/semantic/nav-tasks.png";
 import navMap from "@star-monsters/assets/images/task-list/semantic/nav-map.png";
-import navWish from "@star-monsters/assets/images/task-list/semantic/nav-wish.png";
 import navFootprints from "@star-monsters/assets/images/task-list/semantic/nav-trail.png";
+import navHome from "@star-monsters/assets/images/task-list/semantic/compass.png";
 
 export type ChildRoute =
+  | "home"
+  | "tasks"
   | "tasks-partial"
   | "tasks-dashboard"
   | "map"
   | "pet-growth"
   | "wishes-requested"
   | "footprints";
-export type ChildNavItem = "tasks" | "pet" | "wish" | "footprints";
+export type ChildNavItem = "home" | "tasks" | "pet" | "footprints";
 
 function prefetchRoute(route: ChildRoute) {
   if (route === "pet-growth") {
@@ -27,16 +29,14 @@ function prefetchRoute(route: ChildRoute) {
 export function ChildBottomNav({
   active,
   onNavigate,
-  navigateActiveTask = false,
 }: {
   active: ChildNavItem;
   onNavigate?: (route: ChildRoute) => void;
-  navigateActiveTask?: boolean;
 }) {
   const items = [
-    { key: "tasks", label: "任务", icon: navTasks, route: "tasks-dashboard" as const },
+    { key: "home", label: "首页", icon: navHome, route: "home" as const },
+    { key: "tasks", label: "任务", icon: navTasks, route: "tasks" as const },
     { key: "pet", label: "星宠", icon: navMap, route: "pet-growth" as const },
-    { key: "wish", label: "星愿", icon: navWish, route: "wishes-requested" as const },
     { key: "footprints", label: "足迹", icon: navFootprints, route: "footprints" as const },
   ];
 
@@ -57,7 +57,7 @@ export function ChildBottomNav({
             onPointerEnter={() => prefetchRoute(item.route)}
             onFocus={() => prefetchRoute(item.route)}
             onClick={() => {
-              if (isActive && !(navigateActiveTask && item.key === "tasks")) return;
+              if (isActive) return;
               onNavigate?.(item.route);
             }}
           >

@@ -138,6 +138,18 @@ function ActivityTrend({ data }: { data: GrowthAnalytics["daily"] }) {
   );
 }
 
+function dailyStarNet(item: GrowthAnalytics["daily"][number]) {
+  return item.taskStarsEarned
+    + item.bonusStarsEarned
+    - item.rewardStarsReversed
+    - item.starsSpent
+    + item.starsRefunded;
+}
+
+function formatSignedStars(value: number) {
+  return `${value >= 0 ? "+" : ""}${value}`;
+}
+
 function StarTrend({ data }: { data: GrowthAnalytics["daily"] }) {
   const width = Math.max(620, data.length * 30 + 56);
   const height = 228;
@@ -152,20 +164,32 @@ function StarTrend({ data }: { data: GrowthAnalytics["daily"] }) {
   );
   const slotWidth = (width - 56) / Math.max(1, data.length);
   const scale = (plotBottom - plotTop) / maxValue;
+  const maxAbsNet = Math.max(1, ...data.map((item) => Math.abs(dailyStarNet(item))));
+  const netBaseline = (plotTop + plotBottom) / 2;
+  const netScale = ((plotBottom - plotTop) / 2 - 8) / maxAbsNet;
+  const netPoints = data
+    .map((item, index) => {
+      const x = 42 + index * slotWidth + slotWidth / 2;
+      const y = netBaseline - dailyStarNet(item) * netScale;
+      return `${x},${y}`;
+    })
+    .join(" ");
   return (
     <div className="growth-chart-scroll">
-      <svg className="growth-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="每天获得和消费星星柱状图">
+      <svg className="growth-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="每天获得、消费和收支差值星星图表">
         {[0, 0.5, 1].map((ratio) => {
           const y = plotBottom - (plotBottom - plotTop) * ratio;
           return <line key={ratio} x1="38" x2={width - 12} y1={y} y2={y} className="growth-chart__grid" />;
         })}
+        <line x1="38" x2={width - 12} y1={netBaseline} y2={netBaseline} className="growth-chart__net-axis" />
+        {netPoints && <polyline points={netPoints} className="growth-chart__net-line" />}
         {data.map((item, index) => {
           const earned = item.taskStarsEarned + item.bonusStarsEarned;
           const x = 42 + index * slotWidth;
           const barWidth = Math.max(4, slotWidth * 0.28);
           return (
             <g key={item.date}>
-              <title>{`${item.date}：获得 ${earned} 星，兑换支出 ${item.starsSpent} 星${item.starsRefunded ? `，退款 ${item.starsRefunded} 星` : ""}`}</title>
+              <title>{`${item.date}：获得 ${earned} 星，消费 ${item.starsSpent} 星，净结余 ${formatSignedStars(dailyStarNet(item))}`}</title>
               <rect x={x} y={plotBottom - earned * scale} width={barWidth} height={earned * scale} rx="3" className="growth-chart__bar growth-chart__bar--earned" />
               <rect x={x + barWidth + 2} y={plotBottom - item.starsSpent * scale} width={barWidth} height={item.starsSpent * scale} rx="3" className="growth-chart__bar growth-chart__bar--spent" />
               {shouldShowTick(index, data.length) ? <text x={x + barWidth} y="211" textAnchor="middle" className="growth-chart__label">{shortDate(item.date)}</text> : null}
@@ -173,6 +197,22 @@ function StarTrend({ data }: { data: GrowthAnalytics["daily"] }) {
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+function StarBalanceSummary({ analytics }: { analytics: GrowthAnalytics }) {
+  const earned = analytics.summary.taskStarsEarned
+    + analytics.summary.bonusStarsEarned
+    - analytics.summary.rewardStarsReversed;
+  const spent = analytics.summary.starsSpent - analytics.summary.starsRefunded;
+  return (
+    <div className="growth-star-summary" aria-label="星星收支差值">
+      <div><span>获得星星</span><strong>{earned} ⭐</strong></div>
+      <div><span>消费星星</span><strong>{spent} ⭐</strong></div>
+      <div className={analytics.summary.netStars >= 0 ? "is-positive" : "is-negative"}>
+        <span>星星收支差值</span><strong>{formatSignedStars(analytics.summary.netStars)} ⭐</strong>
+      </div>
     </div>
   );
 }
@@ -230,15 +270,12 @@ const SPENDING_ITEM_COLORS = [
 ];
 
 function SpendingPreference({ analytics }: { analytics: GrowthAnalytics }) {
-  if (!analytics.spendingItems.length) {
+  if (!analytics.spending.length) {
     return <div className="empty-state">这个时间范围内还没有星星消费</div>;
   }
-  const totalSpent = analytics.spendingItems.reduce(
-    (sum, item) => sum + item.starsSpent,
-    0,
-  );
+  const totalSpent = analytics.spending.reduce((sum, item) => sum + item.starsSpent, 0);
   let offset = 0;
-  const items = analytics.spendingItems.map((item, index) => ({
+  const items = analytics.spending.map((item, index) => ({
     ...item,
     color: SPENDING_ITEM_COLORS[index % SPENDING_ITEM_COLORS.length],
     share: totalSpent > 0 ? item.starsSpent / totalSpent : 0,
@@ -250,9 +287,23 @@ function SpendingPreference({ analytics }: { analytics: GrowthAnalytics }) {
   });
   return (
     <div className="growth-spending">
-      <div className="growth-donut" style={{ background: `conic-gradient(${segments.join(",")})` }} aria-label="具体星愿项目消费占比"><div><strong>{totalSpent}</strong><span>消费星星</span></div></div>
+      <div className="growth-donut" style={{ background: `conic-gradient(${segments.join(",")})` }} aria-label="按消费类型统计的消费占比"><div><strong>{totalSpent}</strong><span>消费星星</span></div></div>
       <div className="growth-spending__legend">
-        {items.map((item) => <div key={item.title}><i style={{ background: item.color }} /><span>{item.title}</span><strong>{percent(item.share)}</strong><small>{item.redemptionCount} 次 · {item.starsSpent} 星</small></div>)}
+        {items.map((item) => {
+          const details = analytics.spendingItems
+            .filter((detail) => detail.category === item.category)
+            .sort((left, right) => right.starsSpent - left.starsSpent)
+            .slice(0, 3);
+          return (
+            <div key={item.category}>
+              <i style={{ background: item.color }} />
+              <span>{item.label}</span>
+              <strong>{percent(item.share)}</strong>
+              <small>{item.redemptionCount} 次 · {item.starsSpent} 星</small>
+              {details.length > 0 && <em title={details.map((detail) => detail.title).join("、")}>明细：{details.map((detail) => detail.title).join("、")}</em>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -488,9 +539,9 @@ export function GrowthOverview({ child }: { child: Child }) {
         </DashboardSection>
         <div className="growth-chart-grid">
           <DashboardSection title="任务完成趋势" subtitle="按安排日统计，重复完成不会抬高完成率"><ChartLegend items={[{ label: "安排任务", tone: "scheduled" }, { label: "完成任务", tone: "completed" }]} /><ActivityTrend data={analytics.daily} /></DashboardSection>
-          <DashboardSection title="星星获得与消费" subtitle="任务奖励、达标奖励、星愿与星宠支出"><ChartLegend items={[{ label: "获得", tone: "earned" }, { label: "消费", tone: "spent" }]} /><StarTrend data={analytics.daily} /></DashboardSection>
+          <DashboardSection title="星星获得与消费" subtitle="任务奖励、达标奖励、星愿与星宠支出"><StarBalanceSummary analytics={analytics} /><ChartLegend items={[{ label: "获得", tone: "earned" }, { label: "消费", tone: "spent" }, { label: "每日净结余", tone: "net" }]} /><StarTrend data={analytics.daily} /></DashboardSection>
         </div>
-        <DashboardSection title="消费偏好" subtitle="按具体星愿和星宠项目统计，退款项目不会计入"><SpendingPreference analytics={analytics} /></DashboardSection>
+        <DashboardSection title="消费偏好" subtitle="一级按消费类型合并，具体星愿和旅行目的地作为明细"><SpendingPreference analytics={analytics} /></DashboardSection>
       </> : <div className="admin-panel empty-state">正在整理成长数据…</div>}
 
       <WeeklyReportPanel childId={child.id} />

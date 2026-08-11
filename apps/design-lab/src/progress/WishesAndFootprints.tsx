@@ -118,8 +118,10 @@ function RequestedWishCard({
 
 export function WishesRequested({
   onNavigate,
+  onBack,
 }: {
   onNavigate: (route: ChildRoute) => void;
+  onBack?: () => void;
 }) {
   const [wishData, setWishData] = useState<{
     starBalance: number;
@@ -230,7 +232,7 @@ export function WishesRequested({
           error={Boolean(error)}
           message={error || "正在读取星愿…"}
         />
-        <ChildBottomNav active="wish" onNavigate={onNavigate} />
+        <ChildBottomNav active="pet" onNavigate={onNavigate} />
       </main>
     );
   }
@@ -239,6 +241,7 @@ export function WishesRequested({
     <main className="wishes-page wishes-page--requested">
       <section className="requested-wishes-frame" aria-label="星愿兑换">
         <header className="requested-wishes-header">
+          {onBack && <button className="requested-wishes-back" type="button" onClick={onBack}>‹ 返回星宠</button>}
           <div className="requested-wishes-balance">
             <img src={balanceStar} alt="星星" />
             <strong>当前余额 {wishData.starBalance}</strong>
@@ -263,7 +266,7 @@ export function WishesRequested({
           ))}
         </div>
       </section>
-      <ChildBottomNav active="wish" onNavigate={onNavigate} />
+      <ChildBottomNav active="pet" onNavigate={onNavigate} />
       {selectedWish && (
         <>
           <button

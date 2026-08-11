@@ -73,6 +73,7 @@ type TaskIconName = "book" | "training" | "math" | "return";
 type TaskItem = {
   id: string;
   title: string;
+  category: DailyTask["categorySnapshot"];
   duration: number;
   reward: number;
   icon: TaskIconName;
@@ -1110,23 +1111,37 @@ function TaskListPanel({
   tasks,
   streakDays,
   dashboard = false,
+  fullPage = false,
   startingTaskId,
   onStart,
 }: {
   tasks: TaskItem[];
   streakDays?: number;
   dashboard?: boolean;
+  fullPage?: boolean;
   startingTaskId: string | null;
   onStart?: (task: TaskItem) => void;
 }) {
-  const pendingTasks = tasks.filter((task) => task.status === "pending");
-  const completedTasks = tasks.filter((task) => task.status === "completed");
+  const [categoryFilter, setCategoryFilter] = useState<TaskCategoryFilter>("ALL");
+  const availableFilters = useMemo(() => {
+    const filters = new Set<Exclude<TaskCategoryFilter, "ALL">>();
+    tasks.forEach((task) => filters.add(taskCategoryFilterFor(task.category)));
+    return ["ALL" as const, ...Array.from(filters)];
+  }, [tasks]);
+  const filteredTasks = categoryFilter === "ALL"
+    ? tasks
+    : tasks.filter((task) => taskCategoryFilterFor(task.category) === categoryFilter);
+  const pendingTasks = filteredTasks.filter((task) => task.status === "pending");
+  const completedTasks = filteredTasks.filter((task) => task.status === "completed");
   const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <section className="task-list-panel" aria-labelledby="my-tasks-title">
+    <section className={`task-list-panel${fullPage ? " task-list-panel--full" : ""}`} aria-labelledby="my-tasks-title">
       <header className="task-list-panel__header">
-        <h2 id="my-tasks-title">我的任务</h2>
+        <div className="task-list-panel__heading">
+          {fullPage && <small>今天的安排</small>}
+          <h2 id="my-tasks-title">我的任务</h2>
+        </div>
         {dashboard ? (
           <span className="task-list-panel__count">{pendingTasks.length} 项待完成</span>
         ) : (streakDays ?? 0) > 2 ? (
@@ -1135,6 +1150,22 @@ function TaskListPanel({
             <span>连续 {streakDays} 天</span>
           </div>
         ) : null}
+        {fullPage && (
+          <div className="task-category-filter" role="tablist" aria-label="任务分类">
+            {availableFilters.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                role="tab"
+                aria-selected={categoryFilter === filter}
+                className={categoryFilter === filter ? "is-active" : ""}
+                onClick={() => setCategoryFilter(filter)}
+              >
+                {TASK_CATEGORY_LABELS[filter]}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
       <div
         className={`task-list-panel__scroll${dashboard ? " task-list-panel__scroll--rail-controlled" : ""}`}
@@ -1159,6 +1190,9 @@ function TaskListPanel({
               {completedTasks.map((task) => <CompletedTaskCard key={task.id} task={task} />)}
             </div>
           </section>
+        )}
+        {filteredTasks.length === 0 && (
+          <div className="task-list-filter-empty">这个分类今天还没有任务</div>
         )}
       </div>
       {dashboard && <TaskListScrollRail targetRef={dashboardScrollRef} />}
@@ -1232,6 +1266,7 @@ function taskItemFromApi(task: DailyTask): TaskItem {
   return {
     id: task.id,
     title: task.titleSnapshot,
+    category: task.categorySnapshot,
     duration: Math.max(1, Math.round((seconds ?? 60) / 60)),
     reward: isCompleted && completedAttempt
       ? completedAttempt.baseStarsAwarded + completedAttempt.bonusStarsAwarded
@@ -1247,16 +1282,39 @@ function taskItemFromApi(task: DailyTask): TaskItem {
   };
 }
 
+type TaskCategoryFilter = "ALL" | "CHINESE" | "MATH" | "ENGLISH" | "EXERCISE" | "LIFE" | "OTHER";
+
+const TASK_CATEGORY_LABELS: Record<TaskCategoryFilter, string> = {
+  ALL: "全部",
+  CHINESE: "语文",
+  MATH: "数学",
+  ENGLISH: "英语",
+  EXERCISE: "运动",
+  LIFE: "生活",
+  OTHER: "综合",
+};
+
+function taskCategoryFilterFor(category: DailyTask["categorySnapshot"]): Exclude<TaskCategoryFilter, "ALL"> {
+  if (category === "CHINESE" || category === "READING") return "CHINESE";
+  if (category === "MATH") return "MATH";
+  if (category === "ENGLISH") return "ENGLISH";
+  if (category === "EXERCISE" || category === "PE") return "EXERCISE";
+  if (category === "CHORES" || category === "ORGANIZING") return "LIFE";
+  return "OTHER";
+}
+
 export function TaskExperience({
   view,
   variant = "legacy",
+  navActive = "tasks",
   onStartAttempt,
   onNavigate,
   initialExperience = null,
   onExperienceChange,
 }: {
   view: TaskView;
-  variant?: "legacy" | "dashboard";
+  variant?: "legacy" | "dashboard" | "list";
+  navActive?: "home" | "tasks";
   onStartAttempt?: (attempt: TaskAttempt) => void;
   onNavigate?: (route: ChildRoute) => void;
   initialExperience?: TodayTaskExperience | null;
@@ -1279,6 +1337,7 @@ export function TaskExperience({
   ).matches);
   const onStartAttemptRef = useRef(onStartAttempt);
   const dashboardActive = variant === "dashboard" && !phoneLayout;
+  const listOnly = variant === "list";
 
   useEffect(() => {
     onStartAttemptRef.current = onStartAttempt;
@@ -1499,11 +1558,11 @@ export function TaskExperience({
   useEffect(() => {
     if (experience) {
       reportChildPageReady(
-        variant === "dashboard" ? "tasks-dashboard" : "tasks-partial",
+        variant === "dashboard" ? "home" : listOnly ? "tasks" : "tasks-partial",
         "/api/child/tasks/today",
       );
     }
-  }, [experience, variant]);
+  }, [experience, listOnly, variant]);
 
   const tasks = useMemo(
     () => experience?.tasks
@@ -1638,7 +1697,7 @@ export function TaskExperience({
           error={!loading && Boolean(apiError)}
           message={loading ? "正在读取今天的任务…" : apiError || "任务暂时无法读取"}
         />
-        <ChildBottomNav active="tasks" onNavigate={onNavigate} />
+        <ChildBottomNav active={navActive} onNavigate={onNavigate} />
       </div>
     );
   }
@@ -1661,27 +1720,30 @@ export function TaskExperience({
           onSave={saveDashboardLayout}
           renderWidget={renderDashboardWidget}
         />
-      ) : effectiveView === "complete" ? (
+      ) : effectiveView === "complete" && !listOnly ? (
         <CompleteTaskPanel
           earned={experience.earnedToday}
           onOpenMap={() => onNavigate?.("map")}
         />
       ) : (
-        <main className="task-main">
-          <ProgressColumn
-            earned={experience.earnedToday}
-            goal={experience.dailyStarGoal}
-            balance={experience.starBalance}
-            mascotContext={experience.mascotContext}
-            dialogues={experience.mascotDialogues}
-            mascotAssets={experience.mascotAssets ?? []}
-          />
-          {effectiveView === "empty" ? (
+        <main className={listOnly ? "task-list-main" : "task-main"}>
+          {!listOnly && (
+            <ProgressColumn
+              earned={experience.earnedToday}
+              goal={experience.dailyStarGoal}
+              balance={experience.starBalance}
+              mascotContext={experience.mascotContext}
+              dialogues={experience.mascotDialogues}
+              mascotAssets={experience.mascotAssets ?? []}
+            />
+          )}
+          {effectiveView === "empty" && !listOnly ? (
             <EmptyTaskPanel />
           ) : (
             <TaskListPanel
               tasks={tasks}
               streakDays={experience.streakDays}
+              fullPage={listOnly}
               startingTaskId={startingTaskId}
               onStart={start}
             />
@@ -1689,9 +1751,8 @@ export function TaskExperience({
         </main>
       )}
       <ChildBottomNav
-        active="tasks"
+        active={navActive}
         onNavigate={onNavigate}
-        navigateActiveTask={dashboardActive}
       />
       {planetUnlock && (
         <PlanetUnlockModal
