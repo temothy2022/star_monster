@@ -52,8 +52,8 @@ type PaperQuestionLayout = {
   wide: boolean;
 };
 
-const WORKSHEET_FIRST_PAGE_BODY_HEIGHT_MM = 244;
-const WORKSHEET_CONTINUATION_BODY_HEIGHT_MM = 262;
+const WORKSHEET_FIRST_PAGE_BODY_HEIGHT_MM = 258;
+const WORKSHEET_CONTINUATION_BODY_HEIGHT_MM = 270;
 const WORKSHEET_ROW_GAP_MM = 4;
 const MAX_PAIRED_HEIGHT_DIFFERENCE_MM = 12;
 
@@ -62,9 +62,8 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
     const rowCount = question.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 4;
     return { heightMm: Math.max(104, Math.min(120, 76 + rowCount * 7)), size: "logic", wide: true };
   }
-  // 一图四式在纸面上适合半栏展示：两题并排，图和算式都保持足够大。
-  // 四行算式纵向排列后，88mm 可以完整容纳内容，同时避免卡片过高。
-  if (question.typeId === "V07") return { heightMm: 88, size: "fact-family", wide: false };
+  // 一图四式采用两栏三行的纸面布局，一页可以容纳 6 题。
+  if (question.typeId === "V07") return { heightMm: 73, size: "fact-family", wide: false };
   if (question.typeId === "N02") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N15") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N16") return { heightMm: 104, size: "wide-visual", wide: true };
@@ -378,15 +377,20 @@ function MathPaperMascot({ mood = "neutral" }: { mood?: "neutral" | "focus" | "c
 }
 
 function PaperHeader({ title, answerKey = false }: { title: string; answerKey?: boolean }) {
+  if (!answerKey) {
+    return (
+      <header className="math-paper-header math-paper-header--worksheet">
+        <p><span>姓名：________________</span><span>日期：________________</span></p>
+      </header>
+    );
+  }
   return (
     <header className="math-paper-header">
       <div>
         <MathPaperMascot />
-        <span><small>星宠数学练习</small><strong>{answerKey ? `${title} - 参考答案` : title}</strong></span>
+        <span><small>星宠数学练习</small><strong>{`${title} - 参考答案`}</strong></span>
       </div>
-      {answerKey ? <b>请家长单独保管</b> : (
-        <p><span>姓名：________________</span><span>日期：________________</span></p>
-      )}
+      <b>请家长单独保管</b>
     </header>
   );
 }
@@ -408,7 +412,7 @@ function WorksheetPage({
       <div className="math-paper-question-grid">
         {items.map((item) => <PaperQuestion item={item} key={item.number} />)}
       </div>
-      <footer>练习卷 · 第 {pageNumber} / {totalPages} 页</footer>
+      <footer>{pageNumber}/{totalPages}</footer>
     </section>
   );
 }
@@ -435,7 +439,7 @@ function AnswerPage({
           </div>
         ))}
       </div>
-      <footer>参考答案 · 第 {pageNumber} / {totalPages} 页</footer>
+      <footer>{pageNumber}/{totalPages}</footer>
     </section>
   );
 }
