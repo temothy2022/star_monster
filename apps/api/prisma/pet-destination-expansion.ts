@@ -1697,6 +1697,8 @@ const ALL_EXPANDED_DRAFTS = [
   ...worldDestinations,
 ];
 
+const EXPANDED_DESTINATION_ASSET_VERSION = "20260811";
+
 export const EXPANDED_PET_DESTINATIONS = ALL_EXPANDED_DRAFTS.map((destination, index) => ({
   id: `pet-dest-expanded-${destination.slug}`,
   slug: destination.slug,
@@ -1706,7 +1708,7 @@ export const EXPANDED_PET_DESTINATIONS = ALL_EXPANDED_DRAFTS.map((destination, i
   tier: destination.tier,
   introduction: `${destination.story}${destination.explore}`,
   funFact: destination.funFact,
-  imageUrl: `/pet-assets/v1/destinations/expanded/${destination.slug}.webp`,
+  imageUrl: `/pet-assets/v1/destinations/expanded/${destination.slug}.webp?v=${EXPANDED_DESTINATION_ASSET_VERSION}`,
   sortOrder: 1_000 + index * 10,
   isEnabled: true,
   scene: destination.scene,

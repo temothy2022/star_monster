@@ -19,6 +19,7 @@ source "$SERVER_CONFIG"
 API_SERVICE="${API_SERVICE:-star-monsters-api.service}"
 HANZI_UPLOAD_DIR="${HANZI_UPLOAD_DIR:-/opt/star-monsters/hanzi-assets/v1/uploads}"
 POEM_UPLOAD_DIR="${POEM_UPLOAD_DIR:-/opt/star-monsters/poem-assets/v1/uploads}"
+PET_STATIC_DIR="${PET_STATIC_DIR:-/opt/star-monsters/pet-assets}"
 NGINX_PERFORMANCE_CONF="${NGINX_PERFORMANCE_CONF:-/etc/nginx/conf.d/star-monsters-performance.conf}"
 NGINX_SITE_CONFIG="${NGINX_SITE_CONFIG:-/etc/nginx/sites-enabled/star-monsters}"
 MAX_UPLOAD_SIZE="${MAX_UPLOAD_SIZE:-32m}"
@@ -57,6 +58,12 @@ fi
 API_RUN_GROUP="$(id -gn "$API_RUN_USER")"
 sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$HANZI_UPLOAD_DIR"
 sudo install -d -m 755 -o "$API_RUN_USER" -g "$API_RUN_GROUP" "$POEM_UPLOAD_DIR"
+
+# Built-in pet growth backgrounds, room themes, and travel postcards are served
+# from a stable public path. They are part of the release, unlike parent uploads,
+# so keep the server copy in sync whenever the code release changes them.
+sudo install -d -m 755 "$PET_STATIC_DIR"
+sudo rsync -a --delete packages/assets/static/pet-assets/ "$PET_STATIC_DIR/"
 
 # Keep the built-in travel catalog in sync before generating narration. The
 # sync script clears audio URLs only when narration content changed, so the
@@ -100,6 +107,24 @@ if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.co
   sudo install -m 644 scripts/server/nginx-performance.conf "$NGINX_PERFORMANCE_CONF"
   if [[ -f "$NGINX_SITE_CONFIG" ]] && sudo grep -qE '^[[:space:]]*client_max_body_size[[:space:]]+' "$NGINX_SITE_CONFIG"; then
     sudo sed -i -E "s/^([[:space:]]*)client_max_body_size[[:space:]]+[^;]+;/\\1client_max_body_size $MAX_UPLOAD_SIZE;/" "$NGINX_SITE_CONFIG"
+  fi
+  if [[ -f "$NGINX_SITE_CONFIG" ]] && ! sudo grep -q 'location \^~ /pet-assets/' "$NGINX_SITE_CONFIG"; then
+    tmp_nginx_site="$(mktemp)"
+    sudo awk -v pet_static_dir="$PET_STATIC_DIR" '
+      /^[[:space:]]*location[[:space:]]+\/api\/[[:space:]]*\{/ && !inserted {
+        print "    location ^~ /pet-assets/ {"
+        print "        alias " pet_static_dir "/;"
+        print "        try_files $uri =404;"
+        print "        expires 30d;"
+        print "        add_header Cache-Control \"public, max-age=2592000\";"
+        print "    }"
+        print ""
+        inserted = 1
+      }
+      { print }
+    ' "$NGINX_SITE_CONFIG" > "$tmp_nginx_site"
+    sudo install -m 644 "$tmp_nginx_site" "$NGINX_SITE_CONFIG"
+    rm -f "$tmp_nginx_site"
   fi
   sudo nginx -t
   sudo systemctl reload nginx
