@@ -612,23 +612,22 @@ export function TaskDashboard({
 
   return (
     <div className={`task-dashboard-shell${editing ? " is-editing" : ""}`}>
-      <div className="task-dashboard-topbar">
-        <div>
-          <strong>今天的探险</strong>
-          {editing && <span>拖动组件，布置自己的任务桌面</span>}
-        </div>
-        {editing ? (
-          <div className="task-dashboard-topbar__actions">
-            <button type="button" onClick={() => setLibraryOpen(true)}>添加组件</button>
-            <button type="button" onClick={cancelEditing}>取消</button>
-            <button className="task-dashboard-save" type="button" disabled={saving} onClick={() => void saveEditing()}>
-              {saving ? "保存中" : "完成"}
-            </button>
-          </div>
-        ) : null}
-      </div>
-
       <div className="task-dashboard-scroll" ref={scrollRef}>
+        <div className="task-dashboard-topbar">
+          <div>
+            <strong>今天的探险</strong>
+            {editing && <span>拖动组件，布置自己的任务桌面</span>}
+          </div>
+          {editing ? (
+            <div className="task-dashboard-topbar__actions">
+              <button type="button" onClick={() => setLibraryOpen(true)}>添加组件</button>
+              <button type="button" onClick={cancelEditing}>取消</button>
+              <button className="task-dashboard-save" type="button" disabled={saving} onClick={() => void saveEditing()}>
+                {saving ? "保存中" : "完成"}
+              </button>
+            </div>
+          ) : null}
+        </div>
         <div className="task-dashboard-grid" ref={gridRef}>
           {draftWidgets.map((key) => {
             const definition = WIDGET_BY_KEY.get(key)!;
