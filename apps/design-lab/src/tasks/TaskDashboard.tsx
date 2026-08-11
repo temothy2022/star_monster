@@ -14,8 +14,6 @@ import type {
 
 const LONG_PRESS_MS = 520;
 const REORDER_ANIMATION_MS = 340;
-const MIN_TASK_ROWS = 27;
-const MAX_TASK_ROWS = 60;
 
 export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   key: TaskDashboardWidgetKey;
@@ -23,19 +21,22 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   description: string;
   size: "large" | "wide" | "medium" | "small";
   tone: string;
+  defaultRows: number;
+  minRows: number;
+  maxRows: number;
   required?: boolean;
 }> = [
-  { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", required: true },
-  { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green" },
-  { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow" },
-  { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink" },
-  { key: "TODAY_PLAN", label: "今日计划", description: "待完成、已完成和预计时间", size: "medium", tone: "blue" },
-  { key: "STREAK", label: "连续记录", description: "记录坚持完成任务的天数", size: "small", tone: "orange" },
-  { key: "GOAL_BONUS", label: "目标奖励", description: "展示达标后可以获得的奖励", size: "small", tone: "purple" },
-  { key: "LEADERBOARD", label: "今日排名", description: "查看前三名和自己的今日排名", size: "medium", tone: "indigo" },
-  { key: "NOTIFICATIONS", label: "通知", description: "查看新明信片和升级红包", size: "small", tone: "notice" },
-  { key: "HANZI_REVIEW", label: "复习汉字", description: "滑动查看最近要复习的汉字", size: "small", tone: "hanzi" },
-  { key: "POEM_REVIEW", label: "复习古诗", description: "每天听一首需要复习的古诗", size: "medium", tone: "poem" },
+  { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", defaultRows: 35, minRows: 27, maxRows: 60, required: true },
+  { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green", defaultRows: 15, minRows: 12, maxRows: 26 },
+  { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow", defaultRows: 12, minRows: 9, maxRows: 22 },
+  { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink", defaultRows: 15, minRows: 13, maxRows: 26 },
+  { key: "TODAY_PLAN", label: "今日计划", description: "待完成、已完成和预计时间", size: "medium", tone: "blue", defaultRows: 15, minRows: 12, maxRows: 24 },
+  { key: "STREAK", label: "连续记录", description: "记录坚持完成任务的天数", size: "small", tone: "orange", defaultRows: 12, minRows: 9, maxRows: 22 },
+  { key: "GOAL_BONUS", label: "目标奖励", description: "展示达标后可以获得的奖励", size: "small", tone: "purple", defaultRows: 12, minRows: 9, maxRows: 22 },
+  { key: "LEADERBOARD", label: "今日排名", description: "查看前三名和自己的今日排名", size: "medium", tone: "indigo", defaultRows: 15, minRows: 13, maxRows: 24 },
+  { key: "NOTIFICATIONS", label: "通知", description: "查看新明信片和升级红包", size: "small", tone: "notice", defaultRows: 9, minRows: 8, maxRows: 18 },
+  { key: "HANZI_REVIEW", label: "复习汉字", description: "滑动查看最近要复习的汉字", size: "small", tone: "hanzi", defaultRows: 12, minRows: 11, maxRows: 20 },
+  { key: "POEM_REVIEW", label: "复习古诗", description: "每天听一首需要复习的古诗", size: "medium", tone: "poem", defaultRows: 15, minRows: 12, maxRows: 24 },
 ];
 
 const WIDGET_BY_KEY = new Map(TASK_DASHBOARD_WIDGETS.map((widget) => [widget.key, widget]));
@@ -64,11 +65,18 @@ type DragSession = {
 };
 
 type ResizeSession = {
+  key: TaskDashboardWidgetKey;
   pointerId: number;
   startY: number;
   startRows: number;
   rowStep: number;
 };
+
+function rowsFromLayout(layout: TaskDashboardLayout) {
+  const rows = { ...(layout.rows ?? {}) };
+  if (rows.TASKS === undefined && layout.taskRows !== undefined) rows.TASKS = layout.taskRows;
+  return rows;
+}
 
 function reorder(
   widgets: TaskDashboardWidgetKey[],
@@ -112,7 +120,7 @@ export function TaskDashboard({
   const [message, setMessage] = useState("");
   const [draftWidgets, setDraftWidgets] = useState<TaskDashboardWidgetKey[]>(layout.widgets);
   const [draftColumns, setDraftColumns] = useState<Partial<Record<TaskDashboardWidgetKey, number>>>(layout.columns ?? {});
-  const [draftTaskRows, setDraftTaskRows] = useState<number | undefined>(layout.taskRows);
+  const [draftRows, setDraftRows] = useState<Partial<Record<TaskDashboardWidgetKey, number>>>(() => rowsFromLayout(layout));
   const [pressedWidget, setPressedWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [draggingWidget, setDraggingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [settlingWidget, setSettlingWidget] = useState<TaskDashboardWidgetKey | null>(null);
@@ -137,7 +145,7 @@ export function TaskDashboard({
     if (!editing) {
       setDraftWidgets(layout.widgets);
       setDraftColumns(layout.columns ?? {});
-      setDraftTaskRows(layout.taskRows);
+      setDraftRows(rowsFromLayout(layout));
     }
   }, [editing, layout]);
 
@@ -183,7 +191,7 @@ export function TaskDashboard({
     const drag = dragRef.current;
     if (drag?.activated) paintDragPosition(drag);
 
-  }, [draftWidgets, draftTaskRows, draggingWidget]);
+  }, [draftWidgets, draftRows, draggingWidget]);
 
   function paintDragPosition(session: DragSession) {
     session.overlay?.style.setProperty("--task-drag-x", `${session.visualLeft}px`);
@@ -242,7 +250,7 @@ export function TaskDashboard({
 
   function enterEditing() {
     setDraftWidgets(layout.widgets);
-    setDraftTaskRows(layout.taskRows);
+    setDraftRows(rowsFromLayout(layout));
     const columns = { ...captureWidgetColumns(), ...(layout.columns ?? {}) };
     columnsRef.current = columns;
     setDraftColumns(columns);
@@ -487,20 +495,23 @@ export function TaskDashboard({
     });
   }
 
-  function beginTaskResize(event: ReactPointerEvent<HTMLButtonElement>) {
+  function beginWidgetResize(key: TaskDashboardWidgetKey, event: ReactPointerEvent<HTMLButtonElement>) {
     if (!editing || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    const widget = event.currentTarget.closest<HTMLElement>("[data-task-widget='TASKS']");
+    const widget = event.currentTarget.closest<HTMLElement>(`[data-task-widget='${key}']`);
     const grid = gridRef.current;
     if (!widget || !grid) return;
     const styles = window.getComputedStyle(grid);
     const rowHeight = Number.parseFloat(styles.gridAutoRows) || 1;
     const rowGap = Number.parseFloat(styles.rowGap) || 16;
-    const startRows = draftTaskRows ?? Math.round(
+    const definition = WIDGET_BY_KEY.get(key)!;
+    const measuredRows = Math.round(
       (widget.getBoundingClientRect().height + rowGap) / (rowHeight + rowGap),
     );
+    const startRows = draftRows[key] ?? (measuredRows || definition.defaultRows);
     resizeRef.current = {
+      key,
       pointerId: event.pointerId,
       startY: event.clientY,
       startRows,
@@ -509,21 +520,22 @@ export function TaskDashboard({
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function resizeTask(event: ReactPointerEvent<HTMLButtonElement>) {
+  function resizeWidget(event: ReactPointerEvent<HTMLButtonElement>) {
     const session = resizeRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
     event.preventDefault();
     event.stopPropagation();
+    const definition = WIDGET_BY_KEY.get(session.key)!;
     const nextRows = Math.max(
-      MIN_TASK_ROWS,
-      Math.min(MAX_TASK_ROWS, session.startRows + Math.round((event.clientY - session.startY) / session.rowStep)),
+      definition.minRows,
+      Math.min(definition.maxRows, session.startRows + Math.round((event.clientY - session.startY) / session.rowStep)),
     );
-    if (nextRows === draftTaskRows) return;
-    previousRectsRef.current = captureWidgetRects("TASKS");
-    setDraftTaskRows(nextRows);
+    if (nextRows === draftRows[session.key]) return;
+    previousRectsRef.current = captureWidgetRects(session.key);
+    setDraftRows((current) => ({ ...current, [session.key]: nextRows }));
   }
 
-  function finishTaskResize(event: ReactPointerEvent<HTMLButtonElement>) {
+  function finishWidgetResize(event: ReactPointerEvent<HTMLButtonElement>) {
     const session = resizeRef.current;
     if (!session || session.pointerId !== event.pointerId) return;
     event.preventDefault();
@@ -538,9 +550,12 @@ export function TaskDashboard({
     if (WIDGET_BY_KEY.get(key)?.required) return;
     const next = widgetsRef.current.filter((widget) => widget !== key);
     const columns = { ...columnsRef.current };
+    const rows = { ...draftRows };
     delete columns[key];
+    delete rows[key];
     columnsRef.current = columns;
     setDraftColumns(columns);
+    setDraftRows(rows);
     widgetsRef.current = next;
     setDraftWidgets(next);
   }
@@ -561,7 +576,7 @@ export function TaskDashboard({
   function cancelEditing() {
     setDraftWidgets(layout.widgets);
     setDraftColumns(layout.columns ?? {});
-    setDraftTaskRows(layout.taskRows);
+    setDraftRows(rowsFromLayout(layout));
     setEditing(false);
     setLibraryOpen(false);
     setMessage("");
@@ -576,7 +591,9 @@ export function TaskDashboard({
         version: 1,
         widgets: draftWidgets,
         columns: draftColumns,
-        ...(draftTaskRows !== undefined ? { taskRows: draftTaskRows } : {}),
+        rows: Object.fromEntries(Object.entries(draftRows).filter(([key]) => (
+          draftWidgets.includes(key as TaskDashboardWidgetKey)
+        ))) as Partial<Record<TaskDashboardWidgetKey, number>>,
       });
       setEditing(false);
       setLibraryOpen(false);
@@ -616,11 +633,15 @@ export function TaskDashboard({
           {draftWidgets.map((key) => {
             const definition = WIDGET_BY_KEY.get(key)!;
             const column = draftColumns[key];
+            const rows = draftRows[key] ?? definition.defaultRows;
+            const density = rows <= definition.minRows + 1
+              ? "compact"
+              : rows >= definition.defaultRows + 3
+                ? "expanded"
+                : "regular";
             const widgetStyle = {
               ...(column === undefined ? {} : { "--task-widget-column": column + 1 }),
-              ...(key === "TASKS" && draftTaskRows !== undefined
-                ? { "--task-widget-rows": draftTaskRows }
-                : {}),
+              "--task-widget-rows": rows,
             } as CSSProperties;
             return (
               <section
@@ -633,8 +654,10 @@ export function TaskDashboard({
                   settlingWidget === key ? "is-drop-placeholder" : "",
                 ].filter(Boolean).join(" ")}
                 data-task-widget={key}
+                data-widget-key={key}
+                data-widget-density={density}
                 data-task-column={column === undefined ? undefined : column}
-                data-task-rows={key === "TASKS" && draftTaskRows !== undefined ? draftTaskRows : undefined}
+                data-widget-rows={rows}
                 style={Object.keys(widgetStyle).length > 0 ? widgetStyle : undefined}
                 aria-label={definition.label}
                 key={key}
@@ -655,16 +678,16 @@ export function TaskDashboard({
                 <div className="task-dashboard-widget__content">
                   {renderWidget(key)}
                 </div>
-                {editing && key === "TASKS" && (
+                {editing && (
                   <button
                     className="task-dashboard-widget__resize-handle"
                     type="button"
-                    aria-label="调整我的任务高度"
+                    aria-label={`调整${definition.label}高度`}
                     title="上下拖动调整高度"
-                    onPointerDown={beginTaskResize}
-                    onPointerMove={resizeTask}
-                    onPointerUp={finishTaskResize}
-                    onPointerCancel={finishTaskResize}
+                    onPointerDown={(event) => beginWidgetResize(key, event)}
+                    onPointerMove={resizeWidget}
+                    onPointerUp={finishWidgetResize}
+                    onPointerCancel={finishWidgetResize}
                   ><i /><i /><i /></button>
                 )}
               </section>

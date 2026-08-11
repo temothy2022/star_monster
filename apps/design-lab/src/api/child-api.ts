@@ -430,6 +430,8 @@ export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
   columns?: Partial<Record<TaskDashboardWidgetKey, number>>;
+  rows?: Partial<Record<TaskDashboardWidgetKey, number>>;
+  /** @deprecated Only present in layouts saved before per-widget resizing. */
   taskRows?: number;
 };
 

@@ -389,10 +389,18 @@ function ProgressColumn({
 
 function DailyProgressWidget({ earned, goal }: { earned: number; goal: number }) {
   const remaining = Math.max(0, goal - earned);
+  const completedPercent = goal > 0 ? Math.min(100, Math.round((earned / goal) * 100)) : 100;
   return (
     <div className="task-widget-progress">
       <DailyProgress earned={earned} total={goal} />
-      <div className="task-widget-heading"><small>今日进度</small><strong>{remaining > 0 ? `还差 ${remaining} 颗星` : "目标达成"}</strong></div>
+      <div className="task-widget-progress__copy">
+        <div className="task-widget-heading"><small>今日进度</small><strong>{remaining > 0 ? `还差 ${remaining} 颗星` : "目标达成"}</strong></div>
+        <div className="task-widget-progress__summary">
+          <span><b>{earned}</b> 已收集</span>
+          <span><b>{goal}</b> 今日目标</span>
+        </div>
+        <div className="task-widget-progress__rail" aria-label={`今日目标完成 ${completedPercent}%`}><i style={{ width: `${completedPercent}%` }} /></div>
+      </div>
     </div>
   );
 }
@@ -401,7 +409,10 @@ function BalanceWidget({ balance }: { balance: number }) {
   return (
     <div className="task-widget-balance">
       <span className="task-widget-balance__star" aria-hidden="true">★</span>
-      <div><small>我的星星</small><strong>{balance}</strong><span>可用于星愿和星宠</span></div>
+      <div className="task-widget-balance__copy">
+        <small>我的星星</small><strong>{balance}</strong><span>可用于星愿和星宠</span>
+        <div className="task-widget-balance__uses" aria-hidden="true"><i>星愿</i><i>照顾星宠</i></div>
+      </div>
     </div>
   );
 }
@@ -410,6 +421,7 @@ function TodayPlanWidget({ tasks }: { tasks: TaskItem[] }) {
   const pending = tasks.filter((task) => task.status === "pending");
   const completed = tasks.length - pending.length;
   const minutes = pending.reduce((sum, task) => sum + task.duration, 0);
+  const completedPercent = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
   return (
     <div className="task-widget-plan">
       <div className="task-widget-heading"><small>今日计划</small><strong>{pending.length > 0 ? "继续探险" : "全部完成"}</strong></div>
@@ -418,15 +430,24 @@ function TodayPlanWidget({ tasks }: { tasks: TaskItem[] }) {
         <span><b>{completed}</b><small>已完成</small></span>
         <span><b>{minutes}</b><small>预计分钟</small></span>
       </div>
+      <div className="task-widget-plan__rail">
+        <span><b style={{ width: `${completedPercent}%` }} /></span><small>今天已完成 {completedPercent}%</small>
+      </div>
     </div>
   );
 }
 
 function StreakWidget({ days }: { days: number }) {
+  const filledDays = Math.min(7, days);
   return (
     <div className="task-widget-streak">
       <span className="task-widget-streak__flame" aria-hidden="true"><i /></span>
-      <div><small>连续记录</small><strong>{days} <em>天</em></strong><span>{days > 2 ? "坚持让每一天都闪亮" : "从今天开始积累"}</span></div>
+      <div className="task-widget-streak__copy">
+        <small>连续记录</small><strong>{days} <em>天</em></strong><span>{days > 2 ? "坚持让每一天都闪亮" : "从今天开始积累"}</span>
+        <div className="task-widget-streak__trail" aria-label={`最近连续 ${filledDays} 天`}>
+          {Array.from({ length: 7 }, (_, index) => <i className={index < filledDays ? "is-lit" : ""} key={index} />)}
+        </div>
+      </div>
     </div>
   );
 }
@@ -435,15 +456,23 @@ function GoalBonusWidget({
   earned,
   potential,
   goalReached,
+  progress,
+  goal,
 }: {
   earned: number;
   potential: number;
   goalReached: boolean;
+  progress: number;
+  goal: number;
 }) {
+  const completedPercent = goal > 0 ? Math.min(100, Math.round((progress / goal) * 100)) : 100;
   return (
     <div className="task-widget-goal-bonus">
       <span className="task-widget-goal-bonus__gift" aria-hidden="true"><i /></span>
-      <div><small>目标奖励</small><strong>{goalReached ? "已经领取" : potential > 0 ? `达标 +${potential}` : "完成目标"}</strong><span>{earned > 0 ? `今天已获得 ${earned} 颗奖励星` : "向今天的目标前进"}</span></div>
+      <div className="task-widget-goal-bonus__copy">
+        <small>目标奖励</small><strong>{goalReached ? "已经领取" : potential > 0 ? `达标 +${potential}` : "完成目标"}</strong><span>{earned > 0 ? `今天已获得 ${earned} 颗奖励星` : "向今天的目标前进"}</span>
+        <div className="task-widget-goal-bonus__rail" aria-label={`目标完成 ${completedPercent}%`}><i style={{ width: `${completedPercent}%` }} /></div>
+      </div>
     </div>
   );
 }
@@ -1397,6 +1426,8 @@ export function TaskExperience({
             earned={experience!.dailyGoalBonusStars}
             potential={experience!.dailyGoalBonusPotential}
             goalReached={experience!.earnedToday >= experience!.dailyStarGoal}
+            progress={experience!.earnedToday}
+            goal={experience!.dailyStarGoal}
           />
         );
       case "LEADERBOARD":

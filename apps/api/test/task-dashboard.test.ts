@@ -23,7 +23,12 @@ describe("task dashboard layout", () => {
       columns: { BALANCE: 0 as const, TASKS: 4 as const, NOTIFICATIONS: 8 as const },
       taskRows: 42,
     };
-    expect(normalizeTaskDashboardLayout(layout)).toEqual(layout);
+    expect(normalizeTaskDashboardLayout(layout)).toEqual({
+      version: 1,
+      widgets: layout.widgets,
+      columns: layout.columns,
+      rows: { TASKS: 42 },
+    });
   });
 
   it("keeps task height within the supported desktop range", () => {
@@ -36,6 +41,29 @@ describe("task dashboard layout", () => {
       version: 1,
       widgets: ["TASKS"],
       taskRows: 61,
+    }).success).toBe(false);
+  });
+
+  it("keeps valid heights for every enabled widget", () => {
+    const layout = {
+      version: 1 as const,
+      widgets: ["TASKS", "BALANCE", "MASCOT", "NOTIFICATIONS"] as const,
+      rows: { TASKS: 38, BALANCE: 14, MASCOT: 19, NOTIFICATIONS: 10 },
+    };
+    expect(taskDashboardLayoutSchema.safeParse(layout).success).toBe(true);
+    expect(normalizeTaskDashboardLayout(layout)).toEqual(layout);
+  });
+
+  it("rejects a widget height outside that widget's usable range", () => {
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: ["TASKS", "BALANCE"],
+      rows: { TASKS: 38, BALANCE: 8 },
+    }).success).toBe(false);
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: ["TASKS", "LEADERBOARD"],
+      rows: { LEADERBOARD: 25 },
     }).success).toBe(false);
   });
 
