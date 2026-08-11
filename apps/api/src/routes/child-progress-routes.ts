@@ -2,7 +2,10 @@ import type { FastifyInstance } from "fastify";
 import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
-import { getFootprints } from "../services/footprint-service.js";
+import {
+  getChildLeaderboards,
+  getFootprints,
+} from "../services/footprint-service.js";
 import { requireChild } from "../services/auth-service.js";
 import {
   markPlanetCelebrated,
@@ -77,6 +80,29 @@ export async function registerChildProgressRoutes(
           queryMs: Math.round(completedAt - authenticatedAt),
         },
         "slow child footprints read",
+      );
+    }
+    return result;
+  });
+
+  app.get("/api/child/leaderboards", async (request, reply) => {
+    const startedAt = performance.now();
+    const { child } = await requireChild(request, reply, config);
+    const authenticatedAt = performance.now();
+    const result = await getChildLeaderboards(child.id, config);
+    const completedAt = performance.now();
+    if (completedAt - startedAt >= 200) {
+      request.log.warn(
+        {
+          event: "slow_child_read_detail",
+          requestId: request.id,
+          operation: "load_leaderboards",
+          childId: child.id,
+          totalMs: Math.round(completedAt - startedAt),
+          authMs: Math.round(authenticatedAt - startedAt),
+          queryMs: Math.round(completedAt - authenticatedAt),
+        },
+        "slow child leaderboards read",
       );
     }
     return result;

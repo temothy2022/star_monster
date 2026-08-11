@@ -35,8 +35,8 @@ import { ChildBottomNav, type ChildRoute } from "../components/ChildBottomNav";
 import { ChildDataState } from "../components/ChildDataState";
 import {
   ApiError,
+  getChildLeaderboards,
   getChildPlanets,
-  getChildFootprints,
   getPetNotifications,
   getTaskDashboardReviews,
   getTodayTasks,
@@ -544,6 +544,16 @@ function HanziReviewWidget({
     }
   }
 
+  function cancelSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setDragOffset(0);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
   if (loading) {
     return <div className="task-widget-review-empty"><i /><span>正在整理复习汉字</span></div>;
   }
@@ -561,7 +571,7 @@ function HanziReviewWidget({
         onPointerDown={beginSwipe}
         onPointerMove={moveSwipe}
         onPointerUp={finishSwipe}
-        onPointerCancel={finishSwipe}
+        onPointerCancel={cancelSwipe}
       >
         <div
           className="task-widget-hanzi-review__track"
@@ -707,7 +717,7 @@ function CompactLeaderboardSlide({
   );
 }
 
-function CompactLeaderboardWidget({ leaderboards }: { leaderboards: CompactLeaderboards | null }) {
+function CompactLeaderboardWidget({ leaderboards }: { leaderboards: CompactLeaderboards | null | undefined }) {
   const [index, setIndex] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const dragRef = useRef<{ pointerId: number; startX: number; width: number } | null>(null);
@@ -744,11 +754,29 @@ function CompactLeaderboardWidget({ leaderboards }: { leaderboards: CompactLeade
     }
   }
 
-  if (!leaderboards) {
+  function cancelSwipe(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setDragOffset(0);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  if (leaderboards === undefined) {
     return (
       <div className="task-widget-leaderboard task-widget-leaderboard--loading" aria-busy="true">
         <div className="task-widget-leaderboard__heading"><small>今日榜</small><strong>小朋友排名</strong></div>
         <span>正在更新排名…</span>
+      </div>
+    );
+  }
+  if (leaderboards === null) {
+    return (
+      <div className="task-widget-leaderboard task-widget-leaderboard--loading">
+        <div className="task-widget-leaderboard__heading"><small>今日榜</small><strong>小朋友排名</strong></div>
+        <span>排名暂时无法更新</span>
       </div>
     );
   }
@@ -760,7 +788,7 @@ function CompactLeaderboardWidget({ leaderboards }: { leaderboards: CompactLeade
         onPointerDown={beginSwipe}
         onPointerMove={moveSwipe}
         onPointerUp={finishSwipe}
-        onPointerCancel={finishSwipe}
+        onPointerCancel={cancelSwipe}
       >
         <div
           className="task-widget-leaderboard__track"
@@ -1030,12 +1058,13 @@ export function TaskExperience({
   const [experience, setExperience] = useState<TodayTaskExperience | null>(
     initialExperience,
   );
+  const experienceRef = useRef<TodayTaskExperience | null>(initialExperience);
   const [planetUnlock, setPlanetUnlock] = useState<ChildPlanet | null>(null);
   const [loading, setLoading] = useState(!initialExperience);
   const [startingTaskId, setStartingTaskId] = useState<string | null>(null);
   const [acknowledgingPlanet, setAcknowledgingPlanet] = useState(false);
   const [apiError, setApiError] = useState("");
-  const [dashboardLeaderboards, setDashboardLeaderboards] = useState<CompactLeaderboards | null>(null);
+  const [dashboardLeaderboards, setDashboardLeaderboards] = useState<CompactLeaderboards | null | undefined>(undefined);
   const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
   const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
   const [phoneLayout, setPhoneLayout] = useState(() => window.matchMedia(
@@ -1058,6 +1087,7 @@ export function TaskExperience({
   }, []);
 
   function updateExperience(nextExperience: TodayTaskExperience) {
+    experienceRef.current = nextExperience;
     setExperience(nextExperience);
     onExperienceChange?.(nextExperience);
   }
@@ -1152,16 +1182,18 @@ export function TaskExperience({
 
   useEffect(() => {
     if (!leaderboardEnabled) {
-      setDashboardLeaderboards(null);
+      setDashboardLeaderboards(undefined);
       return;
     }
     const controller = new AbortController();
-    void getChildFootprints(undefined, controller.signal)
+    void getChildLeaderboards(controller.signal)
       .then((result) => setDashboardLeaderboards(result.leaderboards))
       .catch((reason: unknown) => {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
+          return;
         }
+        if (!controller.signal.aborted) setDashboardLeaderboards(null);
       });
     return () => controller.abort();
   }, [leaderboardEnabled]);
@@ -1169,11 +1201,15 @@ export function TaskExperience({
   useLiveRefresh(
     async (signal) => {
       try {
-        const result = await getChildFootprints(undefined, signal);
+        const result = await getChildLeaderboards(signal);
         setDashboardLeaderboards(result.leaderboards);
       } catch (reason) {
         if (reason instanceof ApiError && reason.status === 401) {
           window.location.hash = "login";
+          return;
+        }
+        if (!signal.aborted) {
+          setDashboardLeaderboards((current) => current ?? null);
         }
       }
     },
@@ -1256,11 +1292,11 @@ export function TaskExperience({
   useEffect(() => {
     if (experience) {
       reportChildPageReady(
-        dashboardActive ? "tasks-dashboard" : "tasks-partial",
+        variant === "dashboard" ? "tasks-dashboard" : "tasks-partial",
         "/api/child/tasks/today",
       );
     }
-  }, [dashboardActive, experience]);
+  }, [experience, variant]);
 
   const tasks = useMemo(
     () => experience?.tasks
@@ -1316,7 +1352,12 @@ export function TaskExperience({
 
   async function saveDashboardLayout(layout: TodayTaskExperience["taskDashboardLayout"]) {
     const result = await updateTaskDashboardLayout(layout);
-    updateExperience({ ...experience!, taskDashboardLayout: result.layout });
+    const currentExperience = experienceRef.current;
+    if (!currentExperience) return;
+    updateExperience({
+      ...currentExperience,
+      taskDashboardLayout: result.layout,
+    });
   }
 
   function renderDashboardWidget(key: TaskDashboardWidgetKey) {

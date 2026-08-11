@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   businessDateAt,
   businessDateKey,
+  businessDateStartInstant,
   businessMinuteOfDayAt,
 } from "../src/lib/time.js";
 
@@ -18,5 +19,12 @@ describe("业务时区", () => {
       businessDateKey(businessDateAt(midnight, "Asia/Shanghai")),
     ).toBe("2026-08-08");
     expect(businessMinuteOfDayAt(midnight, "Asia/Shanghai")).toBe(0);
+  });
+
+  it("把业务日期转换为上海时区真正的零点时刻", () => {
+    expect(businessDateStartInstant(
+      new Date("2026-08-11T00:00:00.000Z"),
+      "Asia/Shanghai",
+    ).toISOString()).toBe("2026-08-10T16:00:00.000Z");
   });
 });

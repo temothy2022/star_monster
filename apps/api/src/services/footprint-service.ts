@@ -1,10 +1,11 @@
-import type { PlanetKey, StarLedgerType } from "@prisma/client";
+import type { PetType, PlanetKey, StarLedgerType } from "@prisma/client";
 import type { AppConfig } from "../config.js";
 import { prisma } from "../lib/prisma.js";
 import {
   addBusinessDays,
   businessDateAt,
   businessDateKey,
+  businessDateStartInstant,
   businessMinuteOfDayAt,
   startOfBusinessWeek,
 } from "../lib/time.js";
@@ -116,6 +117,194 @@ export function leaderboardEffectiveMinute(
   );
 }
 
+type LeaderboardTaskSnapshot = {
+  taskDate: Date;
+  baseStarsSnapshot: number;
+  earlyBonusEnabledSnapshot: boolean;
+  earlyBonusStarsSnapshot: number | null;
+  attempts: Array<{
+    baseStarsAwarded: number;
+    bonusStarsAwarded: number;
+  }>;
+  template: {
+    isEnabled: boolean;
+    archivedAt: Date | null;
+  };
+};
+
+type LeaderboardChildSnapshot = {
+  dailyStarGoal: number;
+  dailyGoalBonusEnabled: boolean;
+  dailyGoalBonusStars: number;
+  nickname: string | null;
+  avatarUrl: string | null;
+  petType: PetType | null;
+};
+
+function rewardTotalsByDate(
+  ledgers: readonly { amount: number; createdAt: Date }[],
+  todayKey: string,
+  timeZone: string,
+) {
+  const totals = new Map<string, number>();
+  for (const ledger of ledgers) {
+    const key = businessDateKey(businessDateAt(ledger.createdAt, timeZone));
+    if (key > todayKey) continue;
+    totals.set(key, (totals.get(key) ?? 0) + ledger.amount);
+  }
+  return totals;
+}
+
+function buildChildLeaderboards(input: {
+  childId: string;
+  child: LeaderboardChildSnapshot;
+  tasks: LeaderboardTaskSnapshot[];
+  rewardTotals: Map<string, number>;
+  leaderboardSettings: Awaited<ReturnType<typeof getChildLeaderboardSettings>>;
+  today: Date;
+  weekStart: Date;
+  currentMinute: number;
+}) {
+  const {
+    childId,
+    child,
+    tasks,
+    rewardTotals,
+    leaderboardSettings,
+    today,
+    weekStart,
+    currentMinute,
+  } = input;
+  const todayKey = businessDateKey(today);
+  const weekStartKey = businessDateKey(weekStart);
+
+  const summarizePeriod = (from: Date, to: Date) => {
+    const periodTasks = tasks.filter((task) =>
+      task.taskDate >= from &&
+      task.taskDate <= to &&
+      (task.attempts.length > 0 ||
+        (task.template.isEnabled && !task.template.archivedAt)),
+    );
+    const completedTaskSnapshots = periodTasks.filter(
+      (task) => task.attempts.length > 0,
+    ).length;
+    const completedAttempts = periodTasks.flatMap((task) => task.attempts);
+    const maxAvailableStars = periodTasks.reduce((sum, task) => {
+      const earnedStars = task.attempts.reduce(
+        (taskSum, attempt) =>
+          taskSum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
+        0,
+      );
+      const configuredMaximum =
+        task.baseStarsSnapshot +
+        (task.earlyBonusEnabledSnapshot
+          ? (task.earlyBonusStarsSnapshot ?? 0)
+          : 0);
+      return sum + Math.max(earnedStars, configuredMaximum);
+    }, 0);
+    return {
+      stars: completedAttempts.reduce(
+        (sum, attempt) =>
+          sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
+        0,
+      ),
+      completedTasks: completedAttempts.length,
+      maxAvailableStars,
+      completionRate:
+        periodTasks.length > 0
+          ? completedTaskSnapshots / periodTasks.length
+          : 0,
+    };
+  };
+
+  const dailyStats = summarizePeriod(today, today);
+  const weeklyStats = summarizePeriod(weekStart, today);
+  dailyStats.stars += rewardTotals.get(todayKey) ?? 0;
+  weeklyStats.stars += Array.from(rewardTotals.entries())
+    .filter(([date]) => date >= weekStartKey && date <= todayKey)
+    .reduce((sum, [, stars]) => sum + stars, 0);
+
+  const statsForDay = (date: Date) => {
+    const stats = summarizePeriod(date, date);
+    stats.stars += rewardTotals.get(businessDateKey(date)) ?? 0;
+    return stats;
+  };
+  const historicalDailyStats = Array.from({ length: 14 }, (_, index) =>
+    statsForDay(addBusinessDays(today, -(index + 1))),
+  );
+  const activeHistory = historicalDailyStats.filter(
+    (stats) => stats.maxAvailableStars > 0 || stats.stars > 0,
+  );
+  const habitualDailyStars = activeHistory.length > 0
+    ? Math.max(1, Math.round(
+        activeHistory.reduce((sum, stats) => sum + stats.stars, 0) / activeHistory.length,
+      ))
+    : child.dailyStarGoal;
+  const dailyGoalBonusPotential = child.dailyGoalBonusEnabled
+    ? child.dailyGoalBonusStars
+    : 0;
+  const elapsedWeekDays =
+    Math.floor((today.getTime() - weekStart.getTime()) / 86_400_000) + 1;
+  const weeklyScoreDays = Array.from({ length: elapsedWeekDays }, (_, index) => {
+    const date = addBusinessDays(weekStart, index);
+    const dayStats = statsForDay(date);
+    const dayMaximum = dayStats.maxAvailableStars + dailyGoalBonusPotential;
+    return {
+      seed: businessDateKey(date),
+      elapsedMinutes:
+        index === elapsedWeekDays - 1 ? currentMinute : 24 * 60,
+      effectiveMinutes:
+        index === elapsedWeekDays - 1
+          ? leaderboardEffectiveMinute(leaderboardSettings, todayKey, currentMinute)
+          : 24 * 60,
+      childStars: dayStats.stars,
+      maxAvailableStars: Math.max(dayStats.stars, dayMaximum),
+    };
+  });
+
+  return {
+    daily: buildMotivationalLeaderboard({
+      childId,
+      ...dailyStats,
+      nickname: child.nickname,
+      avatarUrl: child.avatarUrl,
+      petType: child.petType,
+      goalStars: child.dailyStarGoal,
+      dailyGoalStars: child.dailyStarGoal,
+      maxAvailableStars: dailyStats.maxAvailableStars + dailyGoalBonusPotential,
+      seed: weekStartKey,
+      habitualDailyStars,
+      scoreDays: [{
+        seed: todayKey,
+        elapsedMinutes: currentMinute,
+        effectiveMinutes: leaderboardEffectiveMinute(
+          leaderboardSettings,
+          todayKey,
+          currentMinute,
+        ),
+        childStars: dailyStats.stars,
+        maxAvailableStars: dailyStats.maxAvailableStars + dailyGoalBonusPotential,
+      }],
+      competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
+    }),
+    weekly: buildMotivationalLeaderboard({
+      childId,
+      ...weeklyStats,
+      nickname: child.nickname,
+      avatarUrl: child.avatarUrl,
+      petType: child.petType,
+      goalStars: child.dailyStarGoal * elapsedWeekDays,
+      dailyGoalStars: child.dailyStarGoal,
+      maxAvailableStars:
+        weeklyStats.maxAvailableStars + dailyGoalBonusPotential * elapsedWeekDays,
+      seed: weekStartKey,
+      habitualDailyStars,
+      scoreDays: weeklyScoreDays,
+      competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
+    }),
+  };
+}
+
 export async function getFootprints(
   childId: string,
   config: AppConfig,
@@ -179,8 +368,11 @@ export async function getFootprints(
       where: {
         childId,
         createdAt: {
-          gte: historyStart,
-          lt: addBusinessDays(today, 2),
+          gte: businessDateStartInstant(historyStart, config.APP_TIME_ZONE),
+          lt: businessDateStartInstant(
+            addBusinessDays(today, 1),
+            config.APP_TIME_ZONE,
+          ),
         },
         type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS", "PET_RED_PACKET_REWARD"] },
       },
@@ -210,14 +402,11 @@ export async function getFootprints(
     totals.set(key, (totals.get(key) ?? 0) + taskStars);
   }
 
-  const allRewardTotals = new Map<string, number>();
-  for (const ledger of rewardLedgers) {
-    const key = businessDateKey(
-      businessDateAt(ledger.createdAt, config.APP_TIME_ZONE),
-    );
-    if (key > todayKey) continue;
-    allRewardTotals.set(key, (allRewardTotals.get(key) ?? 0) + ledger.amount);
-  }
+  const allRewardTotals = rewardTotalsByDate(
+    rewardLedgers,
+    todayKey,
+    config.APP_TIME_ZONE,
+  );
   const rewardTotals = new Map(
     [...allRewardTotals].filter(([key]) => key >= weekStartKey && key <= todayKey),
   );
@@ -258,89 +447,15 @@ export async function getFootprints(
     config.APP_TIME_ZONE,
   );
 
-  const summarizePeriod = (from: Date, to: Date) => {
-    const periodTasks = tasks.filter((task) =>
-      task.taskDate >= from &&
-      task.taskDate <= to &&
-      (task.attempts.length > 0 ||
-        (task.template.isEnabled && !task.template.archivedAt)),
-    );
-    const completedTaskSnapshots = periodTasks.filter(
-      (task) => task.attempts.length > 0,
-    ).length;
-    const completedAttempts = periodTasks.flatMap((task) => task.attempts);
-    const maxAvailableStars = periodTasks.reduce((sum, task) => {
-      const earnedStars = task.attempts.reduce(
-        (taskSum, attempt) =>
-          taskSum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
-        0,
-      );
-      const configuredMaximum =
-        task.baseStarsSnapshot +
-        (task.earlyBonusEnabledSnapshot
-          ? (task.earlyBonusStarsSnapshot ?? 0)
-          : 0);
-      return sum + Math.max(earnedStars, configuredMaximum);
-    }, 0);
-    return {
-      stars: completedAttempts.reduce(
-        (sum, attempt) =>
-          sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
-        0,
-      ),
-      completedTasks: completedAttempts.length,
-      maxAvailableStars,
-      completionRate:
-        periodTasks.length > 0
-          ? completedTaskSnapshots / periodTasks.length
-          : 0,
-    };
-  };
-
-  const dailyStats = summarizePeriod(today, today);
-  const weeklyStats = summarizePeriod(weekStart, today);
-  const dailyRewardStars = rewardTotals.get(todayKey) ?? 0;
-  const weeklyRewardStars = Array.from(rewardTotals.entries())
-    .filter(([date]) => date >= weekStartKey && date <= todayKey)
-    .reduce((sum, [, stars]) => sum + stars, 0);
-  dailyStats.stars += dailyRewardStars;
-  weeklyStats.stars += weeklyRewardStars;
-  const statsForDay = (date: Date) => {
-    const stats = summarizePeriod(date, date);
-    stats.stars += allRewardTotals.get(businessDateKey(date)) ?? 0;
-    return stats;
-  };
-  const historicalDailyStats = Array.from({ length: 14 }, (_, index) =>
-    statsForDay(addBusinessDays(today, -(index + 1))),
-  );
-  const activeHistory = historicalDailyStats.filter(
-    (stats) => stats.maxAvailableStars > 0 || stats.stars > 0,
-  );
-  const habitualDailyStars = activeHistory.length > 0
-    ? Math.max(1, Math.round(
-        activeHistory.reduce((sum, stats) => sum + stats.stars, 0) / activeHistory.length,
-      ))
-    : child.dailyStarGoal;
-  const dailyGoalBonusPotential = child.dailyGoalBonusEnabled
-    ? child.dailyGoalBonusStars
-    : 0;
-  const elapsedWeekDays =
-    Math.floor((today.getTime() - weekStart.getTime()) / 86_400_000) + 1;
-  const weeklyScoreDays = Array.from({ length: elapsedWeekDays }, (_, index) => {
-    const date = addBusinessDays(weekStart, index);
-    const dayStats = statsForDay(date);
-    const dayMaximum = dayStats.maxAvailableStars + dailyGoalBonusPotential;
-    return {
-      seed: businessDateKey(date),
-      elapsedMinutes:
-        index === elapsedWeekDays - 1 ? currentMinute : 24 * 60,
-      effectiveMinutes:
-        index === elapsedWeekDays - 1
-          ? leaderboardEffectiveMinute(leaderboardSettings, todayKey, currentMinute)
-          : 24 * 60,
-      childStars: dayStats.stars,
-      maxAvailableStars: Math.max(dayStats.stars, dayMaximum),
-    };
+  const leaderboards = buildChildLeaderboards({
+    childId,
+    child,
+    tasks,
+    rewardTotals: allRewardTotals,
+    leaderboardSettings,
+    today,
+    weekStart,
+    currentMinute,
   });
 
   return {
@@ -350,46 +465,86 @@ export async function getFootprints(
     days,
     tasks: details,
     rewards,
-    leaderboards: {
-      daily: buildMotivationalLeaderboard({
+    leaderboards,
+  };
+}
+
+export async function getChildLeaderboards(
+  childId: string,
+  config: AppConfig,
+  now = new Date(),
+) {
+  const today = businessDateAt(now, config.APP_TIME_ZONE);
+  const historyStart = addBusinessDays(today, -14);
+  const weekStart = startOfBusinessWeek(today);
+  const todayKey = businessDateKey(today);
+  const currentMinute = businessMinuteOfDayAt(now, config.APP_TIME_ZONE);
+
+  const [tasks, child, leaderboardSettings, rewardLedgers] = await Promise.all([
+    prisma.dailyTask.findMany({
+      where: {
         childId,
-        ...dailyStats,
-        nickname: child.nickname,
-        avatarUrl: child.avatarUrl,
-        petType: child.petType,
-        goalStars: child.dailyStarGoal,
-        dailyGoalStars: child.dailyStarGoal,
-        maxAvailableStars: dailyStats.maxAvailableStars + dailyGoalBonusPotential,
-        seed: weekStartKey,
-        habitualDailyStars,
-        scoreDays: [{
-          seed: todayKey,
-          elapsedMinutes: currentMinute,
-          effectiveMinutes: leaderboardEffectiveMinute(
-            leaderboardSettings,
-            todayKey,
-            currentMinute,
+        taskDate: { gte: historyStart, lte: today },
+      },
+      select: {
+        taskDate: true,
+        baseStarsSnapshot: true,
+        earlyBonusEnabledSnapshot: true,
+        earlyBonusStarsSnapshot: true,
+        attempts: {
+          where: { status: "COMPLETED" },
+          select: {
+            baseStarsAwarded: true,
+            bonusStarsAwarded: true,
+          },
+        },
+        template: {
+          select: { isEnabled: true, archivedAt: true },
+        },
+      },
+    }),
+    prisma.childProfile.findUniqueOrThrow({
+      where: { id: childId },
+      select: {
+        dailyStarGoal: true,
+        dailyGoalBonusEnabled: true,
+        dailyGoalBonusStars: true,
+        nickname: true,
+        avatarUrl: true,
+        petType: true,
+      },
+    }),
+    getChildLeaderboardSettings(childId, today),
+    prisma.starLedger.findMany({
+      where: {
+        childId,
+        createdAt: {
+          gte: businessDateStartInstant(historyStart, config.APP_TIME_ZONE),
+          lt: businessDateStartInstant(
+            addBusinessDays(today, 1),
+            config.APP_TIME_ZONE,
           ),
-          childStars: dailyStats.stars,
-          maxAvailableStars: dailyStats.maxAvailableStars + dailyGoalBonusPotential,
-        }],
-        competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
-      }),
-      weekly: buildMotivationalLeaderboard({
-        childId,
-        ...weeklyStats,
-        nickname: child.nickname,
-        avatarUrl: child.avatarUrl,
-        petType: child.petType,
-        goalStars: child.dailyStarGoal * elapsedWeekDays,
-        dailyGoalStars: child.dailyStarGoal,
-        maxAvailableStars:
-          weeklyStats.maxAvailableStars + dailyGoalBonusPotential * elapsedWeekDays,
-        seed: weekStartKey,
-        habitualDailyStars,
-        scoreDays: weeklyScoreDays,
-        competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
-      }),
-    },
+        },
+        type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS", "PET_RED_PACKET_REWARD"] },
+      },
+      select: { amount: true, createdAt: true },
+    }),
+  ]);
+
+  return {
+    leaderboards: buildChildLeaderboards({
+      childId,
+      child,
+      tasks,
+      rewardTotals: rewardTotalsByDate(
+        rewardLedgers,
+        todayKey,
+        config.APP_TIME_ZONE,
+      ),
+      leaderboardSettings,
+      today,
+      weekStart,
+      currentMinute,
+    }),
   };
 }

@@ -1074,6 +1074,13 @@ export async function getChildFootprints(
   });
 }
 
+export async function getChildLeaderboards(signal?: AbortSignal) {
+  return request<Pick<FootprintResponse, "leaderboards">>(
+    "/api/child/leaderboards",
+    { signal },
+  );
+}
+
 export type ChildPlanet = {
   id: string;
   planet: PlanetKey;

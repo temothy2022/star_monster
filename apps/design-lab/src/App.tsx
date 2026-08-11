@@ -255,6 +255,8 @@ type AppRoute =
   | "math-print"
   | "poem-recitation";
 
+const DEFAULT_TASK_ROUTE: AppRoute = "tasks-dashboard";
+
 const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
   MERCURY: "planet-mercury",
   VENUS: "planet-venus",
@@ -436,7 +438,7 @@ export function App() {
         if (profile.petType) selectPet(profile.petType);
         if (profile.nickname) setNickname(profile.nickname);
         if (route === "login") {
-          navigate(profile.onboardingCompletedAt ? "tasks-partial" : "step-1");
+          navigate(profile.onboardingCompletedAt ? DEFAULT_TASK_ROUTE : "step-1");
         }
       })
       .catch(() => undefined);
@@ -471,7 +473,7 @@ export function App() {
     ) {
       setActiveAttempt(null);
       setLastCompletion(null);
-      navigate("tasks-partial");
+      navigate(DEFAULT_TASK_ROUTE);
       return;
     }
     reportActionError(reason);
@@ -480,13 +482,13 @@ export function App() {
   function leaveActiveAttempt() {
     const attemptId = activeAttempt?.id;
     if (!attemptId) {
-      navigate("tasks-partial");
+      navigate(DEFAULT_TASK_ROUTE);
       return;
     }
 
     setOptimisticallyAbandonedAttemptId(attemptId);
     setActiveAttempt(null);
-    navigate("tasks-partial");
+    navigate(DEFAULT_TASK_ROUTE);
 
     void (async () => {
       let lastError: unknown;
@@ -538,11 +540,11 @@ export function App() {
 
         if (!active) {
           window.history.replaceState(
-            { route: "tasks-partial" },
+            { route: DEFAULT_TASK_ROUTE },
             "",
-            "#tasks-partial",
+            `#${DEFAULT_TASK_ROUTE}`,
           );
-          setRoute("tasks-partial");
+          setRoute(DEFAULT_TASK_ROUTE);
           return;
         }
 
@@ -647,7 +649,7 @@ export function App() {
           setTaskExperienceCache(null);
           if (petType) selectPet(petType);
           if (savedNickname) setNickname(savedNickname);
-          navigate(onboardingCompleted ? "tasks-partial" : "step-1");
+          navigate(onboardingCompleted ? DEFAULT_TASK_ROUTE : "step-1");
         }}
       />
     );
@@ -694,7 +696,7 @@ export function App() {
         onExit={leaveActiveAttempt}
         onFailed={() => {
           setActiveAttempt(null);
-          navigate("tasks-partial");
+          navigate(DEFAULT_TASK_ROUTE);
         }}
         onCompleted={(reward) => {
           setLastCompletion({
@@ -769,7 +771,7 @@ export function App() {
               ? "abandon"
               : null
         }
-        onBack={() => navigate("tasks-partial")}
+        onBack={() => navigate(DEFAULT_TASK_ROUTE)}
         taskTitle={activeAttempt!.dailyTask.titleSnapshot}
         rewardStars={activeAttempt!.dailyTask.baseStarsSnapshot}
         paused={activeAttempt?.status === "PAUSED"}
@@ -802,7 +804,7 @@ export function App() {
                 setActiveAttempt(null);
                 setLastCompletion(null);
                 setIsCompletingAttempt(false);
-                navigate("tasks-partial");
+                navigate(DEFAULT_TASK_ROUTE);
                 return;
               }
               setLastCompletion({
@@ -827,7 +829,7 @@ export function App() {
       <UntimedTaskComplete
         taskTitle={lastCompletion?.taskTitle}
         rewardStars={lastCompletion?.totalStars}
-        onContinue={() => navigate("tasks-partial")}
+        onContinue={() => navigate(DEFAULT_TASK_ROUTE)}
       />
     );
   }
@@ -835,7 +837,7 @@ export function App() {
   if (route === "timed-active") {
     return (
       <TimedTaskActive
-        onBack={() => navigate("tasks-partial")}
+        onBack={() => navigate(DEFAULT_TASK_ROUTE)}
         title={activeAttempt!.dailyTask.titleSnapshot}
         initialRemainingSeconds={
           activeAttempt!.remainingSeconds ??
@@ -875,7 +877,7 @@ export function App() {
                 setActiveAttempt(null);
                 setLastCompletion(null);
                 setIsCompletingAttempt(false);
-                navigate("tasks-partial");
+                navigate(DEFAULT_TASK_ROUTE);
                 return;
               }
               setLastCompletion({
@@ -908,7 +910,7 @@ export function App() {
             .then(({ alreadyCompleted }) => {
               setActiveAttempt(null);
               setLastCompletion(null);
-              navigate(alreadyCompleted ? "tasks-partial" : "timed-timeout");
+              navigate(alreadyCompleted ? DEFAULT_TASK_ROUTE : "timed-timeout");
             })
             .catch((reason: unknown) => {
               if (
@@ -932,13 +934,13 @@ export function App() {
         taskTitle={lastCompletion?.taskTitle}
         baseStars={lastCompletion?.baseStars}
         bonusStars={lastCompletion?.bonusStars}
-        onBack={() => navigate("tasks-partial")}
+        onBack={() => navigate(DEFAULT_TASK_ROUTE)}
       />
     );
   }
 
   if (route === "timed-timeout") {
-    return <TimedTaskTimeout onBack={() => navigate("tasks-partial")} />;
+    return <TimedTaskTimeout onBack={() => navigate(DEFAULT_TASK_ROUTE)} />;
   }
 
   if (route === "map") {
@@ -1045,7 +1047,7 @@ export function App() {
       <OnboardingStep4
         onStart={() => {
           void saveOnboarding({ petType: selectedPet, nickname, complete: true })
-            .then(() => navigate("tasks-partial"))
+            .then(() => navigate(DEFAULT_TASK_ROUTE))
             .catch(reportActionError);
         }}
       />

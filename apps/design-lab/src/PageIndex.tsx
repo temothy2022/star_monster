@@ -5,6 +5,7 @@ export type PageIndexRoute =
   | "step-3"
   | "step-4"
   | "tasks-partial"
+  | "tasks-dashboard"
   | "tasks-complete"
   | "tasks-empty"
   | "untimed-active"
@@ -52,7 +53,8 @@ const groups: PageGroup[] = [
   {
     title: "B · 任务列表",
     pages: [
-      { route: "tasks-partial", name: "部分完成", note: "含未完成任务" },
+      { route: "tasks-dashboard", name: "新版任务桌面", note: "当前正式入口，支持组件布局" },
+      { route: "tasks-partial", name: "旧版任务列表", note: "保留用于快速回退" },
       { route: "tasks-complete", name: "全部完成", note: "今日任务已完成" },
       { route: "tasks-empty", name: "没有任务", note: "空任务状态" },
     ],

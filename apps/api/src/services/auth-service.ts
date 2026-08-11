@@ -43,6 +43,12 @@ function futureDate(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
+const CHILD_SESSION_TOUCH_INTERVAL_MS = 5 * 60 * 1000;
+
+export function shouldRefreshChildSession(lastSeenAt: Date, now: Date) {
+  return now.getTime() - lastSeenAt.getTime() >= CHILD_SESSION_TOUCH_INTERVAL_MS;
+}
+
 function metadataFromRequest(request: FastifyRequest): RequestMetadata {
   return {
     userAgent: request.headers["user-agent"],
@@ -183,15 +189,26 @@ export async function requireChild(
     throw new HttpError(401, "CHILD_SESSION_EXPIRED", "登录已过期，请重新登录");
   }
 
-  const expiresAt = futureDate(config.CHILD_SESSION_DAYS);
-  await prisma.childSession.update({
-    where: { id: session.id },
-    data: { lastSeenAt: new Date(), expiresAt },
-  });
-  reply.setCookie(CHILD_COOKIE, rawToken, {
-    ...cookieOptions(config, config.CHILD_SESSION_DAYS),
-    expires: expiresAt,
-  });
+  const now = new Date();
+  if (shouldRefreshChildSession(session.lastSeenAt, now)) {
+    const expiresAt = new Date(
+      now.getTime() + config.CHILD_SESSION_DAYS * 24 * 60 * 60 * 1000,
+    );
+    const refreshCutoff = new Date(now.getTime() - CHILD_SESSION_TOUCH_INTERVAL_MS);
+    const refreshed = await prisma.childSession.updateMany({
+      where: {
+        id: session.id,
+        lastSeenAt: { lte: refreshCutoff },
+      },
+      data: { lastSeenAt: now, expiresAt },
+    });
+    if (refreshed.count > 0) {
+      reply.setCookie(CHILD_COOKIE, rawToken, {
+        ...cookieOptions(config, config.CHILD_SESSION_DAYS),
+        expires: expiresAt,
+      });
+    }
+  }
 
   return { child: session.child, session };
 }

@@ -38,6 +38,7 @@ const FAST_READ_SAMPLE_RATE = 0.05;
 const MAIN_READ_PATHS = new Set([
   "/api/child/tasks/today",
   "/api/child/tasks/dashboard-reviews",
+  "/api/child/leaderboards",
   "/api/child/pet",
   "/api/child/planets",
   "/api/child/wishes",
@@ -122,6 +123,7 @@ function operationFor(path: string) {
   const operations: Record<string, string> = {
     "/api/child/tasks/today": "load_tasks",
     "/api/child/tasks/dashboard-reviews": "load_task_dashboard_reviews",
+    "/api/child/leaderboards": "load_leaderboards",
     "/api/child/pet": "load_pet_growth",
     "/api/child/pet/notifications": "load_pet_notifications",
     "/api/child/planets": "load_planets",

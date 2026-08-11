@@ -126,7 +126,7 @@ export class AppErrorBoundary extends Component<
   private returnToTasks = () => {
     clearReloadMarker();
     window.location.replace(
-      `${window.location.pathname}${window.location.search}#tasks-partial`,
+      `${window.location.pathname}${window.location.search}#tasks-dashboard`,
     );
     window.location.reload();
   };

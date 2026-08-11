@@ -1,5 +1,6 @@
 const DATE_PARTS_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
 const TIME_PARTS_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
+const DATE_TIME_PARTS_FORMATTERS = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(timeZone: string): Intl.DateTimeFormat {
   const existing = DATE_PARTS_FORMATTERS.get(timeZone);
@@ -45,6 +46,45 @@ export function businessMinuteOfDayAt(
 
 export function businessDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+export function businessDateStartInstant(date: Date, timeZone: string): Date {
+  let dateTimeFormatter = DATE_TIME_PARTS_FORMATTERS.get(timeZone);
+  if (!dateTimeFormatter) {
+    dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    DATE_TIME_PARTS_FORMATTERS.set(timeZone, dateTimeFormatter);
+  }
+
+  const target = Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  );
+  let instant = target;
+  for (let iteration = 0; iteration < 3; iteration += 1) {
+    const parts = dateTimeFormatter.formatToParts(new Date(instant));
+    const represented = Date.UTC(
+      Number(parts.find((part) => part.type === "year")?.value),
+      Number(parts.find((part) => part.type === "month")?.value) - 1,
+      Number(parts.find((part) => part.type === "day")?.value),
+      Number(parts.find((part) => part.type === "hour")?.value),
+      Number(parts.find((part) => part.type === "minute")?.value),
+      Number(parts.find((part) => part.type === "second")?.value),
+    );
+    const adjustment = target - represented;
+    instant += adjustment;
+    if (adjustment === 0) break;
+  }
+  return new Date(instant);
 }
 
 export function addBusinessDays(date: Date, days: number): Date {
