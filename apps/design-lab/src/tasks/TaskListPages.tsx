@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import balanceStar from "@star-monsters/assets/images/task-list/semantic/balance-star.png";
@@ -22,6 +23,7 @@ import launchBase from "@star-monsters/assets/images/task-list/semantic/launch-b
 import completeStar from "@star-monsters/assets/images/task-list/semantic/complete-star.png";
 import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import reviewAudioPlay from "@star-monsters/assets/images/task-dashboard/review-audio-play.webp";
+import taskListScrollHandle from "@star-monsters/assets/images/task-dashboard/task-list-scroll-handle.webp";
 import { MASCOTS, useMascot } from "../mascots";
 import {
   createAudioWithSpeechFallback,
@@ -87,6 +89,42 @@ const TASK_ICONS: Record<TaskIconName, string> = {
   math: mathIcon,
   return: returnIcon,
 };
+
+const CHILD_DISCOVERY_FACTS = [
+  { tag: "太空为什么", title: "最热的行星是谁？", body: "不是离太阳最近的水星，而是被厚厚大气包住的金星。热量很难逃出去，所以金星更热。", source: "NASA Science" },
+  { tag: "太空为什么", title: "天空为什么是蓝色？", body: "阳光里藏着很多颜色。进入空气后，蓝色光更容易被四处散开，所以我们抬头时常看到蓝天。", source: "NASA Space Place" },
+  { tag: "月亮为什么", title: "月亮真的会变形吗？", body: "月亮没有变形。太阳总会照亮它的一半，只是我们每天看到的亮面多少不同。", source: "NASA Space Place" },
+  { tag: "太阳系", title: "太阳是一颗什么？", body: "太阳不是行星，而是一颗恒星。它的引力把八颗行星和许多小天体留在太阳系里。", source: "NASA Science" },
+  { tag: "太阳系", title: "最大的行星有多大？", body: "木星是太阳系最大的行星。假如它是空心的，里面大约能装下一千个地球。", source: "NASA Science" },
+  { tag: "地球为什么", title: "云朵是怎么来的？", body: "看不见的水蒸气升到高处变冷，会在微小的灰尘或盐粒旁变成小水滴，很多水滴聚在一起就成了云。", source: "NASA Kids" },
+  { tag: "地球为什么", title: "雾和云有什么关系？", body: "雾其实就是贴近地面的云。走进雾里，也可以说是走进了一朵云。", source: "NASA Kids" },
+  { tag: "水的秘密", title: "水会变成几种样子？", body: "水能变成液体、固体和气体。河水是液体，冰雪是固体，空气里还藏着看不见的水蒸气。", source: "NASA Kids" },
+  { tag: "水的秘密", title: "冰块为什么会浮起来？", body: "冰比同样大小的液态水轻一些，所以冰块会浮在水面上。", source: "USGS Water Science" },
+  { tag: "水的秘密", title: "地球上的水会旅行吗？", body: "会。水会蒸发到天空，变成云，再以雨或雪回到地面，然后流进河流和海洋。", source: "NASA Kids" },
+  { tag: "动物为什么", title: "火烈鸟为什么是粉色？", body: "火烈鸟吃的藻类和小虾里有天然色素，身体吸收后，羽毛会慢慢变成粉红色。", source: "Smithsonian's National Zoo" },
+  { tag: "动物为什么", title: "大象能悄悄聊天吗？", body: "大象会用很低很低的声音交流。有些声音人耳几乎听不到，却能传到很远的同伴那里。", source: "Smithsonian's National Zoo" },
+  { tag: "动物为什么", title: "大熊猫只会安静吃竹子吗？", body: "大熊猫也会发出不同声音，它们可能会咩叫、鸣叫、吠叫，用声音和同伴交流。", source: "Smithsonian's National Zoo" },
+  { tag: "光的秘密", title: "晚霞为什么会变红？", body: "太阳快落山时，阳光要穿过更多空气。蓝色光被散开得更多，红色和黄色就更容易来到我们眼前。", source: "NASA Space Place" },
+  { tag: "冰雪为什么", title: "很厚的冰为什么发蓝？", body: "厚冰会吸收更多红色光，让蓝色光继续穿过并散开，所以冰川深处常会显出蓝色。", source: "USGS Water Science" },
+] as const;
+
+function pickDiscoveryFact() {
+  const storageKey = "star-monsters-dashboard-fact";
+  let previousTitle = "";
+  try {
+    previousTitle = window.sessionStorage.getItem(storageKey) ?? "";
+  } catch {
+    // Storage may be unavailable in private browsing; random selection still works.
+  }
+  const candidates = CHILD_DISCOVERY_FACTS.filter((fact) => fact.title !== previousTitle);
+  const selected = candidates[Math.floor(Math.random() * candidates.length)] ?? CHILD_DISCOVERY_FACTS[0];
+  try {
+    window.sessionStorage.setItem(storageKey, selected.title);
+  } catch {
+    // The fact does not need persistence to render.
+  }
+  return selected;
+}
 
 // Keep the left rail meaningful at a glance.  This is deliberately based on
 // the persisted task category rather than its icon or timed/untimed state, so
@@ -841,6 +879,7 @@ function NotificationWidget({
   notifications: PetNotificationSummary | null | undefined;
   onNavigate?: (route: ChildRoute) => void;
 }) {
+  const [discoveryFact] = useState(pickDiscoveryFact);
   const returnedPostcard = notifications?.returnedPostcard ?? null;
   const redPacketCount = notifications?.redPacketCount ?? 0;
   const notificationCount = (returnedPostcard ? 1 : 0) + (redPacketCount > 0 ? 1 : 0);
@@ -856,7 +895,14 @@ function NotificationWidget({
           <div className="task-widget-notifications__empty"><i /><small>稍后再来看看</small></div>
         )}
         {notifications && notificationCount === 0 && (
-          <div className="task-widget-notifications__empty"><i /><small>暂时没有新消息</small></div>
+          <article className="task-widget-discovery">
+            <div className="task-widget-discovery__heading">
+              <span aria-hidden="true">?</span>
+              <div><small>{discoveryFact.tag}</small><strong>{discoveryFact.title}</strong></div>
+            </div>
+            <p>{discoveryFact.body}</p>
+            <small className="task-widget-discovery__source">知识来源 · {discoveryFact.source}</small>
+          </article>
         )}
         {returnedPostcard && (
           <button type="button" onClick={openPetHome}>
@@ -934,6 +980,128 @@ function CompletedTaskCard({ task }: { task: TaskItem }) {
   );
 }
 
+function TaskListScrollRail({
+  targetRef,
+}: {
+  targetRef: { current: HTMLDivElement | null };
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; grabOffset: number } | null>(null);
+  const [metrics, setMetrics] = useState({ scrollTop: 0, scrollHeight: 0, clientHeight: 0, trackHeight: 0 });
+
+  useEffect(() => {
+    const target = targetRef.current;
+    const track = trackRef.current;
+    if (!target || !track) return;
+    const update = () => setMetrics({
+      scrollTop: target.scrollTop,
+      scrollHeight: target.scrollHeight,
+      clientHeight: target.clientHeight,
+      trackHeight: track.clientHeight,
+    });
+    update();
+    target.addEventListener("scroll", update, { passive: true });
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(target);
+    resizeObserver.observe(track);
+    const mutationObserver = new MutationObserver(update);
+    mutationObserver.observe(target, { childList: true, subtree: true });
+    return () => {
+      target.removeEventListener("scroll", update);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [targetRef]);
+
+  const maxScroll = Math.max(0, metrics.scrollHeight - metrics.clientHeight);
+  const thumbHeight = metrics.trackHeight > 0 && metrics.scrollHeight > 0
+    ? Math.min(metrics.trackHeight, Math.max(48, metrics.trackHeight * (metrics.clientHeight / metrics.scrollHeight)))
+    : 48;
+  const thumbTravel = Math.max(0, metrics.trackHeight - thumbHeight);
+  const thumbTop = maxScroll > 0 ? (metrics.scrollTop / maxScroll) * thumbTravel : 0;
+
+  function scrollFromPointer(clientY: number, grabOffset: number) {
+    const target = targetRef.current;
+    const track = trackRef.current;
+    if (!target || !track || maxScroll <= 0 || thumbTravel <= 0) return;
+    const trackRect = track.getBoundingClientRect();
+    const nextThumbTop = Math.max(0, Math.min(thumbTravel, clientY - trackRect.top - grabOffset));
+    target.scrollTop = (nextThumbTop / thumbTravel) * maxScroll;
+  }
+
+  function beginRailDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || maxScroll <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const trackRect = event.currentTarget.getBoundingClientRect();
+    const hitThumb = (event.target as HTMLElement).closest(".task-list-scroll-rail__thumb");
+    const grabOffset = hitThumb ? event.clientY - trackRect.top - thumbTop : thumbHeight / 2;
+    dragRef.current = { pointerId: event.pointerId, grabOffset };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    scrollFromPointer(event.clientY, grabOffset);
+  }
+
+  function moveRailDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    scrollFromPointer(event.clientY, drag.grabOffset);
+  }
+
+  function finishRailDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function handleRailKey(event: ReactKeyboardEvent<HTMLDivElement>) {
+    const target = targetRef.current;
+    if (!target || maxScroll <= 0) return;
+    const increments: Partial<Record<string, number>> = {
+      ArrowUp: -88,
+      ArrowDown: 88,
+      PageUp: -target.clientHeight * .8,
+      PageDown: target.clientHeight * .8,
+      Home: -maxScroll,
+      End: maxScroll,
+    };
+    const increment = increments[event.key];
+    if (increment === undefined) return;
+    event.preventDefault();
+    target.scrollBy({ top: increment, behavior: "smooth" });
+  }
+
+  return (
+    <div
+      className={`task-list-scroll-rail${maxScroll > 1 ? " is-scrollable" : ""}`}
+      ref={trackRef}
+      role="scrollbar"
+      aria-label="拖动查看更多任务"
+      aria-controls="task-dashboard-scrollable-list"
+      aria-orientation="vertical"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(maxScroll)}
+      aria-valuenow={Math.round(metrics.scrollTop)}
+      tabIndex={maxScroll > 1 ? 0 : -1}
+      onKeyDown={handleRailKey}
+      onPointerDown={beginRailDrag}
+      onPointerMove={moveRailDrag}
+      onPointerUp={finishRailDrag}
+      onPointerCancel={finishRailDrag}
+    >
+      <span className="task-list-scroll-rail__thumb" style={{ height: thumbHeight, transform: `translateY(${thumbTop}px)` }}>
+        <img src={taskListScrollHandle} alt="" draggable={false} />
+      </span>
+    </div>
+  );
+}
+
 function TaskListPanel({
   tasks,
   streakDays,
@@ -949,6 +1117,7 @@ function TaskListPanel({
 }) {
   const pendingTasks = tasks.filter((task) => task.status === "pending");
   const completedTasks = tasks.filter((task) => task.status === "completed");
+  const dashboardScrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
     <section className="task-list-panel" aria-labelledby="my-tasks-title">
@@ -963,7 +1132,11 @@ function TaskListPanel({
           </div>
         ) : null}
       </header>
-      <div className="task-list-panel__scroll">
+      <div
+        className={`task-list-panel__scroll${dashboard ? " task-list-panel__scroll--rail-controlled" : ""}`}
+        id={dashboard ? "task-dashboard-scrollable-list" : undefined}
+        ref={dashboard ? dashboardScrollRef : undefined}
+      >
         <section className="task-section">
           <div className="task-section__cards">
             {pendingTasks.map((task) => (
@@ -984,6 +1157,7 @@ function TaskListPanel({
           </section>
         )}
       </div>
+      {dashboard && <TaskListScrollRail targetRef={dashboardScrollRef} />}
     </section>
   );
 }

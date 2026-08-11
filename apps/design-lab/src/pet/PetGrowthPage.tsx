@@ -47,6 +47,13 @@ import redPacketMainImage from "@star-monsters/assets/images/pet/red-packet-main
 import petWasteImage from "@star-monsters/assets/images/pet/pet-waste.webp";
 import petCleaningBroomImage from "@star-monsters/assets/images/pet/pet-cleaning-broom.webp";
 import petCleaningDustpanImage from "@star-monsters/assets/images/pet/pet-cleaning-dustpan.webp";
+import petActionTravelIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-travel.webp";
+import petActionSnackIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-snack.webp";
+import petActionWaterIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-water.webp";
+import petActionAlbumIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-album.webp";
+import petTripNearbyIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-nearby.webp";
+import petTripChinaIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-china.webp";
+import petTripWorldIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-world.webp";
 import {
   clearWebMediaSession,
   createAudioWithSpeechFallback,
@@ -59,6 +66,12 @@ const TIER_COPY: Record<PetTravelTier, { name: string; note: string }> = {
   NEARBY: { name: "附近散步", note: "发现身边的小惊喜" },
   CHINA: { name: "中国旅行", note: "去看看祖国的山河" },
   WORLD: { name: "世界旅行", note: "认识更远的风景" },
+};
+
+const TRIP_ICON_BY_TIER: Record<PetTravelTier, string> = {
+  NEARBY: petTripNearbyIcon,
+  CHINA: petTripChinaIcon,
+  WORLD: petTripWorldIcon,
 };
 
 const CARE_ANIMATION_MS = 3_000;
@@ -1378,13 +1391,13 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           onClickCapture={blockRoomLayoutClick}
         >
           <button className="pet-action-button pet-action-button--travel" type="button" disabled={Boolean(trip) || !state.travelEnabled || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => setTravelOpen(true)}>
-            <span className="pet-action-icon pet-action-icon--travel" aria-hidden="true">✦</span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "去看看远方" : "旅行已关闭"}</small></div>
+            <span className="pet-action-icon pet-action-icon--travel" aria-hidden="true"><img src={petActionTravelIcon} alt="" /></span><div><strong>准备旅行</strong><small>{state.travelEnabled ? "去看看远方" : "旅行已关闭"}</small></div>
           </button>
           <button className="pet-action-button pet-action-button--feed" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => requestCare("feed")}>
-            <span className="pet-action-icon pet-action-icon--snack" aria-hidden="true"><i /></span><div><strong>{busy === "feed" ? "准备点心…" : careAnimation?.kind === "feed" ? "正在吃点心" : "喂点心"}</strong><small>使用 {state.careOptions.feed.costStars} 颗星</small></div>
+            <span className="pet-action-icon pet-action-icon--snack" aria-hidden="true"><img src={petActionSnackIcon} alt="" /></span><div><strong>{busy === "feed" ? "准备点心…" : careAnimation?.kind === "feed" ? "正在吃点心" : "喂点心"}</strong><small>使用 {state.careOptions.feed.costStars} 颗星</small></div>
           </button>
           <button className="pet-action-button pet-action-button--drink" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => requestCare("drink")}>
-            <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><i /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
+            <span className="pet-action-icon pet-action-icon--water" aria-hidden="true"><img src={petActionWaterIcon} alt="" /></span><div><strong>{busy === "drink" ? "准备清水…" : careAnimation?.kind === "drink" ? "正在喝水" : "喂水"}</strong><small>使用 {state.careOptions.drink.costStars} 颗星</small></div>
           </button>
           <button
             className="pet-action-button pet-action-button--decorate"
@@ -1398,7 +1411,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <span className="pet-action-icon pet-action-icon--decorate" aria-hidden="true"><img src={ROOM_DECOR_ENTRY_IMAGE} alt="" /></span><div><strong>布置小屋</strong><small>{equippedRoomTheme.name}</small></div>
           </button>
           <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => setAlbumOpen(true)}>
-            <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><i /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
+            <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><img src={petActionAlbumIcon} alt="" /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
           </button>
         </aside>
 
@@ -1535,7 +1548,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           />
           <section className={`pet-care-confirm pet-care-confirm--${careConfirmation.kind}`}>
             <div className={`pet-care-confirm__icon pet-care-confirm__icon--${careConfirmation.kind}`} aria-hidden="true">
-              <span className={`pet-action-icon ${careConfirmation.kind === "feed" ? "pet-action-icon--snack" : "pet-action-icon--water"}`}><i /></span>
+              <span className={`pet-action-icon ${careConfirmation.kind === "feed" ? "pet-action-icon--snack" : "pet-action-icon--water"}`}><img src={careConfirmation.kind === "feed" ? petActionSnackIcon : petActionWaterIcon} alt="" /></span>
             </div>
             <h2 id="pet-care-confirm-title">{careConfirmation.title}</h2>
             <div className="pet-care-confirm__cost">
@@ -1582,7 +1595,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <div className="pet-travel-options">
               {state.travelOptions.map((option) => {
                 const copy = TIER_COPY[option.tier];
-                return <button className={`pet-trip-option pet-trip-option--${option.tier.toLowerCase()}`} key={option.tier} type="button" disabled={Boolean(busy) || state.wallet.starBalance < option.costStars} onClick={() => void depart(option.tier)}><span className={`pet-trip-icon pet-trip-icon--${option.tier.toLowerCase()}`} aria-hidden="true"><i /><b /></span><strong>{copy.name}</strong><small>{copy.note}<em>{formatDuration(option.durationMinutes)}</em></small><b className="pet-trip-price">★ {option.costStars}</b></button>;
+                return <button className={`pet-trip-option pet-trip-option--${option.tier.toLowerCase()}`} key={option.tier} type="button" disabled={Boolean(busy) || state.wallet.starBalance < option.costStars} onClick={() => void depart(option.tier)}><span className={`pet-trip-icon pet-trip-icon--${option.tier.toLowerCase()}`} aria-hidden="true"><img src={TRIP_ICON_BY_TIER[option.tier]} alt="" /></span><strong>{copy.name}</strong><small>{copy.note}<em>{formatDuration(option.durationMinutes)}</em></small><b className="pet-trip-price">★ {option.costStars}</b></button>;
               })}
             </div>
           </section>

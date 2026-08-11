@@ -269,6 +269,13 @@
 .task-list-panel__count { padding: 6px 11px; border-radius: 999px; color: #65758b; background: #edf1f4; font-size: 13px; font-weight: 800; }
 .task-dashboard-widget .task-list-panel__scroll { position: relative; inset: auto; min-height: 0; gap: 12px; padding: 0 24px 24px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .task-dashboard-widget .task-list-panel__scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.task-dashboard-widget .task-list-panel__scroll--rail-controlled { padding-right: 56px; overflow-y: hidden; overscroll-behavior: auto; touch-action: pan-y; }
+.task-list-scroll-rail { position: absolute; z-index: 8; top: 78px; right: 8px; bottom: 17px; width: 44px; display: none; padding: 4px; border: 0; border-radius: 18px; background: rgb(255 248 226 / 72%); box-shadow: inset 0 0 0 1px rgb(37 59 89 / 11%); touch-action: none; user-select: none; -webkit-user-select: none; }
+.task-list-scroll-rail.is-scrollable { display: block; }
+.task-list-scroll-rail:focus-visible { outline: 3px solid rgb(255 151 72 / 55%); outline-offset: 2px; }
+.task-list-scroll-rail__thumb { position: absolute; top: 4px; right: 2px; left: 2px; display: grid; min-height: 48px; place-items: center; border-radius: 16px; cursor: grab; will-change: transform; }
+.task-list-scroll-rail:active .task-list-scroll-rail__thumb { cursor: grabbing; }
+.task-list-scroll-rail__thumb img { display: block; width: 39px; height: min(62px, calc(100% - 2px)); min-height: 38px; object-fit: contain; filter: drop-shadow(0 3px 3px rgb(37 59 89 / 18%)); pointer-events: none; -webkit-user-drag: none; }
 .task-dashboard-widget .task-section__cards { gap: 12px; }
 .task-dashboard-widget .task-empty-panel { min-height: 0; }
 .task-dashboard-widget .task-empty-panel__content { top: 50%; }
@@ -442,6 +449,18 @@
 .task-widget-notifications__empty > i::before { content: ""; position: absolute; left: 50%; bottom: -6px; width: 8px; height: 8px; border: 2px solid #91a3b5; border-top: 0; border-left: 0; background: #eef8ff; transform: translateX(-50%) rotate(45deg); }
 .task-widget-notifications__empty small { font-size: 12px; font-weight: 800; }
 .task-widget-notifications__empty.is-loading > i { animation: task-notification-pulse 900ms ease-in-out infinite alternate; }
+.task-widget-discovery { display: grid; min-width: 0; align-content: center; gap: 7px; padding: 8px 6px; color: #253b59; }
+.task-widget-discovery__heading { display: grid; min-width: 0; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 9px; }
+.task-widget-discovery__heading > span { display: grid; width: 34px; height: 34px; place-items: center; border: 2px solid #5278a3; border-radius: 50% 50% 50% 10px; color: #fff; background: #6c94c1; box-shadow: 0 3px 0 #42688f; font-size: 20px; font-weight: 900; transform: rotate(-5deg); }
+.task-widget-discovery__heading > div { display: grid; min-width: 0; gap: 1px; }
+.task-widget-discovery__heading small { color: #da6d3b; font-size: 10px; font-weight: 900; }
+.task-widget-discovery__heading strong { overflow: hidden; font-size: 15px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.task-widget-discovery p { display: -webkit-box; overflow: hidden; margin: 0; color: #596a7d; font-size: 12px; font-weight: 700; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.task-widget-discovery__source { overflow: hidden; color: #8b96a4; font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.task-dashboard-widget[data-widget-density="compact"] .task-widget-discovery p { -webkit-line-clamp: 2; }
+.task-dashboard-widget[data-widget-density="expanded"] .task-widget-discovery { gap: 10px; padding: 14px 10px; }
+.task-dashboard-widget[data-widget-density="expanded"] .task-widget-discovery__heading strong { font-size: 17px; }
+.task-dashboard-widget[data-widget-density="expanded"] .task-widget-discovery p { font-size: 13px; -webkit-line-clamp: 4; }
 
 .task-widget-hanzi-review { position: relative; height: 100%; min-height: 0; overflow: hidden; }
 .task-widget-hanzi-review__viewport { width: 100%; height: 100%; overflow: hidden; touch-action: pan-y; cursor: grab; }
@@ -570,6 +589,9 @@
   .task-dashboard-widget .task-list-panel__header { min-height: 64px; padding: 17px 14px 9px; }
   .task-dashboard-widget .task-list-panel__header h2 { font-size: 21px; }
   .task-dashboard-widget .task-list-panel__scroll { padding: 0 12px 14px; }
+  .task-dashboard-widget .task-list-panel__scroll--rail-controlled { padding-right: 48px; }
+  .task-list-scroll-rail { top: 70px; right: 4px; bottom: 10px; width: 40px; }
+  .task-list-scroll-rail__thumb img { width: 36px; }
   .task-list-panel__count { padding: 5px 8px; font-size: 11px; }
   .task-dashboard-widget .task-empty-panel { min-height: 0; }
   .task-dashboard-widget .task-mascot-area--widget .task-mascot-area__image { left: 0; width: 40%; }
@@ -13293,13 +13315,9 @@ body:has(.footprints-page),
 .pet-meter__track { height: 14px; overflow: hidden; border-radius: 12px; background: #ece7df; }
 .pet-meter__track i { display: block; height: 100%; border-radius: inherit; transition: width 600ms ease; }
 
-.pet-action-icon { position: relative; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: rgb(255 255 255 / 68%); }
-.pet-action-icon--travel { color: #fff5c2; background: rgb(255 255 255 / 18%); font-size: 25px; }
-.pet-action-icon--snack i { position: absolute; left: 9px; right: 9px; bottom: 9px; height: 13px; border: 3px solid #8f5735; border-top: 0; border-radius: 2px 2px 11px 11px; background: #f1a653; }
-.pet-action-icon--snack i::before { content: ""; position: absolute; left: 2px; top: -12px; width: 15px; height: 12px; border: 3px solid #8f5735; border-bottom: 0; border-radius: 13px 13px 3px 3px; background: #fff0bd; }
-.pet-action-icon--water i { width: 19px; height: 25px; border: 3px solid #327c99; border-radius: 65% 42% 65% 44%; background: #72cee4; transform: rotate(45deg); }
-.pet-action-icon--album i { position: relative; width: 23px; height: 27px; border: 3px solid #6d8b62; border-radius: 4px; background: #fffdf3; box-shadow: -4px 4px 0 #b9d5a9; }
-.pet-action-icon--album i::after { content: ""; position: absolute; left: 7px; right: 4px; top: 7px; height: 3px; border-radius: 3px; background: #e69a4c; box-shadow: 0 7px 0 #e69a4c; }
+.pet-action-icon { position: relative; width: 42px; height: 42px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 50%; background: rgb(255 255 255 / 68%); }
+.pet-action-icon--travel { background: rgb(255 255 255 / 18%); }
+.pet-action-icon > img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 2px rgb(75 48 33 / 13%)); }
 .pet-action-icon--decorate { overflow: hidden; background: rgb(255 255 255 / 72%); }
 .pet-action-icon--decorate img { width: 92%; height: 92%; object-fit: contain; }
 
@@ -13838,24 +13856,6 @@ body:has(.footprints-page),
   background: rgb(255 255 255 / 72%);
 }
 
-.pet-care-confirm__icon .pet-action-icon--snack i {
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  height: 17px;
-}
-
-.pet-care-confirm__icon .pet-action-icon--snack i::before {
-  top: -15px;
-  width: 21px;
-  height: 15px;
-}
-
-.pet-care-confirm__icon .pet-action-icon--water i {
-  width: 24px;
-  height: 32px;
-}
-
 .pet-care-confirm > small {
   color: #9a7560;
   font-size: 13px;
@@ -13982,19 +13982,8 @@ body:has(.footprints-page),
 .pet-travel-options small { display: grid; gap: 4px; color: #796c63; font-weight: 700; text-align: center; }
 .pet-travel-options small em { color: #a0836f; font-size: 12px; font-style: normal; }
 .pet-trip-price { margin-top: 5px; padding: 7px 13px; border: 1px solid #eed78f; border-radius: 8px; color: #875f1b; background: #fff0b8; }
-.pet-trip-icon { position: relative; width: 72px; height: 72px; display: block; margin-bottom: 3px; border-radius: 50%; background: rgb(255 255 255 / 74%); box-shadow: inset 0 0 0 2px rgb(91 74 58 / 8%); }
-.pet-trip-icon--nearby i { position: absolute; left: 16px; right: 16px; bottom: 15px; height: 22px; border: 3px solid #6d895f; border-top: 0; border-radius: 4px 4px 15px 15px; background: #e9b35f; }
-.pet-trip-icon--nearby i::before { content: ""; position: absolute; left: 7px; top: -15px; width: 19px; height: 15px; border: 3px solid #6d895f; border-bottom: 0; border-radius: 16px 16px 0 0; }
-.pet-trip-icon--nearby b { position: absolute; left: 30px; top: 7px; width: 12px; height: 18px; border-radius: 9px 9px 7px 7px; background: #78a66c; transform: rotate(-22deg); }
-.pet-trip-icon--china i { position: absolute; left: 15px; right: 15px; bottom: 16px; height: 28px; background: #e77945; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-.pet-trip-icon--china i::before { content: ""; position: absolute; left: -3px; top: 12px; width: 46px; height: 20px; background: #f1aa55; clip-path: polygon(34% 0, 66% 0, 100% 100%, 0 100%); }
-.pet-trip-icon--china b { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 5px; border-radius: 5px; background: #9e5738; }
-.pet-trip-icon--world i { position: absolute; inset: 13px; border: 3px solid #4c93a0; border-radius: 50%; }
-.pet-trip-icon--world i::before,
-.pet-trip-icon--world i::after { content: ""; position: absolute; border: 2px solid #4c93a0; border-radius: 50%; }
-.pet-trip-icon--world i::before { inset: -3px 11px; }
-.pet-trip-icon--world i::after { left: -3px; right: -3px; top: 17px; height: 0; border-width: 2px 0 0; border-radius: 0; }
-.pet-trip-icon--world b { position: absolute; left: 20px; top: 24px; width: 15px; height: 11px; border-radius: 60% 40% 55% 45%; background: #70b37d; transform: rotate(-17deg); }
+.pet-trip-icon { position: relative; width: 78px; height: 78px; display: grid; margin-bottom: 3px; place-items: center; border-radius: 50%; background: rgb(255 255 255 / 74%); box-shadow: inset 0 0 0 2px rgb(91 74 58 / 8%); }
+.pet-trip-icon img { display: block; width: 92%; height: 92%; object-fit: contain; filter: drop-shadow(0 3px 3px rgb(70 47 33 / 12%)); }
 
 .pet-album { padding: clamp(20px, 3vw, 34px); }
 .pet-album__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -14009,8 +13998,8 @@ body:has(.footprints-page),
 
 .pet-postcard { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); height: min(760px, 88dvh); min-height: 520px; overflow: hidden; }
 .pet-postcard__close { position: absolute; z-index: 2; right: 14px; top: 14px; }
-.pet-postcard__image-wrap { position: relative; min-height: 520px; background: #eee; }
-.pet-postcard__destination { width: 100%; height: 100%; object-fit: cover; }
+.pet-postcard__image-wrap { position: relative; min-height: 520px; display: grid; padding: clamp(12px, 1.5vw, 20px); place-items: center; background: #e7dfd4; }
+.pet-postcard__destination { width: 100%; height: 100%; object-fit: contain; border-radius: 5px; background: #f7f0e7; box-shadow: 0 9px 20px rgb(62 43 31 / 16%); }
 .pet-postcard__travel-mascot { position: absolute; z-index: 1; left: 4%; bottom: 3%; width: clamp(125px, 25%, 210px); height: auto; object-fit: contain; filter: drop-shadow(0 10px 8px rgb(52 43 37 / 25%)); }
 .pet-postcard__image-wrap > span { position: absolute; left: 20px; top: 20px; padding: 8px 13px; border-radius: 8px; color: #5f493d; background: rgba(255,250,235,.9); font-weight: 900; }
 .pet-postcard__content { align-self: stretch; min-height: 0; max-height: 100%; padding: clamp(28px, 4vw, 46px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; }
@@ -14100,11 +14089,6 @@ body:has(.footprints-page),
   .pet-action-button strong { font-size: 14px; }
   .pet-action-button small { font-size: 10px; }
   .pet-action-icon { width: 32px; height: 32px; }
-  .pet-action-icon--travel { font-size: 19px; }
-  .pet-action-icon--snack i { left: 7px; right: 7px; bottom: 7px; height: 10px; border-width: 2px; }
-  .pet-action-icon--snack i::before { top: -10px; width: 12px; height: 10px; border-width: 2px; }
-  .pet-action-icon--water i { width: 15px; height: 20px; border-width: 2px; }
-  .pet-action-icon--album i { width: 18px; height: 22px; border-width: 2px; }
   .pet-main-figure { left: 35%; top: 58%; width: min(57vw, 245px); }
   .pet-main-figure p,
   .pet-care-progress { max-width: 220px; padding: 8px 10px; font-size: 13px; white-space: nowrap; }
@@ -14114,7 +14098,7 @@ body:has(.footprints-page),
   .pet-postcard { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
   .pet-travel-options { grid-template-columns: 1fr; }
   .pet-trip-option { min-height: 116px; display: grid; grid-template-columns: 58px 1fr auto; grid-template-rows: auto auto; text-align: left; }
-  .pet-trip-icon { grid-column: 1; grid-row: 1 / 3; width: 54px; height: 54px; transform: scale(.8); transform-origin: center; }
+  .pet-trip-icon { grid-column: 1; grid-row: 1 / 3; width: 54px; height: 54px; }
   .pet-travel-options strong { grid-column: 2; grid-row: 1; align-self: end; }
   .pet-travel-options small { grid-column: 2; grid-row: 2; align-self: start; text-align: left; }
   .pet-trip-price { grid-column: 3; grid-row: 1 / 3; align-self: center; }
