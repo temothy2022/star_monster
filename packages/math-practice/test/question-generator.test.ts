@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   MATH_QUESTION_TYPES,
   answerMathQuestion,
+  findNonInferableCubes,
   generateMathQuestion,
   generateMathWorksheet,
   getMathTeachingGuide,
+  isCubeStructureUnambiguous,
 } from "../src/index";
 
 describe("math practice question generator", () => {
@@ -190,15 +192,34 @@ describe("math practice question generator", () => {
 
   it("uses program coordinates as the source of truth for cube counting", () => {
     const structures = new Set<string>();
-    for (let seed = 1; seed <= 20; seed += 1) {
+    for (let seed = 1; seed <= 400; seed += 1) {
       const question = generateMathQuestion({ typeId: "S04", seed });
       expect(question.visual.kind).toBe("CUBES");
       if (question.visual.kind !== "CUBES") continue;
       expect(question.answer.values).toEqual([String(question.visual.cubes.length)]);
       expect(new Set(question.visual.cubes.map((cube) => cube.join(","))).size).toBe(question.visual.cubes.length);
+      expect(isCubeStructureUnambiguous(question.visual.cubes), `S04 seed ${seed}`).toBe(true);
       structures.add(JSON.stringify(question.visual.cubes));
     }
     expect(structures.size).toBeGreaterThan(5);
+  });
+
+  it("rejects hidden cubes that cannot be inferred from an upper cube", () => {
+    const ambiguousStructure = [
+      [0, 0, 0],
+      [1, 0, 0],
+      [0, 1, 0],
+      [1, 0, 1],
+      [0, 1, 1],
+    ] as const;
+    const inferableStack = [
+      [0, 0, 0],
+      [0, 0, 1],
+    ] as const;
+
+    expect(findNonInferableCubes(ambiguousStructure)).toEqual([[0, 0, 0]]);
+    expect(isCubeStructureUnambiguous(ambiguousStructure)).toBe(false);
+    expect(isCubeStructureUnambiguous(inferableStack)).toBe(true);
   });
 
   it("progresses every requested type through its supported difficulty range", () => {

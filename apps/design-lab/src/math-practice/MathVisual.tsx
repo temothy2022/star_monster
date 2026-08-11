@@ -1,5 +1,7 @@
 import { memo, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { projectCubeStructure } from "@star-monsters/math-practice";
 import type {
+  CubeCoordinate,
   MathLengthAssetKey,
   MathLogicPictureKey,
   MathQuestion,
@@ -717,24 +719,12 @@ function LogicGrid({
   );
 }
 
-function CubeModel({ cubes, visibleLayers, animatedLayer }: { cubes: readonly [number, number, number][]; visibleLayers?: number | null; animatedLayer?: number | null }) {
+function CubeModel({ cubes, visibleLayers, animatedLayer }: { cubes: readonly CubeCoordinate[]; visibleLayers?: number | null; animatedLayer?: number | null }) {
   const size = 36;
   const originX = 180;
   const originY = 168;
   const { allFaces, viewBox } = useMemo(() => {
-    const projected = [...cubes].sort((first, second) => {
-      const firstDepth = first[0] + first[1] + first[2] * 0.01;
-      const secondDepth = second[0] + second[1] + second[2] * 0.01;
-      return firstDepth - secondDepth;
-    });
-    const faces = projected.map(([x, y, z], index) => {
-      const px = originX + (x - y) * size;
-      const py = originY + (x + y) * (size / 2) - z * size;
-      const top = [[px, py - size], [px + size, py - size / 2], [px, py], [px - size, py - size / 2]] as const;
-      const left = [[px - size, py - size / 2], [px, py], [px, py + size], [px - size, py + size / 2]] as const;
-      const right = [[px, py], [px + size, py - size / 2], [px + size, py + size / 2], [px, py + size]] as const;
-      return { key: `${x}-${y}-${z}-${index}`, z, top, left, right, points: [...top, ...left, ...right] };
-    });
+    const faces = projectCubeStructure(cubes, { size, originX, originY });
     const allPoints = faces.flatMap((face) => face.points);
     const padding = 12;
     const minX = Math.min(...allPoints.map(([x]) => x)) - padding;

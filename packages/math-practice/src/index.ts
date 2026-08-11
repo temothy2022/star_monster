@@ -1,5 +1,6 @@
 export * from "./question-types.js";
 export * from "./question-catalog.js";
+export * from "./cube-geometry.js";
 export * from "./question-generator.js";
 export * from "./question-spec.js";
 export * from "./teaching-guides.js";

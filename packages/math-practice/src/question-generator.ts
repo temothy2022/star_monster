@@ -13,6 +13,7 @@ import type {
   MathSpriteKey,
   MathVisualSpec,
 } from "./question-spec.js";
+import { isCubeStructureUnambiguous } from "./cube-geometry.js";
 
 class SeededRng {
   private state: number;
@@ -189,40 +190,46 @@ function generateCubeStructure(rng: SeededRng, difficulty: 1 | 2 | 3) {
     3: { minCount: 7, maxCount: 9, maxX: 2, maxY: 2, maxZ: 2 },
   }[difficulty];
   const targetCount = rng.int(limits.minCount, limits.maxCount);
-  const cubes: Array<[number, number, number]> = [[0, 0, 0]];
-  const keys = new Set(["0,0,0"]);
+  for (let attempt = 0; attempt < 64; attempt += 1) {
+    const cubes: Array<[number, number, number]> = [[0, 0, 0]];
+    const keys = new Set(["0,0,0"]);
 
-  while (cubes.length < targetCount) {
-    const candidates: Array<[number, number, number]> = [];
-    for (const [x, y, z] of cubes) {
-      const neighbors: Array<[number, number, number]> = [
-        [x + 1, y, z],
-        [x - 1, y, z],
-        [x, y + 1, z],
-        [x, y - 1, z],
-        [x, y, z + 1],
-      ];
-      for (const candidate of neighbors) {
-        const [nextX, nextY, nextZ] = candidate;
-        const key = candidate.join(",");
-        const supported = nextZ === 0 || keys.has(`${nextX},${nextY},${nextZ - 1}`);
-        if (
-          nextX >= 0 && nextX <= limits.maxX &&
-          nextY >= 0 && nextY <= limits.maxY &&
-          nextZ >= 0 && nextZ <= limits.maxZ &&
-          supported && !keys.has(key) &&
-          !candidates.some((item) => item.join(",") === key)
-        ) {
-          candidates.push(candidate);
+    while (cubes.length < targetCount) {
+      const candidates: Array<[number, number, number]> = [];
+      const candidateKeys = new Set<string>();
+      for (const [x, y, z] of cubes) {
+        const neighbors: Array<[number, number, number]> = [
+          [x + 1, y, z],
+          [x - 1, y, z],
+          [x, y + 1, z],
+          [x, y - 1, z],
+          [x, y, z + 1],
+        ];
+        for (const candidate of neighbors) {
+          const [nextX, nextY, nextZ] = candidate;
+          const key = candidate.join(",");
+          const supported = nextZ === 0 || keys.has(`${nextX},${nextY},${nextZ - 1}`);
+          if (
+            nextX >= 0 && nextX <= limits.maxX &&
+            nextY >= 0 && nextY <= limits.maxY &&
+            nextZ >= 0 && nextZ <= limits.maxZ &&
+            supported && !keys.has(key) && !candidateKeys.has(key) &&
+            isCubeStructureUnambiguous([...cubes, candidate])
+          ) {
+            candidates.push(candidate);
+            candidateKeys.add(key);
+          }
         }
       }
+      if (candidates.length === 0) break;
+      const next = rng.pick(candidates);
+      cubes.push(next);
+      keys.add(next.join(","));
     }
-    const next = rng.pick(candidates);
-    cubes.push(next);
-    keys.add(next.join(","));
-  }
 
-  return cubes;
+    if (cubes.length === targetCount) return cubes;
+  }
+  throw new Error(`Unable to generate an unambiguous S04 cube structure with ${targetCount} cubes.`);
 }
 
 const MULTI_ARITHMETIC_TYPES = new Set<MathQuestionTypeId>([

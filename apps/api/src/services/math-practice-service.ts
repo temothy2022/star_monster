@@ -2,7 +2,9 @@ import { Prisma, type MathPracticeSession } from "@prisma/client";
 import {
   MATH_QUESTION_TYPES_BY_ID,
   answerMathQuestion,
+  generateMathQuestion,
   generateMathWorksheet,
+  isCubeStructureUnambiguous,
   type MathQuestion,
   type MathQuestionTypeId,
 } from "@star-monsters/math-practice";
@@ -31,6 +33,26 @@ function questionsFromJson(value: Prisma.JsonValue): MathQuestion[] {
     ) return [];
     return [item as unknown as MathQuestion];
   });
+}
+
+function repairNonInferableCubeQuestions(questions: MathQuestion[], startIndex: number) {
+  const repairedIndexes: number[] = [];
+  const repairedQuestions = questions.map((question, index) => {
+    if (
+      index < startIndex ||
+      question.typeId !== "S04" ||
+      question.visual.kind !== "CUBES" ||
+      isCubeStructureUnambiguous(question.visual.cubes)
+    ) return question;
+
+    repairedIndexes.push(index);
+    return generateMathQuestion({
+      typeId: "S04",
+      seed: question.seed,
+      difficulty: question.difficulty,
+    });
+  });
+  return { repairedQuestions, repairedIndexes };
 }
 
 function publicQuestion(question: MathQuestion | undefined) {
@@ -120,7 +142,27 @@ async function requireMathPracticeAttempt(childId: string, attemptId: string) {
 export async function startMathPracticeSession(childId: string, attemptId: string, config: AppConfig) {
   const practiceConfig = await requireMathPracticeAttempt(childId, attemptId);
   const existing = await prisma.mathPracticeSession.findUnique({ where: { taskAttemptId: attemptId } });
-  if (existing) return { session: await serializeSession(existing) };
+  if (existing) {
+    const questions = questionsFromJson(existing.questions);
+    const { repairedQuestions, repairedIndexes } = repairNonInferableCubeQuestions(questions, existing.currentIndex);
+    if (repairedIndexes.length === 0) return { session: await serializeSession(existing, { questions }) };
+
+    const [updated] = await prisma.$transaction([
+      prisma.mathPracticeSession.update({
+        where: { id: existing.id },
+        data: { questions: JSON.parse(JSON.stringify(repairedQuestions)) as Prisma.InputJsonValue },
+      }),
+      prisma.mathPracticeQuestionAttempt.deleteMany({
+        where: { sessionId: existing.id, questionIndex: { in: repairedIndexes } },
+      }),
+    ]);
+    return {
+      session: await serializeSession(updated, {
+        questions: repairedQuestions,
+        ...(repairedIndexes.includes(existing.currentIndex) ? { attemptsForCurrent: 0 } : {}),
+      }),
+    };
+  }
 
   const typeCounts = normalizeTypeCounts(practiceConfig.typeCounts);
   const arithmeticItemsPerQuestion = normalizeTypeCounts(practiceConfig.arithmeticItemsPerQuestion ?? {});
