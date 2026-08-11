@@ -1086,6 +1086,9 @@ model MathPracticeQuestionAttempt {
   sessionId     String
   questionIndex Int
   attemptNumber Int
+  questionTypeId String?
+  difficulty    Int?
+  expectedResponseMs Int?
   values        Json
   correct       Boolean
   responseMs    Int
@@ -1097,6 +1100,7 @@ model MathPracticeQuestionAttempt {
 
   @@unique([sessionId, questionIndex, attemptNumber])
   @@index([childId, answeredAt])
+  @@index([childId, questionTypeId, answeredAt])
 }
 
 model Poem {

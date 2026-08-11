@@ -153,6 +153,38 @@ export type MathPracticeSettings = {
   arithmeticItemsPerQuestion: Record<string, number>;
 };
 
+export type MathMasteryLevel = "NO_DATA" | "WEAK" | "DEVELOPING" | "PROFICIENT" | "MASTERED";
+export type MathMasteryTrend = "INSUFFICIENT" | "IMPROVING" | "STABLE" | "DECLINING";
+
+export type MathMasteryStats = {
+  practiceSessions: number;
+  totalQuestions: number;
+  correctQuestions: number;
+  incorrectQuestions: number;
+  accuracy: number | null;
+  firstTryAccuracy: number | null;
+  averageResponseMs: number | null;
+  expectedResponseMs: number | null;
+  recentQuestions: number;
+  recentAccuracy: number | null;
+  recentAverageResponseMs: number | null;
+  mastery: { level: MathMasteryLevel; label: string; score: number };
+  trend: MathMasteryTrend;
+};
+
+export type MathMasteryResponse = {
+  range: { from: string; to: string; recentFrom: string };
+  summary: MathMasteryStats;
+  types: Array<MathMasteryStats & {
+    questionTypeId: string;
+    name: string;
+    categoryId: string;
+    categoryName: string;
+    familyId: string;
+    familyName: string;
+  }>;
+};
+
 export type MakeTenFactStats = {
   target: number;
   answer: number;
@@ -962,6 +994,10 @@ export const parentApi = {
   growthAnalytics: (childId: string, days: 7 | 30 | 90) =>
     api<GrowthAnalytics>(
       `/api/parent/children/${childId}/growth-analytics?days=${days}`,
+    ),
+  mathMastery: (childId: string, days: 7 | 30 | 90) =>
+    api<MathMasteryResponse>(
+      `/api/parent/children/${childId}/math-mastery?days=${days}`,
     ),
   taskHistory: (childId: string, days: number) =>
     api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(

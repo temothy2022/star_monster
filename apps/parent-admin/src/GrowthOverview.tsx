@@ -3,6 +3,7 @@ import {
   parentApi,
   type Child,
   type GrowthAnalytics,
+  type MathMasteryResponse,
   type WeeklyGrowthAnalysis,
   type WeeklyGrowthReport,
 } from "./api";
@@ -42,6 +43,50 @@ function DashboardSection({
 
 function percent(value: number | null) {
   return value === null ? "—" : `${Math.round(value * 100)}%`;
+}
+
+function responseSeconds(value: number | null) {
+  if (value === null) return "—";
+  return `${(value / 1_000).toFixed(value >= 10_000 ? 1 : 2)}s`;
+}
+
+const MATH_TREND_LABELS = {
+  INSUFFICIENT: "样本不足",
+  IMPROVING: "近期提升",
+  STABLE: "近期稳定",
+  DECLINING: "近期回落",
+} as const;
+
+function MathMasteryTable({ data }: { data: MathMasteryResponse }) {
+  if (!data.types.length) {
+    return <div className="empty-state">完成数学练习后，这里会按具体题型显示正确率、速度和掌握情况。</div>;
+  }
+  return (
+    <>
+      <div className="math-mastery-summary">
+        <article><span>已分析题目</span><strong>{data.summary.totalQuestions}</strong><small>{data.summary.practiceSessions} 次练习</small></article>
+        <article><span>整体正确率</span><strong>{percent(data.summary.accuracy)}</strong><small>首次答对 {percent(data.summary.firstTryAccuracy)}</small></article>
+        <article><span>平均答题时间</span><strong>{responseSeconds(data.summary.averageResponseMs)}</strong><small>按题型基准约 {responseSeconds(data.summary.expectedResponseMs)}</small></article>
+        <article><span>综合掌握度</span><strong>{data.summary.mastery.label}</strong><small>{data.summary.mastery.score} 分 · {MATH_TREND_LABELS[data.summary.trend]}</small></article>
+      </div>
+      <div className="math-mastery-table-wrap">
+        <table className="math-mastery-table">
+          <thead><tr><th>具体题型</th><th>答题数</th><th>正确率</th><th>平均耗时</th><th>合理基准</th><th>近期表现</th><th>掌握情况</th></tr></thead>
+          <tbody>{data.types.map((item) => (
+            <tr key={item.questionTypeId}>
+              <td><strong>{item.name}</strong><small>{item.questionTypeId} · {item.categoryName} / {item.familyName}</small></td>
+              <td>{item.totalQuestions}<small>{item.practiceSessions} 次练习</small></td>
+              <td>{percent(item.accuracy)}<small>首次 {percent(item.firstTryAccuracy)}</small></td>
+              <td>{responseSeconds(item.averageResponseMs)}</td>
+              <td>{responseSeconds(item.expectedResponseMs)}</td>
+              <td><span className={`math-mastery-trend math-mastery-trend--${item.trend.toLowerCase()}`}>{MATH_TREND_LABELS[item.trend]}</span><small>{item.recentQuestions ? `近 14 天 ${percent(item.recentAccuracy)}` : "近 14 天暂无题目"}</small></td>
+              <td><b className={`math-mastery-level math-mastery-level--${item.mastery.level.toLowerCase()}`}>{item.mastery.label}</b><small>{item.mastery.score} 分</small></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </>
+  );
 }
 
 function shortDate(value: string) {
@@ -345,7 +390,7 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
         </div>
 
         {analysis.cadenceChanges.length ? <section className="weekly-growth-report__cadence">
-          <header><div><span>建议改为周期安排</span><small>这些任务不必保持当前出现频率</small></div></header>
+          <header><div><span>建议调整任务频率</span><small>综合实际时间负担、完成情况和学习掌握度</small></div></header>
           <div>{analysis.cadenceChanges.map((item) => <article key={item.templateId}><strong>{item.title}</strong><div><del>{item.currentCadence}</del><i>→</i><b>{item.recommendedCadence}</b></div><p>{item.reason}</p></article>)}</div>
         </section> : null}
 
@@ -366,6 +411,8 @@ export function GrowthOverview({ child }: { child: Child }) {
   const [analyticsError, setAnalyticsError] = useState("");
   const [learning, setLearning] = useState<LearningOverviewData | null>(null);
   const [learningError, setLearningError] = useState("");
+  const [mathMastery, setMathMastery] = useState<MathMasteryResponse | null>(null);
+  const [mathMasteryError, setMathMasteryError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -394,6 +441,16 @@ export function GrowthOverview({ child }: { child: Child }) {
     return () => { cancelled = true; };
   }, [child.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setMathMastery(null);
+    setMathMasteryError("");
+    void parentApi.mathMastery(child.id, days)
+      .then((result) => { if (!cancelled) setMathMastery(result); })
+      .catch((reason) => { if (!cancelled) setMathMasteryError(reason instanceof Error ? reason.message : "数学掌握度读取失败"); });
+    return () => { cancelled = true; };
+  }, [child.id, days]);
+
   const summary = analytics?.summary;
   const netTone = (summary?.netStars ?? 0) >= 0 ? "positive" : "negative";
   const completionDescription = useMemo(() => {
@@ -411,6 +468,10 @@ export function GrowthOverview({ child }: { child: Child }) {
 
       <DashboardSection title="专项学习掌握度" subtitle="直观看孩子在汉字、古诗、凑十和时钟训练中的当前状态">
         {learning ? <LearningMastery learning={learning} /> : <div className="empty-state">{learningError || "正在读取学习状态…"}</div>}
+      </DashboardSection>
+
+      <DashboardSection title="数学题型掌握度" subtitle="综合正确率、答题速度、样本量与近 14 天趋势；不同题型使用各自的合理耗时基准">
+        {mathMastery ? <MathMasteryTable data={mathMastery} /> : <div className="empty-state">{mathMasteryError || "正在整理数学答题记录…"}</div>}
       </DashboardSection>
 
 

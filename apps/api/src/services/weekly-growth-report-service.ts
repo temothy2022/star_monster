@@ -19,6 +19,7 @@ import {
 } from "../lib/time.js";
 import { callDeepSeekJson } from "./deepseek-service.js";
 import { getGrowthAnalyticsForRange } from "./growth-analytics-service.js";
+import { getMathMasteryForRange } from "./math-mastery-service.js";
 
 const GENERATING_STALE_MS = 15 * 60 * 1_000;
 const ANALYSIS_WEEKS = 4;
@@ -92,6 +93,14 @@ function currentSchedule(template: PlanningTemplate) {
     frequency: "SELECTED_WEEKDAYS" as const,
     weekdays: template.weekdays.slice().sort((left, right) => left - right),
   };
+}
+
+function plannedSessionsPerWeek(template: PlanningTemplate) {
+  if (isAutomaticReview(template)) return null;
+  if (template.scheduleKind === "DAILY") return 7;
+  if (template.scheduleKind === "WORKDAYS") return 5;
+  if (template.scheduleKind === "ONE_TIME") return 1;
+  return new Set(template.weekdays).size;
 }
 
 function uniqueByTemplate<T extends { templateId: string }>(items: T[]) {
@@ -257,7 +266,7 @@ export async function generateWeeklyGrowthReport(
     now,
     config.APP_TIME_ZONE,
   );
-  const [analytics, templates] = await Promise.all([
+  const [analytics, templates, mathMastery] = await Promise.all([
     getGrowthAnalyticsForRange(
       childId,
       analysisWindow,
@@ -286,9 +295,16 @@ export async function generateWeeklyGrowthReport(
         createdAt: true,
       },
     }),
+    getMathMasteryForRange(childId, {
+      from: analysisWindow.from,
+      to: new Date(analysisWindow.to.getTime() + 24 * 60 * 60 * 1_000 - 1),
+    }),
   ]);
   const performanceById = new Map(
     analytics.tasks.map((task) => [task.templateId, task]),
+  );
+  const mathMasteryByTemplate = new Map(
+    mathMastery.templates.map((item) => [item.templateId, item]),
   );
   const metricsPayload = {
     period: analytics.range,
@@ -301,6 +317,18 @@ export async function generateWeeklyGrowthReport(
     },
     taskObservations: templates.map((template) => {
       const performance = performanceById.get(template.id);
+      const suggestedMinutes = Math.max(
+        1,
+        Math.round(
+          (template.timeLimitSeconds ?? template.suggestedSeconds ?? 600) / 60,
+        ),
+      );
+      const sessionsPerWeek = plannedSessionsPerWeek(template);
+      const observedAverageMinutes = performance?.averageMinutes ?? null;
+      const observedSessionsPerWeek = performance
+        ? Math.round((performance.completedAttempts / ANALYSIS_WEEKS) * 10) / 10
+        : 0;
+      const mastery = mathMasteryByTemplate.get(template.id);
       return {
         templateId: template.id,
         title: template.title,
@@ -315,12 +343,18 @@ export async function generateWeeklyGrowthReport(
           weekdays: template.weekdays,
           repeatableDaily: template.repeatableDaily,
         },
-        suggestedMinutes: Math.max(
-          1,
-          Math.round(
-            (template.timeLimitSeconds ?? template.suggestedSeconds ?? 600) / 60,
-          ),
-        ),
+        workload: {
+          suggestedMinutesPerSession: suggestedMinutes,
+          plannedSessionsPerWeek: sessionsPerWeek,
+          plannedMinutesPerWeek:
+            sessionsPerWeek === null ? null : suggestedMinutes * sessionsPerWeek,
+          observedAverageMinutesPerSession: observedAverageMinutes,
+          observedSessionsPerWeek,
+          observedMinutesPerWeek:
+            observedAverageMinutes === null
+              ? null
+              : Math.round(observedAverageMinutes * observedSessionsPerWeek * 10) / 10,
+        },
         sample: {
           scheduledDays: performance?.scheduledDays ?? 0,
           completedDays: performance?.completedDays ?? 0,
@@ -331,6 +365,40 @@ export async function generateWeeklyGrowthReport(
           averageMinutes: performance?.averageMinutes ?? null,
           weeklyBreakdown: performance?.weeklyBreakdown ?? [],
         },
+        learningValue: mastery
+          ? {
+              kind: "MATH_QUESTION_TYPE_MASTERY",
+              totalQuestions: mastery.summary.totalQuestions,
+              accuracy: mastery.summary.accuracy,
+              firstTryAccuracy: mastery.summary.firstTryAccuracy,
+              averageResponseSeconds:
+                mastery.summary.averageResponseMs === null
+                  ? null
+                  : Math.round((mastery.summary.averageResponseMs / 1_000) * 10) / 10,
+              expectedResponseSeconds:
+                mastery.summary.expectedResponseMs === null
+                  ? null
+                  : Math.round((mastery.summary.expectedResponseMs / 1_000) * 10) / 10,
+              mastery: mastery.summary.mastery,
+              trend: mastery.summary.trend,
+              weakestQuestionTypes: mastery.types.slice(0, 4).map((type) => ({
+                questionTypeId: type.questionTypeId,
+                name: type.name,
+                totalQuestions: type.totalQuestions,
+                accuracy: type.accuracy,
+                averageResponseSeconds:
+                  type.averageResponseMs === null
+                    ? null
+                    : Math.round((type.averageResponseMs / 1_000) * 10) / 10,
+                expectedResponseSeconds:
+                  type.expectedResponseMs === null
+                    ? null
+                    : Math.round((type.expectedResponseMs / 1_000) * 10) / 10,
+                mastery: type.mastery,
+                trend: type.trend,
+              })),
+            }
+          : null,
       };
     }),
   };
