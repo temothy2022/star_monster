@@ -130,4 +130,6 @@ pnpm publish:production -- "feat: update child dashboard"
 
 脚本只有在 GitHub 推送成功后才会继续部署；如果远端分支有本机尚未拉取的提交，`git push` 会失败，请先执行 `git pull --rebase origin main` 处理后再发布。
 
+上传阶段会显示文件传输进度。连接连续 120 秒没有传输数据时会自动退出，不会再无限停留在 `3/3`；如网络较慢，可在 `.deploy.env` 中设置更长的 `DEPLOY_RSYNC_TIMEOUT`（秒）。
+
 服务器上的 `/opt/star-monsters/.release-version` 会保存当前线上版本的 Git 提交号。

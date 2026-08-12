@@ -5,6 +5,9 @@ set -Eeuo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REMOTE_NAME="${PUBLISH_REMOTE:-origin}"
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
 COMMIT_MESSAGE="${1:-${PUBLISH_COMMIT_MESSAGE:-}}"
 
 cd "$PROJECT_ROOT"

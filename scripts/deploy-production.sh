@@ -18,10 +18,16 @@ source "$CONFIG_FILE"
 : "${DEPLOY_USER:?DEPLOY_USER is required}"
 : "${DEPLOY_PATH:?DEPLOY_PATH is required}"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
+DEPLOY_RSYNC_TIMEOUT="${DEPLOY_RSYNC_TIMEOUT:-120}"
+
+if [[ ! "$DEPLOY_RSYNC_TIMEOUT" =~ ^[0-9]+$ ]] || (( DEPLOY_RSYNC_TIMEOUT < 30 )); then
+  echo "DEPLOY_RSYNC_TIMEOUT must be an integer of at least 30 seconds."
+  exit 1
+fi
 
 REMOTE="$DEPLOY_USER@$DEPLOY_HOST"
-SSH=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes)
-RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes"
+SSH=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
+RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
 if [[ -n "${DEPLOY_IDENTITY_FILE:-}" ]]; then
   SSH+=(-i "$DEPLOY_IDENTITY_FILE")
   RSYNC_SSH+=" -i $(printf '%q' "$DEPLOY_IDENTITY_FILE")"
@@ -59,7 +65,7 @@ echo "2/3 Checking SSH access..."
 
 echo "3/3 Uploading release and applying it on the server..."
 # Hanzi media is deployed separately and may be owned by root on the server.
-rsync -az --delete \
+rsync -az --delete --partial --progress --timeout="$DEPLOY_RSYNC_TIMEOUT" \
   --filter 'P /apps/design-lab/dist/assets/***' \
   --filter 'P /apps/parent-admin/dist/assets/***' \
   --filter 'P /apps/super-admin/dist/assets/***' \
