@@ -28,6 +28,7 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", defaultRows: 35, minRows: 27, maxRows: 60 },
   { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green", defaultRows: 15, minRows: 12, maxRows: 26 },
   { key: "CLOCK", label: "现在时间", description: "查看当前的时针、分针和秒针", size: "small", tone: "clock", defaultRows: 12, minRows: 10, maxRows: 22 },
+  { key: "CATEGORY_PROGRESS", label: "分类进度", description: "看看今天各类任务完成得怎么样", size: "medium", tone: "teal", defaultRows: 15, minRows: 12, maxRows: 24 },
   { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow", defaultRows: 12, minRows: 9, maxRows: 22 },
   { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink", defaultRows: 15, minRows: 13, maxRows: 26 },
   { key: "TODAY_PLAN", label: "今日计划", description: "待完成、已完成和预计时间", size: "medium", tone: "blue", defaultRows: 15, minRows: 12, maxRows: 24 },
@@ -122,6 +123,7 @@ export function TaskDashboard({
   const [draftColumns, setDraftColumns] = useState<Partial<Record<TaskDashboardWidgetKey, number>>>(layout.columns ?? {});
   const [draftRows, setDraftRows] = useState<Partial<Record<TaskDashboardWidgetKey, number>>>(() => rowsFromLayout(layout));
   const [clockEnabled, setClockEnabled] = useState(layout.clockEnabled !== false);
+  const [categoryProgressEnabled, setCategoryProgressEnabled] = useState(layout.categoryProgressEnabled !== false);
   const [pressedWidget, setPressedWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [draggingWidget, setDraggingWidget] = useState<TaskDashboardWidgetKey | null>(null);
   const [settlingWidget, setSettlingWidget] = useState<TaskDashboardWidgetKey | null>(null);
@@ -149,6 +151,7 @@ export function TaskDashboard({
       setDraftColumns(layout.columns ?? {});
       setDraftRows(rowsFromLayout(layout));
       setClockEnabled(layout.clockEnabled !== false);
+      setCategoryProgressEnabled(layout.categoryProgressEnabled !== false);
     }
   }, [editing, layout]);
 
@@ -670,6 +673,7 @@ export function TaskDashboard({
     widgetsRef.current = next;
     setDraftWidgets(next);
     if (key === "CLOCK") setClockEnabled(false);
+    if (key === "CATEGORY_PROGRESS") setCategoryProgressEnabled(false);
   }
 
   function addWidget(key: TaskDashboardWidgetKey) {
@@ -684,6 +688,7 @@ export function TaskDashboard({
     widgetsRef.current = next;
     setDraftWidgets(next);
     if (key === "CLOCK") setClockEnabled(true);
+    if (key === "CATEGORY_PROGRESS") setCategoryProgressEnabled(true);
   }
 
   function cancelEditing() {
@@ -691,6 +696,7 @@ export function TaskDashboard({
     setDraftColumns(layout.columns ?? {});
     setDraftRows(rowsFromLayout(layout));
     setClockEnabled(layout.clockEnabled !== false);
+    setCategoryProgressEnabled(layout.categoryProgressEnabled !== false);
     setEditing(false);
     setLibraryOpen(false);
     setMessage("");
@@ -709,6 +715,7 @@ export function TaskDashboard({
           draftWidgets.includes(key as TaskDashboardWidgetKey)
         ))) as Partial<Record<TaskDashboardWidgetKey, number>>,
         clockEnabled,
+        categoryProgressEnabled,
       });
       setEditing(false);
       setLibraryOpen(false);

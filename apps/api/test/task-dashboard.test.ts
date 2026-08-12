@@ -11,6 +11,7 @@ describe("task dashboard layout", () => {
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("TASKS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("MASCOT");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("CLOCK");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("CATEGORY_PROGRESS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("LEADERBOARD");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("NOTIFICATIONS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("HANZI_REVIEW");
@@ -26,7 +27,7 @@ describe("task dashboard layout", () => {
     };
     expect(normalizeTaskDashboardLayout(layout)).toEqual({
       version: 1,
-      widgets: [...layout.widgets, "CLOCK"],
+      widgets: [...layout.widgets, "CLOCK", "CATEGORY_PROGRESS"],
       columns: layout.columns,
       rows: { TASKS: 42 },
     });
@@ -52,7 +53,7 @@ describe("task dashboard layout", () => {
       rows: { TASKS: 38, BALANCE: 14, MASCOT: 19, NOTIFICATIONS: 10 },
     };
     expect(taskDashboardLayoutSchema.safeParse(layout).success).toBe(true);
-    expect(normalizeTaskDashboardLayout(layout)).toEqual({ ...layout, widgets: [...layout.widgets, "CLOCK"] });
+    expect(normalizeTaskDashboardLayout(layout)).toEqual({ ...layout, widgets: [...layout.widgets, "CLOCK", "CATEGORY_PROGRESS"] });
   });
 
   it("rejects a widget height outside that widget's usable range", () => {
@@ -90,7 +91,7 @@ describe("task dashboard layout", () => {
       widgets: ["BALANCE", "QUICK_LINKS", "TASKS", "MASCOT"],
     })).toEqual({
       version: 1,
-      widgets: ["BALANCE", "TASKS", "MASCOT", "CLOCK"],
+      widgets: ["BALANCE", "TASKS", "MASCOT", "CLOCK", "CATEGORY_PROGRESS"],
     });
   });
 
@@ -101,14 +102,14 @@ describe("task dashboard layout", () => {
     }).success).toBe(false);
     expect(taskDashboardLayoutSchema.safeParse({
       version: 1,
-      widgets: ["BALANCE", "MASCOT", "CLOCK"],
+      widgets: ["BALANCE", "MASCOT", "CLOCK", "CATEGORY_PROGRESS"],
     }).success).toBe(true);
     expect(normalizeTaskDashboardLayout({
       version: 1,
-      widgets: ["BALANCE", "MASCOT", "CLOCK"],
+      widgets: ["BALANCE", "MASCOT", "CLOCK", "CATEGORY_PROGRESS"],
     })).toEqual({
       version: 1,
-      widgets: ["BALANCE", "MASCOT", "CLOCK"],
+      widgets: ["BALANCE", "MASCOT", "CLOCK", "CATEGORY_PROGRESS"],
     });
   });
 

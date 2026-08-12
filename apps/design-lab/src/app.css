@@ -115,12 +115,12 @@
 .task-dashboard-widget--blue { --widget-accent: #63aeda; --widget-decoration: rgb(99 174 218 / 20%); background: #eef8ff; }
 .task-dashboard-widget--orange { --widget-accent: #f47b45; --widget-decoration: rgb(244 123 69 / 20%); background: #fff1e5; }
 .task-dashboard-widget--purple { --widget-accent: #9d70d0; --widget-decoration: rgb(157 112 208 / 20%); background: #f7f0ff; }
-.task-dashboard-widget--teal { --widget-accent: #56bda8; --widget-decoration: rgb(86 189 168 / 20%); background: #edfbf8; }
 .task-dashboard-widget--indigo { --widget-accent: #7786ce; --widget-decoration: rgb(119 134 206 / 20%); background: #f1f3ff; }
 .task-dashboard-widget--notice { --widget-accent: #6f9fc4; --widget-decoration: rgb(111 159 196 / 20%); background: #eef8ff; }
 .task-dashboard-widget--hanzi { --widget-accent: #df8b58; --widget-decoration: rgb(223 139 88 / 20%); background: #fff2e7; }
 .task-dashboard-widget--poem { --widget-accent: #9471bd; --widget-decoration: rgb(148 113 189 / 20%); background: #f5f0ff; }
 .task-dashboard-widget--clock { --widget-accent: #6d9ec4; --widget-decoration: rgb(109 158 196 / 20%); background: #eef7ff; }
+.task-dashboard-widget--teal { --widget-accent: #56bda8; --widget-decoration: rgb(86 189 168 / 20%); background: #edfbf8; }
 
 .task-dashboard-widget[data-widget-key="BALANCE"]::before { top: auto; right: -24px; bottom: -39px; transform: rotate(28deg); }
 .task-dashboard-widget[data-widget-key="STREAK"]::before { top: -44px; right: 30px; width: 76px; height: 104px; transform: rotate(45deg); }
@@ -263,7 +263,7 @@
 .task-dashboard-widget .task-list-panel__header { position: relative; inset: auto; height: auto; min-height: 72px; padding: 22px 26px 12px; }
 .task-dashboard-widget .task-list-panel__header h2 { font-size: 25px; }
 .task-list-panel__count { padding: 6px 11px; border-radius: 999px; color: #65758b; background: #edf1f4; font-size: 13px; font-weight: 800; }
-.task-dashboard-widget .task-list-panel__scroll { position: relative; inset: auto; min-height: 0; gap: 12px; padding: 0 24px 24px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.task-dashboard-widget .task-list-panel__scroll { position: relative; inset: auto; min-height: 0; gap: 12px; padding: 0 30px 24px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .task-dashboard-widget .task-list-panel__scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .task-dashboard-widget .task-list-panel__scroll--rail-controlled { padding-right: 82px; overflow-y: hidden; overscroll-behavior: auto; touch-action: pan-y; }
 .task-list-scroll-rail { position: absolute; z-index: 8; top: 78px; right: 8px; bottom: 17px; width: 68px; display: none; padding: 5px; border: 2px solid rgb(226 152 61 / 48%); border-radius: 24px; background: rgb(255 246 218 / 88%); box-shadow: inset 0 0 0 2px rgb(255 255 255 / 64%), 0 4px 10px rgb(37 59 89 / 10%); touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -362,6 +362,21 @@
 .task-widget-clock__copy small { color: #6d8da4; font-size: 12px; font-weight: 900; }
 .task-widget-clock__copy strong { color: #253b59; font-size: 24px; letter-spacing: 1px; line-height: 1.15; white-space: nowrap; }
 .task-widget-clock__copy span { color: #7a8c9b; font-size: 12px; font-weight: 800; }
+.task-widget-category-progress { display: grid; height: 100%; min-height: 0; align-content: center; gap: 13px; padding: 18px 22px; color: #253b59; }
+.task-widget-category-progress__heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.task-widget-category-progress__heading > div { display: grid; gap: 2px; }
+.task-widget-category-progress__heading small { color: #609283; font-size: 12px; font-weight: 900; }
+.task-widget-category-progress__heading strong { font-size: 22px; line-height: 1.15; }
+.task-widget-category-progress__heading > span { color: #328978; font-size: 20px; font-weight: 900; }
+.task-widget-category-progress__grid { display: grid; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
+.task-widget-category-progress__row { display: grid; min-width: 0; gap: 5px; }
+.task-widget-category-progress__label { display: flex; min-width: 0; align-items: center; gap: 5px; color: #536b70; font-size: 12px; font-weight: 800; }
+.task-widget-category-progress__label i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; }
+.task-widget-category-progress__label strong { color: #253b59; }
+.task-widget-category-progress__label span { margin-left: auto; color: #7a8c91; font-size: 11px; }
+.task-widget-category-progress__rail { height: 7px; overflow: hidden; border-radius: 999px; background: rgb(37 59 89 / 10%); }
+.task-widget-category-progress__rail i { display: block; min-width: 4px; height: 100%; border-radius: inherit; transition: width 360ms ease; }
+.task-widget-category-progress--empty { place-items: center; color: #7a8c91; font-size: 13px; font-weight: 800; }
 
 .task-widget-plan { display: grid; height: 100%; align-content: space-between; gap: 14px; padding: 23px; }
 .task-widget-plan__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -626,6 +641,10 @@
   .task-widget-clock__copy strong { font-size: 18px; letter-spacing: 0; }
   .task-widget-clock__copy small,
   .task-widget-clock__copy span { font-size: 10px; }
+  .task-widget-category-progress { gap: 9px; padding: 13px 14px; }
+  .task-widget-category-progress__heading strong { font-size: 18px; }
+  .task-widget-category-progress__heading > span { font-size: 16px; }
+  .task-widget-category-progress__grid { gap: 8px 12px; }
   .task-widget-balance strong,
   .task-widget-streak strong,
   .task-widget-goal-bonus strong { font-size: 23px; }
@@ -637,7 +656,7 @@
   .task-widget-goal-bonus__gift { width: 54px; height: 45px; flex-basis: 45px; transform: scale(.78); }
   .task-dashboard-widget .task-list-panel__header { min-height: 64px; padding: 17px 14px 9px; }
   .task-dashboard-widget .task-list-panel__header h2 { font-size: 21px; }
-  .task-dashboard-widget .task-list-panel__scroll { padding: 0 12px 14px; }
+  .task-dashboard-widget .task-list-panel__scroll { padding: 0 18px 14px; }
   .task-dashboard-widget .task-list-panel__scroll--rail-controlled { padding-right: 72px; }
   .task-list-scroll-rail { top: 70px; right: 4px; bottom: 10px; width: 60px; }
   .task-list-scroll-rail__thumb img { width: 51px; }

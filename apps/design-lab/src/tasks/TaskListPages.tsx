@@ -497,6 +497,55 @@ function ClockWidget() {
   );
 }
 
+const TASK_CATEGORY_PROGRESS: Array<{
+  key: Exclude<TaskCategoryFilter, "ALL">;
+  label: string;
+  color: string;
+}> = [
+  { key: "CHINESE", label: "语文", color: "#d65a72" },
+  { key: "MATH", label: "数学", color: "#7f83d4" },
+  { key: "ENGLISH", label: "英语", color: "#45b7c6" },
+  { key: "EXERCISE", label: "运动", color: "#f36f6a" },
+  { key: "LIFE", label: "生活", color: "#e9a23b" },
+  { key: "OTHER", label: "综合", color: "#9ca3af" },
+];
+
+function CategoryProgressWidget({ tasks }: { tasks: TaskItem[] }) {
+  const rows = TASK_CATEGORY_PROGRESS.map((category) => {
+    const categoryTasks = tasks.filter((task) => taskCategoryFilterFor(task.category) === category.key);
+    return {
+      ...category,
+      total: categoryTasks.length,
+      completed: categoryTasks.filter((task) => task.status === "completed").length,
+    };
+  }).filter((category) => category.total > 0);
+
+  if (rows.length === 0) {
+    return <div className="task-widget-category-progress task-widget-category-progress--empty">今天还没有分类任务</div>;
+  }
+
+  const completed = rows.reduce((sum, row) => sum + row.completed, 0);
+  return (
+    <div className="task-widget-category-progress">
+      <header className="task-widget-category-progress__heading">
+        <div><small>今天的安排</small><strong>分类进度</strong></div>
+        <span>{completed}/{tasks.length}</span>
+      </header>
+      <div className="task-widget-category-progress__grid">
+        {rows.map((row) => {
+          const percent = Math.round((row.completed / row.total) * 100);
+          return (
+            <div className="task-widget-category-progress__row" key={row.key}>
+              <div className="task-widget-category-progress__label"><i style={{ background: row.color }} /><strong>{row.label}</strong><span>{row.completed}/{row.total}</span></div>
+              <div className="task-widget-category-progress__rail" aria-label={`${row.label}完成 ${percent}%`}><i style={{ width: `${percent}%`, background: row.color }} /></div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TodayPlanWidget({ tasks }: { tasks: TaskItem[] }) {
   const pending = tasks.filter((task) => task.status === "pending");
   const completed = tasks.length - pending.length;
@@ -1697,6 +1746,8 @@ export function TaskExperience({
         return <DailyProgressWidget earned={experience!.earnedToday} goal={experience!.dailyStarGoal} />;
       case "CLOCK":
         return <ClockWidget />;
+      case "CATEGORY_PROGRESS":
+        return <CategoryProgressWidget tasks={tasks} />;
       case "BALANCE":
         return <BalanceWidget balance={experience!.starBalance} />;
       case "MASCOT":
