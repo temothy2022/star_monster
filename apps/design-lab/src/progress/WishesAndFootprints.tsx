@@ -35,6 +35,7 @@ import {
   getChildWishes,
   redeemChildWish,
   sendChallengeReply,
+  startChallengeConversation,
   type ChallengeContact,
   type ChallengeConversation,
   type ChildWish,
@@ -316,10 +317,12 @@ function FootprintLeaderboard({
   leaderboards,
   period,
   onPeriodChange,
+  onPartnerSelect,
 }: {
   leaderboards: FootprintResponse["leaderboards"];
   period: LeaderboardPeriod;
   onPeriodChange: (period: LeaderboardPeriod) => void;
+  onPartnerSelect: (partner: { competitorId: string; displayName: string; avatarKey: string }) => void;
 }) {
   const leaderboard = leaderboards[period];
   return (
@@ -352,7 +355,7 @@ function FootprintLeaderboard({
             <span className={`footprints-leaderboard__rank footprints-leaderboard__rank--${Math.min(entry.rank ?? 4, 4)}${entry.rank === null ? " footprints-leaderboard__rank--unlisted" : ""}`}>
               {entry.rank ?? "..."}
             </span>
-            <span className="footprints-leaderboard__avatar" aria-hidden="true">
+            {entry.isSelf || !entry.competitorId || !entry.avatarKey ? <span className="footprints-leaderboard__avatar" aria-hidden="true">
               <img
                 className="footprints-leaderboard__portrait"
                 src={entry.avatarUrl ?? (entry.avatarKey ? LEADERBOARD_AVATARS[entry.avatarKey] : MASCOTS[entry.petType].images.neutral)}
@@ -361,7 +364,7 @@ function FootprintLeaderboard({
                 decoding="async"
               />
               <img className="footprints-leaderboard__flag" src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" />
-            </span>
+            </span> : <button type="button" className="footprints-leaderboard__avatar footprints-leaderboard__avatar--chat" aria-label={`给${entry.displayName}发消息`} onClick={() => onPartnerSelect({ competitorId: entry.competitorId!, displayName: entry.displayName, avatarKey: entry.avatarKey! })}><img className="footprints-leaderboard__portrait" src={entry.avatarUrl ?? LEADERBOARD_AVATARS[entry.avatarKey]} alt="" loading="lazy" decoding="async" /><img className="footprints-leaderboard__flag" src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" /></button>}
             <span className="footprints-leaderboard__name">
               <strong>{entry.displayName}</strong>
             </span>
@@ -402,6 +405,17 @@ export function Footprints({
       setChallengeConversation(result.conversation);
     } catch (reason) {
       setChallengeError(reason instanceof Error ? reason.message : "来信暂时打不开");
+    }
+  }
+
+  async function openLeaderboardPartner(partner: { competitorId: string; displayName: string; avatarKey: string }) {
+    setChallengeOpen(true); setChallengeError("");
+    try {
+      const result = await startChallengeConversation(partner);
+      setChallengeContacts(result.contacts);
+      setChallengeConversation(result.conversation);
+    } catch (reason) {
+      setChallengeError(reason instanceof Error ? reason.message : "暂时不能联系这个伙伴");
     }
   }
 
@@ -583,10 +597,6 @@ export function Footprints({
   return (
     <main className="footprints-page">
       <section className="footprints-main">
-        <button type="button" className="footprints-chat-entry" onClick={() => void openChallengeInbox()}>
-          <span className="footprints-chat-entry__art"><img src={challengeInboxEntry} alt="" />{challengeContacts.some((contact) => contact.unreadCount > 0) && <i aria-label="有未读来信" />}</span>
-          <span><strong>伙伴来信</strong><small>{challengeContacts.length ? `${challengeContacts.length} 位联系过的伙伴` : "看看你的挑战伙伴"}</small></span>
-        </button>
         <div className="footprints-mobile-tabs" aria-label="足迹内容">
           <button type="button" className={mobilePanel === "records" ? "is-active" : ""} aria-pressed={mobilePanel === "records"} onClick={() => setMobilePanel("records")}>得星记录</button>
           <button type="button" className={mobilePanel === "leaderboard" ? "is-active" : ""} aria-pressed={mobilePanel === "leaderboard"} onClick={() => setMobilePanel("leaderboard")}>小朋友榜</button>
@@ -596,8 +606,13 @@ export function Footprints({
             leaderboards={footprints.leaderboards}
             period={leaderboardPeriod}
             onPeriodChange={setLeaderboardPeriod}
+            onPartnerSelect={(partner) => void openLeaderboardPartner(partner)}
           />
           <div className="footprints-interactive">
+            <button type="button" className="footprints-chat-entry" onClick={() => void openChallengeInbox()}>
+              <span className="footprints-chat-entry__art"><img src={challengeInboxEntry} alt="" />{challengeContacts.some((contact) => contact.unreadCount > 0) && <i aria-label="有未读来信" />}</span>
+              <span><strong>伙伴来信</strong><small>{challengeContacts.length ? `${challengeContacts.length} 位联系过的伙伴 · 点击排行榜头像也能发消息` : "点击排行榜中的对手头像开始聊天"}</small></span>
+            </button>
             <div className="footprints-days" aria-label="最近七天星星记录">
               {displayedDays.map((item) => {
                 const selected = item.date === activeDate;

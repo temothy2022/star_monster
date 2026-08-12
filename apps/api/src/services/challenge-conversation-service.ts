@@ -13,6 +13,7 @@ import { getChildLeaderboards } from "./footprint-service.js";
 import { systemAiCredentials } from "./system-ai-service.js";
 
 export const DAILY_CHILD_MESSAGE_LIMIT = 5;
+export const CHALLENGE_HISTORY_LIMIT = 50;
 const GENERATION_RETRY_MS = 10 * 60 * 1_000;
 const PROMPT_POOL_SIZE = 100;
 const promptPoolSchema = z.object({
@@ -176,7 +177,8 @@ function serializeConversations(conversations: LoadedConversation[], config: App
   const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
   const allVisibleMessages = conversations
     .flatMap((conversation) => visibleMessages(conversation, now))
-    .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime() || left.id.localeCompare(right.id));
+    .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime() || left.id.localeCompare(right.id))
+    .slice(-CHALLENGE_HISTORY_LIMIT);
   const selectedPartnerSentToday = conversations
     .flatMap((conversation) => conversation.messages)
     .filter((message) => message.sender === "CHILD" && message.createdAt >= todayStart && message.createdAt < tomorrowStart).length;
@@ -211,16 +213,59 @@ function serializeConversation(conversation: LoadedConversation | null, config: 
   return conversation ? serializeConversations([conversation], config, now) : null;
 }
 
-async function loadTodayConversation(childId: string, config: AppConfig, now = new Date()) {
-  return prisma.challengeConversation.findUnique({
-    where: {
-      childId_businessDate: {
-        childId,
-        businessDate: businessDateAt(now, config.APP_TIME_ZONE),
-      },
-    },
+async function loadTodayConversation(childId: string, config: AppConfig, now = new Date(), competitorId?: string) {
+  return prisma.challengeConversation.findFirst({
+    where: { childId, businessDate: businessDateAt(now, config.APP_TIME_ZONE), ...(competitorId ? { competitorId } : {}) },
+    orderBy: { createdAt: "asc" },
     include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
   });
+}
+
+async function prunePartnerHistory(childId: string, competitorId: string) {
+  const overflow = await prisma.challengeConversationMessage.findMany({
+    where: { conversation: { childId, competitorId } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: CHALLENGE_HISTORY_LIMIT,
+    select: { id: true },
+  });
+  if (overflow.length) {
+    await prisma.challengeConversationMessage.deleteMany({ where: { id: { in: overflow.map((message) => message.id) } } });
+  }
+}
+
+export async function startChallengeConversation(
+  childId: string,
+  partner: { competitorId: string; displayName: string; avatarKey: string },
+  config: AppConfig,
+  now = new Date(),
+) {
+  const { leaderboards } = await getChildLeaderboards(childId, config, now);
+  const verified = [...leaderboards.daily.entries, ...leaderboards.weekly.entries].find((entry) =>
+    !entry.isSelf && entry.competitorId === partner.competitorId && entry.avatarKey,
+  );
+  if (!verified?.competitorId || !verified.avatarKey) {
+    throw new HttpError(404, "CHALLENGE_PARTNER_NOT_FOUND", "这个挑战伙伴暂时不在排行榜里");
+  }
+  const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
+  await prisma.challengeConversation.upsert({
+    where: { childId_businessDate_competitorId: { childId, businessDate, competitorId: verified.competitorId } },
+    create: {
+      childId,
+      businessDate,
+      competitorId: verified.competitorId,
+      competitorName: verified.displayName,
+      competitorAvatarKey: verified.avatarKey,
+      status: "READY",
+      openedAt: now,
+    },
+    update: {
+      competitorName: verified.displayName,
+      competitorAvatarKey: verified.avatarKey,
+      status: "READY",
+      openedAt: now,
+    },
+  });
+  return getChallengeConversation(childId, config, now, verified.competitorId);
 }
 
 async function loadPartnerConversations(childId: string, competitorId: string) {
@@ -297,13 +342,13 @@ export async function generateChallengeLetterIfEligible(
   now = new Date(),
   options: { force?: boolean } = {},
 ) {
-  const existing = await loadTodayConversation(childId, config, now);
-  if (existing?.status === "READY") return serializeConversation(existing, config, now);
-  if (!options.force && existing && now.getTime() - existing.updatedAt.getTime() < GENERATION_RETRY_MS) return null;
-  const partner = existing
-    ? { competitorId: existing.competitorId, displayName: existing.competitorName, avatarKey: existing.competitorAvatarKey, stars: 0 }
-    : await eligiblePartner(childId, config, now, options.force);
+  const partner = await eligiblePartner(childId, config, now, options.force);
   if (!partner) return null;
+  const existing = await loadTodayConversation(childId, config, now, partner.competitorId);
+  if (existing?.status === "READY" && existing.messages.some((message) => message.sender === "VIRTUAL_PARTNER")) {
+    return serializeConversation(existing, config, now);
+  }
+  if (!options.force && existing && now.getTime() - existing.updatedAt.getTime() < GENERATION_RETRY_MS) return null;
   const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
   let conversation;
   if (existing) {
@@ -322,7 +367,7 @@ export async function generateChallengeLetterIfEligible(
       },
     });
   } catch {
-    return serializeConversation(await loadTodayConversation(childId, config, now), config, now);
+    return serializeConversation(await loadTodayConversation(childId, config, now, partner.competitorId), config, now);
   }
 
   try {
@@ -348,7 +393,7 @@ export async function generateChallengeLetterIfEligible(
     });
     throw error;
   }
-  return serializeConversation(await loadTodayConversation(childId, config, now), config, now);
+  return serializeConversation(await loadTodayConversation(childId, config, now, partner.competitorId), config, now);
 }
 
 export async function challengeLetterNotification(
@@ -421,6 +466,7 @@ export async function sendChallengeReply(
     if (currentCount >= DAILY_CHILD_MESSAGE_LIMIT) throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
     return tx.challengeConversationMessage.create({ data: { conversationId: conversation.id, sender: "CHILD", text } });
   });
+  await prunePartnerHistory(childId, competitorId);
   const credentials = await systemAiCredentials(config);
   const recentMessages = [...visibleMessages(conversation, now), childMessage].slice(-8).map((message) => ({
     speaker: message.sender === "CHILD" ? "child" : "virtual_partner",
@@ -450,5 +496,6 @@ export async function sendChallengeReply(
       visibleAt: new Date(Date.now() + challengeReplyDelayMs()),
     },
   });
+  await prunePartnerHistory(childId, competitorId);
   return getChallengeConversation(childId, config, new Date(), competitorId);
 }

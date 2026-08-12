@@ -713,7 +713,7 @@ model ChallengeConversation {
   child    ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
   messages ChallengeConversationMessage[]
 
-  @@unique([childId, businessDate])
+  @@unique([childId, businessDate, competitorId])
   @@index([childId, status, businessDate])
 }
 

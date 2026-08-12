@@ -18,6 +18,7 @@ import {
   getChallengeConversation,
   listChallengeContacts,
   sendChallengeReply,
+  startChallengeConversation,
 } from "../services/challenge-conversation-service.js";
 
 const actionSchema = z.object({
@@ -32,6 +33,11 @@ const roomThemeParams = z.object({ key: z.string().trim().min(1).max(64) });
 const challengeReplySchema = z.object({
   competitorId: z.string().trim().min(1),
   text: z.string().trim().min(1).max(60),
+});
+const challengeStartSchema = z.object({
+  competitorId: z.string().trim().min(1),
+  displayName: z.string().trim().min(1).max(32),
+  avatarKey: z.string().trim().min(1).max(64),
 });
 const challengeConversationQuery = z.object({ competitorId: z.string().trim().min(1).optional() });
 
@@ -55,6 +61,12 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
   app.get("/api/child/challenge-conversation/contacts", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     return listChallengeContacts(child.id, config);
+  });
+
+  app.post("/api/child/challenge-conversation/start", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const input = challengeStartSchema.parse(request.body);
+    return startChallengeConversation(child.id, input, config);
   });
 
   app.post("/api/child/challenge-conversation/replies", async (request, reply) => {

@@ -328,6 +328,13 @@ export function getChallengeConversation(competitorId?: string, signal?: AbortSi
   );
 }
 
+export function startChallengeConversation(partner: { competitorId: string; displayName: string; avatarKey: string }) {
+  return request<{ contacts: ChallengeContact[]; conversation: ChallengeConversation | null }>(
+    "/api/child/challenge-conversation/start",
+    { method: "POST", body: JSON.stringify(partner) },
+  );
+}
+
 export function sendChallengeReply(competitorId: string, text: string) {
   return request<{ contacts: ChallengeContact[]; conversation: ChallengeConversation | null }>(
     "/api/child/challenge-conversation/replies",

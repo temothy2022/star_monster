@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   challengeOfferEligible,
   challengeReplyDelayMs,
+  CHALLENGE_HISTORY_LIMIT,
   DAILY_CHILD_MESSAGE_LIMIT,
   normalizeVirtualMessage,
 } from "../src/services/challenge-conversation-service.js";
@@ -15,6 +16,10 @@ describe("你的挑战伙伴规则", () => {
 
   it("服务端限制孩子每天发送 5 条", () => {
     expect(DAILY_CHILD_MESSAGE_LIMIT).toBe(5);
+  });
+
+  it("每位挑战伙伴最多保留最近 50 条历史消息", () => {
+    expect(CHALLENGE_HISTORY_LIMIT).toBe(50);
   });
 
   it("把伙伴回复延迟控制在 10 到 60 秒", () => {
