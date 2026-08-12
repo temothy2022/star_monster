@@ -24,9 +24,8 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   defaultRows: number;
   minRows: number;
   maxRows: number;
-  required?: boolean;
 }> = [
-  { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", defaultRows: 35, minRows: 27, maxRows: 60, required: true },
+  { key: "TASKS", label: "我的任务", description: "查看并开始今天的任务", size: "large", tone: "navy", defaultRows: 35, minRows: 27, maxRows: 60 },
   { key: "DAILY_PROGRESS", label: "今日进度", description: "看看今天离目标还有多远", size: "medium", tone: "green", defaultRows: 15, minRows: 12, maxRows: 26 },
   { key: "BALANCE", label: "星星余额", description: "随时查看可以使用的星星", size: "small", tone: "yellow", defaultRows: 12, minRows: 9, maxRows: 22 },
   { key: "MASCOT", label: "星宠伙伴", description: "听听星宠今天想对你说的话", size: "medium", tone: "pink", defaultRows: 15, minRows: 13, maxRows: 26 },
@@ -653,7 +652,10 @@ export function TaskDashboard({
   }
 
   function removeWidget(key: TaskDashboardWidgetKey) {
-    if (WIDGET_BY_KEY.get(key)?.required) return;
+    if (widgetsRef.current.length <= 1) {
+      setMessage("首页至少需要保留一个组件");
+      return;
+    }
     const next = widgetsRef.current.filter((widget) => widget !== key);
     const columns = { ...columnsRef.current };
     const rows = { ...draftRows };
@@ -775,9 +777,15 @@ export function TaskDashboard({
                 {editing && (
                   <div className="task-dashboard-widget__edit-controls">
                     <span aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
-                    {!definition.required && <div>
-                      <button className="task-dashboard-widget__remove" type="button" aria-label={`删除${definition.label}`} onClick={() => removeWidget(key)}>×</button>
-                    </div>}
+                    <div>
+                      <button
+                        className="task-dashboard-widget__remove"
+                        type="button"
+                        aria-label={`删除${definition.label}`}
+                        disabled={draftWidgets.length <= 1}
+                        onClick={() => removeWidget(key)}
+                      >×</button>
+                    </div>
                   </div>
                 )}
                 <div className="task-dashboard-widget__content">

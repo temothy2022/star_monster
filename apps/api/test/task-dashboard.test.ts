@@ -85,7 +85,7 @@ describe("task dashboard layout", () => {
     });
   });
 
-  it("rejects duplicate widgets and layouts without the task list", () => {
+  it("rejects duplicate widgets but allows removing the task list", () => {
     expect(taskDashboardLayoutSchema.safeParse({
       version: 1,
       widgets: ["TASKS", "TASKS"],
@@ -93,6 +93,20 @@ describe("task dashboard layout", () => {
     expect(taskDashboardLayoutSchema.safeParse({
       version: 1,
       widgets: ["BALANCE", "MASCOT"],
+    }).success).toBe(true);
+    expect(normalizeTaskDashboardLayout({
+      version: 1,
+      widgets: ["BALANCE", "MASCOT"],
+    })).toEqual({
+      version: 1,
+      widgets: ["BALANCE", "MASCOT"],
+    });
+  });
+
+  it("keeps at least one dashboard widget", () => {
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: [],
     }).success).toBe(false);
   });
 });

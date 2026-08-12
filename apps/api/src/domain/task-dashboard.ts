@@ -84,8 +84,7 @@ export const taskDashboardLayoutSchema = z.object({
   widgets: z.array(z.enum(TASK_DASHBOARD_WIDGET_KEYS))
     .min(1)
     .max(TASK_DASHBOARD_WIDGET_KEYS.length)
-    .refine((widgets) => new Set(widgets).size === widgets.length, "组件不能重复")
-    .refine((widgets) => widgets.includes("TASKS"), "任务列表不能删除"),
+    .refine((widgets) => new Set(widgets).size === widgets.length, "组件不能重复"),
   columns: z.partialRecord(
     z.enum(TASK_DASHBOARD_WIDGET_KEYS),
     z.union([z.literal(0), z.literal(4), z.literal(8)]),
@@ -107,8 +106,7 @@ const storedTaskDashboardLayoutSchema = z.object({
   version: z.literal(1),
   widgets: z.array(z.enum([...TASK_DASHBOARD_WIDGET_KEYS, "QUICK_LINKS"] as const))
     .min(1)
-    .refine((widgets) => new Set(widgets).size === widgets.length, "组件不能重复")
-    .refine((widgets) => widgets.includes("TASKS"), "任务列表不能删除"),
+    .refine((widgets) => new Set(widgets).size === widgets.length, "组件不能重复"),
   columns: z.partialRecord(
     z.enum(TASK_DASHBOARD_WIDGET_KEYS),
     z.union([z.literal(0), z.literal(4), z.literal(8)]),
