@@ -116,4 +116,18 @@ git commit -m "描述本次修改"
 pnpm deploy:production
 ```
 
+如果希望一次完成“提交全部变更、推送 GitHub、部署生产”，执行：
+
+```bash
+pnpm publish:production
+```
+
+也可以指定本次提交信息：
+
+```bash
+pnpm publish:production -- "feat: update child dashboard"
+```
+
+脚本只有在 GitHub 推送成功后才会继续部署；如果远端分支有本机尚未拉取的提交，`git push` 会失败，请先执行 `git pull --rebase origin main` 处理后再发布。
+
 服务器上的 `/opt/star-monsters/.release-version` 会保存当前线上版本的 Git 提交号。

@@ -10,7 +10,7 @@
 - 生产域名：`https://timothy.run`
 - 生产服务器：`ubuntu@43.136.134.234`
 - 生产部署目录：`/opt/star-monsters`
-- 发布命令：`pnpm deploy:production`
+- 发布命令：`pnpm publish:production`
 - 部署配置文件：仓库根目录 `.deploy.env`，该文件不进 Git，需要在每台电脑单独创建。
 
 ## 1. 当前机器收尾流程
@@ -35,7 +35,7 @@ git push origin main
 如果需要把当前版本发布到生产：
 
 ```bash
-pnpm deploy:production
+pnpm publish:production
 curl -sS https://timothy.run/api/health
 ```
 
@@ -248,12 +248,12 @@ git status --short
 
 pnpm build
 pnpm test
-pnpm deploy:production
+pnpm publish:production
 
 curl -sS https://timothy.run/api/health
 ```
 
-如果 `pnpm deploy:production` 提示：
+如果 `pnpm publish:production` 提示：
 
 ```text
 Refusing to publish uncommitted changes.
@@ -266,7 +266,7 @@ git status --short
 git add -A
 git commit -m "chore: prepare production release"
 git push origin main
-pnpm deploy:production
+pnpm publish:production
 ```
 
 如果提示：
@@ -309,7 +309,7 @@ git status --short
 - 开始工作前一定先 `git pull --rebase origin main`。
 - 完成工作后一定 `git add -A && git commit && git push`。
 - 发布前必须本地工作区干净，否则部署脚本会拒绝发布。
-- GitHub 保存代码；生产服务器只接受 `pnpm deploy:production` 发布出来的版本，不作为代码同步源。
+- GitHub 保存代码；生产服务器只接受 `pnpm publish:production` 发布出来的版本，不作为代码同步源。
 
 ## 9. 线上测试方式
 
@@ -369,4 +369,3 @@ ssh -i ~/.ssh/star_monsters_deploy ubuntu@43.136.134.234 'cat /opt/star-monsters
 - 不要把生产数据库 dump 提交到 Git。
 - 不要在文档或代码中硬编码孩子登录码、后台密码或 Cookie Secret。
 - 生产服务器数据库是孩子任务、历史记录、星星、学习进度的唯一线上事实来源。代码同步通过 Git，数据同步不通过 Git。
-

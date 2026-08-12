@@ -36,6 +36,7 @@
     "poem:import-assets": "pnpm --filter @star-monsters/api exec tsx prisma/import-poem-assets.ts",
     "pet:reset-test-status": "pnpm --filter @star-monsters/api exec prisma db execute --schema prisma/schema.prisma --file ../../scripts/reset-test-pet-status.sql",
     "performance:export": "pnpm --filter @star-monsters/api performance:export",
-    "deploy:production": "bash scripts/deploy-production.sh"
+    "deploy:production": "bash scripts/deploy-production.sh",
+    "publish:production": "bash scripts/publish-production.sh"
   }
 }
