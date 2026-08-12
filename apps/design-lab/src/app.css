@@ -1975,6 +1975,7 @@ input[type="reset"] {
   inset: auto;
   flex: 1 1 auto;
   min-height: 0;
+  padding-inline: 12px;
   overflow-y: auto;
 }
 
@@ -2861,6 +2862,7 @@ input[type="reset"] {
     right: 18px;
     bottom: 18px;
     left: 18px;
+    padding-inline: 8px;
   }
   .task-category-filter { gap: 6px; }
   .task-category-filter button { min-height: 32px; padding-inline: 13px; font-size: 13px; }
