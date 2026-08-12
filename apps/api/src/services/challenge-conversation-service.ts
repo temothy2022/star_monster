@@ -16,10 +16,10 @@ export const DAILY_CHILD_MESSAGE_LIMIT = 5;
 export const CHALLENGE_HISTORY_LIMIT = 50;
 const GENERATION_RETRY_MS = 10 * 60 * 1_000;
 const PROMPT_POOL_SIZE = 100;
-const promptPoolSchema = z.object({
-  messages: z.array(z.string().trim().min(2).max(36)).length(PROMPT_POOL_SIZE),
-}).refine((value) => new Set(value.messages).size === PROMPT_POOL_SIZE, {
-  message: "100 条话术不能重复",
+const PROMPT_BATCH_SIZE = 25;
+const PROMPT_BATCH_MAX_ATTEMPTS = 8;
+const promptBatchSchema = z.object({
+  messages: z.array(z.string()).min(1).max(40),
 });
 let promptPoolGeneration: Promise<number> | null = null;
 
@@ -83,36 +83,82 @@ function normalizePromptTemplate(text: string) {
   return normalized;
 }
 
+export function mergeChallengePromptCandidates(target: Set<string>, candidates: string[]) {
+  for (const candidate of candidates) {
+    try {
+      const normalized = normalizePromptTemplate(candidate);
+      if ([...normalized].length <= 36) target.add(normalized);
+    } catch {
+      // Ignore individual malformed lines and let the next batch fill the gap.
+    }
+  }
+  return target;
+}
+
 function renderPromptTemplate(text: string, childName: string | null | undefined) {
   const rendered = text.replaceAll("{孩子昵称}", childName?.trim() || "你");
   return normalizeVirtualMessage(rendered);
 }
 
-async function generatePromptPool(config: AppConfig, replace = false) {
-  const credentials = await systemAiCredentials(config);
+async function generatePromptBatch(
+  config: AppConfig,
+  credentials: Awaited<ReturnType<typeof systemAiCredentials>>,
+  count: number,
+  batchNumber: number,
+  existing: string[],
+) {
   const result = await callDeepSeekJson({
     ...credentials,
     config,
     systemPrompt: [
       "你是儿童任务应用的话术编辑。只输出 JSON 对象。",
-      "生成 100 条互不重复的简体中文短句，给 5 岁孩子的挑战伙伴主动发来。",
+      `本批生成 ${count} 条互不重复的简体中文短句，给 5 岁孩子的挑战伙伴主动发来。`,
       "每条 6 到 22 个汉字，可少量使用占位符 {孩子昵称}。",
       "主题是今天暂时领先、等你追上、一起完成任务。",
       "语气友好俏皮，不能羞辱、讽刺、威胁、贬低、施压或评价孩子好坏。",
       "不用 emoji，不提产品名，不索要个人信息。",
-      "JSON 格式必须是 {\"messages\":[100条字符串]}。",
+      `JSON 格式必须是 {\"messages\":[本批 ${count} 条字符串]}。`,
     ].join("\n"),
-    userPayload: { count: PROMPT_POOL_SIZE, language: "zh-CN" },
-    outputSchema: promptPoolSchema,
-    maxTokens: 5000,
+    userPayload: {
+      count,
+      batchNumber,
+      language: "zh-CN",
+      avoidMessages: existing.slice(-100),
+    },
+    outputSchema: promptBatchSchema,
+    maxTokens: 1800,
   });
-  const messages = result.data.messages.map(normalizePromptTemplate);
-  if (new Set(messages).size !== PROMPT_POOL_SIZE) {
-    throw new HttpError(502, "AI_INVALID_RESPONSE", "DeepSeek 生成的话术存在重复，请再试一次");
+  return result.data.messages;
+}
+
+async function generatePromptPool(config: AppConfig, replace = false) {
+  const credentials = await systemAiCredentials(config);
+  const messages = new Set<string>();
+  let attempts = 0;
+  let lastError: unknown;
+  while (messages.size < PROMPT_POOL_SIZE && attempts < PROMPT_BATCH_MAX_ATTEMPTS) {
+    const remaining = PROMPT_POOL_SIZE - messages.size;
+    const count = Math.min(PROMPT_BATCH_SIZE, remaining + Math.min(5, attempts));
+    attempts += 1;
+    try {
+      const batch = await generatePromptBatch(config, credentials, count, attempts, [...messages]);
+      mergeChallengePromptCandidates(messages, batch);
+    } catch (error) {
+      lastError = error;
+    }
   }
+  if (messages.size < PROMPT_POOL_SIZE) {
+    if (lastError instanceof HttpError && messages.size === 0) throw lastError;
+    throw new HttpError(
+      502,
+      "CHALLENGE_PROMPT_POOL_INCOMPLETE",
+      `主动来信已生成 ${messages.size}/100 条，后台没有替换原话术库，请再试一次`,
+    );
+  }
+  const completedMessages = [...messages].slice(0, PROMPT_POOL_SIZE);
   await prisma.$transaction(async (tx) => {
     if (replace) await tx.challengePromptTemplate.updateMany({ data: { isEnabled: false } });
-    for (const text of messages) {
+    for (const text of completedMessages) {
       await tx.challengePromptTemplate.upsert({
         where: { text },
         create: { text },
@@ -120,7 +166,7 @@ async function generatePromptPool(config: AppConfig, replace = false) {
       });
     }
   });
-  return messages.length;
+  return completedMessages.length;
 }
 
 export async function ensureChallengePromptPool(config: AppConfig, replace = false) {

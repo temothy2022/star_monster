@@ -4,6 +4,7 @@ import {
   challengeReplyDelayMs,
   CHALLENGE_HISTORY_LIMIT,
   DAILY_CHILD_MESSAGE_LIMIT,
+  mergeChallengePromptCandidates,
   normalizeVirtualMessage,
 } from "../src/services/challenge-conversation-service.js";
 
@@ -32,5 +33,19 @@ describe("你的挑战伙伴规则", () => {
     const output = normalizeVirtualMessage("我今天先跑到前面啦，你快来追我吧！🚀再加很长很长的一句话");
     expect(output).not.toContain("🚀");
     expect([...output]).toHaveLength(24);
+  });
+
+  it("分批话术会自动去重并忽略无效内容", () => {
+    const messages = mergeChallengePromptCandidates(new Set(["我先跑到前面啦，等你来追"]), [
+      "我先跑到前面啦，等你来追",
+      "我今天领先一点点，你快来呀🚀",
+      "ok",
+      "一起完成下一项任务吧",
+    ]);
+    expect([...messages]).toEqual([
+      "我先跑到前面啦，等你来追",
+      "我今天领先一点点，你快来呀",
+      "一起完成下一项任务吧",
+    ]);
   });
 });
