@@ -466,7 +466,6 @@ function ClockWidget() {
   const secondAngle = seconds * 6;
   const pad = (value: number) => String(value).padStart(2, "0");
   const timeText = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const weekday = ["日", "一", "二", "三", "四", "五", "六"][now.getDay()];
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 250);
@@ -476,6 +475,19 @@ function ClockWidget() {
   return (
     <div className="task-widget-clock" role="timer" aria-label={`当前时间 ${timeText}`}>
       <div className="task-widget-clock__dial" aria-hidden="true">
+        <div className="task-widget-clock__numbers">
+          {Array.from({ length: 12 }, (_, index) => {
+            const number = index + 1;
+            return (
+              <span
+                key={number}
+                style={{ "--clock-angle": `${number * 30}deg` } as CSSProperties}
+              >
+                <b>{number}</b>
+              </span>
+            );
+          })}
+        </div>
         {Array.from({ length: 12 }, (_, index) => (
           <i
             className={`task-widget-clock__tick${index % 3 === 0 ? " task-widget-clock__tick--hour" : ""}`}
@@ -487,11 +499,6 @@ function ClockWidget() {
         <span className="task-widget-clock__hand task-widget-clock__hand--minute" style={{ transform: `translateX(-50%) rotate(${minuteAngle}deg)` }} />
         <span className="task-widget-clock__hand task-widget-clock__hand--second" style={{ transform: `translateX(-50%) rotate(${secondAngle}deg)` }} />
         <b className="task-widget-clock__pin" />
-      </div>
-      <div className="task-widget-clock__copy">
-        <small>现在时间</small>
-        <strong>{timeText}</strong>
-        <span>星期{weekday}</span>
       </div>
     </div>
   );
