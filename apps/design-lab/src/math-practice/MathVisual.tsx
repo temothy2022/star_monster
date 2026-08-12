@@ -824,7 +824,7 @@ function mathVisualPropsEqual(previous: MathVisualProps, next: MathVisualProps) 
   if (previous.question !== next.question) return false;
   if (previous.cubeVisibleLayers !== next.cubeVisibleLayers || previous.cubeAnimatingLayer !== next.cubeAnimatingLayer) return false;
   if (previous.activeSlot !== next.activeSlot) return false;
-  if (!["LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES", "NUMBER_BOND"].includes(previous.question.visual.kind)) return true;
+  if (!["ARITHMETIC_LIST", "LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES", "NUMBER_BOND"].includes(previous.question.visual.kind)) return true;
   return previous.disabled === next.disabled && sameValues(previous.values, next.values);
 }
 

@@ -606,6 +606,29 @@
 .math-question-card[data-math-type="P03"] .math-inline-number-sequence,
 .math-question-card[data-math-type="P04"] .math-inline-number-sequence { width: min(900px, 100%); grid-template-columns: minmax(260px, 390px) minmax(320px, 420px); align-items: center; justify-content: center; gap: clamp(20px, 4vw, 48px); }
 
+/* Multi-item arithmetic is the common iPad workflow. Keep all five equations
+   and the keypad visible together instead of forcing the child to scroll down
+   for every answer. Portrait remains stacked in the responsive rule below. */
+@media (min-width: 821px) and (orientation: landscape) {
+  .math-question-card[data-math-type^="C"] .math-inline-number-sequence {
+    width: min(980px, 100%);
+    grid-template-columns: minmax(350px, 1.25fr) minmax(300px, .8fr);
+    align-items: center;
+    justify-content: center;
+    gap: clamp(16px, 2.5vw, 32px);
+  }
+  .math-question-card[data-math-type^="C"] .math-arithmetic-list {
+    align-self: center;
+  }
+  .math-question-card[data-math-type^="C"] .math-inline-number-sequence > .math-answer-editor {
+    width: 100%;
+    align-self: center;
+  }
+  .math-question-card[data-math-type^="C"] .math-inline-number-sequence > .math-session__error {
+    grid-column: 1 / -1;
+  }
+}
+
 .math-feedback-toast {
   position: fixed;
   z-index: 30;
