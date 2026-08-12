@@ -34,7 +34,7 @@ if [[ -n "${DEPLOY_IDENTITY_FILE:-}" ]]; then
 fi
 if [[ -n "${DEPLOY_SSH_PROXY_COMMAND:-}" ]]; then
   SSH+=(-o "ProxyCommand=$DEPLOY_SSH_PROXY_COMMAND")
-  RSYNC_SSH+=" -o ProxyCommand=$(printf '%q' "$DEPLOY_SSH_PROXY_COMMAND")"
+  RSYNC_SSH+=" -o \"ProxyCommand=$DEPLOY_SSH_PROXY_COMMAND\""
 fi
 
 cd "$PROJECT_ROOT"
