@@ -9,6 +9,7 @@ import {
 } from "./api";
 
 type RangeDays = 7 | 30 | 90;
+type GrowthTab = "learning" | "tasks" | "spending";
 type LearningOverviewData = {
   hanzi: Awaited<ReturnType<typeof parentApi.hanziSettings>>;
   clock: Awaited<ReturnType<typeof parentApi.clockSettings>>;
@@ -36,6 +37,25 @@ function DashboardSection({
         {actions}
       </header>
       {children}
+    </section>
+  );
+}
+
+function GrowthDomainGroup({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="growth-domain-group">
+      <header className="growth-domain-group__header">
+        <div><h2>{title}</h2><p>{subtitle}</p></div>
+      </header>
+      <div className="growth-domain-group__body">{children}</div>
     </section>
   );
 }
@@ -458,6 +478,7 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
 
 export function GrowthOverview({ child }: { child: Child }) {
   const [days, setDays] = useState<RangeDays>(30);
+  const [activeTab, setActiveTab] = useState<GrowthTab>("learning");
   const [analytics, setAnalytics] = useState<GrowthAnalytics | null>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   const [learning, setLearning] = useState<LearningOverviewData | null>(null);
@@ -503,7 +524,6 @@ export function GrowthOverview({ child }: { child: Child }) {
   }, [child.id, days]);
 
   const summary = analytics?.summary;
-  const netTone = (summary?.netStars ?? 0) >= 0 ? "positive" : "negative";
   const completionDescription = useMemo(() => {
     if (!summary?.scheduledTasks) return "暂无安排任务";
     return `${summary.completedTasks}/${summary.scheduledTasks} 个安排日完成`;
@@ -517,32 +537,42 @@ export function GrowthOverview({ child }: { child: Child }) {
       </div>
       {analyticsError ? <div className="admin-notice admin-notice--error">{analyticsError}</div> : null}
 
-      <DashboardSection title="专项学习掌握度" subtitle="直观看孩子在汉字、古诗、凑十和时钟训练中的当前状态">
-        {learning ? <LearningMastery learning={learning} /> : <div className="empty-state">{learningError || "正在读取学习状态…"}</div>}
-      </DashboardSection>
+      <nav className="growth-tabs" aria-label="成长数据分类">
+        {([
+          ["learning", "学习掌握"],
+          ["tasks", "任务完成"],
+          ["spending", "消费与收入"],
+        ] as const).map(([key, label]) => (
+          <button key={key} type="button" className={activeTab === key ? "active" : ""} onClick={() => setActiveTab(key)} aria-selected={activeTab === key}>{label}</button>
+        ))}
+      </nav>
 
-      <DashboardSection title="数学题型掌握度" subtitle="综合正确率、答题速度、样本量与近 14 天趋势；不同题型使用各自的合理耗时基准">
-        {mathMastery ? <MathMasteryTable data={mathMastery} /> : <div className="empty-state">{mathMasteryError || "正在整理数学答题记录…"}</div>}
-      </DashboardSection>
-
-
-      <div className="metric-grid growth-metrics">
-        <article><span>任务完成率</span><strong>{summary ? percent(summary.completionRate) : "—"}</strong><small>{completionDescription}</small></article>
-        <article><span>活跃天数</span><strong>{summary?.activeDays ?? "—"}</strong><small>完成任务、兑换星愿或使用星宠功能</small></article>
-        <article><span>任务与奖励所得</span><strong>{summary ? summary.taskStarsEarned + summary.bonusStarsEarned : "—"}</strong><small>当前余额 {child.starBalance} 星</small></article>
-        <article><span>星星消费</span><strong>{summary?.starsSpent ?? "—"}</strong><small className={netTone}>本期净变化 {summary ? `${summary.netStars >= 0 ? "+" : ""}${summary.netStars}` : "—"}</small></article>
-      </div>
-
-      {analytics ? <>
-        <DashboardSection title="任务完成概括" subtitle="只比较有足够安排记录的任务，分别按完成度排序">
-          <TaskCompletionSummary analytics={analytics} />
+      {activeTab === "learning" ? <GrowthDomainGroup title="学习掌握" subtitle="集中查看汉字、古诗、凑十、时钟和数学题型的学习表现">
+        <DashboardSection title="专项学习掌握度" subtitle="直观看孩子在汉字、古诗、凑十和时钟训练中的当前状态">
+          {learning ? <LearningMastery learning={learning} /> : <div className="empty-state">{learningError || "正在读取学习状态…"}</div>}
         </DashboardSection>
-        <div className="growth-chart-grid">
-          <DashboardSection title="任务完成趋势" subtitle="按安排日统计，重复完成不会抬高完成率"><ChartLegend items={[{ label: "安排任务", tone: "scheduled" }, { label: "完成任务", tone: "completed" }]} /><ActivityTrend data={analytics.daily} /></DashboardSection>
-          <DashboardSection title="星星获得与消费" subtitle="任务奖励、达标奖励、星愿与星宠支出"><StarBalanceSummary analytics={analytics} /><ChartLegend items={[{ label: "获得", tone: "earned" }, { label: "消费", tone: "spent" }, { label: "每日净结余", tone: "net" }]} /><StarTrend data={analytics.daily} /></DashboardSection>
+        <DashboardSection title="数学题型掌握度" subtitle="综合正确率、答题速度、样本量与近 14 天趋势；不同题型使用各自的合理耗时基准">
+          {mathMastery ? <MathMasteryTable data={mathMastery} /> : <div className="empty-state">{mathMasteryError || "正在整理数学答题记录…"}</div>}
+        </DashboardSection>
+      </GrowthDomainGroup> : null}
+
+      {activeTab === "tasks" ? <GrowthDomainGroup title="任务完成" subtitle="单独查看孩子完成任务的稳定性、表现较好和需要加强的任务">
+        <div className="metric-grid growth-metrics growth-task-metrics">
+          <article><span>任务完成率</span><strong>{summary ? percent(summary.completionRate) : "—"}</strong><small>{completionDescription}</small></article>
+          <article><span>活跃天数</span><strong>{summary?.activeDays ?? "—"}</strong><small>完成任务、兑换星愿或使用星宠功能</small></article>
         </div>
-        <DashboardSection title="消费偏好" subtitle="一级按消费类型合并，具体星愿和旅行目的地作为明细"><SpendingPreference analytics={analytics} /></DashboardSection>
-      </> : <div className="admin-panel empty-state">正在整理成长数据…</div>}
+        {analytics ? <>
+          <DashboardSection title="任务完成概括" subtitle="只比较有足够安排记录的任务，分别按完成度排序"><TaskCompletionSummary analytics={analytics} /></DashboardSection>
+          <DashboardSection title="任务完成趋势" subtitle="按安排日统计，重复完成不会抬高完成率"><ChartLegend items={[{ label: "安排任务", tone: "scheduled" }, { label: "完成任务", tone: "completed" }]} /><ActivityTrend data={analytics.daily} /></DashboardSection>
+        </> : <div className="admin-panel empty-state">正在整理任务完成数据…</div>}
+      </GrowthDomainGroup> : null}
+
+      {activeTab === "spending" ? <GrowthDomainGroup title="消费与收入分析" subtitle="把星星获得、消费和净结余放在一起，并按消费类型查看偏好">
+        {analytics ? <>
+          <DashboardSection title="星星获得与消费" subtitle="任务奖励、达标奖励、星愿与星宠支出"><StarBalanceSummary analytics={analytics} /><ChartLegend items={[{ label: "获得", tone: "earned" }, { label: "消费", tone: "spent" }, { label: "每日净结余", tone: "net" }]} /><StarTrend data={analytics.daily} /></DashboardSection>
+          <DashboardSection title="消费偏好" subtitle="一级按消费类型合并，具体星愿和旅行目的地作为明细"><SpendingPreference analytics={analytics} /></DashboardSection>
+        </> : <div className="admin-panel empty-state">正在整理消费与收入数据…</div>}
+      </GrowthDomainGroup> : null}
 
       <WeeklyReportPanel childId={child.id} />
     </div>
