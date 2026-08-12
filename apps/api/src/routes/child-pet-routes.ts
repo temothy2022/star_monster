@@ -16,6 +16,7 @@ import {
 } from "../services/pet-growth-service.js";
 import {
   getChallengeConversation,
+  listChallengeContacts,
   sendChallengeReply,
 } from "../services/challenge-conversation-service.js";
 
@@ -29,8 +30,10 @@ const tripParams = z.object({ id: z.string().min(1) });
 const wasteParams = z.object({ id: z.string().min(1) });
 const roomThemeParams = z.object({ key: z.string().trim().min(1).max(64) });
 const challengeReplySchema = z.object({
+  competitorId: z.string().trim().min(1),
   text: z.string().trim().min(1).max(60),
 });
+const challengeConversationQuery = z.object({ competitorId: z.string().trim().min(1).optional() });
 
 export async function registerChildPetRoutes(app: FastifyInstance, config: AppConfig) {
   app.get("/api/child/pet", async (request, reply) => {
@@ -45,13 +48,19 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
 
   app.get("/api/child/challenge-conversation", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    return getChallengeConversation(child.id, config);
+    const { competitorId } = challengeConversationQuery.parse(request.query);
+    return getChallengeConversation(child.id, config, new Date(), competitorId);
+  });
+
+  app.get("/api/child/challenge-conversation/contacts", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    return listChallengeContacts(child.id, config);
   });
 
   app.post("/api/child/challenge-conversation/replies", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    const { text } = challengeReplySchema.parse(request.body);
-    return sendChallengeReply(child.id, text, config);
+    const { competitorId, text } = challengeReplySchema.parse(request.body);
+    return sendChallengeReply(child.id, competitorId, text, config);
   });
 
   app.get("/api/child/pet/postcards", async (request, reply) => {

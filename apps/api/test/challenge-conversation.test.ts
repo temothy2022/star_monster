@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   challengeOfferEligible,
+  challengeReplyDelayMs,
   DAILY_CHILD_MESSAGE_LIMIT,
   normalizeVirtualMessage,
 } from "../src/services/challenge-conversation-service.js";
 
-describe("虚拟挑战伙伴规则", () => {
+describe("你的挑战伙伴规则", () => {
   it("只在中午后、低完成量且处于后半区时触发", () => {
     expect(challengeOfferEligible({ minuteOfDay: 720, completedTasks: 1, rank: 9, totalParticipants: 14, selfIndex: 8 })).toBe(true);
     expect(challengeOfferEligible({ minuteOfDay: 719, completedTasks: 0, rank: null, totalParticipants: 14, selfIndex: 13 })).toBe(false);
@@ -14,6 +15,12 @@ describe("虚拟挑战伙伴规则", () => {
 
   it("服务端限制孩子每天发送 5 条", () => {
     expect(DAILY_CHILD_MESSAGE_LIMIT).toBe(5);
+  });
+
+  it("把伙伴回复延迟控制在 10 到 60 秒", () => {
+    expect(challengeReplyDelayMs(0)).toBe(10_000);
+    expect(challengeReplyDelayMs(0.5)).toBeGreaterThanOrEqual(35_000);
+    expect(challengeReplyDelayMs(1)).toBe(60_000);
   });
 
   it("移除表情并把虚拟伙伴消息限制为 24 个字符", () => {

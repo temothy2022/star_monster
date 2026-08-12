@@ -238,12 +238,23 @@ export type PetNotificationSummary = {
   redPacketCount: number;
   challengeLetter: null | {
     conversationId: string;
+    partnerId: string;
     partnerName: string;
     partnerAvatarKey: string;
     preview: string;
     unread: boolean;
-    partnerLabel: "虚拟挑战伙伴";
+    partnerLabel: "你的挑战伙伴";
   };
+};
+
+export type ChallengeContact = {
+  competitorId: string;
+  displayName: string;
+  avatarKey: string;
+  label: "你的挑战伙伴";
+  latestMessage: string;
+  latestAt: string;
+  unreadCount: number;
 };
 
 export type ChallengeConversation = {
@@ -253,7 +264,7 @@ export type ChallengeConversation = {
     competitorId: string;
     displayName: string;
     avatarKey: string;
-    label: "虚拟挑战伙伴";
+    label: "你的挑战伙伴";
   };
   messages: Array<{
     id: string;
@@ -261,6 +272,7 @@ export type ChallengeConversation = {
     text: string;
     createdAt: string;
   }>;
+  nextVisibleAt: string | null;
   dailyLimit: number;
   sentToday: number;
   remainingToday: number;
@@ -304,17 +316,22 @@ export function getPetPostcards(signal?: AbortSignal) {
   });
 }
 
-export function getChallengeConversation(signal?: AbortSignal) {
-  return request<{ conversation: ChallengeConversation | null }>(
-    "/api/child/challenge-conversation",
+export function getChallengeContacts(signal?: AbortSignal) {
+  return request<{ contacts: ChallengeContact[] }>("/api/child/challenge-conversation/contacts", { cache: "no-store", signal });
+}
+
+export function getChallengeConversation(competitorId?: string, signal?: AbortSignal) {
+  const query = competitorId ? `?competitorId=${encodeURIComponent(competitorId)}` : "";
+  return request<{ contacts: ChallengeContact[]; conversation: ChallengeConversation | null }>(
+    `/api/child/challenge-conversation${query}`,
     { cache: "no-store", signal },
   );
 }
 
-export function sendChallengeReply(text: string) {
-  return request<{ conversation: ChallengeConversation | null }>(
+export function sendChallengeReply(competitorId: string, text: string) {
+  return request<{ contacts: ChallengeContact[]; conversation: ChallengeConversation | null }>(
     "/api/child/challenge-conversation/replies",
-    { method: "POST", body: JSON.stringify({ text }) },
+    { method: "POST", body: JSON.stringify({ competitorId, text }) },
   );
 }
 

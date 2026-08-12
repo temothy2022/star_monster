@@ -6184,13 +6184,28 @@ input[type="reset"] {
 }
 
 .challenge-chat-backdrop { position: fixed; z-index: 80; inset: 0; border: 0; background: rgb(29 36 58 / 46%); backdrop-filter: blur(5px); }
-.challenge-chat { position: fixed; z-index: 81; top: 50%; left: 50%; display: grid; width: min(540px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 52px)); grid-template-rows: auto minmax(240px, 1fr) auto; overflow: hidden; border: 2px solid #344b68; border-radius: 30px; background-color: #fff8ed; background-position: top center; background-size: cover; box-shadow: 0 28px 80px rgb(27 38 68 / 34%); transform: translate(-50%, -50%); }
+.footprints-main { position: relative; }
+.footprints-chat-entry { position: absolute; z-index: 5; top: 18px; right: 22px; display: flex; align-items: center; gap: 10px; min-width: 184px; padding: 8px 13px 8px 8px; border: 1px solid rgb(64 78 108 / 15%); border-radius: 20px; color: #2c4362; background: rgb(255 251 242 / 92%); box-shadow: 0 8px 24px rgb(45 57 86 / 13%); cursor: pointer; text-align: left; }
+.footprints-chat-entry__art { position: relative; width: 48px; height: 48px; flex: 0 0 48px; }
+.footprints-chat-entry__art img { width: 100%; height: 100%; border-radius: 15px; object-fit: cover; }
+.footprints-chat-entry__art i { position: absolute; top: -2px; right: -2px; width: 11px; height: 11px; border: 2px solid #fff8ed; border-radius: 50%; background: #ed4f4f; }
+.footprints-chat-entry strong,.footprints-chat-entry small { display: block; }
+.footprints-chat-entry strong { font-size: 15px; }
+.footprints-chat-entry small { margin-top: 2px; color: #7a8797; font-size: 11px; font-weight: 800; }
+.challenge-chat { position: fixed; z-index: 81; top: 50%; left: 50%; display: grid; width: min(660px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 52px)); grid-template-columns: 82px minmax(0, 1fr); overflow: hidden; border: 2px solid #344b68; border-radius: 30px; background-color: #fff8ed; background-position: top center; background-size: cover; box-shadow: 0 28px 80px rgb(27 38 68 / 34%); transform: translate(-50%, -50%); }
 .challenge-chat::before { content: ""; position: absolute; z-index: -1; inset: 0; background: linear-gradient(to bottom, rgb(255 255 255 / 2%) 0, rgb(255 249 239 / 72%) 31%, rgb(255 249 239 / 94%) 62%); }
-.challenge-chat > header { display: grid; grid-template-columns: 58px minmax(0, 1fr) 40px; align-items: center; gap: 12px; padding: 20px 22px 14px; }
-.challenge-chat > header > img { width: 58px; height: 58px; border: 3px solid #fff; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 14px rgb(37 59 89 / 22%); }
-.challenge-chat > header h2 { margin: 0; color: #253b59; font-size: 22px; line-height: 1.2; }
-.challenge-chat > header span { display: inline-block; margin-top: 4px; padding: 3px 9px; border-radius: 999px; color: #6d5682; background: rgb(255 255 255 / 72%); font-size: 12px; font-weight: 900; }
-.challenge-chat > header button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; color: #536981; background: rgb(255 255 255 / 64%); font: 300 30px/38px system-ui; cursor: pointer; }
+.challenge-chat__contacts { display: flex; min-height: 430px; flex-direction: column; gap: 10px; padding: 18px 9px; overflow-y: auto; border-right: 1px solid rgb(47 69 95 / 12%); background: rgb(245 236 225 / 78%); }
+.challenge-chat__contacts button { position: relative; display: grid; justify-items: center; gap: 3px; padding: 6px 2px; border: 0; border-radius: 15px; color: #56677c; background: transparent; cursor: pointer; }
+.challenge-chat__contacts button.is-active { background: rgb(255 255 255 / 82%); box-shadow: 0 4px 12px rgb(37 59 89 / 9%); }
+.challenge-chat__contacts img { width: 48px; height: 48px; border: 2px solid #fff; border-radius: 50%; object-fit: cover; }
+.challenge-chat__contacts small { width: 62px; overflow: hidden; font-size: 10px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
+.challenge-chat__contacts i { position: absolute; top: 4px; right: 7px; width: 10px; height: 10px; border: 2px solid #fff; border-radius: 50%; background: #ed4f4f; }
+.challenge-chat__panel { display: grid; min-width: 0; min-height: 430px; grid-template-rows: auto minmax(240px, 1fr) auto; overflow: hidden; }
+.challenge-chat__panel > header { display: grid; grid-template-columns: 58px minmax(0, 1fr) 40px; align-items: center; gap: 12px; padding: 20px 22px 14px; }
+.challenge-chat__panel > header > img { width: 58px; height: 58px; border: 3px solid #fff; border-radius: 50%; object-fit: cover; box-shadow: 0 4px 14px rgb(37 59 89 / 22%); }
+.challenge-chat__panel > header h2 { margin: 0; color: #253b59; font-size: 22px; line-height: 1.2; }
+.challenge-chat__panel > header span { display: inline-block; margin-top: 4px; padding: 3px 9px; border-radius: 999px; color: #6d5682; background: rgb(255 255 255 / 72%); font-size: 12px; font-weight: 900; }
+.challenge-chat__panel > header button,.challenge-chat__empty > button { width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; color: #536981; background: rgb(255 255 255 / 64%); font: 300 30px/38px system-ui; cursor: pointer; }
 .challenge-chat__messages { display: flex; min-height: 0; flex-direction: column; gap: 10px; padding: 14px 22px 22px; overflow-y: auto; }
 .challenge-chat__bubble { width: fit-content; max-width: 78%; padding: 11px 14px; border: 1px solid rgb(60 82 112 / 16%); color: #253b59; font-size: 17px; font-weight: 800; line-height: 1.45; box-shadow: 0 4px 12px rgb(37 59 89 / 8%); }
 .challenge-chat__bubble--partner { align-self: flex-start; border-radius: 6px 18px 18px; background: rgb(255 255 255 / 90%); }
@@ -6200,23 +6215,30 @@ input[type="reset"] {
 .challenge-chat__typing i:nth-child(2) { animation-delay: 150ms; }
 .challenge-chat__typing i:nth-child(3) { animation-delay: 300ms; }
 .challenge-chat__typing span { margin-left: 4px; }
-.challenge-chat > form { padding: 14px 20px 20px; border-top: 1px solid rgb(47 69 95 / 12%); background: rgb(255 252 247 / 88%); }
+.challenge-chat__panel > form { padding: 14px 20px 20px; border-top: 1px solid rgb(47 69 95 / 12%); background: rgb(255 252 247 / 88%); }
 .challenge-chat__limit { margin-bottom: 8px; color: #657487; font-size: 12px; font-weight: 800; text-align: right; }
 .challenge-chat__composer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
 .challenge-chat__composer input { min-width: 0; height: 48px; padding: 0 15px; border: 2px solid #ccd4dc; border-radius: 15px; color: #253b59; background: #fff; font-size: 16px; font-weight: 700; outline: 0; }
 .challenge-chat__composer input:focus { border-color: #eb8a5c; box-shadow: 0 0 0 3px rgb(235 138 92 / 16%); }
 .challenge-chat__composer button { min-width: 76px; height: 48px; border: 0; border-radius: 15px; color: #fff; background: #ef7f4d; font-size: 15px; font-weight: 900; cursor: pointer; }
 .challenge-chat__composer button:disabled { cursor: default; opacity: .48; }
-.challenge-chat > form > p { margin: 8px 0 0; color: #b54337; font-size: 12px; font-weight: 800; }
+.challenge-chat__panel > form > p { margin: 8px 0 0; color: #b54337; font-size: 12px; font-weight: 800; }
+.challenge-chat__empty { position: relative; display: grid; min-height: 430px; place-content: center; justify-items: center; padding: 32px; color: #526780; text-align: center; }
+.challenge-chat__empty > button { position: absolute; top: 18px; right: 18px; }
+.challenge-chat__empty > img { width: 116px; height: 116px; border-radius: 30px; object-fit: cover; }
+.challenge-chat__empty h2 { margin: 16px 0 5px; color: #253b59; }.challenge-chat__empty p { margin: 0; font-weight: 700; }
 @keyframes challenge-chat-dot { from { transform: translateY(0); opacity: .45; } to { transform: translateY(-3px); opacity: 1; } }
 
 @media (max-width: 600px) {
   .challenge-chat { width: calc(100vw - 20px); max-height: calc(100dvh - 24px); border-radius: 24px; }
-  .challenge-chat > header { grid-template-columns: 50px minmax(0, 1fr) 36px; padding: 16px 16px 10px; }
-  .challenge-chat > header > img { width: 50px; height: 50px; }
+  .challenge-chat { grid-template-columns: 68px minmax(0, 1fr); }
+  .challenge-chat__contacts { min-height: 390px; padding-inline: 6px; }.challenge-chat__contacts img { width: 42px; height: 42px; }.challenge-chat__contacts small { width: 50px; }
+  .challenge-chat__panel > header { grid-template-columns: 50px minmax(0, 1fr) 36px; padding: 16px 16px 10px; }
+  .challenge-chat__panel > header > img { width: 50px; height: 50px; }
   .challenge-chat__messages { padding: 12px 16px 18px; }
   .challenge-chat__bubble { max-width: 86%; font-size: 16px; }
-  .challenge-chat > form { padding: 12px 14px 16px; }
+  .challenge-chat__panel > form { padding: 12px 14px 16px; }
+  .footprints-chat-entry { position: relative; top: auto; right: auto; width: calc(100% - 24px); margin: 12px; }
 }
 
 .footprints-leaderboard__tabs button {

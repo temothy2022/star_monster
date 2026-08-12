@@ -284,6 +284,12 @@ export type SystemAiConfig = {
   configured: boolean;
 };
 
+export type ChallengePromptPoolSummary = {
+  enabledCount: number;
+  totalCount: number;
+  updatedAt: string | null;
+};
+
 export type MascotDialogue = {
   id: string;
   key: string;
@@ -428,6 +434,8 @@ export const adminApi = {
   saveAiConfig: (data: { apiKey?: string; model: string; enabled: boolean }) => api<{ config: SystemAiConfig }>("/api/admin/ai/config", { method: "PUT", body: JSON.stringify(data) }),
   aiModels: () => api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/admin/ai/models"),
   testAiConfig: () => api<{ ok: true; message: string; model: string }>("/api/admin/ai/config/test", { method: "POST" }),
+  challengePromptPool: () => api<{ pool: ChallengePromptPoolSummary }>("/api/admin/ai/challenge-prompts"),
+  generateChallengePromptPool: () => api<{ pool: ChallengePromptPoolSummary }>("/api/admin/ai/challenge-prompts/generate", { method: "POST" }),
   petGrowth: () => api<{ config: PetGrowthConfig; destinations: PetDestination[]; roomThemes: PetRoomTheme[] }>("/api/admin/pet-growth"),
   updatePetGrowthConfig: (data: Omit<PetGrowthConfig, "id" | "updatedAt">) => api<{ config: PetGrowthConfig }>("/api/admin/pet-growth/config", { method: "PUT", body: JSON.stringify(data) }),
   createPetRoomTheme: (input: { name: string; description: string; priceStars: number; mascotMotion: PetRoomMascotMotion; image: File }) => {

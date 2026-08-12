@@ -3,18 +3,24 @@ import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import {
+  addBusinessDays,
   businessDateAt,
+  businessDateStartInstant,
   businessMinuteOfDayAt,
 } from "../lib/time.js";
-import { callDeepSeekJson } from "./deepseek-service.js";
+import { callDeepSeekJson, callDeepSeekText } from "./deepseek-service.js";
 import { getChildLeaderboards } from "./footprint-service.js";
 import { systemAiCredentials } from "./system-ai-service.js";
 
 export const DAILY_CHILD_MESSAGE_LIMIT = 5;
 const GENERATION_RETRY_MS = 10 * 60 * 1_000;
-const responseSchema = z.object({
-  message: z.string().trim().min(2).max(36).refine((value) => /[\u4e00-\u9fff]/u.test(value), "必须使用中文"),
+const PROMPT_POOL_SIZE = 100;
+const promptPoolSchema = z.object({
+  messages: z.array(z.string().trim().min(2).max(36)).length(PROMPT_POOL_SIZE),
+}).refine((value) => new Set(value.messages).size === PROMPT_POOL_SIZE, {
+  message: "100 条话术不能重复",
 });
+let promptPoolGeneration: Promise<number> | null = null;
 
 type ChallengePartner = {
   competitorId: string;
@@ -25,8 +31,8 @@ type ChallengePartner = {
 
 function virtualPartnerPrompt(childName?: string | null) {
   return [
-    "你是儿童任务应用中的虚拟挑战伙伴，明确不是现实中的真人。",
-    "用中国 5 岁孩子会说的简短中文，只输出 JSON。",
+    "你是儿童任务应用里孩子的挑战伙伴，明确不是现实中的真人。",
+    "用中国 5 岁孩子会说的简短中文，只输出一句中文短句，不要 JSON。",
     "语气友好、俏皮、有一点比赛感，邀请对方追上来。",
     "不能羞辱、讽刺、威胁、贬低、施压或评价孩子好坏。",
     "不能索要或提及姓名、学校、地址、电话等身份信息。",
@@ -53,7 +59,7 @@ export function normalizeVirtualMessage(text: string) {
   const normalized = [...text.replace(/\p{Extended_Pictographic}/gu, "").trim()]
     .slice(0, 24)
     .join("");
-  if (normalized.length < 2) {
+  if (normalized.length < 2 || !/[\u4e00-\u9fff]/u.test(normalized)) {
     throw new HttpError(502, "AI_INVALID_RESPONSE", "AI 回复太短，请重新发送一次");
   }
   return normalized;
@@ -65,28 +71,144 @@ function anonymizeChildReply(text: string) {
     .replace(/\d{5,}/g, "[已隐藏]");
 }
 
-function serializeConversation(conversation: Awaited<ReturnType<typeof loadTodayConversation>>) {
-  if (!conversation) return null;
-  const sentToday = conversation.messages.filter((message) => message.sender === "CHILD").length;
+function normalizePromptTemplate(text: string) {
+  const normalized = text
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/Star\s*Monsters?/gi, "")
+    .trim();
+  if (normalized.length < 2 || !/[\u4e00-\u9fff]/u.test(normalized)) {
+    throw new HttpError(502, "AI_INVALID_RESPONSE", "DeepSeek 生成的话术不是有效中文");
+  }
+  return normalized;
+}
+
+function renderPromptTemplate(text: string, childName: string | null | undefined) {
+  const rendered = text.replaceAll("{孩子昵称}", childName?.trim() || "你");
+  return normalizeVirtualMessage(rendered);
+}
+
+async function generatePromptPool(config: AppConfig, replace = false) {
+  const credentials = await systemAiCredentials(config);
+  const result = await callDeepSeekJson({
+    ...credentials,
+    config,
+    systemPrompt: [
+      "你是儿童任务应用的话术编辑。只输出 JSON 对象。",
+      "生成 100 条互不重复的简体中文短句，给 5 岁孩子的挑战伙伴主动发来。",
+      "每条 6 到 22 个汉字，可少量使用占位符 {孩子昵称}。",
+      "主题是今天暂时领先、等你追上、一起完成任务。",
+      "语气友好俏皮，不能羞辱、讽刺、威胁、贬低、施压或评价孩子好坏。",
+      "不用 emoji，不提产品名，不索要个人信息。",
+      "JSON 格式必须是 {\"messages\":[100条字符串]}。",
+    ].join("\n"),
+    userPayload: { count: PROMPT_POOL_SIZE, language: "zh-CN" },
+    outputSchema: promptPoolSchema,
+    maxTokens: 5000,
+  });
+  const messages = result.data.messages.map(normalizePromptTemplate);
+  if (new Set(messages).size !== PROMPT_POOL_SIZE) {
+    throw new HttpError(502, "AI_INVALID_RESPONSE", "DeepSeek 生成的话术存在重复，请再试一次");
+  }
+  await prisma.$transaction(async (tx) => {
+    if (replace) await tx.challengePromptTemplate.updateMany({ data: { isEnabled: false } });
+    for (const text of messages) {
+      await tx.challengePromptTemplate.upsert({
+        where: { text },
+        create: { text },
+        update: { isEnabled: true },
+      });
+    }
+  });
+  return messages.length;
+}
+
+export async function ensureChallengePromptPool(config: AppConfig, replace = false) {
+  if (!replace) {
+    const count = await prisma.challengePromptTemplate.count({ where: { isEnabled: true } });
+    if (count >= PROMPT_POOL_SIZE) return count;
+  }
+  if (!promptPoolGeneration) {
+    promptPoolGeneration = generatePromptPool(config, true).finally(() => {
+      promptPoolGeneration = null;
+    });
+  }
+  return promptPoolGeneration;
+}
+
+export async function challengePromptPoolSummary() {
+  const [enabledCount, totalCount, latest] = await Promise.all([
+    prisma.challengePromptTemplate.count({ where: { isEnabled: true } }),
+    prisma.challengePromptTemplate.count(),
+    prisma.challengePromptTemplate.findFirst({ orderBy: { updatedAt: "desc" }, select: { updatedAt: true } }),
+  ]);
+  return { enabledCount, totalCount, updatedAt: latest?.updatedAt ?? null };
+}
+
+async function takeRandomPrompt(config: AppConfig, childName: string | null | undefined) {
+  await ensureChallengePromptPool(config);
+  const candidates = await prisma.challengePromptTemplate.findMany({
+    where: { isEnabled: true },
+    orderBy: [{ usageCount: "asc" }, { createdAt: "asc" }],
+    take: 20,
+  });
+  const selected = candidates[Math.floor(Math.random() * candidates.length)];
+  if (!selected) throw new HttpError(409, "CHALLENGE_PROMPT_POOL_EMPTY", "挑战来信话术库为空");
+  await prisma.challengePromptTemplate.update({
+    where: { id: selected.id },
+    data: { usageCount: { increment: 1 } },
+  });
+  return renderPromptTemplate(selected.text, childName);
+}
+
+type LoadedConversation = NonNullable<Awaited<ReturnType<typeof loadTodayConversation>>>;
+
+function visibleMessages(conversation: LoadedConversation, now: Date) {
+  return conversation.messages.filter((message) =>
+    message.sender === "CHILD" || message.visibleAt.getTime() <= now.getTime(),
+  );
+}
+
+function serializeConversations(conversations: LoadedConversation[], config: AppConfig, now: Date, sentTodayOverride?: number) {
+  if (!conversations.length) return null;
+  const latest = conversations[0];
+  const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
+  const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
+  const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
+  const allVisibleMessages = conversations
+    .flatMap((conversation) => visibleMessages(conversation, now))
+    .sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime() || left.id.localeCompare(right.id));
+  const selectedPartnerSentToday = conversations
+    .flatMap((conversation) => conversation.messages)
+    .filter((message) => message.sender === "CHILD" && message.createdAt >= todayStart && message.createdAt < tomorrowStart).length;
+  const sentToday = sentTodayOverride ?? selectedPartnerSentToday;
+  const nextVisibleAt = conversations
+    .flatMap((conversation) => conversation.messages)
+    .filter((message) => message.sender === "VIRTUAL_PARTNER" && message.visibleAt.getTime() > now.getTime())
+    .sort((left, right) => left.visibleAt.getTime() - right.visibleAt.getTime())[0]?.visibleAt ?? null;
   return {
-    id: conversation.id,
-    businessDate: conversation.businessDate.toISOString().slice(0, 10),
+    id: latest.id,
+    businessDate: latest.businessDate.toISOString().slice(0, 10),
     partner: {
-      competitorId: conversation.competitorId,
-      displayName: conversation.competitorName,
-      avatarKey: conversation.competitorAvatarKey,
-      label: "虚拟挑战伙伴" as const,
+      competitorId: latest.competitorId,
+      displayName: latest.competitorName,
+      avatarKey: latest.competitorAvatarKey,
+      label: "你的挑战伙伴" as const,
     },
-    messages: conversation.messages.map((message) => ({
+    messages: allVisibleMessages.map((message) => ({
       id: message.id,
       sender: message.sender,
       text: message.text,
       createdAt: message.createdAt,
     })),
+    nextVisibleAt,
     dailyLimit: DAILY_CHILD_MESSAGE_LIMIT,
     sentToday,
     remainingToday: Math.max(0, DAILY_CHILD_MESSAGE_LIMIT - sentToday),
   };
+}
+
+function serializeConversation(conversation: LoadedConversation | null, config: AppConfig, now: Date) {
+  return conversation ? serializeConversations([conversation], config, now) : null;
 }
 
 async function loadTodayConversation(childId: string, config: AppConfig, now = new Date()) {
@@ -101,6 +223,51 @@ async function loadTodayConversation(childId: string, config: AppConfig, now = n
   });
 }
 
+async function loadPartnerConversations(childId: string, competitorId: string) {
+  return prisma.challengeConversation.findMany({
+    where: { childId, competitorId, status: "READY" },
+    orderBy: [{ businessDate: "desc" }, { createdAt: "desc" }],
+    include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+  });
+}
+
+async function countChildMessagesToday(childId: string, config: AppConfig, now: Date) {
+  const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
+  const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
+  const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
+  return prisma.challengeConversationMessage.count({
+    where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } },
+  });
+}
+
+export async function listChallengeContacts(childId: string, config: AppConfig, now = new Date()) {
+  const conversations = await prisma.challengeConversation.findMany({
+    where: { childId, status: "READY" },
+    orderBy: [{ businessDate: "desc" }, { createdAt: "desc" }],
+    include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+  });
+  const contacts = new Map<string, { competitorId: string; displayName: string; avatarKey: string; label: "你的挑战伙伴"; latestMessage: string; latestAt: Date; unreadCount: number }>();
+  for (const conversation of conversations) {
+    const messages = visibleMessages(conversation, now);
+    if (!messages.length) continue;
+    const latestMessage = messages[messages.length - 1];
+    const unreadCount = messages.filter((message) => message.sender === "VIRTUAL_PARTNER" && !message.readAt).length;
+    const current = contacts.get(conversation.competitorId);
+    if (!current) {
+      contacts.set(conversation.competitorId, { competitorId: conversation.competitorId, displayName: conversation.competitorName, avatarKey: conversation.competitorAvatarKey, label: "你的挑战伙伴", latestMessage: latestMessage.text, latestAt: latestMessage.createdAt, unreadCount });
+    } else {
+      current.unreadCount += unreadCount;
+      if (latestMessage.createdAt > current.latestAt) {
+        current.latestMessage = latestMessage.text;
+        current.latestAt = latestMessage.createdAt;
+        current.displayName = conversation.competitorName;
+        current.avatarKey = conversation.competitorAvatarKey;
+      }
+    }
+  }
+  return { contacts: [...contacts.values()].sort((left, right) => right.latestAt.getTime() - left.latestAt.getTime() || left.competitorId.localeCompare(right.competitorId)) };
+}
+
 async function eligiblePartner(childId: string, config: AppConfig, now: Date, force = false): Promise<ChallengePartner | null> {
   const { leaderboards } = await getChildLeaderboards(childId, config, now);
   const daily = leaderboards.daily;
@@ -113,7 +280,8 @@ async function eligiblePartner(childId: string, config: AppConfig, now: Date, fo
     totalParticipants: daily.self.totalParticipants,
     selfIndex,
   })) return null;
-  const partner = daily.entries[selfIndex - 1];
+  const partner = daily.entries[selfIndex - 1]
+    ?? (force ? daily.entries.find((entry) => !entry.isSelf) : undefined);
   if (!partner?.competitorId || !partner.avatarKey || partner.isSelf) return null;
   return {
     competitorId: partner.competitorId,
@@ -130,8 +298,8 @@ export async function generateChallengeLetterIfEligible(
   options: { force?: boolean } = {},
 ) {
   const existing = await loadTodayConversation(childId, config, now);
-  if (existing?.status === "READY") return serializeConversation(existing);
-  if (existing && now.getTime() - existing.updatedAt.getTime() < GENERATION_RETRY_MS) return null;
+  if (existing?.status === "READY") return serializeConversation(existing, config, now);
+  if (!options.force && existing && now.getTime() - existing.updatedAt.getTime() < GENERATION_RETRY_MS) return null;
   const partner = existing
     ? { competitorId: existing.competitorId, displayName: existing.competitorName, avatarKey: existing.competitorAvatarKey, stars: 0 }
     : await eligiblePartner(childId, config, now, options.force);
@@ -154,26 +322,12 @@ export async function generateChallengeLetterIfEligible(
       },
     });
   } catch {
-    return serializeConversation(await loadTodayConversation(childId, config, now));
+    return serializeConversation(await loadTodayConversation(childId, config, now), config, now);
   }
 
   try {
     const child = await prisma.childProfile.findUnique({ where: { id: childId }, select: { nickname: true } });
-    const credentials = await systemAiCredentials(config);
-    const result = await callDeepSeekJson({
-      ...credentials,
-      config,
-      systemPrompt: virtualPartnerPrompt(child?.nickname),
-      userPayload: {
-        scene: "first_letter",
-        virtualPartnerName: partner.displayName,
-        childName: child?.nickname ?? null,
-        partnerStarsToday: partner.stars,
-        instruction: "说你今天暂时在前面，再邀请对方来追你。不要提具体排名。",
-      },
-      outputSchema: responseSchema,
-      maxTokens: 100,
-    });
+    const text = await takeRandomPrompt(config, child?.nickname);
     await prisma.challengeConversation.update({
       where: { id: conversation.id },
       data: {
@@ -181,20 +335,20 @@ export async function generateChallengeLetterIfEligible(
         messages: {
           create: {
             sender: "VIRTUAL_PARTNER",
-            text: normalizeVirtualMessage(result.data.message),
-            model: result.model,
+            text,
+            model: "PROMPT_POOL",
           },
         },
       },
     });
-  } catch {
+  } catch (error) {
     await prisma.challengeConversation.update({
       where: { id: conversation.id },
       data: { status: "FAILED" },
     });
-    return null;
+    throw error;
   }
-  return serializeConversation(await loadTodayConversation(childId, config, now));
+  return serializeConversation(await loadTodayConversation(childId, config, now), config, now);
 }
 
 export async function challengeLetterNotification(
@@ -202,84 +356,99 @@ export async function challengeLetterNotification(
   config: AppConfig,
   now = new Date(),
 ) {
-  const conversation = await loadTodayConversation(childId, config, now);
-  if (!conversation) return null;
-  const firstMessage = conversation.messages.find((message) => message.sender === "VIRTUAL_PARTNER");
-  if (conversation.status !== "READY" || !firstMessage) return null;
+  const firstMessage = await prisma.challengeConversationMessage.findFirst({
+    where: { sender: "VIRTUAL_PARTNER", visibleAt: { lte: now }, readAt: null, conversation: { childId, status: "READY" } },
+    orderBy: [{ visibleAt: "desc" }, { createdAt: "desc" }],
+    include: { conversation: true },
+  });
+  if (!firstMessage) return null;
   return {
-    conversationId: conversation.id,
-    partnerName: conversation.competitorName,
-    partnerAvatarKey: conversation.competitorAvatarKey,
+    conversationId: firstMessage.conversation.id,
+    partnerId: firstMessage.conversation.competitorId,
+    partnerName: firstMessage.conversation.competitorName,
+    partnerAvatarKey: firstMessage.conversation.competitorAvatarKey,
     preview: firstMessage.text,
-    unread: conversation.openedAt === null,
-    partnerLabel: "虚拟挑战伙伴" as const,
+    unread: true,
+    partnerLabel: "你的挑战伙伴" as const,
   };
 }
 
-export async function getChallengeConversation(childId: string, config: AppConfig, now = new Date()) {
-  const conversation = await loadTodayConversation(childId, config, now);
-  if (!conversation || conversation.status !== "READY") return { conversation: null };
-  if (!conversation.openedAt) {
-    await prisma.challengeConversation.update({
-      where: { id: conversation.id },
-      data: { openedAt: now },
-    });
+export async function getChallengeConversation(childId: string, config: AppConfig, now = new Date(), requestedCompetitorId?: string) {
+  const { contacts: initialContacts } = await listChallengeContacts(childId, config, now);
+  let competitorId = requestedCompetitorId ?? initialContacts[0]?.competitorId;
+  if (!competitorId) return { contacts: initialContacts, conversation: null };
+  let conversations = await loadPartnerConversations(childId, competitorId);
+  if (!conversations.length && requestedCompetitorId && initialContacts[0]) {
+    competitorId = initialContacts[0].competitorId;
+    conversations = await loadPartnerConversations(childId, competitorId);
   }
-  return { conversation: serializeConversation(conversation) };
+  if (!conversations.length) return { contacts: initialContacts, conversation: null };
+  const conversationIds = conversations.map((conversation) => conversation.id);
+  await prisma.$transaction([
+    prisma.challengeConversation.updateMany({ where: { id: { in: conversationIds }, openedAt: null }, data: { openedAt: now } }),
+    prisma.challengeConversationMessage.updateMany({
+      where: { conversationId: { in: conversationIds }, sender: "VIRTUAL_PARTNER", visibleAt: { lte: now }, readAt: null },
+      data: { readAt: now },
+    }),
+  ]);
+  const { contacts } = await listChallengeContacts(childId, config, now);
+  const sentToday = await countChildMessagesToday(childId, config, now);
+  return { contacts, conversation: serializeConversations(conversations, config, now, sentToday) };
+}
+
+export function challengeReplyDelayMs(random = Math.random()) {
+  return 10_000 + Math.floor(Math.min(Math.max(random, 0), 0.999999) * 50_001);
 }
 
 export async function sendChallengeReply(
   childId: string,
+  competitorId: string,
   text: string,
   config: AppConfig,
   now = new Date(),
 ) {
-  const conversation = await loadTodayConversation(childId, config, now);
-  if (!conversation || conversation.status !== "READY") {
-    throw new HttpError(404, "CHALLENGE_CONVERSATION_NOT_FOUND", "今天还没有挑战伙伴来信");
-  }
-  const sentToday = conversation.messages.filter((message) => message.sender === "CHILD").length;
-  if (sentToday >= DAILY_CHILD_MESSAGE_LIMIT) {
-    throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
-  }
+  const conversations = await loadPartnerConversations(childId, competitorId);
+  const conversation = conversations[0];
+  if (!conversation) throw new HttpError(404, "CHALLENGE_CONVERSATION_NOT_FOUND", "还没有和这个挑战伙伴联系过");
+  const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
+  const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
+  const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
+  const childMessage = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "ChildProfile" WHERE "id" = ${childId} FOR UPDATE`;
+    const currentCount = await tx.challengeConversationMessage.count({
+      where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } },
+    });
+    if (currentCount >= DAILY_CHILD_MESSAGE_LIMIT) throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
+    return tx.challengeConversationMessage.create({ data: { conversationId: conversation.id, sender: "CHILD", text } });
+  });
   const credentials = await systemAiCredentials(config);
-  const recentMessages = conversation.messages.slice(-8).map((message) => ({
+  const recentMessages = [...visibleMessages(conversation, now), childMessage].slice(-8).map((message) => ({
     speaker: message.sender === "CHILD" ? "child" : "virtual_partner",
     text: message.text,
   }));
-  const result = await callDeepSeekJson({
+  const child = await prisma.childProfile.findUnique({ where: { id: childId }, select: { nickname: true } });
+  const result = await callDeepSeekText({
     ...credentials,
     config,
-    systemPrompt: virtualPartnerPrompt((await prisma.childProfile.findUnique({ where: { id: childId }, select: { nickname: true } }))?.nickname),
+    systemPrompt: virtualPartnerPrompt(child?.nickname),
     userPayload: {
       scene: "reply",
       virtualPartnerName: conversation.competitorName,
+      childName: child?.nickname ?? null,
       recentMessages,
       childReply: anonymizeChildReply(text),
       instruction: "回应孩子刚说的话，保持友好比赛感，并邀请去完成下一项任务。",
     },
-    outputSchema: responseSchema,
     maxTokens: 100,
   });
-  await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "ChallengeConversation" WHERE "id" = ${conversation.id} FOR UPDATE`;
-    const currentCount = await tx.challengeConversationMessage.count({
-      where: { conversationId: conversation.id, sender: "CHILD" },
-    });
-    if (currentCount >= DAILY_CHILD_MESSAGE_LIMIT) {
-      throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
-    }
-    await tx.challengeConversationMessage.createMany({
-      data: [
-        { conversationId: conversation.id, sender: "CHILD", text },
-        {
-          conversationId: conversation.id,
-          sender: "VIRTUAL_PARTNER",
-          text: normalizeVirtualMessage(result.data.message),
-          model: result.model,
-        },
-      ],
-    });
+  await prisma.challengeConversationMessage.create({
+    data: {
+      conversationId: conversation.id,
+      sender: "VIRTUAL_PARTNER",
+      text: normalizeVirtualMessage(result.text),
+      model: result.model,
+      visibleAt: new Date(Date.now() + challengeReplyDelayMs()),
+    },
   });
-  return getChallengeConversation(childId, config, now);
+  return getChallengeConversation(childId, config, new Date(), competitorId);
 }

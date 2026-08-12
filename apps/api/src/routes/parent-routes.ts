@@ -1735,11 +1735,16 @@ export async function registerParentRoutes(
   app.post("/api/parent/children/:id/challenge-letter", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    const conversation = await generateChallengeLetterIfEligible(id, config, new Date(), { force: true });
-    if (!conversation) {
-      throw new HttpError(409, "CHALLENGE_LETTER_UNAVAILABLE", "今天暂时没有可发送的挑战伙伴来信");
+    try {
+      const conversation = await generateChallengeLetterIfEligible(id, config, new Date(), { force: true });
+      if (!conversation) {
+        throw new HttpError(409, "CHALLENGE_LETTER_UNAVAILABLE", "当前没有可用的你的挑战伙伴");
+      }
+      return { conversation };
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(502, "CHALLENGE_LETTER_GENERATION_FAILED", error instanceof Error ? error.message : "DeepSeek 暂时无法生成来信");
     }
-    return { conversation };
   });
 
   app.put("/api/parent/children/:id/planets", async (request, reply) => {

@@ -26,13 +26,16 @@ import televisionReward from "@star-monsters/assets/images/reward-categories/tel
 import toysReward from "@star-monsters/assets/images/reward-categories/toys.webp";
 import challengeChatPaper from "@star-monsters/assets/images/challenge-letters/chat-paper.webp?no-inline";
 import fallbackChallengeAvatar from "@star-monsters/assets/images/challenge-letters/xiaoyue-avatar.webp?no-inline";
+import challengeInboxEntry from "@star-monsters/assets/images/challenge-letters/inbox-entry.webp?no-inline";
 import {
   ApiError,
   getChildFootprints,
+  getChallengeContacts,
   getChallengeConversation,
   getChildWishes,
   redeemChildWish,
   sendChallengeReply,
+  type ChallengeContact,
   type ChallengeConversation,
   type ChildWish,
   type FootprintResponse,
@@ -384,11 +387,23 @@ export function Footprints({
   const [mobilePanel, setMobilePanel] = useState<"records" | "leaderboard">("records");
   const [error, setError] = useState("");
   const [challengeConversation, setChallengeConversation] = useState<ChallengeConversation | null>(null);
+  const [challengeContacts, setChallengeContacts] = useState<ChallengeContact[]>([]);
   const [challengeOpen, setChallengeOpen] = useState(false);
   const [challengeInput, setChallengeInput] = useState("");
   const [challengeSending, setChallengeSending] = useState(false);
   const [challengeError, setChallengeError] = useState("");
   const challengeMessagesRef = useRef<HTMLDivElement | null>(null);
+
+  async function openChallengeInbox(competitorId?: string) {
+    setChallengeOpen(true); setChallengeError("");
+    try {
+      const result = await getChallengeConversation(competitorId);
+      setChallengeContacts(result.contacts);
+      setChallengeConversation(result.conversation);
+    } catch (reason) {
+      setChallengeError(reason instanceof Error ? reason.message : "来信暂时打不开");
+    }
+  }
 
   useEffect(() => {
     const messageList = challengeMessagesRef.current;
@@ -397,29 +412,58 @@ export function Footprints({
   }, [challengeConversation?.messages.length, challengeOpen, challengeSending]);
 
   useEffect(() => {
-    let shouldOpen = false;
+    let competitorId = "";
     try {
-      shouldOpen = window.sessionStorage.getItem("star-monsters-open-challenge-letter") === "1";
-      if (shouldOpen) window.sessionStorage.removeItem("star-monsters-open-challenge-letter");
+      competitorId = window.sessionStorage.getItem("star-monsters-open-challenge-letter") ?? "";
+      if (competitorId) window.sessionStorage.removeItem("star-monsters-open-challenge-letter");
     } catch { /* optional navigation intent */ }
-    if (!shouldOpen) return;
-    void getChallengeConversation().then(({ conversation }) => {
-      setChallengeConversation(conversation);
-      setChallengeOpen(Boolean(conversation));
-    }).catch((reason) => setChallengeError(reason instanceof Error ? reason.message : "来信暂时打不开"));
+    if (competitorId) void openChallengeInbox(competitorId);
+  }, []);
+
+  useEffect(() => {
+    const nextVisibleAt = challengeConversation?.nextVisibleAt;
+    if (!challengeOpen || !nextVisibleAt || !challengeConversation) return;
+    const wait = Math.max(250, new Date(nextVisibleAt).getTime() - Date.now() + 250);
+    const timer = window.setTimeout(() => {
+      void getChallengeConversation(challengeConversation.partner.competitorId).then((result) => {
+        setChallengeContacts(result.contacts);
+        setChallengeConversation(result.conversation);
+      }).catch(() => undefined);
+    }, Math.min(wait, 61_000));
+    return () => window.clearTimeout(timer);
+  }, [challengeConversation, challengeOpen]);
+
+  useEffect(() => {
+    void getChallengeContacts().then(({ contacts }) => setChallengeContacts(contacts)).catch(() => undefined);
   }, []);
 
   async function submitChallengeReply(event: React.FormEvent) {
     event.preventDefault();
     const text = challengeInput.trim();
-    if (!text || challengeSending) return;
+    if (!text || challengeSending || !challengeConversation) return;
+    const competitorId = challengeConversation.partner.competitorId;
+    const optimisticMessage = { id: `pending-${Date.now()}`, sender: "CHILD" as const, text, createdAt: new Date().toISOString() };
+    setChallengeInput("");
+    setChallengeConversation((current) => current ? {
+      ...current,
+      messages: [...current.messages, optimisticMessage],
+      sentToday: current.sentToday + 1,
+      remainingToday: Math.max(0, current.remainingToday - 1),
+    } : current);
+    setChallengeContacts((current) => current.map((contact) => contact.competitorId === competitorId
+      ? { ...contact, latestMessage: text, latestAt: optimisticMessage.createdAt }
+      : contact).sort((left, right) => new Date(right.latestAt).getTime() - new Date(left.latestAt).getTime()));
     setChallengeSending(true); setChallengeError("");
     try {
-      const result = await sendChallengeReply(text);
+      const result = await sendChallengeReply(competitorId, text);
+      setChallengeContacts(result.contacts);
       setChallengeConversation(result.conversation);
-      setChallengeInput("");
     } catch (reason) {
       setChallengeError(reason instanceof Error ? reason.message : "消息没有发出去");
+      void getChallengeConversation(competitorId).then((result) => {
+        setChallengeContacts(result.contacts);
+        setChallengeConversation(result.conversation);
+      }).catch(() => undefined);
     } finally { setChallengeSending(false); }
   }
 
@@ -539,6 +583,10 @@ export function Footprints({
   return (
     <main className="footprints-page">
       <section className="footprints-main">
+        <button type="button" className="footprints-chat-entry" onClick={() => void openChallengeInbox()}>
+          <span className="footprints-chat-entry__art"><img src={challengeInboxEntry} alt="" />{challengeContacts.some((contact) => contact.unreadCount > 0) && <i aria-label="有未读来信" />}</span>
+          <span><strong>伙伴来信</strong><small>{challengeContacts.length ? `${challengeContacts.length} 位联系过的伙伴` : "看看你的挑战伙伴"}</small></span>
+        </button>
         <div className="footprints-mobile-tabs" aria-label="足迹内容">
           <button type="button" className={mobilePanel === "records" ? "is-active" : ""} aria-pressed={mobilePanel === "records"} onClick={() => setMobilePanel("records")}>得星记录</button>
           <button type="button" className={mobilePanel === "leaderboard" ? "is-active" : ""} aria-pressed={mobilePanel === "leaderboard"} onClick={() => setMobilePanel("leaderboard")}>小朋友榜</button>
@@ -602,7 +650,7 @@ export function Footprints({
         </div>
       </section>
       <ChildBottomNav active="footprints" onNavigate={onNavigate} />
-      {challengeOpen && challengeConversation && <><button type="button" className="challenge-chat-backdrop" aria-label="关闭挑战伙伴对话" onClick={() => setChallengeOpen(false)} /><section className="challenge-chat" role="dialog" aria-modal="true" aria-labelledby="challenge-chat-title" style={{ backgroundImage: `url(${challengeChatPaper})` }}><header><img src={LEADERBOARD_AVATARS[challengeConversation.partner.avatarKey] ?? fallbackChallengeAvatar} alt="" /><div><h2 id="challenge-chat-title">{challengeConversation.partner.displayName}</h2><span>{challengeConversation.partner.label}</span></div><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button></header><div className="challenge-chat__messages" ref={challengeMessagesRef} aria-live="polite">{challengeConversation.messages.map((message) => <div className={`challenge-chat__bubble challenge-chat__bubble--${message.sender === "CHILD" ? "child" : "partner"}`} key={message.id}>{message.text}</div>)}{challengeSending && <div className="challenge-chat__typing"><i /><i /><i /><span>正在想怎么回答…</span></div>}</div><form onSubmit={(event) => void submitChallengeReply(event)}><div className="challenge-chat__limit">今天还能发送 {challengeConversation.remainingToday}/{challengeConversation.dailyLimit} 条</div><div className="challenge-chat__composer"><input value={challengeInput} onChange={(event) => setChallengeInput(event.target.value)} maxLength={60} disabled={challengeConversation.remainingToday === 0 || challengeSending} placeholder={challengeConversation.remainingToday === 0 ? "今天先聊到这里吧" : "写一句话回复…"} aria-label="回复虚拟挑战伙伴" /><button disabled={!challengeInput.trim() || challengeConversation.remainingToday === 0 || challengeSending}>{challengeSending ? "发送中" : "发送"}</button></div>{challengeError && <p role="alert">{challengeError}</p>}</form></section></>}
+      {challengeOpen && <><button type="button" className="challenge-chat-backdrop" aria-label="关闭挑战伙伴对话" onClick={() => setChallengeOpen(false)} /><section className="challenge-chat" role="dialog" aria-modal="true" aria-labelledby="challenge-chat-title" style={{ backgroundImage: `url(${challengeChatPaper})` }}><aside className="challenge-chat__contacts" aria-label="联系过的伙伴">{challengeContacts.map((contact) => <button type="button" key={contact.competitorId} className={challengeConversation?.partner.competitorId === contact.competitorId ? "is-active" : ""} onClick={() => void openChallengeInbox(contact.competitorId)} aria-label={`切换到${contact.displayName}`}><img src={LEADERBOARD_AVATARS[contact.avatarKey] ?? fallbackChallengeAvatar} alt="" />{contact.unreadCount > 0 && <i aria-label={`${contact.unreadCount} 条未读消息`} />}<small>{contact.displayName}</small></button>)}</aside>{challengeConversation ? <div className="challenge-chat__panel"><header><img src={LEADERBOARD_AVATARS[challengeConversation.partner.avatarKey] ?? fallbackChallengeAvatar} alt="" /><div><h2 id="challenge-chat-title">{challengeConversation.partner.displayName}</h2><span>{challengeConversation.partner.label}</span></div><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button></header><div className="challenge-chat__messages" ref={challengeMessagesRef} aria-live="polite">{challengeConversation.messages.map((message) => <div className={`challenge-chat__bubble challenge-chat__bubble--${message.sender === "CHILD" ? "child" : "partner"}`} key={message.id}>{message.text}</div>)}{(challengeSending || challengeConversation.nextVisibleAt) && <div className="challenge-chat__typing"><i /><i /><i /><span>伙伴稍后会回复你…</span></div>}</div><form onSubmit={(event) => void submitChallengeReply(event)}><div className="challenge-chat__limit">今天还能发送 {challengeConversation.remainingToday}/{challengeConversation.dailyLimit} 条</div><div className="challenge-chat__composer"><input value={challengeInput} onChange={(event) => setChallengeInput(event.target.value)} maxLength={60} disabled={challengeConversation.remainingToday === 0 || challengeSending} placeholder={challengeConversation.remainingToday === 0 ? "今天先聊到这里吧" : "写一句话回复…"} aria-label="回复你的挑战伙伴" /><button disabled={!challengeInput.trim() || challengeConversation.remainingToday === 0 || challengeSending}>{challengeSending ? "已发送" : "发送"}</button></div>{challengeError && <p role="alert">{challengeError}</p>}</form></div> : <div className="challenge-chat__empty"><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button><img src={challengeInboxEntry} alt="" /><h2 id="challenge-chat-title">还没有伙伴来信</h2><p>有新消息时，会在这里看到。</p>{challengeError && <p role="alert">{challengeError}</p>}</div>}</section></>}
     </main>
   );
 }

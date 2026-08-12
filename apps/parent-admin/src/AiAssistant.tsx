@@ -870,7 +870,7 @@ export function AiAssistant({ child }: { child: Child }) {
         actions={<BusyButton type="button" className="primary-button" busy={triggeringLetter} busyText="生成中…" onClick={() => void triggerChallengeLetter()}>人工触发今日来信</BusyButton>}
       >
         {letterMessage && <Message>{letterMessage}</Message>}
-        <p className="ai-privacy-note">来信和回复由 DeepSeek 生成，使用孩子档案中的昵称；孩子端会明确标注“虚拟挑战伙伴”。</p>
+        <p className="ai-privacy-note">来信和回复由 DeepSeek 生成，使用孩子档案中的昵称；孩子端会明确标注“你的挑战伙伴”。</p>
       </Card>
       <TaskAdvisor child={child} />
       <RewardAuditor child={child} />

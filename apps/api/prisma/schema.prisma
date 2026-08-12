@@ -687,6 +687,17 @@ model SystemAiConfig {
   updatedAt       DateTime @updatedAt
 }
 
+model ChallengePromptTemplate {
+  id         String   @id @default(cuid())
+  text       String   @unique
+  isEnabled  Boolean  @default(true)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isEnabled, createdAt])
+}
+
 model ChallengeConversation {
   id                  String                      @id @default(cuid())
   childId             String
@@ -712,11 +723,15 @@ model ChallengeConversationMessage {
   sender         ChallengeMessageSender
   text           String
   model          String?
+  visibleAt      DateTime               @default(now())
+  readAt         DateTime?
   createdAt      DateTime               @default(now())
 
   conversation ChallengeConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+  @@index([conversationId, visibleAt])
+  @@index([sender, readAt, visibleAt])
 }
 
 model FamilyMinimaxConfig {

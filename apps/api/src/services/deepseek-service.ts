@@ -40,6 +40,64 @@ type DeepSeekResult<T> = {
   };
 };
 
+export async function callDeepSeekText(input: {
+  apiKey: string;
+  model: string;
+  systemPrompt: string;
+  userPayload: unknown;
+  config: AppConfig;
+  maxTokens?: number;
+}): Promise<{ text: string; model: string; usage?: DeepSeekResult<unknown>["usage"] }> {
+  let response: Response;
+  try {
+    response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: input.model,
+        thinking: { type: "disabled" },
+        temperature: 0.35,
+        max_tokens: input.maxTokens ?? 80,
+        messages: [
+          { role: "system", content: input.systemPrompt },
+          {
+            role: "user",
+            content: `请根据以下匿名化数据只返回一句中文短句，不要 JSON，不要解释。\n${JSON.stringify(input.userPayload)}`,
+          },
+        ],
+      }),
+      signal: AbortSignal.timeout(input.config.AI_REQUEST_TIMEOUT_MS),
+    });
+  } catch {
+    throw new HttpError(502, "AI_PROVIDER_UNAVAILABLE", "DeepSeek 暂时无法连接，请稍后再试");
+  }
+
+  if (!response.ok) {
+    await response.text();
+    throw new HttpError(
+      response.status === 401 ? 400 : 502,
+      "AI_PROVIDER_ERROR",
+      response.status === 401
+        ? "DeepSeek 密钥无效或已失效"
+        : response.status === 429
+          ? "DeepSeek 请求过于频繁，请稍后再试"
+          : `DeepSeek 暂时无法完成请求（${response.status}）`,
+    );
+  }
+
+  const providerResponse = responseSchema.parse(await response.json());
+  const text = providerResponse.choices[0]?.message.content?.trim();
+  if (!text) throw new HttpError(502, "AI_INVALID_RESPONSE", "DeepSeek 没有返回来信内容，请重试");
+  return {
+    text,
+    model: providerResponse.model ?? input.model,
+    usage: providerResponse.usage,
+  };
+}
+
 function parseJsonContent(content: string): unknown {
   const trimmed = content.trim();
   try {

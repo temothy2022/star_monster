@@ -16,6 +16,10 @@ import { requireAdmin } from "../services/auth-service.js";
 import { writeAudit } from "../services/audit-service.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
 import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-service.js";
+import {
+  challengePromptPoolSummary,
+  ensureChallengePromptPool,
+} from "../services/challenge-conversation-service.js";
 
 const familySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -172,6 +176,28 @@ export async function registerSuperAdminRoutes(
       maxTokens: 80,
     });
     return { ...result.data, model: result.model };
+  });
+
+  app.get("/api/admin/ai/challenge-prompts", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    return { pool: await challengePromptPoolSummary() };
+  });
+
+  app.post("/api/admin/ai/challenge-prompts/generate", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    const generatedCount = await ensureChallengePromptPool(config, true);
+    await prisma.$transaction(async (tx) => {
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        action: "CHALLENGE_PROMPT_POOL_GENERATE",
+        resourceType: "ChallengePromptTemplate",
+        resourceId: "active-pool",
+        metadata: { generatedCount },
+        ipAddress: request.ip,
+      });
+    });
+    return { pool: await challengePromptPoolSummary() };
   });
 
   app.get("/api/admin/families", async (request, reply) => {

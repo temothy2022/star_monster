@@ -890,7 +890,7 @@ function NotificationWidget({
   const notificationCount = (returnedPostcard ? 1 : 0) + (redPacketCount > 0 ? 1 : 0) + (challengeLetter ? 1 : 0);
   const openPetHome = () => onNavigate?.("pet-growth");
   const openChallengeLetter = () => {
-    try { window.sessionStorage.setItem("star-monsters-open-challenge-letter", "1"); } catch { /* navigation still works */ }
+    try { window.sessionStorage.setItem("star-monsters-open-challenge-letter", challengeLetter?.partnerId ?? ""); } catch { /* navigation still works */ }
     onNavigate?.("footprints");
   };
 
