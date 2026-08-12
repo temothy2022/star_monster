@@ -286,6 +286,7 @@ export type SystemAiConfig = {
 
 export type ChallengePromptPoolSummary = {
   enabledCount: number;
+  draftCount: number;
   totalCount: number;
   updatedAt: string | null;
 };

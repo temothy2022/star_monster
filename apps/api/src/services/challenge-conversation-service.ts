@@ -16,8 +16,8 @@ export const DAILY_CHILD_MESSAGE_LIMIT = 5;
 export const CHALLENGE_HISTORY_LIMIT = 50;
 const GENERATION_RETRY_MS = 10 * 60 * 1_000;
 const PROMPT_POOL_SIZE = 100;
-const PROMPT_BATCH_SIZE = 25;
-const PROMPT_BATCH_MAX_ATTEMPTS = 8;
+const PROMPT_BATCH_SIZE = 12;
+const PROMPT_BATCH_MAX_ATTEMPTS = 12;
 const promptBatchSchema = z.object({
   messages: z.array(z.string()).min(1).max(40),
 });
@@ -132,17 +132,44 @@ async function generatePromptBatch(
 }
 
 async function generatePromptPool(config: AppConfig, replace = false) {
+  if (!replace) {
+    const enabledCount = await prisma.challengePromptTemplate.count({ where: { isEnabled: true } });
+    if (enabledCount >= PROMPT_POOL_SIZE) return enabledCount;
+    throw new HttpError(
+      409,
+      "CHALLENGE_PROMPT_POOL_NOT_READY",
+      "主动来信话术库尚未准备完成，请先在超级后台生成 100 条话术",
+    );
+  }
+
   const credentials = await systemAiCredentials(config);
-  const messages = new Set<string>();
+  const existingRows = await prisma.challengePromptTemplate.findMany({
+    select: { text: true, isEnabled: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const messages = new Set(existingRows.filter((row) => !row.isEnabled).map((row) => row.text));
+  const seen = new Set(existingRows.map((row) => row.text));
   let attempts = 0;
   let lastError: unknown;
   while (messages.size < PROMPT_POOL_SIZE && attempts < PROMPT_BATCH_MAX_ATTEMPTS) {
     const remaining = PROMPT_POOL_SIZE - messages.size;
-    const count = Math.min(PROMPT_BATCH_SIZE, remaining + Math.min(5, attempts));
+    const count = Math.min(PROMPT_BATCH_SIZE, remaining + 3);
     attempts += 1;
     try {
-      const batch = await generatePromptBatch(config, credentials, count, attempts, [...messages]);
-      mergeChallengePromptCandidates(messages, batch);
+      const batch = await generatePromptBatch(config, credentials, count, attempts, [...seen]);
+      const normalizedBatch = mergeChallengePromptCandidates(new Set<string>(), batch);
+      const additions = [...normalizedBatch]
+        .filter((text) => !seen.has(text))
+        .slice(0, remaining);
+      if (!additions.length) continue;
+      await prisma.challengePromptTemplate.createMany({
+        data: additions.map((text) => ({ text, isEnabled: false })),
+        skipDuplicates: true,
+      });
+      for (const text of additions) {
+        seen.add(text);
+        messages.add(text);
+      }
     } catch (error) {
       lastError = error;
     }
@@ -152,27 +179,43 @@ async function generatePromptPool(config: AppConfig, replace = false) {
     throw new HttpError(
       502,
       "CHALLENGE_PROMPT_POOL_INCOMPLETE",
-      `主动来信已生成 ${messages.size}/100 条，后台没有替换原话术库，请再试一次`,
+      `主动来信已保存 ${messages.size}/100 条，请再次点击继续补齐，已生成内容不会丢失`,
     );
   }
-  const completedMessages = [...messages].slice(0, PROMPT_POOL_SIZE);
-  await prisma.$transaction(async (tx) => {
-    if (replace) await tx.challengePromptTemplate.updateMany({ data: { isEnabled: false } });
-    for (const text of completedMessages) {
-      await tx.challengePromptTemplate.upsert({
-        where: { text },
-        create: { text },
-        update: { isEnabled: true },
-      });
-    }
+  const completedMessages = await prisma.challengePromptTemplate.findMany({
+    where: { isEnabled: false, text: { in: [...messages] } },
+    orderBy: { createdAt: "asc" },
+    take: PROMPT_POOL_SIZE,
+    select: { id: true },
   });
-  return completedMessages.length;
+  if (completedMessages.length < PROMPT_POOL_SIZE) {
+    throw new HttpError(
+      502,
+      "CHALLENGE_PROMPT_POOL_INCOMPLETE",
+      `主动来信已保存 ${completedMessages.length}/100 条，请再次点击继续补齐，已生成内容不会丢失`,
+    );
+  }
+  const completedIds = completedMessages.map((message) => message.id);
+  await prisma.$transaction(async (tx) => {
+    await tx.challengePromptTemplate.updateMany({ data: { isEnabled: false } });
+    await tx.challengePromptTemplate.updateMany({
+      where: { id: { in: completedIds } },
+      data: { isEnabled: true, usageCount: 0 },
+    });
+    await tx.challengePromptTemplate.deleteMany({ where: { id: { notIn: completedIds } } });
+  });
+  return completedIds.length;
 }
 
 export async function ensureChallengePromptPool(config: AppConfig, replace = false) {
   if (!replace) {
     const count = await prisma.challengePromptTemplate.count({ where: { isEnabled: true } });
     if (count >= PROMPT_POOL_SIZE) return count;
+    throw new HttpError(
+      409,
+      "CHALLENGE_PROMPT_POOL_NOT_READY",
+      "主动来信话术库尚未准备完成，请先在超级后台生成 100 条话术",
+    );
   }
   if (!promptPoolGeneration) {
     promptPoolGeneration = generatePromptPool(config, true).finally(() => {
@@ -188,7 +231,7 @@ export async function challengePromptPoolSummary() {
     prisma.challengePromptTemplate.count(),
     prisma.challengePromptTemplate.findFirst({ orderBy: { updatedAt: "desc" }, select: { updatedAt: true } }),
   ]);
-  return { enabledCount, totalCount, updatedAt: latest?.updatedAt ?? null };
+  return { enabledCount, draftCount: Math.max(0, totalCount - enabledCount), totalCount, updatedAt: latest?.updatedAt ?? null };
 }
 
 async function takeRandomPrompt(config: AppConfig, childName: string | null | undefined) {
