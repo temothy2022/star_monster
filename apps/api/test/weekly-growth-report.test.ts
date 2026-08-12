@@ -51,6 +51,19 @@ describe("DeepSeek 成长周报结构", () => {
     expect(result.success).toBe(true);
   });
 
+  it("频率建议的原因可以同时说明实际负担与题型掌握度", () => {
+    const result = weeklyGrowthResponseSchema.safeParse({
+      summary: "短时口算负担很低，但已熟练，可适度让出时间给应用题。",
+      dataQuality: "SUFFICIENT",
+      doingWell: [{ templateId: "math", title: "数学口算", evidence: "平均每天 2.3 分钟，近期正确率 96%", nextStep: "保持短时练习" }],
+      needsAdjustment: [],
+      cadenceChanges: [{ templateId: "math", title: "数学口算", currentCadence: "每天", recommendedCadence: "每周 5 次", reason: "每周仅约 16 分钟且已熟练稳定，可释放两天给薄弱应用题" }],
+      recommendedSchedule: [{ templateId: "math", title: "数学口算", frequency: "SELECTED_WEEKDAYS", weekdays: [1, 2, 4, 5, 6], reason: "保留巩固并照顾薄弱题型" }],
+      parentActions: ["试行两周后比较题型掌握度"],
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("拒绝超过三条的家长行动", () => {
     const result = weeklyGrowthResponseSchema.safeParse({
       summary: "样本有限，先保持观察。",

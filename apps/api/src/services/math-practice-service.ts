@@ -13,6 +13,7 @@ import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 import { completeTask } from "./task-service.js";
+import { expectedMathResponseMs } from "../domain/math-mastery.js";
 
 function questionsFromJson(value: Prisma.JsonValue): MathQuestion[] {
   if (!Array.isArray(value)) return [];
@@ -225,6 +226,13 @@ export async function answerMathPracticeQuestion(
         sessionId: session.id,
         questionIndex: input.questionIndex,
         attemptNumber,
+        questionTypeId: question.typeId,
+        difficulty: question.difficulty ?? 1,
+        expectedResponseMs: expectedMathResponseMs(
+          question.typeId,
+          question.difficulty ?? 1,
+          question.answer.values.length,
+        ),
         values: input.values,
         correct,
         responseMs: Math.max(0, Math.min(600_000, Math.round(input.responseMs))),

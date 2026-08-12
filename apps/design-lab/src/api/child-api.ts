@@ -489,6 +489,8 @@ export type TodayTaskExperience = {
 export type TaskDashboardWidgetKey =
   | "TASKS"
   | "DAILY_PROGRESS"
+  | "CLOCK"
+  | "CATEGORY_PROGRESS"
   | "BALANCE"
   | "MASCOT"
   | "TODAY_PLAN"
@@ -508,6 +510,8 @@ export type TaskDashboardLayout = {
   rows?: Partial<Record<TaskDashboardWidgetKey, number>>;
   /** @deprecated Only present in layouts saved before per-widget resizing. */
   taskRows?: number;
+  clockEnabled?: boolean;
+  categoryProgressEnabled?: boolean;
 };
 
 export type DashboardHanziReview = {

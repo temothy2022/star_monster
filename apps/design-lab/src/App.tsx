@@ -211,6 +211,8 @@ type AppRoute =
   | "step-2"
   | "step-3"
   | "step-4"
+  | "home"
+  | "tasks"
   | "tasks-partial"
   | "tasks-dashboard"
   | "tasks-complete"
@@ -255,7 +257,7 @@ type AppRoute =
   | "math-print"
   | "poem-recitation";
 
-const DEFAULT_TASK_ROUTE: AppRoute = "tasks-dashboard";
+const DEFAULT_TASK_ROUTE: AppRoute = "home";
 
 const PLANET_ROUTE_BY_KEY: Record<PlanetKey, AppRoute> = {
   MERCURY: "planet-mercury",
@@ -281,6 +283,8 @@ function readRouteFromHash(): AppRoute {
     "step-2",
     "step-3",
     "step-4",
+    "home",
+    "tasks",
     "tasks-partial",
     "tasks-dashboard",
     "tasks-complete",
@@ -355,6 +359,8 @@ function isActiveTaskRoute(route: AppRoute) {
 }
 
 function childPageTitle(route: AppRoute) {
+  if (route === "home") return "首页";
+  if (route === "tasks") return "任务列表";
   if (route === "tasks-dashboard") return "任务桌面";
   if (route.startsWith("tasks-")) return "任务列表";
   if (route.startsWith("planet-") || route === "map") return "航图";
@@ -608,13 +614,15 @@ export function App() {
     );
   }
 
-  if (route.startsWith("tasks-")) {
-    const dashboard = route === "tasks-dashboard";
-    const view = dashboard ? "partial" : route.replace("tasks-", "") as TaskView;
+  if (route === "home" || route === "tasks" || route.startsWith("tasks-")) {
+    const dashboard = route === "home" || route === "tasks-dashboard";
+    const listOnly = route === "tasks";
+    const view = dashboard || listOnly ? "partial" : route.replace("tasks-", "") as TaskView;
     return (
       <TaskExperience
         view={view}
-        variant={dashboard ? "dashboard" : "legacy"}
+        variant={dashboard ? "dashboard" : listOnly ? "list" : "legacy"}
+        navActive={dashboard ? "home" : "tasks"}
         initialExperience={taskExperienceCache}
         onExperienceChange={setTaskExperienceCache}
         onNavigate={navigate}
@@ -961,7 +969,7 @@ export function App() {
   }
 
   if (route === "wishes-requested") {
-    return <WishesRequested onNavigate={navigate} />;
+    return <WishesRequested onNavigate={navigate} onBack={() => navigate("pet-growth")} />;
   }
 
   if (route === "footprints") {

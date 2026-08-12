@@ -51,6 +51,7 @@ import petActionTravelIcon from "@star-monsters/assets/images/pet/ui-icons/pet-a
 import petActionSnackIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-snack.webp";
 import petActionWaterIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-water.webp";
 import petActionAlbumIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-album.webp";
+import petActionWishIcon from "@star-monsters/assets/images/pet/ui-icons/pet-action-wish.webp";
 import petTripNearbyIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-nearby.webp";
 import petTripChinaIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-china.webp";
 import petTripWorldIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip-world.webp";
@@ -1364,7 +1365,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <img src={PLANET_BY_KEY.SATURN.image} alt="" />
             <i /><i /><i />
           </span>
-          <span className="pet-map-entry__copy"><small>探索宇宙</small><strong>星际航图</strong><em>看看点亮了哪些星球</em></span>
+          <span className="pet-map-entry__copy">
+            <small>探索宇宙</small>
+            <strong><span className="pet-map-entry__desktop-label">星际航图</span><span className="pet-map-entry__mobile-label">航图</span></strong>
+            <em>看看点亮了哪些星球</em>
+          </span>
           <span className="pet-map-entry__arrow" aria-hidden="true">›</span>
         </button>
 
@@ -1421,6 +1426,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           </button>
           <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => setAlbumOpen(true)}>
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><img src={petActionAlbumIcon} alt="" /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
+          </button>
+          <button className="pet-action-button pet-action-button--wish" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => onNavigate("wishes-requested")}>
+            <span className="pet-action-icon pet-action-icon--wish" aria-hidden="true"><img src={petActionWishIcon} alt="" /></span><div><strong>星愿</strong><small>兑换小愿望</small></div>
           </button>
         </aside>
 

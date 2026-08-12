@@ -35,6 +35,7 @@ import {
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
 import { getGrowthAnalytics } from "../services/growth-analytics-service.js";
+import { getMathMasteryForRange } from "../services/math-mastery-service.js";
 import {
   getChildLeaderboardSettings,
   getFootprints,
@@ -59,6 +60,9 @@ const learningPracticeKind = z.enum([
   "MIXED",
 ]);
 const petType = z.enum(["DOUYA", "PAOPAO", "TUANTUAN", "MILU", "SHANSHAN"]);
+const mathMasteryQuery = z.object({
+  days: z.coerce.number().int().min(7).max(365).default(90),
+});
 const wishCategory = z.enum(WISH_CATEGORIES);
 const presetIcon = z.enum([
   "math",
@@ -1664,6 +1668,18 @@ export async function registerParentRoutes(
         new Date(),
         config.APP_TIME_ZONE,
       );
+    },
+  );
+
+  app.get(
+    "/api/parent/children/:id/math-mastery",
+    async (request, reply) => {
+      const { id } = idParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, id);
+      const { days } = mathMasteryQuery.parse(request.query);
+      const to = new Date();
+      const from = new Date(to.getTime() - (days - 1) * 24 * 60 * 60 * 1_000);
+      return getMathMasteryForRange(id, { from, to });
     },
   );
 
