@@ -280,6 +280,30 @@
 @media (prefers-reduced-motion: reduce) {
   .task-list-scroll-rail__thumb img { animation: none; }
 }
+
+/* 最终移动端覆盖：独立任务页的内容滚动区不能再使用桌面绝对定位偏移。 */
+@media (max-width: 700px) {
+  .task-list-main .task-list-panel--full {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .task-list-main .task-list-panel--full .task-list-panel__header {
+    position: relative;
+    inset: auto;
+    flex: 0 0 var(--task-list-full-header-height);
+  }
+
+  .task-list-main .task-list-panel--full .task-list-panel__scroll {
+    position: relative;
+    inset: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
 .task-dashboard-widget .task-section__cards { gap: 12px; }
 .task-dashboard-widget .task-empty-panel { min-height: 0; }
 .task-dashboard-widget .task-empty-panel__content { top: 50%; }
@@ -1889,6 +1913,26 @@ input[type="reset"] {
   left: 34px;
 }
 .task-list-panel--full .task-list-filter-empty { display: grid; min-height: 180px; place-items: center; color: #7f8b98; font-weight: 800; }
+
+/* 独立任务页使用稳定的纵向布局：分类头部固定，任务卡片区域独立滚动。
+ * 不依赖绝对定位的 top 值，避免 Safari 可视高度变化时把任务卡片压到面板外。 */
+.task-list-panel--full {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.task-list-panel--full .task-list-panel__header {
+  flex: 0 0 var(--task-list-full-header-height);
+}
+
+.task-list-panel--full .task-list-panel__scroll {
+  position: relative;
+  inset: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 
 .task-progress-column {
   position: relative;
@@ -14653,12 +14697,13 @@ body:has(.footprints-page),
   .pet-waste--position-3 { margin-left: 36px; }
 
   .pet-map-entry {
-    right: auto;
+    right: 10px;
     bottom: calc(158px + env(safe-area-inset-bottom));
-    left: 10px;
+    left: auto;
     top: auto;
-    width: 66px;
-    min-height: 64px;
+    z-index: 7;
+    width: 72px;
+    min-height: 72px;
     grid-template-columns: 1fr;
     grid-template-rows: 38px auto;
     justify-items: center;
@@ -14668,15 +14713,15 @@ body:has(.footprints-page),
   }
 
   .pet-map-entry__sky {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
   }
 
   .pet-map-entry__sky img:first-child {
     left: 0;
     bottom: 0;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
   }
 
   .pet-map-entry__sky img:nth-child(2) {
@@ -14695,8 +14740,8 @@ body:has(.footprints-page),
   }
 
   .pet-map-entry__copy strong {
-    font-size: 11px;
-    line-height: 14px;
+    font-size: 12px;
+    line-height: 15px;
     white-space: nowrap;
   }
 
