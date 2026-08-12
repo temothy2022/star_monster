@@ -1365,7 +1365,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <img src={PLANET_BY_KEY.SATURN.image} alt="" />
             <i /><i /><i />
           </span>
-          <span className="pet-map-entry__copy"><small>探索宇宙</small><strong>星际航图</strong><em>看看点亮了哪些星球</em></span>
+          <span className="pet-map-entry__copy">
+            <small>探索宇宙</small>
+            <strong><span className="pet-map-entry__desktop-label">星际航图</span><span className="pet-map-entry__mobile-label">航图</span></strong>
+            <em>看看点亮了哪些星球</em>
+          </span>
           <span className="pet-map-entry__arrow" aria-hidden="true">›</span>
         </button>
 

@@ -2808,6 +2808,11 @@ input[type="reset"] {
     flex: 1 1 auto;
   }
 
+  /* 独立任务页不是 flex 子项，必须保留完整可用高度，否则只剩标题和分类。 */
+  .task-list-main .task-list-panel--full {
+    height: 100%;
+  }
+
   .task-list-panel__header { top: 20px; }
   .task-list-panel__scroll { top: 82px; bottom: 20px; }
 
@@ -13267,6 +13272,7 @@ body:has(.footprints-page),
 .pet-map-entry__copy { position: relative; z-index: 1; display: grid; min-width: 0; }
 .pet-map-entry__copy small { color: #ffd783; font-size: 10px; font-weight: 900; }
 .pet-map-entry__copy strong { font-size: 18px; line-height: 1.35; }
+.pet-map-entry__mobile-label { display: none; }
 .pet-map-entry__copy em { overflow: hidden; color: rgb(255 255 255 / 76%); font-size: 10px; font-style: normal; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .pet-map-entry__arrow { position: relative; z-index: 1; font-size: 30px; font-weight: 400; line-height: 1; }
 @keyframes pet-map-planet-float { 50% { transform: translateY(-4px) rotate(2deg); } }
@@ -14498,7 +14504,7 @@ body:has(.footprints-page),
     left: 22px;
     top: auto;
     width: auto;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 14px;
     transform: none;
   }
@@ -14647,38 +14653,59 @@ body:has(.footprints-page),
   .pet-waste--position-3 { margin-left: 36px; }
 
   .pet-map-entry {
-    right: 10px;
-    bottom: calc(166px + env(safe-area-inset-bottom));
+    right: auto;
+    bottom: calc(158px + env(safe-area-inset-bottom));
     left: 10px;
     top: auto;
-    width: auto;
-    min-height: 58px;
-    grid-template-columns: 50px minmax(0, 1fr) 18px;
-    padding: 5px 10px 5px 6px;
+    width: 66px;
+    min-height: 64px;
+    grid-template-columns: 1fr;
+    grid-template-rows: 38px auto;
+    justify-items: center;
+    gap: 1px;
+    padding: 5px 4px 4px;
+    border-radius: 16px;
   }
 
   .pet-map-entry__sky {
-    width: 48px;
-    height: 48px;
-  }
-
-  .pet-map-entry__sky img:first-child {
     width: 38px;
     height: 38px;
   }
 
+  .pet-map-entry__sky img:first-child {
+    left: 0;
+    bottom: 0;
+    width: 36px;
+    height: 36px;
+  }
+
   .pet-map-entry__sky img:nth-child(2) {
-    width: 28px;
-    height: 28px;
+    display: none;
+  }
+
+  .pet-map-entry__sky i,
+  .pet-map-entry__copy small,
+  .pet-map-entry__copy em,
+  .pet-map-entry__arrow {
+    display: none;
+  }
+
+  .pet-map-entry__copy {
+    justify-items: center;
   }
 
   .pet-map-entry__copy strong {
-    font-size: 15px;
+    font-size: 11px;
+    line-height: 14px;
+    white-space: nowrap;
   }
 
-  .pet-map-entry__copy em {
-    display: block;
-    font-size: 9px;
+  .pet-map-entry__desktop-label {
+    display: none;
+  }
+
+  .pet-map-entry__mobile-label {
+    display: inline;
   }
 
   .pet-action-rail {
@@ -14687,25 +14714,30 @@ body:has(.footprints-page),
     left: 10px;
     top: auto;
     width: auto;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 7px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
     transform: none;
   }
 
   .pet-action-button {
-    min-height: 65px;
+    min-width: 0;
+    min-height: 62px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 5px 3px;
+    gap: 2px;
+    padding: 4px 1px;
     text-align: center;
   }
 
   .pet-action-button strong {
-    font-size: 12px;
-    line-height: 16px;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .pet-action-button small {
@@ -14713,8 +14745,8 @@ body:has(.footprints-page),
   }
 
   .pet-action-icon {
-    width: 29px;
-    height: 29px;
+    width: 27px;
+    height: 27px;
   }
 
   .pet-growth-page--travel .pet-status-card,
