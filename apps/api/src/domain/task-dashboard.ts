@@ -3,6 +3,7 @@ import { z } from "zod";
 export const TASK_DASHBOARD_WIDGET_KEYS = [
   "TASKS",
   "DAILY_PROGRESS",
+  "CLOCK",
   "BALANCE",
   "MASCOT",
   "TODAY_PLAN",
@@ -21,6 +22,7 @@ export type TaskDashboardLayout = {
   widgets: TaskDashboardWidgetKey[];
   columns?: Partial<Record<TaskDashboardWidgetKey, number>>;
   rows?: Partial<Record<TaskDashboardWidgetKey, number>>;
+  clockEnabled?: boolean;
   /** @deprecated Kept only while normalizing layouts saved before per-widget resizing. */
   taskRows?: number;
 };
@@ -31,6 +33,7 @@ export const TASK_DASHBOARD_WIDGET_ROW_LIMITS: Record<
 > = {
   TASKS: { min: 27, max: 60 },
   DAILY_PROGRESS: { min: 12, max: 26 },
+  CLOCK: { min: 10, max: 22 },
   BALANCE: { min: 9, max: 22 },
   MASCOT: { min: 13, max: 26 },
   TODAY_PLAN: { min: 12, max: 24 },
@@ -46,6 +49,7 @@ export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
   version: 1,
   widgets: [
     "DAILY_PROGRESS",
+    "CLOCK",
     "BALANCE",
     "STREAK",
     "NOTIFICATIONS",
@@ -91,6 +95,7 @@ export const taskDashboardLayoutSchema = z.object({
   ).optional(),
   rows: dashboardRowsSchema.optional(),
   taskRows: z.number().int().min(27).max(60).optional(),
+  clockEnabled: z.boolean().optional(),
 }).superRefine((layout, context) => {
   if (layout.columns?.TASKS === 8) {
     context.addIssue({
@@ -113,6 +118,7 @@ const storedTaskDashboardLayoutSchema = z.object({
   ).optional(),
   rows: dashboardRowsSchema.optional(),
   taskRows: z.number().int().min(27).max(60).optional(),
+  clockEnabled: z.boolean().optional(),
 }).superRefine(validateWidgetRows);
 
 export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayout {
@@ -121,6 +127,11 @@ export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayou
   const widgets = parsed.data.widgets.filter(
     (widget): widget is TaskDashboardWidgetKey => widget !== "QUICK_LINKS",
   );
+  if (parsed.data.clockEnabled !== false && !widgets.includes("CLOCK")) {
+    const progressIndex = widgets.indexOf("DAILY_PROGRESS");
+    if (progressIndex < 0) widgets.push("CLOCK");
+    else widgets.splice(progressIndex + 1, 0, "CLOCK");
+  }
   const columns = parsed.data.columns
     ? Object.fromEntries(Object.entries(parsed.data.columns).filter(([key]) => (
       widgets.includes(key as TaskDashboardWidgetKey)
@@ -139,5 +150,6 @@ export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayou
     widgets,
     ...(columns && Object.keys(columns).length > 0 ? { columns } : {}),
     ...(Object.keys(rows).length > 0 ? { rows } : {}),
+    ...(parsed.data.clockEnabled === false ? { clockEnabled: false } : {}),
   };
 }

@@ -456,6 +456,47 @@ function BalanceWidget({ balance }: { balance: number }) {
   );
 }
 
+function ClockWidget() {
+  const [now, setNow] = useState(() => new Date());
+  const seconds = now.getSeconds() + now.getMilliseconds() / 1000;
+  const minutes = now.getMinutes() + seconds / 60;
+  const hours = (now.getHours() % 12) + minutes / 60;
+  const hourAngle = hours * 30;
+  const minuteAngle = minutes * 6;
+  const secondAngle = seconds * 6;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const timeText = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const weekday = ["日", "一", "二", "三", "四", "五", "六"][now.getDay()];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 250);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="task-widget-clock" role="timer" aria-label={`当前时间 ${timeText}`}>
+      <div className="task-widget-clock__dial" aria-hidden="true">
+        {Array.from({ length: 12 }, (_, index) => (
+          <i
+            className={`task-widget-clock__tick${index % 3 === 0 ? " task-widget-clock__tick--hour" : ""}`}
+            key={index}
+            style={{ "--clock-angle": `${index * 30}deg` } as CSSProperties}
+          />
+        ))}
+        <span className="task-widget-clock__hand task-widget-clock__hand--hour" style={{ transform: `translateX(-50%) rotate(${hourAngle}deg)` }} />
+        <span className="task-widget-clock__hand task-widget-clock__hand--minute" style={{ transform: `translateX(-50%) rotate(${minuteAngle}deg)` }} />
+        <span className="task-widget-clock__hand task-widget-clock__hand--second" style={{ transform: `translateX(-50%) rotate(${secondAngle}deg)` }} />
+        <b className="task-widget-clock__pin" />
+      </div>
+      <div className="task-widget-clock__copy">
+        <small>现在时间</small>
+        <strong>{timeText}</strong>
+        <span>星期{weekday}</span>
+      </div>
+    </div>
+  );
+}
+
 function TodayPlanWidget({ tasks }: { tasks: TaskItem[] }) {
   const pending = tasks.filter((task) => task.status === "pending");
   const completed = tasks.length - pending.length;
@@ -1654,6 +1695,8 @@ export function TaskExperience({
         );
       case "DAILY_PROGRESS":
         return <DailyProgressWidget earned={experience!.earnedToday} goal={experience!.dailyStarGoal} />;
+      case "CLOCK":
+        return <ClockWidget />;
       case "BALANCE":
         return <BalanceWidget balance={experience!.starBalance} />;
       case "MASCOT":

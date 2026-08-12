@@ -120,6 +120,7 @@
 .task-dashboard-widget--notice { --widget-accent: #6f9fc4; --widget-decoration: rgb(111 159 196 / 20%); background: #eef8ff; }
 .task-dashboard-widget--hanzi { --widget-accent: #df8b58; --widget-decoration: rgb(223 139 88 / 20%); background: #fff2e7; }
 .task-dashboard-widget--poem { --widget-accent: #9471bd; --widget-decoration: rgb(148 113 189 / 20%); background: #f5f0ff; }
+.task-dashboard-widget--clock { --widget-accent: #6d9ec4; --widget-decoration: rgb(109 158 196 / 20%); background: #eef7ff; }
 
 .task-dashboard-widget[data-widget-key="BALANCE"]::before { top: auto; right: -24px; bottom: -39px; transform: rotate(28deg); }
 .task-dashboard-widget[data-widget-key="STREAK"]::before { top: -44px; right: 30px; width: 76px; height: 104px; transform: rotate(45deg); }
@@ -345,6 +346,22 @@
 .task-widget-goal-bonus div > span { overflow: hidden; color: #7c8794; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .task-widget-balance__uses { display: flex !important; gap: 5px; margin-top: 7px; }
 .task-widget-balance__uses i { padding: 4px 7px; border: 1px solid rgb(189 139 24 / 22%); border-radius: 7px; color: #8a6a1f; background: rgb(255 255 255 / 58%); font-size: 10px; font-style: normal; font-weight: 800; }
+
+.task-widget-clock { display: grid; height: 100%; min-height: 0; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-content: center; gap: 16px; padding: 18px; color: #253b59; }
+.task-widget-clock__dial { --clock-dial-size: clamp(112px, 13vw, 154px); --clock-tick-distance: clamp(49px, 5.8vw, 68px); position: relative; width: var(--clock-dial-size); height: var(--clock-dial-size); flex: 0 0 var(--clock-dial-size); border: 7px solid #fff; border-radius: 50%; background: radial-gradient(circle at 36% 28%, #fffdf5 0 18%, #f8fbff 68%, #e7f2f8 100%); box-shadow: inset 0 0 0 2px #b9d7e6, 0 6px 0 rgb(68 112 143 / 14%), 0 10px 16px rgb(68 112 143 / 10%); }
+.task-widget-clock__dial::before { content: ""; position: absolute; inset: 10%; border: 1px solid rgb(90 134 164 / 18%); border-radius: 50%; }
+.task-widget-clock__tick { position: absolute; top: 50%; left: 50%; width: 2px; height: 8px; border-radius: 999px; background: #8eabb9; transform: translate(-50%, -50%) rotate(var(--clock-angle)) translateY(calc(-1 * var(--clock-tick-distance))); transform-origin: 50% 50%; }
+.task-widget-clock__tick--hour { width: 4px; height: 13px; background: #55778c; }
+.task-widget-clock__hand { position: absolute; bottom: 50%; left: 50%; display: block; border-radius: 999px 999px 5px 5px; transform-origin: 50% 100%; }
+.task-widget-clock__hand--hour { width: 7px; height: 27%; background: #253b59; box-shadow: 0 1px 2px rgb(37 59 89 / 22%); }
+.task-widget-clock__hand--minute { width: 5px; height: 37%; background: #4e8caf; box-shadow: 0 1px 2px rgb(37 59 89 / 18%); }
+.task-widget-clock__hand--second { width: 2px; height: 43%; border-radius: 999px; background: #f47b45; box-shadow: 0 0 0 1px rgb(244 123 69 / 12%); }
+.task-widget-clock__hand--second::after { content: ""; position: absolute; bottom: -9px; left: 50%; width: 6px; height: 9px; border-radius: 0 0 999px 999px; background: #f47b45; transform: translateX(-50%); }
+.task-widget-clock__pin { position: absolute; top: 50%; left: 50%; width: 13px; height: 13px; border: 3px solid #fff; border-radius: 50%; background: #f47b45; box-shadow: 0 1px 4px rgb(37 59 89 / 22%); transform: translate(-50%, -50%); }
+.task-widget-clock__copy { display: grid; min-width: 0; align-content: center; gap: 4px; }
+.task-widget-clock__copy small { color: #6d8da4; font-size: 12px; font-weight: 900; }
+.task-widget-clock__copy strong { color: #253b59; font-size: 24px; letter-spacing: 1px; line-height: 1.15; white-space: nowrap; }
+.task-widget-clock__copy span { color: #7a8c9b; font-size: 12px; font-weight: 800; }
 
 .task-widget-plan { display: grid; height: 100%; align-content: space-between; gap: 14px; padding: 23px; }
 .task-widget-plan__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -604,6 +621,11 @@
   .task-dashboard-widget .task-widget-progress .daily-progress__label { font-size: 15px; }
   .task-widget-progress .task-widget-heading strong { font-size: 18px; }
   .task-widget-balance__star { width: 52px; height: 52px; flex-basis: 52px; border-radius: 17px; font-size: 30px; }
+  .task-widget-clock { gap: 9px; padding: 12px 10px; }
+  .task-widget-clock__dial { --clock-dial-size: 96px; --clock-tick-distance: 41px; border-width: 5px; }
+  .task-widget-clock__copy strong { font-size: 18px; letter-spacing: 0; }
+  .task-widget-clock__copy small,
+  .task-widget-clock__copy span { font-size: 10px; }
   .task-widget-balance strong,
   .task-widget-streak strong,
   .task-widget-goal-bonus strong { font-size: 23px; }
