@@ -20,6 +20,32 @@ source "$CONFIG_FILE"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 DEPLOY_RSYNC_TIMEOUT="${DEPLOY_RSYNC_TIMEOUT:-120}"
 
+# macOS ships an old openrsync implementation (protocol 29) that can deadlock
+# while exchanging this repository's file list with the production rsync 3.x
+# server. Prefer Homebrew's modern client even when a non-login shell puts
+# /usr/bin first in PATH, and fail early instead of leaving stale server jobs.
+if [[ -n "${DEPLOY_RSYNC_BIN:-}" ]]; then
+  RSYNC_BIN="$DEPLOY_RSYNC_BIN"
+elif [[ -x /opt/homebrew/bin/rsync ]]; then
+  RSYNC_BIN=/opt/homebrew/bin/rsync
+elif [[ -x /usr/local/bin/rsync ]]; then
+  RSYNC_BIN=/usr/local/bin/rsync
+else
+  RSYNC_BIN="$(command -v rsync || true)"
+fi
+
+if [[ -z "$RSYNC_BIN" || ! -x "$RSYNC_BIN" ]]; then
+  echo "A modern rsync client is required. Install it with: brew install rsync"
+  exit 1
+fi
+
+RSYNC_PROTOCOL="$($RSYNC_BIN --version | sed -nE 's/.*protocol version ([0-9]+).*/\1/p' | head -n 1)"
+if [[ -z "$RSYNC_PROTOCOL" || "$RSYNC_PROTOCOL" -lt 31 ]]; then
+  echo "Refusing to deploy with $RSYNC_BIN (rsync protocol ${RSYNC_PROTOCOL:-unknown})."
+  echo "Install modern rsync with: brew install rsync"
+  exit 1
+fi
+
 if [[ ! "$DEPLOY_RSYNC_TIMEOUT" =~ ^[0-9]+$ ]] || (( DEPLOY_RSYNC_TIMEOUT < 30 )); then
   echo "DEPLOY_RSYNC_TIMEOUT must be an integer of at least 30 seconds."
   exit 1
@@ -68,8 +94,9 @@ echo "2/3 Checking SSH access..."
 "${SSH[@]}" "$REMOTE" "test -d '$DEPLOY_PATH'"
 
 echo "3/3 Uploading release and applying it on the server..."
+echo "Using $RSYNC_BIN (protocol $RSYNC_PROTOCOL)."
 # Hanzi media is deployed separately and may be owned by root on the server.
-rsync -az --delete --partial --progress --timeout="$DEPLOY_RSYNC_TIMEOUT" \
+"$RSYNC_BIN" -az --delete --partial --progress --timeout="$DEPLOY_RSYNC_TIMEOUT" \
   --filter 'P /apps/design-lab/dist/assets/***' \
   --filter 'P /apps/parent-admin/dist/assets/***' \
   --filter 'P /apps/super-admin/dist/assets/***' \
