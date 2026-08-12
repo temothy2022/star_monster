@@ -1021,6 +1021,8 @@ export const parentApi = {
       "/api/parent/ai/config/test",
       { method: "POST" },
     ),
+  triggerChallengeLetter: (childId: string) =>
+    api<{ conversation: unknown }>(`/api/parent/children/${childId}/challenge-letter`, { method: "POST" }),
   minimaxConfig: () =>
     api<{ config: MinimaxConfig }>("/api/parent/minimax/config"),
   saveMinimaxConfig: (data: { apiKey?: string; enabled: boolean }) =>

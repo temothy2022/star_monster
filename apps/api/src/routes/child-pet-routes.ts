@@ -7,12 +7,17 @@ import {
   cleanPetWaste,
   getPetGrowthState,
   getPetNotificationSummary,
+  getPetPostcards,
   openPetRedPacket,
   purchasePetRoomTheme,
   revealPetTrip,
   selectPetRoomTheme,
   startPetTrip,
 } from "../services/pet-growth-service.js";
+import {
+  getChallengeConversation,
+  sendChallengeReply,
+} from "../services/challenge-conversation-service.js";
 
 const actionSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(100),
@@ -23,6 +28,9 @@ const travelSchema = actionSchema.extend({
 const tripParams = z.object({ id: z.string().min(1) });
 const wasteParams = z.object({ id: z.string().min(1) });
 const roomThemeParams = z.object({ key: z.string().trim().min(1).max(64) });
+const challengeReplySchema = z.object({
+  text: z.string().trim().min(1).max(60),
+});
 
 export async function registerChildPetRoutes(app: FastifyInstance, config: AppConfig) {
   app.get("/api/child/pet", async (request, reply) => {
@@ -32,7 +40,23 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
 
   app.get("/api/child/pet/notifications", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    return getPetNotificationSummary(child.id);
+    return getPetNotificationSummary(child.id, config);
+  });
+
+  app.get("/api/child/challenge-conversation", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    return getChallengeConversation(child.id, config);
+  });
+
+  app.post("/api/child/challenge-conversation/replies", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { text } = challengeReplySchema.parse(request.body);
+    return sendChallengeReply(child.id, text, config);
+  });
+
+  app.get("/api/child/pet/postcards", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    return getPetPostcards(child.id);
   });
 
   app.post("/api/child/pet/feed", async (request, reply) => {

@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
 } from "react";
 import balanceStar from "@star-monsters/assets/icons/wishes/balance-star.svg";
@@ -23,11 +24,16 @@ import sportsReward from "@star-monsters/assets/images/reward-categories/sports.
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
 import televisionReward from "@star-monsters/assets/images/reward-categories/television.webp";
 import toysReward from "@star-monsters/assets/images/reward-categories/toys.webp";
+import challengeChatPaper from "@star-monsters/assets/images/challenge-letters/chat-paper.webp?no-inline";
+import fallbackChallengeAvatar from "@star-monsters/assets/images/challenge-letters/xiaoyue-avatar.webp?no-inline";
 import {
   ApiError,
   getChildFootprints,
+  getChallengeConversation,
   getChildWishes,
   redeemChildWish,
+  sendChallengeReply,
+  type ChallengeConversation,
   type ChildWish,
   type FootprintResponse,
 } from "../api/child-api";
@@ -377,6 +383,45 @@ export function Footprints({
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<LeaderboardPeriod>("daily");
   const [mobilePanel, setMobilePanel] = useState<"records" | "leaderboard">("records");
   const [error, setError] = useState("");
+  const [challengeConversation, setChallengeConversation] = useState<ChallengeConversation | null>(null);
+  const [challengeOpen, setChallengeOpen] = useState(false);
+  const [challengeInput, setChallengeInput] = useState("");
+  const [challengeSending, setChallengeSending] = useState(false);
+  const [challengeError, setChallengeError] = useState("");
+  const challengeMessagesRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const messageList = challengeMessagesRef.current;
+    if (!challengeOpen || !messageList) return;
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: "smooth" });
+  }, [challengeConversation?.messages.length, challengeOpen, challengeSending]);
+
+  useEffect(() => {
+    let shouldOpen = false;
+    try {
+      shouldOpen = window.sessionStorage.getItem("star-monsters-open-challenge-letter") === "1";
+      if (shouldOpen) window.sessionStorage.removeItem("star-monsters-open-challenge-letter");
+    } catch { /* optional navigation intent */ }
+    if (!shouldOpen) return;
+    void getChallengeConversation().then(({ conversation }) => {
+      setChallengeConversation(conversation);
+      setChallengeOpen(Boolean(conversation));
+    }).catch((reason) => setChallengeError(reason instanceof Error ? reason.message : "来信暂时打不开"));
+  }, []);
+
+  async function submitChallengeReply(event: React.FormEvent) {
+    event.preventDefault();
+    const text = challengeInput.trim();
+    if (!text || challengeSending) return;
+    setChallengeSending(true); setChallengeError("");
+    try {
+      const result = await sendChallengeReply(text);
+      setChallengeConversation(result.conversation);
+      setChallengeInput("");
+    } catch (reason) {
+      setChallengeError(reason instanceof Error ? reason.message : "消息没有发出去");
+    } finally { setChallengeSending(false); }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -557,6 +602,7 @@ export function Footprints({
         </div>
       </section>
       <ChildBottomNav active="footprints" onNavigate={onNavigate} />
+      {challengeOpen && challengeConversation && <><button type="button" className="challenge-chat-backdrop" aria-label="关闭挑战伙伴对话" onClick={() => setChallengeOpen(false)} /><section className="challenge-chat" role="dialog" aria-modal="true" aria-labelledby="challenge-chat-title" style={{ backgroundImage: `url(${challengeChatPaper})` }}><header><img src={LEADERBOARD_AVATARS[challengeConversation.partner.avatarKey] ?? fallbackChallengeAvatar} alt="" /><div><h2 id="challenge-chat-title">{challengeConversation.partner.displayName}</h2><span>{challengeConversation.partner.label}</span></div><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button></header><div className="challenge-chat__messages" ref={challengeMessagesRef} aria-live="polite">{challengeConversation.messages.map((message) => <div className={`challenge-chat__bubble challenge-chat__bubble--${message.sender === "CHILD" ? "child" : "partner"}`} key={message.id}>{message.text}</div>)}{challengeSending && <div className="challenge-chat__typing"><i /><i /><i /><span>正在想怎么回答…</span></div>}</div><form onSubmit={(event) => void submitChallengeReply(event)}><div className="challenge-chat__limit">今天还能发送 {challengeConversation.remainingToday}/{challengeConversation.dailyLimit} 条</div><div className="challenge-chat__composer"><input value={challengeInput} onChange={(event) => setChallengeInput(event.target.value)} maxLength={60} disabled={challengeConversation.remainingToday === 0 || challengeSending} placeholder={challengeConversation.remainingToday === 0 ? "今天先聊到这里吧" : "写一句话回复…"} aria-label="回复虚拟挑战伙伴" /><button disabled={!challengeInput.trim() || challengeConversation.remainingToday === 0 || challengeSending}>{challengeSending ? "发送中" : "发送"}</button></div>{challengeError && <p role="alert">{challengeError}</p>}</form></section></>}
     </main>
   );
 }

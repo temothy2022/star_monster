@@ -11,7 +11,7 @@ import {
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
-import { decryptSecret } from "../lib/secret-encryption.js";
+import { systemAiCredentials } from "./system-ai-service.js";
 import {
   addBusinessDays,
   businessDateAt,
@@ -191,31 +191,13 @@ async function childAiCredentials(childId: string, config: AppConfig) {
       status: "ACTIVE",
       family: { status: "ACTIVE" },
     },
-    select: {
-      familyId: true,
-      family: { select: { aiConfig: true } },
-    },
+    select: { familyId: true },
   });
   if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
-  const stored = child.family.aiConfig;
-  if (!stored?.enabled) {
-    throw new HttpError(
-      409,
-      "AI_NOT_CONFIGURED",
-      "请先在 AI 育儿助手中保存并启用 DeepSeek 密钥",
-    );
-  }
+  const credentials = await systemAiCredentials(config);
   return {
     familyId: child.familyId,
-    model: stored.model,
-    apiKey: decryptSecret(
-      {
-        ciphertext: stored.encryptedApiKey,
-        iv: stored.encryptionIv,
-        tag: stored.encryptionTag,
-      },
-      config.AI_CONFIG_ENCRYPTION_KEY,
-    ),
+    ...credentials,
   };
 }
 

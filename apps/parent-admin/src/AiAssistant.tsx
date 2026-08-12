@@ -835,6 +835,22 @@ function SmartScheduler({ child }: { child: Child }) {
 }
 
 export function AiAssistant({ child }: { child: Child }) {
+  const [triggeringLetter, setTriggeringLetter] = useState(false);
+  const [letterMessage, setLetterMessage] = useState("");
+
+  async function triggerChallengeLetter() {
+    setTriggeringLetter(true);
+    setLetterMessage("");
+    try {
+      await parentApi.triggerChallengeLetter(child.id);
+      setLetterMessage(`已为「${child.nickname ?? "孩子"}」发送今日挑战来信。`);
+    } catch (reason) {
+      setLetterMessage(reason instanceof Error ? reason.message : "来信发送失败");
+    } finally {
+      setTriggeringLetter(false);
+    }
+  }
+
   return (
     <div className="admin-stack ai-assistant">
       <div className="ai-hero">
@@ -845,7 +861,17 @@ export function AiAssistant({ child }: { child: Child }) {
         </div>
         <div className="ai-hero__mark">✦</div>
       </div>
-      <AiConfiguration />
+      <Message>
+        DeepSeek 已由超级管理员统一配置并供所有家庭使用；家长端不会显示或保存平台密钥。
+      </Message>
+      <Card
+        title="孩子来信"
+        subtitle={`给「${child.nickname ?? "当前孩子"}」发送一封中文挑战伙伴来信。`}
+        actions={<BusyButton type="button" className="primary-button" busy={triggeringLetter} busyText="生成中…" onClick={() => void triggerChallengeLetter()}>人工触发今日来信</BusyButton>}
+      >
+        {letterMessage && <Message>{letterMessage}</Message>}
+        <p className="ai-privacy-note">来信和回复由 DeepSeek 生成，使用孩子档案中的昵称；孩子端会明确标注“虚拟挑战伙伴”。</p>
+      </Card>
       <TaskAdvisor child={child} />
       <RewardAuditor child={child} />
       <SmartScheduler child={child} />

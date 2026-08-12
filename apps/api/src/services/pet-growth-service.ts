@@ -2,6 +2,10 @@ import { Prisma, type PetCareKind, type PetTravelTier } from "@prisma/client";
 import { randomInt } from "node:crypto";
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
+import {
+  challengeLetterNotification,
+  generateChallengeLetterIfEligible,
+} from "./challenge-conversation-service.js";
 import { prisma } from "../lib/prisma.js";
 import { businessDateAt, businessMinuteOfDayAt } from "../lib/time.js";
 
@@ -421,8 +425,12 @@ function serializeTrip(trip: {
   };
 }
 
-export async function getPetNotificationSummary(childId: string, now = new Date()) {
-  const [returnedPostcard, redPacketCount] = await Promise.all([
+export async function getPetNotificationSummary(
+  childId: string,
+  appConfig: AppConfig,
+  now = new Date(),
+) {
+  const [returnedPostcard, redPacketCount, challengeLetter] = await Promise.all([
     prisma.petTrip.findFirst({
       where: {
         childId,
@@ -438,7 +446,12 @@ export async function getPetNotificationSummary(childId: string, now = new Date(
     prisma.petRedPacket.count({
       where: { childId, openedAt: null },
     }),
+    challengeLetterNotification(childId, appConfig, now),
   ]);
+
+  if (!challengeLetter) {
+    void generateChallengeLetterIfEligible(childId, appConfig, now).catch(() => undefined);
+  }
 
   return {
     returnedPostcard: returnedPostcard
@@ -448,7 +461,17 @@ export async function getPetNotificationSummary(childId: string, now = new Date(
         }
       : null,
     redPacketCount,
+    challengeLetter,
   };
+}
+
+export async function getPetPostcards(childId: string) {
+  const postcards = await prisma.petTrip.findMany({
+    where: { childId, status: "REVEALED" },
+    orderBy: { revealedAt: "desc" },
+    take: 40,
+  });
+  return { postcards: postcards.map(serializeTrip) };
 }
 
 export async function getPetGrowthState(childId: string, appConfig: AppConfig) {

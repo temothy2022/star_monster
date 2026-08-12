@@ -40,6 +40,7 @@ import {
   getChildLeaderboards,
   getChildPlanets,
   getPetNotifications,
+  getPetPostcards,
   getTaskDashboardReviews,
   getTodayTasks,
   markChildPlanetNotified,
@@ -53,6 +54,7 @@ import {
   type MascotAsset,
   type MascotDialogue,
   type PetNotificationSummary,
+  type PetTrip,
   type TaskAttempt,
   type TodayTaskExperience,
   type TaskDashboardWidgetKey,
@@ -67,6 +69,8 @@ import {
 import { TaskDashboard } from "./TaskDashboard";
 import { LEADERBOARD_AVATARS } from "../progress/leaderboard-avatars";
 import { LEADERBOARD_FLAGS } from "../progress/leaderboard-flags";
+import fallbackChallengeAvatar from "@star-monsters/assets/images/challenge-letters/xiaoyue-avatar.webp?no-inline";
+import { CountdownTimerWidget, PostcardCarouselWidget } from "./DashboardUtilityWidgets";
 
 export type TaskView = "partial" | "complete" | "empty";
 type TaskIconName = "book" | "training" | "math" | "return";
@@ -882,8 +886,13 @@ function NotificationWidget({
   const [discoveryFact] = useState(pickDiscoveryFact);
   const returnedPostcard = notifications?.returnedPostcard ?? null;
   const redPacketCount = notifications?.redPacketCount ?? 0;
-  const notificationCount = (returnedPostcard ? 1 : 0) + (redPacketCount > 0 ? 1 : 0);
+  const challengeLetter = notifications?.challengeLetter ?? null;
+  const notificationCount = (returnedPostcard ? 1 : 0) + (redPacketCount > 0 ? 1 : 0) + (challengeLetter ? 1 : 0);
   const openPetHome = () => onNavigate?.("pet-growth");
+  const openChallengeLetter = () => {
+    try { window.sessionStorage.setItem("star-monsters-open-challenge-letter", "1"); } catch { /* navigation still works */ }
+    onNavigate?.("footprints");
+  };
 
   return (
     <div className="task-widget-notifications" aria-live="polite">
@@ -915,6 +924,16 @@ function NotificationWidget({
           <button type="button" onClick={openPetHome}>
             <i className="task-widget-notifications__icon is-packet" aria-hidden="true"><b /></i>
             <span><strong>{redPacketCount} 个升级红包</strong><small>去拆开惊喜</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
+        )}
+        {challengeLetter && (
+          <button type="button" className="task-widget-notifications__challenge" onClick={openChallengeLetter}>
+            <span className="task-widget-notifications__avatar">
+              <img src={LEADERBOARD_AVATARS[challengeLetter.partnerAvatarKey] ?? fallbackChallengeAvatar} alt="" />
+              {challengeLetter.unread && <i aria-label="新来信" />}
+            </span>
+            <span><strong>{challengeLetter.partnerName} 来信</strong><small>{challengeLetter.preview}</small></span>
             <b aria-hidden="true">›</b>
           </button>
         )}
@@ -1273,6 +1292,7 @@ export function TaskExperience({
   const [apiError, setApiError] = useState("");
   const [dashboardLeaderboards, setDashboardLeaderboards] = useState<CompactLeaderboards | null | undefined>(undefined);
   const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
+  const [dashboardPostcards, setDashboardPostcards] = useState<PetTrip[] | null | undefined>(undefined);
   const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
   const [phoneLayout, setPhoneLayout] = useState(() => window.matchMedia(
     "(max-width: 600px), (pointer: coarse) and (max-height: 600px)",
@@ -1458,6 +1478,42 @@ export function TaskExperience({
     { enabled: notificationsEnabled, intervalMs: 30_000 },
   );
 
+  const postcardsEnabled = dashboardActive && Boolean(
+    experience?.taskDashboardLayout.widgets.includes("POSTCARDS"),
+  );
+
+  useEffect(() => {
+    if (!postcardsEnabled) {
+      setDashboardPostcards(undefined);
+      return;
+    }
+    const controller = new AbortController();
+    void getPetPostcards(controller.signal)
+      .then((result) => setDashboardPostcards(result.postcards))
+      .catch((reason: unknown) => {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+          return;
+        }
+        if (!controller.signal.aborted) setDashboardPostcards(null);
+      });
+    return () => controller.abort();
+  }, [postcardsEnabled]);
+
+  useLiveRefresh(
+    async (signal) => {
+      try {
+        const result = await getPetPostcards(signal);
+        setDashboardPostcards(result.postcards);
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: postcardsEnabled, intervalMs: 60_000 },
+  );
+
   const dashboardReviewsEnabled = dashboardActive && Boolean(
     experience?.taskDashboardLayout.widgets.some(
       (widget) => widget === "HANZI_REVIEW" || widget === "POEM_REVIEW",
@@ -1628,6 +1684,10 @@ export function TaskExperience({
             unavailable={dashboardReviews === null}
           />
         );
+      case "POSTCARDS":
+        return <PostcardCarouselWidget postcards={dashboardPostcards} onNavigate={onNavigate} />;
+      case "COUNTDOWN_TIMER":
+        return <CountdownTimerWidget />;
     }
   }
 

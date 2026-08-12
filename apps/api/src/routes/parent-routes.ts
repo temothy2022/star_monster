@@ -41,6 +41,7 @@ import {
   leaderboardEffectiveMinute,
 } from "../services/footprint-service.js";
 import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
+import { generateChallengeLetterIfEligible } from "../services/challenge-conversation-service.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
@@ -1729,6 +1730,16 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     return getPlanetSettings(id);
+  });
+
+  app.post("/api/parent/children/:id/challenge-letter", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
+    const conversation = await generateChallengeLetterIfEligible(id, config, new Date(), { force: true });
+    if (!conversation) {
+      throw new HttpError(409, "CHALLENGE_LETTER_UNAVAILABLE", "今天暂时没有可发送的挑战伙伴来信");
+    }
+    return { conversation };
   });
 
   app.put("/api/parent/children/:id/planets", async (request, reply) => {

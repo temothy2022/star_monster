@@ -327,7 +327,7 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
       actions={configured ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void generate()}>{busy ? "分析中…" : report ? "重新分析" : "立即生成"}</button> : null}
     >
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
-      {loading ? <div className="empty-state">正在读取任务诊断…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>尚未启用 DeepSeek</strong><p>请先到“智能与设置 → AI 助手”保存并启用 DeepSeek 密钥，系统之后会每周自动分析任务安排。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>系统会分析最近四个完整周，也可以现在生成第一份任务诊断。</p></div> : <>
+      {loading ? <div className="empty-state">正在读取任务诊断…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>平台 AI 暂未启用</strong><p>请联系超级管理员配置并启用 DeepSeek，之后系统会每周自动分析任务安排。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>系统会分析最近四个完整周，也可以现在生成第一份任务诊断。</p></div> : <>
         <div className="weekly-growth-report__summary">
           <div><span>{fullDate(report.analysisStart)} – {fullDate(report.analysisEnd)}</span><h3>{analysis.summary}</h3></div>
           <div className="weekly-growth-report__meta"><em className={analysis.dataQuality === "SUFFICIENT" ? "is-ready" : "is-limited"}>{analysis.dataQuality === "SUFFICIENT" ? "数据充分" : "样本较少"}</em><small>{report.generatedAt ? `${fullDate(report.generatedAt)}生成` : ""}</small></div>

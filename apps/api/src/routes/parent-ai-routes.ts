@@ -20,12 +20,12 @@ import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { enforceRateLimit } from "../lib/rate-limit.js";
-import { decryptSecret, encryptSecret } from "../lib/secret-encryption.js";
 import { writeAudit } from "../services/audit-service.js";
 import { requireParent } from "../services/auth-service.js";
 import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-service.js";
 import { validateSchedulePlan } from "../services/schedule-validation.js";
 import { generateDailyTasks } from "../services/task-service.js";
+import { systemAiCredentials } from "../services/system-ai-service.js";
 import { businessDateAt } from "../lib/time.js";
 import {
   generateWeeklyGrowthReport,
@@ -36,17 +36,6 @@ const idParams = z.object({ id: z.string().min(1) });
 const recommendationParams = z.object({
   childId: z.string().min(1),
   recommendationId: z.string().min(1),
-});
-const aiConfigSchema = z.object({
-  apiKey: z.string().trim().min(10).max(512).optional(),
-  model: z
-    .string()
-    .trim()
-    .min(1)
-    .max(100)
-    .regex(/^deepseek-[a-z0-9.-]+$/i, "请选择有效的 DeepSeek 模型")
-    .default("deepseek-v4-flash"),
-  enabled: z.boolean().default(true),
 });
 const taskAdviceInputSchema = z.object({
   description: z.string().trim().min(10).max(4000),
@@ -103,31 +92,11 @@ async function familyUser(
 }
 
 async function storedAiCredentials(
-  familyId: string,
+  _familyId: string,
   config: AppConfig,
   requireEnabled: boolean,
 ) {
-  const stored = await prisma.familyAiConfig.findUnique({
-    where: { familyId },
-  });
-  if (!stored || (requireEnabled && !stored.enabled)) {
-    throw new HttpError(
-      409,
-      "AI_NOT_CONFIGURED",
-      "请先在 AI 育儿助手中保存并启用 DeepSeek 密钥",
-    );
-  }
-  return {
-    model: stored.model,
-    apiKey: decryptSecret(
-      {
-        ciphertext: stored.encryptedApiKey,
-        iv: stored.encryptionIv,
-        tag: stored.encryptionTag,
-      },
-      config.AI_CONFIG_ENCRYPTION_KEY,
-    ),
-  };
+  return systemAiCredentials(config, requireEnabled);
 }
 
 async function aiCredentials(familyId: string, config: AppConfig) {
@@ -289,20 +258,19 @@ export async function registerParentAiRoutes(
   config: AppConfig,
 ): Promise<void> {
   app.get("/api/parent/ai/config", async (request, reply) => {
-    const { familyId } = await familyUser(request, reply, config);
-    const stored = await prisma.familyAiConfig.findUnique({
-      where: { familyId },
+    await familyUser(request, reply, config);
+    const stored = await prisma.systemAiConfig.findUnique({
+      where: { id: "default" },
       select: {
         provider: true,
         model: true,
-        apiKeyLastFour: true,
         enabled: true,
         updatedAt: true,
       },
     });
     return {
       config: stored
-        ? { ...stored, configured: true }
+        ? { ...stored, apiKeyLastFour: null, configured: true }
         : {
             provider: "DEEPSEEK",
             model: "deepseek-v4-flash",
@@ -318,10 +286,10 @@ export async function registerParentAiRoutes(
     "/api/parent/children/:id/ai/weekly-growth",
     async (request, reply) => {
       const { id: childId } = idParams.parse(request.params);
-      const { familyId } = await ownedChild(request, reply, config, childId);
+      await ownedChild(request, reply, config, childId);
       const [stored, report] = await Promise.all([
-        prisma.familyAiConfig.findUnique({
-          where: { familyId },
+        prisma.systemAiConfig.findUnique({
+          where: { id: "default" },
           select: { enabled: true },
         }),
         latestWeeklyGrowthReport(childId),
@@ -375,71 +343,8 @@ export async function registerParentAiRoutes(
   });
 
   app.put("/api/parent/ai/config", async (request, reply) => {
-    const { user, familyId } = await familyUser(request, reply, config);
-    const input = aiConfigSchema.parse(request.body);
-    const existing = await prisma.familyAiConfig.findUnique({
-      where: { familyId },
-    });
-    if (!existing && !input.apiKey) {
-      throw new HttpError(400, "AI_KEY_REQUIRED", "首次配置必须填写 DeepSeek 密钥");
-    }
-    const encrypted = input.apiKey
-      ? encryptSecret(input.apiKey, config.AI_CONFIG_ENCRYPTION_KEY)
-      : null;
-    const stored = await prisma.$transaction(async (tx) => {
-      const saved = await tx.familyAiConfig.upsert({
-        where: { familyId },
-        create: {
-          familyId,
-          model: input.model,
-          enabled: input.enabled,
-          encryptedApiKey: encrypted!.ciphertext,
-          encryptionIv: encrypted!.iv,
-          encryptionTag: encrypted!.tag,
-          apiKeyLastFour: input.apiKey!.slice(-4),
-          updatedByUserId: user.id,
-        },
-        update: {
-          model: input.model,
-          enabled: input.enabled,
-          updatedByUserId: user.id,
-          ...(encrypted
-            ? {
-                encryptedApiKey: encrypted.ciphertext,
-                encryptionIv: encrypted.iv,
-                encryptionTag: encrypted.tag,
-                apiKeyLastFour: input.apiKey!.slice(-4),
-              }
-            : {}),
-        },
-      });
-      await writeAudit(tx, {
-        actorType: "USER",
-        actorId: user.id,
-        familyId,
-        action: "AI_CONFIG_UPDATE",
-        resourceType: "FamilyAiConfig",
-        resourceId: saved.id,
-        metadata: {
-          provider: "DEEPSEEK",
-          model: input.model,
-          enabled: input.enabled,
-          keyReplaced: Boolean(input.apiKey),
-        },
-        ipAddress: request.ip,
-      });
-      return saved;
-    });
-    return {
-      config: {
-        provider: stored.provider,
-        model: stored.model,
-        apiKeyLastFour: stored.apiKeyLastFour,
-        enabled: stored.enabled,
-        updatedAt: stored.updatedAt,
-        configured: true,
-      },
-    };
+    await familyUser(request, reply, config);
+    throw new HttpError(403, "AI_CONFIG_ADMIN_ONLY", "DeepSeek 密钥由超级管理员统一配置");
   });
 
   app.post("/api/parent/ai/config/test", async (request, reply) => {

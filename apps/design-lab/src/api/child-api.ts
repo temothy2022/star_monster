@@ -236,6 +236,34 @@ export type PetNotificationSummary = {
     destinationName: string;
   };
   redPacketCount: number;
+  challengeLetter: null | {
+    conversationId: string;
+    partnerName: string;
+    partnerAvatarKey: string;
+    preview: string;
+    unread: boolean;
+    partnerLabel: "虚拟挑战伙伴";
+  };
+};
+
+export type ChallengeConversation = {
+  id: string;
+  businessDate: string;
+  partner: {
+    competitorId: string;
+    displayName: string;
+    avatarKey: string;
+    label: "虚拟挑战伙伴";
+  };
+  messages: Array<{
+    id: string;
+    sender: "VIRTUAL_PARTNER" | "CHILD";
+    text: string;
+    createdAt: string;
+  }>;
+  dailyLimit: number;
+  sentToday: number;
+  remainingToday: number;
 };
 
 export type PetRoomTheme = {
@@ -267,6 +295,27 @@ export function getPetNotifications(signal?: AbortSignal) {
     cache: "no-store",
     signal,
   });
+}
+
+export function getPetPostcards(signal?: AbortSignal) {
+  return request<{ postcards: PetTrip[] }>("/api/child/pet/postcards", {
+    cache: "no-store",
+    signal,
+  });
+}
+
+export function getChallengeConversation(signal?: AbortSignal) {
+  return request<{ conversation: ChallengeConversation | null }>(
+    "/api/child/challenge-conversation",
+    { cache: "no-store", signal },
+  );
+}
+
+export function sendChallengeReply(text: string) {
+  return request<{ conversation: ChallengeConversation | null }>(
+    "/api/child/challenge-conversation/replies",
+    { method: "POST", body: JSON.stringify({ text }) },
+  );
 }
 
 export function careForPet(kind: "feed" | "drink", idempotencyKey: string) {
@@ -424,7 +473,9 @@ export type TaskDashboardWidgetKey =
   | "LEADERBOARD"
   | "NOTIFICATIONS"
   | "HANZI_REVIEW"
-  | "POEM_REVIEW";
+  | "POEM_REVIEW"
+  | "POSTCARDS"
+  | "COUNTDOWN_TIMER";
 
 export type TaskDashboardLayout = {
   version: 1;

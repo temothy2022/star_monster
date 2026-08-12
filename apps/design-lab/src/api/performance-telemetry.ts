@@ -126,6 +126,7 @@ function operationFor(path: string) {
     "/api/child/leaderboards": "load_leaderboards",
     "/api/child/pet": "load_pet_growth",
     "/api/child/pet/notifications": "load_pet_notifications",
+    "/api/child/pet/postcards": "load_pet_postcards",
     "/api/child/planets": "load_planets",
     "/api/child/wishes": "load_wishes",
     "/api/child/footprints": "load_footprints",

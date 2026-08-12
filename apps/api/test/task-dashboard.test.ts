@@ -14,6 +14,14 @@ describe("task dashboard layout", () => {
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("NOTIFICATIONS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("HANZI_REVIEW");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POEM_REVIEW");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POSTCARDS");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("COUNTDOWN_TIMER");
+    expect(taskDashboardLayoutSchema.safeParse({
+      version: 1,
+      widgets: ["TASKS", "POSTCARDS", "COUNTDOWN_TIMER"],
+      columns: { TASKS: 0, POSTCARDS: 4, COUNTDOWN_TIMER: 8 },
+      rows: { POSTCARDS: 16, COUNTDOWN_TIMER: 16 },
+    }).success).toBe(true);
   });
 
   it("keeps a valid child-defined order", () => {

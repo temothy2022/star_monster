@@ -11,6 +11,8 @@ import type {
   TaskDashboardLayout,
   TaskDashboardWidgetKey,
 } from "../api/child-api";
+import postcardStack from "@star-monsters/assets/images/task-dashboard/postcard-stack.webp";
+import spaceTimer from "@star-monsters/assets/images/task-dashboard/space-timer.webp";
 
 const LONG_PRESS_MS = 520;
 const REORDER_ANIMATION_MS = 340;
@@ -37,9 +39,20 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   { key: "NOTIFICATIONS", label: "通知", description: "查看新明信片和升级红包", size: "small", tone: "notice", defaultRows: 9, minRows: 8, maxRows: 18 },
   { key: "HANZI_REVIEW", label: "复习汉字", description: "滑动查看最近要复习的汉字", size: "small", tone: "hanzi", defaultRows: 12, minRows: 11, maxRows: 20 },
   { key: "POEM_REVIEW", label: "复习古诗", description: "每天听一首需要复习的古诗", size: "medium", tone: "poem", defaultRows: 15, minRows: 12, maxRows: 24 },
+  { key: "POSTCARDS", label: "旅行明信片", description: "滚动看看星宠带回来的旅行收藏", size: "wide", tone: "postcard", defaultRows: 16, minRows: 13, maxRows: 26 },
+  { key: "COUNTDOWN_TIMER", label: "倒计时钟", description: "设置最长 60 分钟的可视化提醒", size: "small", tone: "timer", defaultRows: 16, minRows: 12, maxRows: 22 },
 ];
 
 const WIDGET_BY_KEY = new Map(TASK_DASHBOARD_WIDGETS.map((widget) => [widget.key, widget]));
+const GENERATED_WIDGET_PREVIEWS: Partial<Record<TaskDashboardWidgetKey, string>> = {
+  POSTCARDS: postcardStack,
+  COUNTDOWN_TIMER: spaceTimer,
+};
+
+function widgetColumnSpan(key: TaskDashboardWidgetKey) {
+  const size = WIDGET_BY_KEY.get(key)?.size;
+  return size === "large" || size === "wide" ? 8 : 4;
+}
 
 type DragSession = {
   key: TaskDashboardWidgetKey;
@@ -374,7 +387,7 @@ export function TaskDashboard({
       const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
       if (!key) continue;
       const rect = element.getBoundingClientRect();
-      const maxLane = WIDGET_BY_KEY.get(key)?.size === "large" ? 1 : 2;
+      const maxLane = widgetColumnSpan(key) === 8 ? 1 : 2;
       const lane = Math.max(0, Math.min(maxLane, Math.round((rect.left - gridRect.left) / step)));
       columns[key] = lane * 4;
     }
@@ -503,7 +516,7 @@ export function TaskDashboard({
       const gridGap = Number.parseFloat(gridStyles.columnGap) || 16;
       const trackWidth = (gridRect.width - gridGap * 2) / 3;
       const columnStep = trackWidth + gridGap;
-      const maxLane = WIDGET_BY_KEY.get(session.key)?.size === "large" ? 1 : 2;
+      const maxLane = widgetColumnSpan(session.key) === 8 ? 1 : 2;
       const targetLane = Math.max(
         0,
         Math.min(maxLane, Math.round((session.targetLeft - gridRect.left) / columnStep)),
@@ -526,7 +539,7 @@ export function TaskDashboard({
       if (!key) return false;
       const column = columnsRef.current[key];
       if (!supportsColumnPlacement || column === undefined) return true;
-      const width = WIDGET_BY_KEY.get(key)?.size === "large" ? 8 : 4;
+      const width = widgetColumnSpan(key);
       return column <= targetColumn && column + width > targetColumn;
     };
     let candidate = directCandidate && grid.contains(directCandidate) &&
@@ -669,9 +682,10 @@ export function TaskDashboard({
   function addWidget(key: TaskDashboardWidgetKey) {
     if (widgetsRef.current.includes(key)) return;
     const next = [...widgetsRef.current, key];
-    const laneCounts = [0, 1, 2].map((lane) => Object.values(columnsRef.current)
+    const candidateLanes = widgetColumnSpan(key) === 8 ? [0, 1] : [0, 1, 2];
+    const laneCounts = candidateLanes.map((lane) => Object.values(columnsRef.current)
       .filter((column) => column === lane * 4).length);
-    const lane = laneCounts.indexOf(Math.min(...laneCounts));
+    const lane = candidateLanes[laneCounts.indexOf(Math.min(...laneCounts))] ?? 0;
     const columns = { ...columnsRef.current, [key]: lane * 4 };
     columnsRef.current = columns;
     setDraftColumns(columns);
@@ -821,7 +835,11 @@ export function TaskDashboard({
               <div className="task-widget-library__grid">
                 {availableWidgets.map((widget) => (
                   <button className={`task-widget-library__item task-widget-library__item--${widget.tone}`} type="button" key={widget.key} onClick={() => addWidget(widget.key)}>
-                    <span className="task-widget-library__preview" aria-hidden="true"><i /><i /><i /></span>
+                    <span className="task-widget-library__preview" aria-hidden="true">
+                      {GENERATED_WIDGET_PREVIEWS[widget.key]
+                        ? <img src={GENERATED_WIDGET_PREVIEWS[widget.key]} alt="" />
+                        : <><i /><i /><i /></>}
+                    </span>
                     <span><strong>{widget.label}</strong><small>{widget.description}</small></span>
                     <b aria-hidden="true">+</b>
                   </button>

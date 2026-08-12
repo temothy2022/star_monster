@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { buildPerformanceDashboard } from "../domain/performance-metrics.js";
 import { hashSecret } from "../lib/crypto.js";
+import { decryptSecret, encryptSecret } from "../lib/secret-encryption.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import {
@@ -14,6 +15,7 @@ import {
 import { requireAdmin } from "../services/auth-service.js";
 import { writeAudit } from "../services/audit-service.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
+import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-service.js";
 
 const familySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -65,11 +67,113 @@ const performanceQuery = z.object({
   familyId: z.string().trim().min(1).optional(),
   childId: z.string().trim().min(1).optional(),
 });
+const aiConfigSchema = z.object({
+  apiKey: z.string().trim().min(10).max(512).optional(),
+  model: z.string().trim().min(1).max(100).regex(/^deepseek-[a-z0-9.-]+$/i),
+  enabled: z.boolean(),
+});
+const aiConnectionSchema = z.object({ ok: z.literal(true), message: z.string() });
 
 export async function registerSuperAdminRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ): Promise<void> {
+  app.get("/api/admin/ai/config", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const stored = await prisma.systemAiConfig.findUnique({
+      where: { id: "default" },
+      select: { provider: true, model: true, apiKeyLastFour: true, enabled: true, updatedAt: true },
+    });
+    return {
+      config: stored
+        ? { ...stored, configured: true }
+        : {
+            provider: "DEEPSEEK",
+            model: "deepseek-v4-flash",
+            apiKeyLastFour: null,
+            enabled: false,
+            updatedAt: null,
+            configured: false,
+          },
+    };
+  });
+
+  app.put("/api/admin/ai/config", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    const input = aiConfigSchema.parse(request.body);
+    const existing = await prisma.systemAiConfig.findUnique({ where: { id: "default" } });
+    if (!existing && !input.apiKey) {
+      throw new HttpError(400, "AI_KEY_REQUIRED", "首次配置必须填写 DeepSeek 密钥");
+    }
+    const encrypted = input.apiKey
+      ? encryptSecret(input.apiKey, config.AI_CONFIG_ENCRYPTION_KEY)
+      : null;
+    const stored = await prisma.$transaction(async (tx) => {
+      const saved = await tx.systemAiConfig.upsert({
+        where: { id: "default" },
+        create: {
+          id: "default",
+          model: input.model,
+          enabled: input.enabled,
+          encryptedApiKey: encrypted!.ciphertext,
+          encryptionIv: encrypted!.iv,
+          encryptionTag: encrypted!.tag,
+          apiKeyLastFour: input.apiKey!.slice(-4),
+          updatedByUserId: user.id,
+        },
+        update: {
+          model: input.model,
+          enabled: input.enabled,
+          updatedByUserId: user.id,
+          ...(encrypted
+            ? {
+                encryptedApiKey: encrypted.ciphertext,
+                encryptionIv: encrypted.iv,
+                encryptionTag: encrypted.tag,
+                apiKeyLastFour: input.apiKey!.slice(-4),
+              }
+            : {}),
+        },
+      });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        action: "AI_CONFIG_UPDATE",
+        resourceType: "SystemAiConfig",
+        resourceId: saved.id,
+        metadata: { model: input.model, enabled: input.enabled, keyReplaced: Boolean(input.apiKey) },
+        ipAddress: request.ip,
+      });
+      return saved;
+    });
+    return { config: { provider: stored.provider, model: stored.model, apiKeyLastFour: stored.apiKeyLastFour, enabled: stored.enabled, updatedAt: stored.updatedAt, configured: true } };
+  });
+
+  app.get("/api/admin/ai/models", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const stored = await prisma.systemAiConfig.findUnique({ where: { id: "default" } });
+    if (!stored) throw new HttpError(409, "AI_NOT_CONFIGURED", "请先保存 DeepSeek 密钥");
+    const apiKey = decryptSecret({ ciphertext: stored.encryptedApiKey, iv: stored.encryptionIv, tag: stored.encryptionTag }, config.AI_CONFIG_ENCRYPTION_KEY);
+    return { models: await listDeepSeekModels({ apiKey, config }) };
+  });
+
+  app.post("/api/admin/ai/config/test", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const stored = await prisma.systemAiConfig.findUnique({ where: { id: "default" } });
+    if (!stored?.enabled) throw new HttpError(409, "AI_NOT_CONFIGURED", "请先保存并启用 DeepSeek 密钥");
+    const apiKey = decryptSecret({ ciphertext: stored.encryptedApiKey, iv: stored.encryptionIv, tag: stored.encryptionTag }, config.AI_CONFIG_ENCRYPTION_KEY);
+    const result = await callDeepSeekJson({
+      apiKey,
+      model: stored.model,
+      config,
+      systemPrompt: "你是连接测试助手，只输出 JSON。",
+      userPayload: { instruction: "返回连接成功" },
+      outputSchema: aiConnectionSchema,
+      maxTokens: 80,
+    });
+    return { ...result.data, model: result.model };
+  });
+
   app.get("/api/admin/families", async (request, reply) => {
     await requireAdmin(request, reply, config);
     const families = await prisma.family.findMany({

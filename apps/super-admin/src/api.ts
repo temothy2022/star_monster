@@ -275,6 +275,15 @@ export type MinimaxConfig = {
   configured: boolean;
 };
 
+export type SystemAiConfig = {
+  provider: "DEEPSEEK";
+  model: string;
+  apiKeyLastFour: string | null;
+  enabled: boolean;
+  updatedAt: string | null;
+  configured: boolean;
+};
+
 export type MascotDialogue = {
   id: string;
   key: string;
@@ -415,6 +424,10 @@ export const staffApi = {
 };
 
 export const adminApi = {
+  aiConfig: () => api<{ config: SystemAiConfig }>("/api/admin/ai/config"),
+  saveAiConfig: (data: { apiKey?: string; model: string; enabled: boolean }) => api<{ config: SystemAiConfig }>("/api/admin/ai/config", { method: "PUT", body: JSON.stringify(data) }),
+  aiModels: () => api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/admin/ai/models"),
+  testAiConfig: () => api<{ ok: true; message: string; model: string }>("/api/admin/ai/config/test", { method: "POST" }),
   petGrowth: () => api<{ config: PetGrowthConfig; destinations: PetDestination[]; roomThemes: PetRoomTheme[] }>("/api/admin/pet-growth"),
   updatePetGrowthConfig: (data: Omit<PetGrowthConfig, "id" | "updatedAt">) => api<{ config: PetGrowthConfig }>("/api/admin/pet-growth/config", { method: "PUT", body: JSON.stringify(data) }),
   createPetRoomTheme: (input: { name: string; description: string; priceStars: number; mascotMotion: PetRoomMascotMotion; image: File }) => {

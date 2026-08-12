@@ -12,6 +12,8 @@ export const TASK_DASHBOARD_WIDGET_KEYS = [
   "NOTIFICATIONS",
   "HANZI_REVIEW",
   "POEM_REVIEW",
+  "POSTCARDS",
+  "COUNTDOWN_TIMER",
 ] as const;
 
 export type TaskDashboardWidgetKey = typeof TASK_DASHBOARD_WIDGET_KEYS[number];
@@ -40,6 +42,8 @@ export const TASK_DASHBOARD_WIDGET_ROW_LIMITS: Record<
   NOTIFICATIONS: { min: 8, max: 18 },
   HANZI_REVIEW: { min: 11, max: 20 },
   POEM_REVIEW: { min: 12, max: 24 },
+  POSTCARDS: { min: 13, max: 26 },
+  COUNTDOWN_TIMER: { min: 12, max: 22 },
 };
 
 export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
@@ -49,6 +53,8 @@ export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
     "BALANCE",
     "STREAK",
     "NOTIFICATIONS",
+    "POSTCARDS",
+    "COUNTDOWN_TIMER",
     "HANZI_REVIEW",
     "POEM_REVIEW",
     "MASCOT",
@@ -98,6 +104,13 @@ export const taskDashboardLayoutSchema = z.object({
       code: "custom",
       message: "任务列表不能超出桌面网格",
       path: ["columns", "TASKS"],
+    });
+  }
+  if (layout.columns?.POSTCARDS === 8) {
+    context.addIssue({
+      code: "custom",
+      message: "旅行明信片不能超出桌面网格",
+      path: ["columns", "POSTCARDS"],
     });
   }
   validateWidgetRows(layout, context);
