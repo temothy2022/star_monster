@@ -431,7 +431,6 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
                   <button type="button" className="packing-category__toggle" aria-expanded={open} onClick={() => toggleCategory(category.id)}>
                     <span className="packing-category__mark" aria-hidden="true">{category.name.slice(0, 1)}</span>
                     <span className="packing-category__title"><strong>{category.name}</strong><small>{categoryPacked}/{category.items.length} 已装{categoryShortage > 0 ? ` · ${categoryShortage} 待补` : ""}</small></span>
-                    <span className="packing-category__chevron" aria-hidden="true">⌄</span>
                   </button>
                   <button type="button" className="packing-category__more" aria-label={`管理${category.name}`} onClick={() => setCategoryMenuId(category.id)}>•••</button>
                 </div>

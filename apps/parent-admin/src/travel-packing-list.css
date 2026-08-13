@@ -151,7 +151,7 @@
 .packing-category--tint-2 .packing-category__header { background: var(--packing-peach-soft); }
 .packing-category--tint-3 .packing-category__header { background: var(--packing-green-soft); }
 
-.packing-category__toggle { display: grid; min-width: 0; height: 100%; grid-template-columns: 42px minmax(0, 1fr) 20px; align-items: center; gap: 11px; padding: 11px 6px 11px 13px; border: 0; color: var(--packing-ink); background: transparent; text-align: left; }
+.packing-category__toggle { display: grid; min-width: 0; height: 100%; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 11px; padding: 11px 6px 11px 13px; border: 0; color: var(--packing-ink); background: transparent; text-align: left; }
 .packing-category__mark { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 14px; color: #675fc4; background: rgba(255, 255, 255, .74); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6); font-size: 17px; font-weight: 900; }
 .packing-category--tint-1 .packing-category__mark { color: #39829a; }
 .packing-category--tint-2 .packing-category__mark { color: #ba7353; }
@@ -159,8 +159,6 @@
 .packing-category__title { min-width: 0; }
 .packing-category__title strong { display: block; overflow: hidden; font-size: 16px; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
 .packing-category__title small { display: block; overflow: hidden; margin-top: 4px; color: #777b8e; font-size: 10px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
-.packing-category__chevron { color: #797d90; font-size: 18px; line-height: 1; transition: transform 160ms ease; }
-.packing-category.is-open .packing-category__chevron { transform: rotate(180deg); }
 .packing-category__more { width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; color: #6d7082; background: rgba(255, 255, 255, .64); font-size: 14px; font-weight: 800; letter-spacing: 1px; }
 .packing-category__body { padding: 3px 13px 6px; }
 
@@ -268,12 +266,11 @@
   .packing-overview { gap: 7px; }
   .packing-overview > div,
   .packing-overview > button { padding: 12px; }
-  .packing-category__toggle { grid-template-columns: 38px minmax(0, 1fr) 18px; gap: 9px; padding-left: 11px; }
+  .packing-category__toggle { grid-template-columns: 38px minmax(0, 1fr); gap: 9px; padding-left: 11px; }
   .packing-category__mark { width: 38px; height: 38px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .packing-hero__progress span,
-  .packing-category__chevron { transition: none; }
   .packing-loading-dot { animation-duration: 1.8s; }
 }
