@@ -111,12 +111,32 @@ if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.co
     sudo sed -i -E "s/^([[:space:]]*)client_max_body_size[[:space:]]+[^;]+;/\\1client_max_body_size $MAX_UPLOAD_SIZE;/" "$NGINX_SITE_CONFIG"
   fi
   # The packing list used to live inside the parent admin hash route. Remove
-  # those legacy redirects before installing the standalone /packing app so a
-  # release cannot leave duplicate exact-match locations in Nginx.
+  # every legacy or previously generated /packing location before installing
+  # one canonical standalone app block, so repeated releases stay idempotent.
   if [[ -f "$NGINX_SITE_CONFIG" ]]; then
-    sudo sed -i -E '\|^[[:space:]]*location = /packing/? \{ return 301 /parent/#packing; \}[[:space:]]*$|d' "$NGINX_SITE_CONFIG"
+    tmp_nginx_site="$(mktemp)"
+    sudo awk '
+      /^[[:space:]]*location[[:space:]]+(=|\^~)[[:space:]]+\/packing\/?([[:space:]]|\/)/ {
+        skip = 1
+        depth = 0
+        while (match($0, /\{/)) { depth++; $0 = substr($0, RSTART + RLENGTH) }
+        while (match($0, /\}/)) { depth--; $0 = substr($0, RSTART + RLENGTH) }
+        if (depth <= 0) skip = 0
+        next
+      }
+      skip {
+        open = gsub(/\{/, "{", $0)
+        close = gsub(/\}/, "}", $0)
+        depth += open - close
+        if (depth <= 0) skip = 0
+        next
+      }
+      { print }
+    ' "$NGINX_SITE_CONFIG" > "$tmp_nginx_site"
+    sudo install -m 644 "$tmp_nginx_site" "$NGINX_SITE_CONFIG"
+    rm -f "$tmp_nginx_site"
   fi
-  if [[ -f "$NGINX_SITE_CONFIG" ]] && ! sudo grep -q 'location \^~ /packing/' "$NGINX_SITE_CONFIG"; then
+  if [[ -f "$NGINX_SITE_CONFIG" ]]; then
     tmp_nginx_site="$(mktemp)"
     sudo awk -v packing_web_root="$PACKING_WEB_ROOT" '
       /^[[:space:]]*location[[:space:]]+\/api\/[[:space:]]*\{/ && !packing_inserted {
