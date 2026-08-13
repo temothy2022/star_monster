@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ApiError,
+  createTravelPackingApi,
   parentApi,
   type TravelPackingItem,
   type TravelPackingList as PackingList,
@@ -11,6 +12,7 @@ import "./travel-packing-list.css";
 type Filter = "all" | "unpacked" | "shortage" | "packed";
 type PackingLocation = TravelPackingItem["location"];
 type PageSheet = "menu" | "rename" | "category" | null;
+type ShareResult = { url: string; expiresAt: string };
 
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "全部" },
@@ -25,8 +27,17 @@ const LOCATIONS: Array<{ value: PackingLocation; label: string }> = [
 ];
 function isMedicineCategory(name: string | undefined) { return name?.trim() === "药品"; }
 function isExpired(date: string | null | undefined) { return Boolean(date && date < new Date().toISOString().slice(0, 10)); }
+function formatShareExpiry(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
 
-export function TravelPackingList({ onBack }: { onBack: () => void }) {
+export function TravelPackingList({ shareToken }: { shareToken?: string }) {
+  const packingApi = useMemo(() => createTravelPackingApi(shareToken), [shareToken]);
   const [list, setList] = useState<PackingList | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -45,6 +56,10 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [shareDays, setShareDays] = useState(7);
+  const [shareResult, setShareResult] = useState<ShareResult | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [tripTitle, setTripTitle] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [itemName, setItemName] = useState("");
@@ -55,7 +70,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     let cancelled = false;
-    void parentApi.travelPackingList()
+    void packingApi.list()
       .then(({ list: value }) => {
         if (cancelled) return;
         setList(value);
@@ -65,7 +80,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "行李清单暂时无法读取");
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [packingApi]);
 
   const allItems = useMemo(
     () => list?.categories.flatMap((category) => category.items) ?? [],
@@ -98,7 +113,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
       })),
     });
     try {
-      const result = await parentApi.updateTravelPackingItem(id, data);
+      const result = await packingApi.updateItem(id, data);
       setList(result.list);
       setError("");
     } catch (reason) {
@@ -164,7 +179,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     setFilter("all");
     setError("");
     try {
-      const result = await parentApi.addTravelPackingItem(categoryId, label, quantity, location, expirationDate);
+      const result = await packingApi.addItem(categoryId, label, quantity, location, expirationDate);
       setList(result.list);
     } catch (reason) {
       setList((current) => current ? {
@@ -219,7 +234,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
       closePageSheet();
       setError("");
       try {
-        const result = await parentApi.addTravelPackingCategory(name);
+        const result = await packingApi.addCategory(name);
         setList(result.list);
       } catch (reason) {
         setList((current) => current ? { ...current, categories: current.categories.filter((category) => category.id !== optimisticId) } : current);
@@ -237,8 +252,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     try {
       const previousIds = new Set(list?.categories.map((category) => category.id));
       const result = editingCategoryId
-        ? await parentApi.renameTravelPackingCategory(editingCategoryId, name)
-        : await parentApi.addTravelPackingCategory(name);
+        ? await packingApi.renameCategory(editingCategoryId, name)
+        : await packingApi.addCategory(name);
       setList(result.list);
       const created = result.list.categories.find((category) => !previousIds.has(category.id));
       if (created) setExpandedIds((current) => new Set(current).add(created.id));
@@ -261,7 +276,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     if (!deletingCategoryId) return;
     setSubmitting(true);
     try {
-      const result = await parentApi.deleteTravelPackingCategory(deletingCategoryId);
+      const result = await packingApi.deleteCategory(deletingCategoryId);
       setList(result.list);
       setExpandedIds((current) => {
         const next = new Set(current);
@@ -289,7 +304,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     if (!editingItemId || !itemName.trim()) return;
     setSubmitting(true);
     try {
-      const result = await parentApi.updateTravelPackingItem(editingItemId, {
+      const result = await packingApi.updateItem(editingItemId, {
         label: itemName.trim(),
         quantity: itemQuantity,
         location: itemLocation,
@@ -310,7 +325,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     if (!deletingItemId) return;
     setSubmitting(true);
     try {
-      const result = await parentApi.deleteTravelPackingItem(deletingItemId);
+      const result = await packingApi.deleteItem(deletingItemId);
       setList(result.list);
       setDeletingItemId(null);
       setEditingItemId(null);
@@ -326,7 +341,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     if (!tripTitle.trim()) return;
     setSubmitting(true);
     try {
-      const result = await parentApi.renameTravelPackingList(tripTitle.trim());
+      const result = await packingApi.renameList(tripTitle.trim());
       setList(result.list);
       closePageSheet();
     } catch (reason) {
@@ -339,7 +354,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   async function resetTrip() {
     setSubmitting(true);
     try {
-      const result = await parentApi.resetTravelPackingList();
+      const result = await packingApi.resetList();
       setList(result.list);
       setFilter("all");
       setShowResetConfirm(false);
@@ -359,11 +374,51 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     });
   }
 
+  function openShare() {
+    setPageSheet(null);
+    setShareResult(null);
+    setCopyStatus("idle");
+    setShowShareSheet(true);
+  }
+
+  async function createShare() {
+    setSubmitting(true);
+    try {
+      const result = await parentApi.createTravelPackingShare(shareDays);
+      const url = `${window.location.origin}${window.location.pathname}#packing-share/${result.token}`;
+      setShareResult({ url, expiresAt: result.expiresAt });
+      setCopyStatus("idle");
+      setError("");
+    } catch (reason) {
+      message(reason);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function copyShareUrl() {
+    if (!shareResult) return;
+    try {
+      await navigator.clipboard.writeText(shareResult.url);
+    } catch {
+      const field = document.createElement("textarea");
+      field.value = shareResult.url;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      document.execCommand("copy");
+      field.remove();
+    }
+    setCopyStatus("copied");
+  }
+
   if (!list) {
     return (
       <main className="packing-page packing-page--centered">
         {error ? (
-          <><strong>清单没有打开</strong><p>{error}</p><button type="button" onClick={() => window.location.reload()}>重新加载</button></>
+          <><strong>{shareToken ? "分享链接无法打开" : "清单没有打开"}</strong><p>{error}</p><button type="button" onClick={() => window.location.reload()}>重新加载</button></>
         ) : (
           <><span className="packing-loading-dot" aria-hidden="true" /><p>正在整理你的行李清单…</p></>
         )}
@@ -375,7 +430,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     <main className="packing-page">
       <section className="packing-shell" aria-label="旅行行李清单">
         <header className="packing-appbar">
-          <button type="button" className="packing-round-button" aria-label="返回家长端" onClick={onBack}>‹</button>
+          <span className="packing-appbar__spacer" aria-hidden="true" />
           <strong>行李清单</strong>
           <button type="button" className="packing-round-button" aria-label="更多清单操作" onClick={() => setPageSheet("menu")}>•••</button>
         </header>
@@ -485,7 +540,44 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
             <button type="button" onClick={() => { setTripTitle(list.title); setPageSheet("rename"); }}><span>修改旅行名称</span><small>更换这次行程的标题</small></button>
             <button type="button" onClick={openAddCategory}><span>添加分类</span><small>建立一个新的物品大类</small></button>
             <button type="button" onClick={() => { setPageSheet(null); setShowResetConfirm(true); }}><span>开始新一趟</span><small>保留清单，只清空已装状态</small></button>
+            {!shareToken && <button type="button" onClick={openShare}><span>分享清单</span><small>生成无需登录的临时协作链接</small></button>}
             <button type="button" className="packing-action-sheet__cancel" onClick={closePageSheet}>完成</button>
+          </section>
+        </div>
+      )}
+
+      {showShareSheet && !shareToken && (
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => setShowShareSheet(false)}>
+          <section className="packing-sheet packing-share-sheet" role="dialog" aria-modal="true" aria-labelledby="packing-share-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="packing-sheet__handle" aria-hidden="true" />
+            <h2 id="packing-share-title">分享清单</h2>
+            <p>拿到链接的人在有效期内无需登录，可以和你一起整理这份清单。</p>
+            <span className="packing-share-sheet__label">链接有效期</span>
+            <div className="packing-share-duration" role="radiogroup" aria-label="分享链接有效期">
+              {[1, 7, 30].map((days) => (
+                <button type="button" role="radio" aria-checked={shareDays === days} className={shareDays === days ? "is-selected" : ""} onClick={() => { setShareDays(days); setShareResult(null); setCopyStatus("idle"); }} key={days}>{days} 天</button>
+              ))}
+            </div>
+            {shareResult ? (
+              <div className="packing-share-result">
+                <span>分享网址</span>
+                <div className="packing-share-url">
+                  <p>{shareResult.url}</p>
+                  <button type="button" aria-label="复制分享网址" onClick={() => void copyShareUrl()}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>
+                  </button>
+                </div>
+                <small>{copyStatus === "copied" ? "网址已复制" : `有效至 ${formatShareExpiry(shareResult.expiresAt)}`}</small>
+              </div>
+            ) : (
+              <div className="packing-share-note">链接到期后会自动失效，原清单和已有数据不受影响。</div>
+            )}
+            <div className="packing-sheet__actions">
+              <button type="button" onClick={() => setShowShareSheet(false)}>关闭</button>
+              {shareResult
+                ? <button type="button" className="is-primary" onClick={() => void copyShareUrl()}>{copyStatus === "copied" ? "已复制" : "复制网址"}</button>
+                : <button type="button" className="is-primary" disabled={submitting} onClick={() => void createShare()}>{submitting ? "正在生成…" : "生成链接"}</button>}
+            </div>
           </section>
         </div>
       )}

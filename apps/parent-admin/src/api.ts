@@ -34,6 +34,11 @@ export type TravelPackingList = {
   categories: TravelPackingCategory[];
 };
 
+export type TravelPackingShare = {
+  token: string;
+  expiresAt: string;
+};
+
 export type Child = {
   id: string;
   nickname: string | null;
@@ -713,6 +718,51 @@ export const staffApi = {
   logout: () => api<{ ok: true }>("/api/parent/auth/logout", { method: "POST" }),
 };
 
+export function createTravelPackingApi(shareToken?: string) {
+  const base = shareToken
+    ? `/api/public/travel-packing/${encodeURIComponent(shareToken)}`
+    : "/api/parent/travel-packing-list";
+  return {
+    list: () => api<{ list: TravelPackingList }>(base),
+    renameList: (title: string) => api<{ list: TravelPackingList }>(base, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+    addCategory: (name: string) => api<{ list: TravelPackingList }>(`${base}/categories`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+    renameCategory: (id: string, name: string) => api<{ list: TravelPackingList }>(`${base}/categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+    deleteCategory: (id: string) => api<{ list: TravelPackingList }>(`${base}/categories/${id}`, {
+      method: "DELETE",
+    }),
+    addItem: (
+      categoryId: string,
+      label: string,
+      quantity: number,
+      location: TravelPackingItem["location"] = "SUITCASE",
+      expirationDate: string | null = null,
+    ) => api<{ list: TravelPackingList }>(`${base}/categories/${categoryId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ label, quantity, location, expirationDate }),
+    }),
+    updateItem: (
+      id: string,
+      data: Partial<Pick<TravelPackingItem, "label" | "quantity" | "packed" | "location" | "expirationDate">>,
+    ) => api<{ list: TravelPackingList }>(`${base}/items/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+    deleteItem: (id: string) => api<{ list: TravelPackingList }>(`${base}/items/${id}`, {
+      method: "DELETE",
+    }),
+    resetList: () => api<{ list: TravelPackingList }>(`${base}/reset`, { method: "POST" }),
+  };
+}
+
 export const parentApi = {
   travelPackingList: () =>
     api<{ list: TravelPackingList }>("/api/parent/travel-packing-list"),
@@ -754,6 +804,11 @@ export const parentApi = {
     }),
   resetTravelPackingList: () =>
     api<{ list: TravelPackingList }>("/api/parent/travel-packing-list/reset", { method: "POST" }),
+  createTravelPackingShare: (expiresInDays: number) =>
+    api<TravelPackingShare>("/api/parent/travel-packing-list/shares", {
+      method: "POST",
+      body: JSON.stringify({ expiresInDays }),
+    }),
   petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
   updatePetGrowthSettings: (childId: string, data: {
     travelEnabled: boolean;

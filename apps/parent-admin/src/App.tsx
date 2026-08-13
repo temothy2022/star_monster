@@ -156,6 +156,16 @@ function sectionFromLocation(): Section {
   return (Object.keys(SECTION_LABELS) as Section[]).includes(candidate) ? candidate : "overview";
 }
 
+function packingShareTokenFromLocation(): string | null {
+  const match = window.location.hash.match(/^#packing-share\/([^/?#]+)$/);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+}
+
 const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
   TASK_REWARD: "任务奖励",
   TASK_REWARD_REVERSAL: "任务奖励回退",
@@ -2525,14 +2535,17 @@ export function App() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sharedPackingToken, setSharedPackingToken] = useState<string | null>(() => packingShareTokenFromLocation());
 
   useEffect(() => {
-    document.title = user === null
+    document.title = sharedPackingToken
+      ? "旅行行李清单"
+      : user === null
       ? "星宠-家长登录"
       : user === undefined
         ? "星宠-家长管理"
         : `星宠-${SECTION_LABELS[section]}`;
-  }, [section, user]);
+  }, [section, sharedPackingToken, user]);
 
   async function loadChildren(preferredId?: string) {
     const result = await parentApi.children();
@@ -2546,6 +2559,10 @@ export function App() {
   }
 
   useEffect(() => {
+    if (sharedPackingToken) {
+      setUser(null);
+      return;
+    }
     void staffApi.me()
       .then(({ user: current }) => {
         if (current.role !== "PARENT") throw new Error("账号角色不匹配");
@@ -2553,7 +2570,7 @@ export function App() {
         return loadChildren();
       })
       .catch(() => setUser(null));
-  }, []);
+  }, [sharedPackingToken]);
 
   useEffect(() => {
     let timer: number | undefined;
@@ -2572,7 +2589,10 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const handleHashChange = () => setSection(sectionFromLocation());
+    const handleHashChange = () => {
+      setSection(sectionFromLocation());
+      setSharedPackingToken(packingShareTokenFromLocation());
+    };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
@@ -2616,9 +2636,10 @@ export function App() {
   const activeGroup = NAV_GROUPS.find((group) => group.items.some((item) => item.key === section));
   const mobilePrimarySection = REWARD_SECTIONS.includes(section) ? "wishes" : section;
 
+  if (sharedPackingToken) return <TravelPackingList shareToken={sharedPackingToken} />;
   if (user === undefined) return <main className="admin-loading">正在进入家长端…</main>;
   if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); void loadChildren(); }} />;
-  if (section === "packing") return <TravelPackingList onBack={() => selectSection("overview")} />;
+  if (section === "packing") return <TravelPackingList />;
 
   return (
     <div className="admin-app">
