@@ -77,7 +77,7 @@ export async function registerChildPetRoutes(app: FastifyInstance, config: AppCo
 
   app.get("/api/child/pet/postcards", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    return getPetPostcards(child.id);
+    return getPetPostcards(child.id, config);
   });
 
   app.post("/api/child/pet/feed", async (request, reply) => {

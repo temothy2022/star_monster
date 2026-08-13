@@ -1,5 +1,6 @@
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
+import { recordAiModelCall } from "./ai-model-call-service.js";
 
 const IMAGE_ENDPOINT = "https://api.minimaxi.com/v1/image_generation";
 const SPEECH_ENDPOINT = "https://api.minimaxi.com/v1/t2a_v2";
@@ -59,9 +60,11 @@ async function postMiniMax(
   apiKey: string,
   payload: Record<string, unknown>,
   config: AppConfig,
+  usage: { operation: string; model: string },
 ) {
   let lastError: MiniMaxRequestError | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const startedAt = Date.now();
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -75,12 +78,30 @@ async function postMiniMax(
       const body = (await response.json().catch(() => null)) as MiniMaxResponse | null;
       const providerCode = body?.base_resp?.status_code ?? null;
       if (!body || !response.ok || providerCode !== 0) {
+        recordAiModelCall({
+          provider: "MINIMAX",
+          operation: usage.operation,
+          model: usage.model,
+          status: "ERROR",
+          startedAt,
+          httpStatus: response.status,
+          providerCode,
+        });
         throw new MiniMaxRequestError(
           body?.base_resp?.status_msg || `HTTP ${response.status}`,
           providerCode,
           response.status,
         );
       }
+      recordAiModelCall({
+        provider: "MINIMAX",
+        operation: usage.operation,
+        model: usage.model,
+        status: "SUCCESS",
+        startedAt,
+        httpStatus: response.status,
+        providerCode,
+      });
       return body;
     } catch (error) {
       if (error instanceof MiniMaxRequestError) {
@@ -94,6 +115,13 @@ async function postMiniMax(
           break;
         }
       } else {
+        recordAiModelCall({
+          provider: "MINIMAX",
+          operation: usage.operation,
+          model: usage.model,
+          status: "ERROR",
+          startedAt,
+        });
         lastError = new MiniMaxRequestError(
           error instanceof Error ? error.message : "network error",
           null,
@@ -115,6 +143,7 @@ export async function generateMiniMaxImage(input: {
   prompt: string;
   safePrompt?: string;
   config: AppConfig;
+  operation?: string;
 }) {
   const payload = (prompt: string) => ({
     model: "image-01",
@@ -131,6 +160,7 @@ export async function generateMiniMaxImage(input: {
       input.apiKey,
       payload(input.prompt),
       input.config,
+      { operation: input.operation ?? "image-generation", model: "image-01" },
     );
   } catch (error) {
     if (
@@ -143,6 +173,7 @@ export async function generateMiniMaxImage(input: {
         input.apiKey,
         payload(input.safePrompt),
         input.config,
+        { operation: input.operation ?? "image-generation", model: "image-01" },
       );
     } else {
       throw error;
@@ -163,6 +194,7 @@ export async function generateMiniMaxSpeech(input: {
   apiKey: string;
   text: string;
   config: AppConfig;
+  operation?: string;
 }) {
   const response = await postMiniMax(
     SPEECH_ENDPOINT,
@@ -190,6 +222,7 @@ export async function generateMiniMaxSpeech(input: {
       subtitle_enable: false,
     },
     input.config,
+    { operation: input.operation ?? "speech-generation", model: "speech-2.8-turbo" },
   );
   const encoded = response.data?.audio;
   if (!encoded) {

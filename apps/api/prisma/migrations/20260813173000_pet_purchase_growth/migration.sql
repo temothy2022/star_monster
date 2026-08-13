@@ -1,0 +1,2 @@
+ALTER TABLE "PetGrowthConfig"
+ADD COLUMN "roomThemeExperience" INTEGER NOT NULL DEFAULT 18;

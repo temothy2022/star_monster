@@ -5,11 +5,13 @@ import {
   petGrowthStageForLevel,
   petLevelFromExperience,
   petManualRedPacketGrantPlan,
+  pendingPetTripExperience,
   parsePetRoomAmbience,
   petRedPacketGrantPlan,
   petWasteCooldownUntil,
   petWasteSchedulePlan,
   settledPetStatus,
+  stablePostcardSample,
 } from "../src/services/pet-growth-service.js";
 
 describe("pet growth rules", () => {
@@ -161,5 +163,31 @@ describe("pet growth rules", () => {
       { imageUrl: "/clouds.webp", motion: "DRIFT", placement: "TOP" },
     ]);
     expect(parsePetRoomAmbience("not-an-array")).toEqual([]);
+  });
+
+  it("selects only five stable daily postcards without changing the source list", () => {
+    const postcards = Array.from({ length: 12 }, (_, index) => ({
+      id: `postcard-${index + 1}`,
+    }));
+    const first = stablePostcardSample(postcards, "child-1:2026-08-13");
+    const second = stablePostcardSample(postcards, "child-1:2026-08-13");
+
+    expect(first).toHaveLength(5);
+    expect(second).toEqual(first);
+    expect(new Set(first.map((item) => item.id))).toHaveLength(5);
+    expect(postcards.map((item) => item.id)).toEqual(
+      Array.from({ length: 12 }, (_, index) => `postcard-${index + 1}`),
+    );
+  });
+
+  it("awards travel growth at departure and does not add it again on reveal", () => {
+    expect(pendingPetTripExperience({
+      experienceRewardSnapshot: 24,
+      experienceAwarded: 24,
+    })).toBe(0);
+    expect(pendingPetTripExperience({
+      experienceRewardSnapshot: 24,
+      experienceAwarded: 0,
+    })).toBe(24);
   });
 });

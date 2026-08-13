@@ -241,6 +241,49 @@ async function grantLevelUpRedPackets(
   await client.petRedPacket.createMany({ data: packets, skipDuplicates: true });
 }
 
+async function addPetExperience(
+  client: Prisma.TransactionClient,
+  profile: Awaited<ReturnType<typeof ensureProfile>>,
+  experienceAdded: number,
+) {
+  if (experienceAdded <= 0) return profile;
+  const experience = profile.experience + experienceAdded;
+  const level = petLevelFromExperience(experience);
+  await grantLevelUpRedPackets(client, profile, level);
+  return client.petGrowthProfile.update({
+    where: { id: profile.id },
+    data: { experience, level, growthStage: petGrowthStageForLevel(level) },
+  });
+}
+
+function stableHash(value: string) {
+  let hash = 2_166_136_261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
+}
+
+export function stablePostcardSample<T extends { id: string }>(
+  items: T[],
+  seed: string,
+  limit = 5,
+) {
+  return [...items]
+    .sort((left, right) => stableHash(`${seed}:${left.id}`) - stableHash(`${seed}:${right.id}`))
+    .slice(0, Math.max(0, limit));
+}
+
+export function pendingPetTripExperience(input: {
+  experienceRewardSnapshot: number;
+  experienceAwarded: number;
+}) {
+  return input.experienceAwarded > 0
+    ? 0
+    : Math.max(0, input.experienceRewardSnapshot);
+}
+
 export function petWasteSchedulePlan(input: {
   childId: string;
   profileId: string;
@@ -465,13 +508,16 @@ export async function getPetNotificationSummary(
   };
 }
 
-export async function getPetPostcards(childId: string) {
+export async function getPetPostcards(childId: string, appConfig: AppConfig, now = new Date()) {
   const postcards = await prisma.petTrip.findMany({
     where: { childId, status: "REVEALED" },
     orderBy: { revealedAt: "desc" },
     take: 40,
   });
-  return { postcards: postcards.map(serializeTrip) };
+  const dateSeed = businessDateAt(now, appConfig.APP_TIME_ZONE).toISOString().slice(0, 10);
+  return {
+    postcards: stablePostcardSample(postcards, `${childId}:${dateSeed}`).map(serializeTrip),
+  };
 }
 
 export async function getPetGrowthState(childId: string, appConfig: AppConfig) {
@@ -727,7 +773,7 @@ export async function purchasePetRoomTheme(input: {
     });
     if (!theme) throw new HttpError(404, "PET_ROOM_THEME_NOT_FOUND", "这个小屋背景暂时不可用");
     const priceStars = await getRoomThemePrice(tx, child.familyId, theme.id, theme.priceStars);
-    const profile = await ensureProfile(tx, input.childId);
+    const { profile, config } = await settleProfile(tx, input.childId, now);
     if (priceStars === 0) {
       await tx.petGrowthProfile.update({
         where: { id: profile.id },
@@ -773,6 +819,7 @@ export async function purchasePetRoomTheme(input: {
       where: { id: profile.id },
       data: { equippedRoomThemeId: theme.id },
     });
+    await addPetExperience(tx, profile, config.roomThemeExperience);
     await tx.starLedger.create({
       data: {
         childId: input.childId,
@@ -871,19 +918,12 @@ export async function careForPet(input: {
       config: input.appConfig,
     });
     const after = Math.min(MAX_STATUS, before + restore);
-    const experience = profile.experience + experienceAdded;
-    const level = petLevelFromExperience(experience);
-    await grantLevelUpRedPackets(tx, profile, level);
-    const updatedProfile = await tx.petGrowthProfile.update({
-      where: { id: profile.id },
-      data: {
-        ...(isFeed
-          ? { satiety: after, satietySettledAt: now }
-          : { hydration: after, hydrationSettledAt: now }),
-        experience,
-        level,
-        growthStage: petGrowthStageForLevel(level),
-      },
+    const updatedProfile = await addPetExperience(tx, profile, experienceAdded);
+    await tx.petGrowthProfile.update({
+      where: { id: updatedProfile.id },
+      data: isFeed
+        ? { satiety: after, satietySettledAt: now }
+        : { hydration: after, hydrationSettledAt: now },
     });
     const action = await tx.petCareAction.create({
       data: {
@@ -1084,11 +1124,13 @@ export async function startPetTrip(input: {
         audioUrlSnapshot: destination.audioUrl,
         costStars: tripConfig.costStars,
         experienceRewardSnapshot: tripConfig.experience,
+        experienceAwarded: tripConfig.experience,
         departedAt: now,
         returnsAt,
         idempotencyKey: input.idempotencyKey,
       },
     });
+    await addPetExperience(tx, profile, tripConfig.experience);
     const updatedChild = await tx.childProfile.update({
       where: { id: input.childId },
       data: { starBalance: { decrement: tripConfig.costStars } },
@@ -1125,20 +1167,14 @@ export async function revealPetTrip(childId: string, tripId: string, appConfig: 
     if (trip.status === "TRAVELING") throw new HttpError(409, "PET_TRIP_NOT_RETURNED", "星宠还在旅行中");
     if (trip.status !== "RETURNED") throw new HttpError(409, "PET_TRIP_UNAVAILABLE", "这次旅行不能领取");
     const profile = await ensureProfile(tx, childId);
-    const experienceAdded = trip.experienceRewardSnapshot;
-    const experience = profile.experience + experienceAdded;
-    const level = petLevelFromExperience(experience);
-    await grantLevelUpRedPackets(tx, profile, level);
-    await tx.petGrowthProfile.update({
-      where: { id: profile.id },
-      data: { experience, level, growthStage: petGrowthStageForLevel(level) },
-    });
+    const experienceAdded = pendingPetTripExperience(trip);
+    await addPetExperience(tx, profile, experienceAdded);
     await tx.petTrip.update({
       where: { id: trip.id },
       data: {
         status: "REVEALED",
         revealedAt: now,
-        experienceAwarded: experienceAdded,
+        experienceAwarded: trip.experienceAwarded + experienceAdded,
       },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });

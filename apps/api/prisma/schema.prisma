@@ -655,6 +655,7 @@ model PetTrip {
 
 model PetGrowthConfig {
   id                    String   @id @default("global")
+  roomThemeExperience   Int      @default(18)
   feedCostStars         Int      @default(2)
   feedRestore           Int      @default(28)
   feedExperience        Int      @default(6)
@@ -834,6 +835,25 @@ model SystemMinimaxConfig {
   updatedByUserId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model AiModelCall {
+  id               String   @id @default(cuid())
+  provider         String
+  operation        String
+  model            String
+  status           String
+  httpStatus       Int?
+  providerCode     Int?
+  durationMs       Int
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  createdAt        DateTime @default(now())
+
+  @@index([provider, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
 }
 
 model MascotDialogue {

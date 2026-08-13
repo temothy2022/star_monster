@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
+import { buildAiModelUsageDashboard } from "../domain/ai-model-usage.js";
 import { buildPerformanceDashboard } from "../domain/performance-metrics.js";
 import { hashSecret } from "../lib/crypto.js";
 import { decryptSecret, encryptSecret } from "../lib/secret-encryption.js";
@@ -70,6 +71,9 @@ const performanceQuery = z.object({
   days: z.coerce.number().int().min(1).max(30).default(7),
   familyId: z.string().trim().min(1).optional(),
   childId: z.string().trim().min(1).optional(),
+});
+const aiUsageQuery = z.object({
+  days: z.coerce.number().int().min(1).max(90).default(30),
 });
 const aiConfigSchema = z.object({
   apiKey: z.string().trim().min(10).max(512).optional(),
@@ -752,6 +756,30 @@ export async function registerSuperAdminRoutes(
         redemptionCounts.map((row) => [row.status, row._count._all]),
       ),
     };
+  });
+
+  app.get("/api/admin/ai-usage", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const { days } = aiUsageQuery.parse(request.query);
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
+    const records = await prisma.aiModelCall.findMany({
+      where: { createdAt: { gte: from } },
+      orderBy: { createdAt: "asc" },
+      take: 100_001,
+      select: {
+        provider: true,
+        operation: true,
+        model: true,
+        status: true,
+        durationMs: true,
+        promptTokens: true,
+        completionTokens: true,
+        totalTokens: true,
+        createdAt: true,
+      },
+    });
+    const dashboard = buildAiModelUsageDashboard(records.slice(0, 100_000), days, new Date(), config.APP_TIME_ZONE);
+    return { ...dashboard, truncated: records.length > 100_000 };
   });
 
   app.get("/api/admin/performance", async (request, reply) => {

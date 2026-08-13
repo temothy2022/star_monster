@@ -110,6 +110,49 @@ export type Metrics = {
   redemptions: Record<string, number>;
 };
 
+export type AiModelUsageDashboard = {
+  days: number;
+  collectedFrom: string | null;
+  collectedTo: string | null;
+  truncated: boolean;
+  totals: {
+    calls: number;
+    success: number;
+    failed: number;
+    totalTokens: number;
+    successRate: number | null;
+  };
+  providers: Array<{
+    provider: string;
+    calls: number;
+    success: number;
+    failed: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    averageDurationMs: number | null;
+  }>;
+  trend: Array<{
+    date: string;
+    calls: number;
+    success: number;
+    failed: number;
+    deepseek: number;
+    minimax: number;
+  }>;
+  operations: Array<{
+    provider: string;
+    operation: string;
+    model: string;
+    calls: number;
+    success: number;
+    failed: number;
+    totalTokens: number;
+    averageDurationMs: number | null;
+    lastCalledAt: string;
+  }>;
+};
+
 export type PerformanceDiagnosis = "server" | "network" | "frontend" | "mixed";
 
 export type PerformanceOperation = {
@@ -333,6 +376,7 @@ export type MascotAsset = {
 export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";
 export type PetGrowthConfig = {
   id: string;
+  roomThemeExperience: number;
   feedCostStars: number; feedRestore: number; feedExperience: number;
   drinkCostStars: number; drinkRestore: number; drinkExperience: number;
   satietyDecayMinutes: number; hydrationDecayMinutes: number;
@@ -573,6 +617,7 @@ export const adminApi = {
       { method: "POST" },
     ),
   metrics: () => api<Metrics>("/api/admin/metrics"),
+  aiUsage: (days = 30) => api<AiModelUsageDashboard>(`/api/admin/ai-usage?days=${days}`),
   performance: (
     days: number,
     filters: { familyId?: string; childId?: string } = {},

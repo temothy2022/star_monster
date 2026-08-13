@@ -190,10 +190,13 @@ export function CountdownTimerWidget() {
   const active = timer.status === "running" || timer.status === "paused";
   return (
     <div className={`task-widget-timer task-widget-timer--${timer.status}`} aria-live="polite">
-      <div className="task-widget-timer__face">
+      <strong className="task-widget-timer__title">倒计时</strong>
+      <div
+        className="task-widget-timer__face"
+        aria-label={timer.status === "finished" ? "倒计时结束" : active ? formatRemaining(remainingMs) : "未开始倒计时"}
+      >
         <img src={spaceTimer} alt="" />
         <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.75" /><circle className="task-widget-timer__progress" cx="18" cy="18" r="15.75" pathLength="100" style={{ strokeDashoffset: ringOffset }} /></svg>
-        <div><strong>{timer.status === "finished" ? "到时间啦" : active ? formatRemaining(remainingMs) : "倒计时"}</strong><small>{timer.status === "running" ? "正在计时" : timer.status === "paused" ? "已经暂停" : timer.status === "finished" ? "提醒已经响起" : "最长 60 分钟"}</small></div>
       </div>
       {timer.status === "idle" || timer.status === "finished" ? (
         <div className="task-widget-timer__presets">{TIMER_PRESETS.map((minutes) => <button type="button" key={minutes} onClick={() => start(minutes)}>{minutes}<small>分钟</small></button>)}</div>

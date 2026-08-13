@@ -40,6 +40,7 @@ const destinationSchema = z.object({
 });
 const destinationPatchSchema = destinationSchema.partial();
 const configSchema = z.object({
+  roomThemeExperience: z.number().int().min(0).max(10000),
   feedCostStars: z.number().int().min(0).max(100),
   feedRestore: z.number().int().min(1).max(100),
   feedExperience: z.number().int().min(0).max(1000),

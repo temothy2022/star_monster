@@ -473,15 +473,13 @@
 .task-widget-postcards--state > span strong { max-width: 240px; font-size: 16px; line-height: 1.4; }
 
 /* Countdown: a small widget with app-drawn time and progress over generated art. */
-.task-widget-timer { display: grid; height: 100%; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 8px 10px 9px; color: #253b59; }
+.task-widget-timer { display: grid; height: 100%; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 8px 10px 9px; color: #253b59; }
+.task-widget-timer__title { justify-self: start; padding: 0 2px; color: #5f7890; font-size: 14px; line-height: 1.2; }
 .task-widget-timer__face { position: relative; width: min(118px, 100%); aspect-ratio: 1; margin: auto; }
 .task-widget-timer__face > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
 .task-widget-timer__face > svg { position: absolute; inset: 18.5%; width: 63%; height: 63%; overflow: visible; transform: rotate(-90deg); }
 .task-widget-timer__face > svg circle { fill: none; stroke: rgb(255 255 255 / 55%); stroke-width: 2.1; }
 .task-widget-timer__face > svg .task-widget-timer__progress { stroke: #f07857; stroke-linecap: round; stroke-dasharray: 100; transition: stroke-dashoffset 250ms linear; }
-.task-widget-timer__face > div { position: absolute; inset: 25% 19% 17%; display: grid; place-content: center; gap: 2px; text-align: center; }
-.task-widget-timer__face strong { font-size: clamp(14px, 1.55vw, 20px); line-height: 1; letter-spacing: -.4px; }
-.task-widget-timer__face small { color: #567186; font-size: 8px; font-weight: 900; }
 .task-widget-timer__presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
 .task-widget-timer__presets button { min-width: 0; min-height: 30px; padding: 3px 2px; border: 1px solid rgb(37 59 89 / 19%); border-radius: 8px; color: #35516c; background: rgb(255 255 255 / 72%); font: inherit; font-size: 12px; font-weight: 900; }
 .task-widget-timer__presets button small { display: block; color: #71899c; font-size: 7px; font-weight: 800; }

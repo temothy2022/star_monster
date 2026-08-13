@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
+import { recordAiModelCall } from "./ai-model-call-service.js";
 
 const responseSchema = z.object({
   choices: z
@@ -48,6 +49,7 @@ export async function callDeepSeekText(input: {
   config: AppConfig;
   maxTokens?: number;
 }): Promise<{ text: string; model: string; usage?: DeepSeekResult<unknown>["usage"] }> {
+  const startedAt = Date.now();
   let response: Response;
   try {
     response = await fetch("https://api.deepseek.com/chat/completions", {
@@ -72,11 +74,26 @@ export async function callDeepSeekText(input: {
       signal: AbortSignal.timeout(input.config.AI_REQUEST_TIMEOUT_MS),
     });
   } catch {
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "text-generation",
+      model: input.model,
+      status: "ERROR",
+      startedAt,
+    });
     throw new HttpError(502, "AI_PROVIDER_UNAVAILABLE", "DeepSeek 暂时无法连接，请稍后再试");
   }
 
   if (!response.ok) {
     await response.text();
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "text-generation",
+      model: input.model,
+      status: "ERROR",
+      startedAt,
+      httpStatus: response.status,
+    });
     throw new HttpError(
       response.status === 401 ? 400 : 502,
       "AI_PROVIDER_ERROR",
@@ -88,9 +105,46 @@ export async function callDeepSeekText(input: {
     );
   }
 
-  const providerResponse = responseSchema.parse(await response.json());
+  let providerResponse: z.infer<typeof responseSchema>;
+  try {
+    providerResponse = responseSchema.parse(await response.json());
+  } catch (error) {
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "text-generation",
+      model: input.model,
+      status: "ERROR",
+      startedAt,
+      httpStatus: response.status,
+    });
+    throw error;
+  }
   const text = providerResponse.choices[0]?.message.content?.trim();
-  if (!text) throw new HttpError(502, "AI_INVALID_RESPONSE", "DeepSeek 没有返回来信内容，请重试");
+  if (!text) {
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "text-generation",
+      model: providerResponse.model ?? input.model,
+      status: "ERROR",
+      startedAt,
+      httpStatus: response.status,
+      promptTokens: providerResponse.usage?.prompt_tokens,
+      completionTokens: providerResponse.usage?.completion_tokens,
+      totalTokens: providerResponse.usage?.total_tokens,
+    });
+    throw new HttpError(502, "AI_INVALID_RESPONSE", "DeepSeek 没有返回来信内容，请重试");
+  }
+  recordAiModelCall({
+    provider: "DEEPSEEK",
+    operation: "text-generation",
+    model: providerResponse.model ?? input.model,
+    status: "SUCCESS",
+    startedAt,
+    httpStatus: response.status,
+    promptTokens: providerResponse.usage?.prompt_tokens,
+    completionTokens: providerResponse.usage?.completion_tokens,
+    totalTokens: providerResponse.usage?.total_tokens,
+  });
   return {
     text,
     model: providerResponse.model ?? input.model,
@@ -133,6 +187,7 @@ export async function listDeepSeekModels(input: {
   apiKey: string;
   config: AppConfig;
 }): Promise<Array<{ id: string; ownedBy: string }>> {
+  const startedAt = Date.now();
   let response: Response;
   try {
     response = await fetch("https://api.deepseek.com/models", {
@@ -140,6 +195,13 @@ export async function listDeepSeekModels(input: {
       signal: AbortSignal.timeout(input.config.AI_REQUEST_TIMEOUT_MS),
     });
   } catch {
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "list-models",
+      model: "models",
+      status: "ERROR",
+      startedAt,
+    });
     throw new HttpError(
       502,
       "AI_PROVIDER_UNAVAILABLE",
@@ -148,6 +210,14 @@ export async function listDeepSeekModels(input: {
   }
 
   if (!response.ok) {
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "list-models",
+      model: "models",
+      status: "ERROR",
+      startedAt,
+      httpStatus: response.status,
+    });
     throw new HttpError(
       response.status === 401 ? 400 : 502,
       "AI_PROVIDER_ERROR",
@@ -157,7 +227,28 @@ export async function listDeepSeekModels(input: {
     );
   }
 
-  const parsed = modelsResponseSchema.parse(await response.json());
+  let parsed: z.infer<typeof modelsResponseSchema>;
+  try {
+    parsed = modelsResponseSchema.parse(await response.json());
+  } catch (error) {
+    recordAiModelCall({
+      provider: "DEEPSEEK",
+      operation: "list-models",
+      model: "models",
+      status: "ERROR",
+      startedAt,
+      httpStatus: response.status,
+    });
+    throw error;
+  }
+  recordAiModelCall({
+    provider: "DEEPSEEK",
+    operation: "list-models",
+    model: "models",
+    status: "SUCCESS",
+    startedAt,
+    httpStatus: response.status,
+  });
   return parsed.data
     .map((model) => ({ id: model.id, ownedBy: model.owned_by }))
     .sort((left, right) => left.id.localeCompare(right.id));
@@ -199,25 +290,46 @@ export async function callDeepSeekJson<T>(input: {
         );
       }
 
-      const response = await fetch("https://api.deepseek.com/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${input.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const startedAt = Date.now();
+      let response: Response;
+      try {
+        response = await fetch("https://api.deepseek.com/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${input.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: input.model,
+            response_format: { type: "json_object" },
+            thinking: { type: "disabled" },
+            temperature: 0.2,
+            max_tokens: input.maxTokens ?? 8192,
+            messages,
+          }),
+          signal: AbortSignal.timeout(input.config.AI_REQUEST_TIMEOUT_MS),
+        });
+      } catch (error) {
+        recordAiModelCall({
+          provider: "DEEPSEEK",
+          operation: "json-generation",
           model: input.model,
-          response_format: { type: "json_object" },
-          thinking: { type: "disabled" },
-          temperature: 0.2,
-          max_tokens: input.maxTokens ?? 8192,
-          messages,
-        }),
-        signal: AbortSignal.timeout(input.config.AI_REQUEST_TIMEOUT_MS),
-      });
+          status: "ERROR",
+          startedAt,
+        });
+        throw error;
+      }
 
       if (!response.ok) {
         await response.text();
+        recordAiModelCall({
+          provider: "DEEPSEEK",
+          operation: "json-generation",
+          model: input.model,
+          status: "ERROR",
+          startedAt,
+          httpStatus: response.status,
+        });
         const providerMessage =
           response.status === 401
             ? "DeepSeek 密钥无效或已失效"
@@ -231,7 +343,31 @@ export async function callDeepSeekJson<T>(input: {
         );
       }
 
-      const providerResponse = responseSchema.parse(await response.json());
+      let providerResponse: z.infer<typeof responseSchema>;
+      try {
+        providerResponse = responseSchema.parse(await response.json());
+      } catch (error) {
+        recordAiModelCall({
+          provider: "DEEPSEEK",
+          operation: "json-generation",
+          model: input.model,
+          status: "ERROR",
+          startedAt,
+          httpStatus: response.status,
+        });
+        throw error;
+      }
+      recordAiModelCall({
+        provider: "DEEPSEEK",
+        operation: "json-generation",
+        model: providerResponse.model ?? input.model,
+        status: "SUCCESS",
+        startedAt,
+        httpStatus: response.status,
+        promptTokens: providerResponse.usage?.prompt_tokens,
+        completionTokens: providerResponse.usage?.completion_tokens,
+        totalTokens: providerResponse.usage?.total_tokens,
+      });
       const content = providerResponse.choices[0]?.message.content?.trim();
       if (!content) {
         repair = {
