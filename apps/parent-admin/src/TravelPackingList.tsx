@@ -537,7 +537,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
                 <span>{list.categories.find((category) => category.id === itemSheetCategoryId)?.name ?? "选择分类"}</span>
               </button>
               {categoryPickerOpen && <div className="packing-category-picker__menu" role="listbox">
-                {list.categories.map((category) => <button type="button" role="option" aria-selected={category.id === itemSheetCategoryId} className={category.id === itemSheetCategoryId ? "is-selected" : ""} onClick={() => { setItemSheetCategoryId(category.id); setLastCategoryId(category.id); setCategoryPickerOpen(false); try { window.localStorage.setItem("star-monsters:last-packing-category", category.id); } catch { /* storage is optional */ } }} key={category.id}>{category.name}{category.id === itemSheetCategoryId && <span aria-hidden="true">✓</span>}</button>)}
+                {list.categories.map((category) => <button type="button" role="option" aria-selected={category.id === itemSheetCategoryId} className={category.id === itemSheetCategoryId ? "is-selected" : ""} onClick={(event) => { event.stopPropagation(); setItemSheetCategoryId(category.id); setLastCategoryId(category.id); setCategoryPickerOpen(false); try { window.localStorage.setItem("star-monsters:last-packing-category", category.id); } catch { /* storage is optional */ } }} key={category.id}>{category.name}{category.id === itemSheetCategoryId && <span aria-hidden="true">✓</span>}</button>)}
               </div>}
             </label>
             <label>物品名称<input autoFocus value={itemName} maxLength={30} placeholder="例如：儿童退烧药" onChange={(event) => setItemName(event.target.value)} /></label>
