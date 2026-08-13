@@ -5,8 +5,10 @@ import {
   parentApi,
   type TravelPackingItem,
   type TravelPackingList as PackingList,
+  type TravelPackingTips,
 } from "./api";
 import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
+import travelPackingTipsIcon from "./assets/travel-packing-tips-v1.png";
 import "./travel-packing-list.css";
 
 type Filter = "all" | "unpacked" | "shortage" | "packed";
@@ -25,6 +27,12 @@ const LOCATIONS: Array<{ value: PackingLocation; label: string }> = [
   { value: "BACKPACK", label: "背包" },
   { value: "CAR", label: "家用车" },
 ];
+const TIP_STATUS_LABELS: Record<TravelPackingTips["groups"][number]["items"][number]["status"], string> = {
+  NOT_LISTED: "清单里没有",
+  UNPACKED: "还没装",
+  OUT_OF_STOCK: "需要补充",
+  EXPIRED: "已经过期",
+};
 function isMedicineCategory(name: string | undefined) { return name?.trim() === "药品"; }
 function isExpired(date: string | null | undefined) { return Boolean(date && date < new Date().toISOString().slice(0, 10)); }
 function formatShareExpiry(value: string) {
@@ -57,6 +65,10 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showTipsSheet, setShowTipsSheet] = useState(false);
+  const [tips, setTips] = useState<TravelPackingTips | null>(null);
+  const [tipsLoading, setTipsLoading] = useState(false);
+  const [tipsError, setTipsError] = useState("");
   const [shareDays, setShareDays] = useState(7);
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
@@ -414,6 +426,20 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     setCopyStatus("copied");
   }
 
+  async function openTips() {
+    setShowTipsSheet(true);
+    setTips(null);
+    setTipsError("");
+    setTipsLoading(true);
+    try {
+      setTips(await packingApi.tips());
+    } catch (reason) {
+      setTipsError(reason instanceof Error ? reason.message : "暂时无法检查遗漏");
+    } finally {
+      setTipsLoading(false);
+    }
+  }
+
   if (!list) {
     return (
       <main className="packing-page packing-page--centered">
@@ -430,7 +456,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     <main className="packing-page">
       <section className="packing-shell" aria-label="旅行行李清单">
         <header className="packing-appbar">
-          <span className="packing-appbar__spacer" aria-hidden="true" />
+          <button type="button" className="packing-tips-button" aria-label="检查行李有没有遗漏" onClick={() => void openTips()}><img src={travelPackingTipsIcon} alt="" /></button>
           <strong>行李清单</strong>
           <button type="button" className="packing-round-button" aria-label="更多清单操作" onClick={() => setPageSheet("menu")}>•••</button>
         </header>
@@ -578,6 +604,39 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
                 ? <button type="button" className="is-primary" onClick={() => void copyShareUrl()}>{copyStatus === "copied" ? "已复制" : "复制网址"}</button>
                 : <button type="button" className="is-primary" disabled={submitting} onClick={() => void createShare()}>{submitting ? "正在生成…" : "生成链接"}</button>}
             </div>
+          </section>
+        </div>
+      )}
+
+      {showTipsSheet && (
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => setShowTipsSheet(false)}>
+          <section className="packing-sheet packing-tips-sheet" role="dialog" aria-modal="true" aria-labelledby="packing-tips-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="packing-sheet__handle" aria-hidden="true" />
+            <div className="packing-tips-sheet__heading">
+              <div><span>出发前检查</span><h2 id="packing-tips-title">看看还有什么没带</h2></div>
+              {tips && <strong>{tips.summary.attention}</strong>}
+            </div>
+            <p>按常见亲子出行清单粗略匹配，名称不同也会尽量识别。请结合这次行程自行判断。</p>
+            <div className="packing-tips-sheet__scroll">
+              {tipsLoading && <div className="packing-tips-loading"><span className="packing-loading-dot" aria-hidden="true" /><p>正在检查当前清单…</p></div>}
+              {tipsError && <div className="packing-tips-error"><strong>检查没有完成</strong><span>{tipsError}</span><button type="button" onClick={() => void openTips()}>重新检查</button></div>}
+              {tips && tips.summary.attention === 0 && <div className="packing-tips-complete"><strong>常用物品都准备好了</strong><span>还是建议出发前再按实际行程检查一次。</span></div>}
+              {tips?.groups.map((group, index) => (
+                <details className="packing-tips-group" open={index < 2} key={group.name}>
+                  <summary><span>{group.name}</span><small>{group.items.length} 项要留意</small></summary>
+                  <div>
+                    {group.items.map((item) => (
+                      <article className={`packing-tip-item packing-tip-item--${item.status.toLowerCase()}`} key={item.id}>
+                        <span className="packing-tip-item__dot" aria-hidden="true" />
+                        <div><strong>{item.label}</strong><small>{item.priority === "ESSENTIAL" ? "优先检查" : "按行程确认"}</small></div>
+                        <em>{TIP_STATUS_LABELS[item.status]}</em>
+                      </article>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+            <button type="button" className="packing-tips-sheet__done" onClick={() => setShowTipsSheet(false)}>知道了</button>
           </section>
         </div>
       )}

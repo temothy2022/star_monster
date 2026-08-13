@@ -39,6 +39,19 @@ export type TravelPackingShare = {
   expiresAt: string;
 };
 
+export type TravelPackingTips = {
+  summary: { total: number; ready: number; attention: number };
+  groups: Array<{
+    name: string;
+    items: Array<{
+      id: string;
+      label: string;
+      priority: "ESSENTIAL" | "RECOMMENDED";
+      status: "NOT_LISTED" | "UNPACKED" | "OUT_OF_STOCK" | "EXPIRED";
+    }>;
+  }>;
+};
+
 export type Child = {
   id: string;
   nickname: string | null;
@@ -724,6 +737,7 @@ export function createTravelPackingApi(shareToken?: string) {
     : "/api/parent/travel-packing-list";
   return {
     list: () => api<{ list: TravelPackingList }>(base),
+    tips: () => api<TravelPackingTips>(`${base}/tips`),
     renameList: (title: string) => api<{ list: TravelPackingList }>(base, {
       method: "PATCH",
       body: JSON.stringify({ title }),

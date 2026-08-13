@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
+import { checkFamilyTravelPacking } from "../domain/travel-packing-tips.js";
 import { generateOpaqueToken, hashToken } from "../lib/crypto.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
@@ -191,6 +192,12 @@ async function resetList(listId: string) {
   return readListById(listId);
 }
 
+async function packingTips(listId: string) {
+  const list = await readListById(listId);
+  if (!list) throw new HttpError(404, "PACKING_LIST_NOT_FOUND", "没有找到这份行李清单");
+  return checkFamilyTravelPacking(list.categories.flatMap((category) => category.items));
+}
+
 export async function registerParentTravelPackingRoutes(app: FastifyInstance, config: AppConfig) {
   app.get("/api/parent/travel-packing-list", async (request, reply) => {
     const familyId = await familyIdFor(request, reply, config);
@@ -215,6 +222,13 @@ export async function registerParentTravelPackingRoutes(app: FastifyInstance, co
       prisma.travelPackingShare.create({ data: { listId: list.id, tokenHash: hashToken(token), expiresAt } }),
     ]);
     return { token, expiresAt };
+  });
+
+  app.get("/api/parent/travel-packing-list/tips", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const list = await ensureList(familyId);
+    reply.header("Cache-Control", "no-store");
+    return packingTips(list.id);
   });
 
   app.post("/api/parent/travel-packing-list/categories", async (request, reply) => {
@@ -274,6 +288,13 @@ export async function registerParentTravelPackingRoutes(app: FastifyInstance, co
     reply.header("Cache-Control", "no-store");
     const listId = await sharedListId(token);
     return { list: await readListById(listId) };
+  });
+
+  app.get("/api/public/travel-packing/:token/tips", async (request, reply) => {
+    const { token } = shareParams.parse(request.params);
+    protectSharedRequest(request, token, false);
+    reply.header("Cache-Control", "no-store");
+    return packingTips(await sharedListId(token));
   });
 
   app.patch("/api/public/travel-packing/:token", async (request, reply) => {
