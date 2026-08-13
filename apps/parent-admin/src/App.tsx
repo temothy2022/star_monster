@@ -143,7 +143,8 @@ const PRIMARY_MOBILE_NAV: NavItem[] = [
 const REWARD_SECTIONS: Section[] = ["wishes", "redemptions", "stars", "planets"];
 
 function sectionFromLocation(): Section {
-  if (window.location.pathname.replace(/\/+$/, "") === "/packing") return "packing";
+  // The packing list is served by its standalone app at /packing; if this
+  // bundle is ever loaded there, fall back to a valid parent-admin section.
   const candidate = window.location.hash.replace(/^#/, "") as Section;
   return (Object.keys(SECTION_LABELS) as Section[]).includes(candidate) ? candidate : "overview";
 }
