@@ -665,7 +665,7 @@ describe("math practice question generator", () => {
         }
         const gaps = rebuilt.slice(1).map((value, index) => value! - rebuilt[index]!);
         expect(new Set(gaps).size).toBe(1);
-        expect([1, 2]).toContain(Math.abs(gaps[0]!));
+        expect([1, 2, 3, 4]).toContain(Math.abs(gaps[0]!));
         expect(Math.min(...rebuilt as number[])).toBeGreaterThanOrEqual(1);
         expect(Math.max(...rebuilt as number[])).toBeLessThanOrEqual(20);
         multiDirections.add(Math.sign(gaps[0]!));
@@ -689,7 +689,7 @@ describe("math practice question generator", () => {
     expect(middleOnlySeen).toBe(true);
     expect(twentyAnchorIndexes).toEqual(new Set([0, 1, 2]));
     expect(multiDirections).toEqual(new Set([1, -1]));
-    expect(multiSteps).toEqual(new Set([1, 2]));
+    expect(multiSteps).toEqual(new Set([1, 2, 3, 4]));
   });
 
   it("covers both arithmetic signs and restores V06 equation entry", () => {

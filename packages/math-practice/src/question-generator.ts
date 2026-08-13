@@ -495,7 +495,10 @@ export function generateMathQuestion(
         });
       }
 
-      const step = rng.next() < 0.35 ? 2 : 1;
+      // Multi-cell adjacent-number exercises also practice larger gaps:
+      // step 3 produces patterns such as 1, ?, 4, ?, 7, while step 4
+      // produces 1, ?, 5, ?, 9. Keep all five values within 20.
+      const step = rng.pick([1, 2, 3, 4] as const);
       const direction = rng.pick([1, -1] as const);
       const span = step * 4;
       const start = direction === 1 ? rng.int(1, 20 - span) : rng.int(1 + span, 20);
