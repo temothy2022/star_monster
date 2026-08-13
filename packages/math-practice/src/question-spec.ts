@@ -27,7 +27,7 @@ export type MathLogicPictureKey =
   | "train"
   | "bicycle";
 
-export type MathArithmeticToken = number | "+" | "-" | "=" | { kind: "BLANK"; placeholder?: string };
+export type MathArithmeticToken = number | "+" | "-" | "=" | ">" | "<" | { kind: "BLANK"; placeholder?: string };
 
 export type MathLengthAssetKey =
   | "rulers"

@@ -347,7 +347,7 @@ export function MathAnswerEditor({
 
   const complete = useMemo(() => {
     if (response.mode === "R08") return values.length === options.length;
-    if (isOptionMode) return values.length > 0;
+    if (isOptionMode) return Array.from({ length: slotCount }).every((_, index) => Boolean(values[index]));
     return Array.from({ length: slotCount }).every((_, index) => Boolean(values[index]));
   }, [isOptionMode, options.length, response.mode, slotCount, values]);
 
@@ -390,6 +390,10 @@ export function MathAnswerEditor({
       onChange(values.includes(option) ? values.filter((value) => value !== option) : [...values, option]);
       return;
     }
+    if (slotCount > 1) {
+      updateSlot(option);
+      return;
+    }
     onChange([option]);
   }
 
@@ -408,7 +412,7 @@ export function MathAnswerEditor({
           ) : (
             <div className="math-option-pad">
               {options.map((option, optionIndex) => {
-                const selected = values.includes(option);
+                const selected = slotCount > 1 ? values[activeSlot] === option : values.includes(option);
                 return (
                   <button
                     className={selected ? "is-selected" : ""}

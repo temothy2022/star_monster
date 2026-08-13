@@ -40,7 +40,7 @@ export function MathPracticePreview() {
   const logicGridRowCount = question.visual.kind === "LOGIC_GRID" ? question.visual.rows.length : 0;
   const isLogicGrid = question.typeId === "S03" && logicGridRowCount > 0;
   const isInlineSort = question.typeId === "N09";
-  const isInlineVisualSlots = ["P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
+  const isInlineVisualSlots = ["N08", "P03", "P04", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId);
   const isNumberBoxAnswer = ["N06", "N07"].includes(question.typeId);
   const isTextOnlyQuestion = question.visual.kind === "NONE" && !question.helper && question.typeId !== "N09";
   const logicGridComplete = isLogicGrid && values.length === logicGridRowCount;

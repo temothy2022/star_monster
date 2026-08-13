@@ -380,8 +380,38 @@ describe("math practice question generator", () => {
     expect(adjacent.response.options).toBeUndefined();
     expect(sequence.response).toMatchObject({ mode: "R02", slots: 2 });
     expect(sequence.response.options).toBeUndefined();
-    expect(comparison.response).toMatchObject({ mode: "R03", options: [">", "<", "="] });
+    expect(comparison.response).toMatchObject({ mode: "R03", slots: 3, options: [">", "<", "="] });
+    expect(comparison.visual.kind).toBe("ARITHMETIC_LIST");
+    expect(comparison.answer.values).toHaveLength(3);
     expect(comparison.response.options).not.toContain("2+2=4");
+  });
+
+  it("generates three bounded N08 comparisons with all comparison symbols", () => {
+    for (const difficulty of [1, 2] as const) {
+      const maximum = difficulty === 1 ? 10 : 20;
+      for (let seed = 1; seed <= 80; seed += 1) {
+        const question = generateMathQuestion({ typeId: "N08", seed, difficulty });
+        expect(question.visual.kind).toBe("ARITHMETIC_LIST");
+        if (question.visual.kind !== "ARITHMETIC_LIST") continue;
+        expect(question.visual.items).toHaveLength(3);
+        expect(question.answer.values).toEqual(expect.arrayContaining([">", "<", "="]));
+        expect(new Set(question.answer.values)).toEqual(new Set([">", "<", "="]));
+        question.visual.items.forEach((item, index) => {
+          const [first, blank, second] = item.tokens;
+          expect(typeof first).toBe("number");
+          expect(typeof blank).toBe("object");
+          expect(typeof second).toBe("number");
+          expect(first).toBeGreaterThanOrEqual(0);
+          expect(first).toBeLessThanOrEqual(maximum);
+          expect(second).toBeGreaterThanOrEqual(0);
+          expect(second).toBeLessThanOrEqual(maximum);
+          const expected = first === second ? "=" : first! > second! ? ">" : "<";
+          expect(expected).toBe(question.answer.values[index]);
+        });
+        expect(answerMathQuestion(question, question.answer.values)).toBe(true);
+        expect(answerMathQuestion(question, question.answer.values.slice(0, 2))).toBe(false);
+      }
+    }
   });
 
   it("starts every N09 drag exercise in an unsorted order", () => {

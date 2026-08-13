@@ -555,6 +555,18 @@
 .math-paper-question .math-arithmetic-row__equation { gap: 1.2mm; }
 .math-paper-question .math-arithmetic-token { min-width: 5mm; font-size: 12pt; }
 .math-paper-question .math-arithmetic-blank { width: 11mm; height: 7mm; border-width: .4mm; border-radius: 1.5mm; font-size: 11pt; }
+.math-paper-question[data-question-type="N08"] { padding: 2.2mm 2.5mm; }
+.math-paper-question[data-question-type="N08"] > header { grid-template-columns: 6mm minmax(0, 1fr); gap: 1.5mm; }
+.math-paper-question[data-question-type="N08"] > header > span { width: 6mm; height: 6mm; font-size: 8.5pt; }
+.math-paper-question[data-question-type="N08"] h2 { margin-top: .2mm; font-size: 9pt; line-height: 1.2; }
+.math-paper-question[data-question-type="N08"] .math-paper-visual { margin-top: 1mm; }
+.math-paper-question[data-question-type="N08"] .math-paper-visual > .math-visual-board { padding: 0; }
+.math-paper-question[data-question-type="N08"] .math-arithmetic-list { gap: .8mm; }
+.math-paper-question[data-question-type="N08"] .math-arithmetic-row { min-height: 9.5mm; padding: .4mm 1.5mm; border-radius: 1.5mm; }
+.math-paper-question[data-question-type="N08"] .math-arithmetic-row__number { width: 4mm; font-size: 7.5pt; }
+.math-paper-question[data-question-type="N08"] .math-arithmetic-row__equation { flex-wrap: nowrap; gap: 3mm; }
+.math-paper-question[data-question-type="N08"] .math-arithmetic-token { min-width: 10mm; font-size: 17pt; line-height: 1; }
+.math-paper-question[data-question-type="N08"] .math-arithmetic-blank { width: 11mm; height: 8.5mm; border-width: .55mm; border-radius: 1.5mm; font-size: 17pt; }
 .math-paper-question--number-strip .math-number-boxes { gap: 1mm; }
 .math-paper-question--number-strip .math-number-boxes span,
 .math-paper-question--number-strip .math-number-boxes button {

@@ -107,7 +107,7 @@ export const MATH_QUESTION_TYPES = [
     name: "两数大小比较",
     domain: "N",
     coreGeneratorId: "COMPARE_NUMBERS",
-    description: "在两个数之间填写大于、小于或等于号。",
+    description: "每题完成三组两数比较，填写大于、小于或等于号。",
     responseModes: ["R03"],
     sceneStrategy: "PROGRAMMATIC",
     numberRange: "WITHIN_20",

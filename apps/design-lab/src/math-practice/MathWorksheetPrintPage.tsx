@@ -70,6 +70,9 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
   // Four small number-bond trees follow the familiar classroom layout and fit
   // best across a full-width card rather than in a narrow visual column.
   if (question.typeId === "C05") return { heightMm: 62, size: "wide-visual", wide: true };
+  // Each N08 card contains three comparison rows. At 48mm, two A4 columns can
+  // hold ten cards (30 comparisons) without shrinking the handwritten boxes.
+  if (question.typeId === "N08") return { heightMm: 48, size: "compact", wide: false };
   if (question.visual.kind === "ARITHMETIC_LIST") {
     const rows = question.visual.items.length;
     // Arithmetic exercises can contain several independent rows.  Their card
@@ -79,7 +82,7 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
     // caps each type at 20 items, so 240mm remains within one A4 body.
     return { heightMm: Math.min(240, Math.max(66, 25 + rows * 11)), size: "compact", wide: false };
   }
-  if (["C01", "C02", "C03", "C04", "C06", "N08"].includes(question.typeId)) {
+  if (["C01", "C02", "C03", "C04", "C06"].includes(question.typeId)) {
     return { heightMm: 42, size: "compact", wide: false };
   }
   if (["N06", "N07"].includes(question.typeId)) {
@@ -248,7 +251,7 @@ function PaperResponse({ question }: { question: MathQuestion }) {
   // illustration. P01/P02 are picture-to-number exercises, so they need a
   // handwritten answer line on paper even though the screen uses a keypad.
   if (question.typeId === "S01") return <div className="math-paper-hint">请在图中圈出正确的图标</div>;
-  if (["S03", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId)) return null;
+  if (["S03", "N08", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId)) return null;
   if (question.response.mode === "R04") return <EquationBlanks question={question} />;
   const options = question.response.options ?? [];
   if (options.length > 0 && question.response.mode !== "R03") {

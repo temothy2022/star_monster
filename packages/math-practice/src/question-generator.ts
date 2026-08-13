@@ -538,10 +538,29 @@ export function generateMathQuestion(
     }
     case "N08": {
       const maximum = difficulty === 1 ? 10 : 20;
-      const first = rng.int(0, maximum);
-      const second = difficulty === 2 && rng.next() < 0.2 ? first : rng.int(0, maximum);
-      const answer = compareSymbol(first, second);
-      return question(input, { prompt: "比一比，在圆圈里填上正确的符号。", helper: `${first} ○ ${second}`, visual: baseVisual, response: optionResponse([">", "<", "="], "R03"), answer: { values: [answer], display: answer }, explanation: `${first} ${answer} ${second}。` });
+      const symbols = rng.shuffle([">", "<", "="] as const);
+      const pairs = symbols.map((symbol) => {
+        if (symbol === "=") {
+          const value = rng.int(0, maximum);
+          return [value, value] as const;
+        }
+        const lower = rng.int(0, maximum - 1);
+        const higher = rng.int(lower + 1, maximum);
+        return symbol === ">" ? [higher, lower] as const : [lower, higher] as const;
+      });
+      const expressions = pairs.map(([first, second], index) => `${first} ${symbols[index]} ${second}`);
+      return question(input, {
+        prompt: "比一比，在方框里填上正确的符号。",
+        visual: {
+          kind: "ARITHMETIC_LIST",
+          items: pairs.map(([first, second]) => ({
+            tokens: [first, { kind: "BLANK", placeholder: " " }, second],
+          })),
+        },
+        response: { ...optionResponse([">", "<", "="], "R03"), slots: 3 },
+        answer: { values: symbols, display: expressions.join("；") },
+        explanation: `${expressions.join("；")}。`,
+      });
     }
     case "N09": {
       const length = difficulty === 1 ? 3 : difficulty === 2 ? 4 : 5;

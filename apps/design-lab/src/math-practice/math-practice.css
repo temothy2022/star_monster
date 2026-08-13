@@ -603,6 +603,15 @@
 .math-arithmetic-token { min-width: 22px; color: var(--math-ink); font-size: 26px; font-weight: 900; text-align: center; }
 .math-arithmetic-blank { width: 54px; height: 43px; border: 2px dashed #7eb2d9; border-radius: 12px; color: var(--math-ink); background: #fffdf7; font-size: 23px; font-weight: 900; cursor: pointer; }
 .math-arithmetic-blank.is-active { border-style: solid; border-color: var(--math-orange); box-shadow: 0 0 0 4px rgba(255, 122, 61, .14); }
+.math-question-card[data-math-type="N08"] .math-inline-number-sequence { width: min(760px, 100%); }
+.math-question-card[data-math-type="N08"] .math-arithmetic-list { width: min(560px, 100%); gap: 12px; }
+.math-question-card[data-math-type="N08"] .math-arithmetic-row { min-height: 72px; padding: 8px 18px; }
+.math-question-card[data-math-type="N08"] .math-arithmetic-row__number { font-size: 18px; }
+.math-question-card[data-math-type="N08"] .math-arithmetic-row__equation { flex-wrap: nowrap; gap: clamp(14px, 3vw, 30px); }
+.math-question-card[data-math-type="N08"] .math-arithmetic-token { min-width: 54px; font-size: clamp(38px, 5vw, 52px); line-height: 1; }
+.math-question-card[data-math-type="N08"] .math-arithmetic-blank { width: 76px; height: 60px; flex: 0 0 76px; font-size: 40px; }
+.math-question-card[data-math-type="N08"] .math-option-pad { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.math-question-card[data-math-type="N08"] .math-option-pad button { min-height: 76px; font-size: 38px; }
 .math-question-card[data-math-type="P03"] .math-inline-number-sequence,
 .math-question-card[data-math-type="P04"] .math-inline-number-sequence { width: min(900px, 100%); grid-template-columns: minmax(260px, 390px) minmax(320px, 420px); align-items: center; justify-content: center; gap: clamp(20px, 4vw, 48px); }
 
@@ -610,6 +619,13 @@
    and the keypad visible together instead of forcing the child to scroll down
    for every answer. Portrait remains stacked in the responsive rule below. */
 @media (min-width: 821px) and (orientation: landscape) {
+  .math-question-card[data-math-type="N08"] .math-inline-number-sequence {
+    width: min(980px, 100%);
+    grid-template-columns: minmax(420px, 1.2fr) minmax(300px, .8fr);
+    align-items: center;
+    gap: clamp(20px, 3vw, 38px);
+  }
+  .math-question-card[data-math-type="N08"] .math-inline-number-sequence > .math-answer-editor { width: 100%; }
   .math-question-card[data-math-type^="C"] .math-inline-number-sequence {
     width: min(980px, 100%);
     grid-template-columns: minmax(350px, 1.25fr) minmax(300px, .8fr);
