@@ -49,6 +49,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [list, setList] = useState<PackingList | null>(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [locationFilter, setLocationFilter] = useState<PackingLocation | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [workingIds, setWorkingIds] = useState<Set<string>>(new Set());
@@ -105,7 +106,6 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     [list],
   );
   const packedCount = allItems.filter((item) => item.packed).length;
-  const unpackedCount = allItems.filter((item) => !item.packed).length;
   const pendingTodoCount = list?.todos.filter((todo) => !todo.completed).length ?? 0;
   const progress = allItems.length === 0 ? 0 : Math.round((packedCount / allItems.length) * 100);
   const activeCategory = list?.categories.find((category) => category.id === categoryMenuId) ?? null;
@@ -577,12 +577,22 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           </div>
         </section>
 
-        <section className="packing-overview" aria-label="清单概况">
-          <div><span>分类</span><strong>{list.categories.length}</strong></div>
-          <div><span>物品</span><strong>{allItems.length}</strong></div>
-          <div className={unpackedCount > 0 ? "has-unpacked" : ""}>
-            <span>还没装</span><strong>{unpackedCount}</strong>
-          </div>
+        <section className="packing-overview" aria-label="物品位置">
+          {LOCATIONS.map((location) => {
+            const selected = locationFilter === location.value;
+            return (
+              <button
+                type="button"
+                className={`packing-location-button${selected ? " is-active" : ""}`}
+                aria-pressed={selected}
+                onClick={() => setLocationFilter((current) => current === location.value ? null : location.value)}
+                key={location.value}
+              >
+                <span>{location.label}</span>
+                <small>{selected ? "正在查看" : "查看物品"}</small>
+              </button>
+            );
+          })}
         </section>
 
         {error && <div className="packing-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError("")}>关闭</button></div>}
@@ -601,28 +611,30 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         <div className="packing-list">
           <div className="packing-list__heading">
             <div>
-              <span>{filter === "unpacked" ? "待装物品" : "我的分类"}</span>
+              <span>{filter === "unpacked" ? "待装物品" : locationFilter ? `${LOCATIONS.find((location) => location.value === locationFilter)?.label ?? "位置"}物品` : "我的分类"}</span>
               {filter === "all" ? <button type="button" onClick={openAddCategory}>添加分类</button> : <small>正在查看：{FILTERS.find((entry) => entry.value === filter)?.label}</small>}
             </div>
           </div>
 
           {filter === "unpacked" ? (
-            allItems.some((item) => !item.packed) ? (
+            allItems.some((item) => !item.packed && (!locationFilter || item.location === locationFilter)) ? (
               <section className="packing-flat-items" aria-label="待装物品">
-                {allItems.filter((item) => !item.packed).map(renderPackingItem)}
+                {allItems.filter((item) => !item.packed && (!locationFilter || item.location === locationFilter)).map(renderPackingItem)}
               </section>
             ) : (
               <div className="packing-flat-empty"><strong>都装好了</strong><span>清单里的物品已经全部准备完成。</span></div>
             )
           ) : list.categories.map((category, categoryIndex) => {
+            const scopedItems = category.items.filter((item) => !locationFilter || item.location === locationFilter);
             const visibleItems = category.items.filter((item) =>
-              filter === "all" ||
-              (filter === "packed" && item.packed),
+              (!locationFilter || item.location === locationFilter) &&
+              (filter === "all" ||
+              (filter === "packed" && item.packed)),
             );
-            if (visibleItems.length === 0 && filter !== "all") return null;
+            if (visibleItems.length === 0 && (filter !== "all" || locationFilter)) return null;
             const open = expandedIds.has(category.id);
-            const categoryPacked = category.items.filter((item) => item.packed).length;
-            const categoryShortage = category.items.filter((item) => item.quantity === 0).length;
+            const categoryPacked = scopedItems.filter((item) => item.packed).length;
+            const categoryShortage = scopedItems.filter((item) => item.quantity === 0).length;
             const tint = categoryIndex % 4;
 
             return (
@@ -630,7 +642,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
                 <div className="packing-category__header">
                   <button type="button" className="packing-category__toggle" aria-expanded={open} onClick={() => toggleCategory(category.id)}>
                     <span className="packing-category__mark" aria-hidden="true">{category.name.slice(0, 1)}</span>
-                    <span className="packing-category__title"><strong>{category.name}</strong><small>{categoryPacked}/{category.items.length} 已装{categoryShortage > 0 ? ` · ${categoryShortage} 待补` : ""}</small></span>
+                    <span className="packing-category__title"><strong>{category.name}</strong><small>{categoryPacked}/{scopedItems.length} 已装{categoryShortage > 0 ? ` · ${categoryShortage} 待补` : ""}</small></span>
                   </button>
                   <button type="button" className="packing-category__more" aria-label={`管理${category.name}`} onClick={() => setCategoryMenuId(category.id)}>•••</button>
                 </div>
