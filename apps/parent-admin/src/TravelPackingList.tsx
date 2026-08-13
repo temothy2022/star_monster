@@ -12,6 +12,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   const [itemSheetCategoryId, setItemSheetCategoryId] = useState<string | null>(null);
   const [showCategorySheet, setShowCategorySheet] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [itemName, setItemName] = useState("");
   const [itemQuantity, setItemQuantity] = useState(1);
@@ -118,13 +119,12 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   }
 
   async function deleteCategory() {
-    if (!editingCategoryId) return;
-    const category = list?.categories.find((entry) => entry.id === editingCategoryId);
-    if (!window.confirm(`删除“${category?.name ?? "这个分类"}”及其全部物品？`)) return;
+    if (!deletingCategoryId) return;
     setSubmitting(true);
     try {
-      const result = await parentApi.deleteTravelPackingCategory(editingCategoryId);
+      const result = await parentApi.deleteTravelPackingCategory(deletingCategoryId);
       setList(result.list);
+      setDeletingCategoryId(null);
       closeCategorySheet();
     } catch (reason) {
       message(reason);
@@ -219,7 +219,10 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
               <section className="packing-category" key={category.id}>
                 <div className="packing-category__heading">
                   <div><h2>{category.name}</h2><span>{category.items.filter((item) => item.packed).length}/{category.items.length}</span></div>
-                  <button type="button" onClick={() => openCategorySheet(category.id)}>管理</button>
+                  <div className="packing-category__actions">
+                    <button type="button" onClick={() => openCategorySheet(category.id)}>编辑</button>
+                    <button type="button" className="is-delete" onClick={() => setDeletingCategoryId(category.id)}>删除</button>
+                  </div>
                 </div>
                 <div className="packing-category__items">
                   {items.map((item) => {
@@ -274,8 +277,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
           <form className="packing-sheet" onSubmit={saveCategory} onMouseDown={(event) => event.stopPropagation()}>
             <div className="packing-sheet__handle" aria-hidden="true" />
             <h2>{editingCategoryId ? "管理分类" : "添加大类"}</h2>
-            <label>分类名称<input autoFocus value={categoryName} maxLength={20} placeholder="例如：药品" onChange={(event) => setCategoryName(event.target.value)} /></label>
-            {editingCategoryId && <button type="button" className="packing-sheet__danger" disabled={submitting} onClick={() => void deleteCategory()}>删除这个分类及其全部物品</button>}
+            <label>分类名称<input autoFocus={!editingCategoryId} value={categoryName} maxLength={20} placeholder="例如：药品" onChange={(event) => setCategoryName(event.target.value)} /></label>
             <div className="packing-sheet__actions"><button type="button" onClick={closeCategorySheet}>取消</button><button type="submit" className="is-primary" disabled={submitting || !categoryName.trim()}>保存分类</button></div>
           </form>
         </div>
@@ -286,6 +288,16 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
           <div className="packing-dialog" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
             <h2>开始新一趟旅行？</h2><p>会清空所有“已带好”状态，分类、物品和库存数量都会保留。</p>
             <div className="packing-sheet__actions"><button type="button" onClick={() => setShowResetConfirm(false)}>暂不</button><button type="button" className="is-primary" disabled={submitting} onClick={() => void resetTrip()}>清空并开始</button></div>
+          </div>
+        </div>
+      )}
+
+      {deletingCategoryId && (
+        <div className="packing-backdrop packing-backdrop--center" role="presentation" onMouseDown={() => setDeletingCategoryId(null)}>
+          <div className="packing-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-category-title" onMouseDown={(event) => event.stopPropagation()}>
+            <h2 id="delete-category-title">删除“{list.categories.find((category) => category.id === deletingCategoryId)?.name}”？</h2>
+            <p>这个分类下面的全部物品也会一起删除，此操作无法撤销。</p>
+            <div className="packing-sheet__actions"><button type="button" onClick={() => setDeletingCategoryId(null)}>取消</button><button type="button" className="is-danger" disabled={submitting} onClick={() => void deleteCategory()}>确认删除</button></div>
           </div>
         </div>
       )}
