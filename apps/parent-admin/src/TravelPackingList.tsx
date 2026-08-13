@@ -33,7 +33,7 @@ const TIP_STATUS_LABELS: Record<TravelPackingTips["groups"][number]["items"][num
   OUT_OF_STOCK: "需要补充",
   EXPIRED: "已经过期",
 };
-function isMedicineCategory(name: string | undefined) { return name?.trim() === "药品"; }
+function isMedicineCategory(name: string | undefined) { return name?.trim().includes("药") ?? false; }
 function isExpired(date: string | null | undefined) { return Boolean(date && date < new Date().toISOString().slice(0, 10)); }
 function formatShareExpiry(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -105,7 +105,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     [list],
   );
   const packedCount = allItems.filter((item) => item.packed).length;
-  const shortageCount = allItems.filter((item) => item.quantity === 0).length;
+  const unpackedCount = allItems.filter((item) => !item.packed).length;
   const pendingTodoCount = list?.todos.filter((todo) => !todo.completed).length ?? 0;
   const progress = allItems.length === 0 ? 0 : Math.round((packedCount / allItems.length) * 100);
   const activeCategory = list?.categories.find((category) => category.id === categoryMenuId) ?? null;
@@ -559,7 +559,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     <main className="packing-page">
       <section className="packing-shell" aria-label="旅行行李清单">
         <header className="packing-appbar">
-          <button type="button" className="packing-tips-button" aria-label="检查行李有没有遗漏" onClick={() => void openTips()}><img src={travelPackingTipsIcon} alt="" /></button>
+          <span className="packing-appbar__spacer" aria-hidden="true" />
           <strong>行李清单</strong>
           <button type="button" className="packing-round-button" aria-label="更多清单操作" onClick={() => setPageSheet("menu")}>•••</button>
         </header>
@@ -578,8 +578,8 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         <section className="packing-overview" aria-label="清单概况">
           <div><span>分类</span><strong>{list.categories.length}</strong></div>
           <div><span>物品</span><strong>{allItems.length}</strong></div>
-          <div className={shortageCount > 0 ? "has-shortage" : ""}>
-            <span>待补充</span><strong>{shortageCount}</strong>
+          <div className={unpackedCount > 0 ? "has-unpacked" : ""}>
+            <span>还没装</span><strong>{unpackedCount}</strong>
           </div>
         </section>
 
@@ -598,7 +598,10 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
         <div className="packing-list">
           <div className="packing-list__heading">
-            <div><span>{filter === "unpacked" ? "待装物品" : "我的分类"}</span><small>{filter === "all" ? "轻触分类可收起" : `正在查看：${FILTERS.find((entry) => entry.value === filter)?.label}`}</small></div>
+            <div>
+              <span>{filter === "unpacked" ? "待装物品" : "我的分类"}</span>
+              {filter === "all" ? <button type="button" onClick={openAddCategory}>添加分类</button> : <small>正在查看：{FILTERS.find((entry) => entry.value === filter)?.label}</small>}
+            </div>
           </div>
 
           {filter === "unpacked" ? (
@@ -646,7 +649,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         </div>
 
         <div className="packing-bottom-bar">
-          <button type="button" className="packing-bottom-bar__secondary" aria-label="添加分类" onClick={openAddCategory}>分类</button>
+          <button type="button" className="packing-bottom-bar__secondary" aria-label="AI 建议：检查行李有没有遗漏" onClick={() => void openTips()}><img src={travelPackingTipsIcon} alt="" /><span>AI 建议</span></button>
           <button type="button" className="packing-bottom-bar__primary" onClick={() => openAddItem()}>添加物品</button>
         </div>
       </section>
