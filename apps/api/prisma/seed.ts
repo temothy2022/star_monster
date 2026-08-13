@@ -4,6 +4,7 @@ import {
   createFamilyWithParent,
 } from "../src/services/account-service.js";
 import { hashSecret, loginCodeLookup, normalizeChildLoginCode } from "../src/lib/crypto.js";
+import { encryptSecret } from "../src/lib/secret-encryption.js";
 import { EXPANDED_PET_DESTINATIONS } from "./pet-destination-expansion.js";
 
 try {
@@ -52,13 +53,17 @@ const PET_DESTINATIONS = [
   ["pet-dest-yading", "yading-nature-reserve", "稻城亚丁", "甘孜", "中国", "CHINA", "稻城亚丁有雪山、草甸、森林和高山湖泊。这里海拔很高，空气清凉，行走时需要放慢脚步，也要一起爱护脆弱的高原植物。", "高原湖泊看起来特别蓝，是因为纯净水体会吸收一部分光，再把蓝色光送回我们的眼睛。", "/pet-assets/v1/destinations/yading-nature-reserve.webp", 320],
 ] as const;
 
-async function applyDemoChildLoginCode(childId: string, loginCodePepper: string) {
+async function applyDemoChildLoginCode(childId: string, loginCodePepper: string, encryptionKey: string) {
+  const encrypted = encryptSecret(DEMO_CHILD_LOGIN_CODE, encryptionKey);
   await prisma.childProfile.update({
     where: { id: childId },
     data: {
       loginCodeLookup: loginCodeLookup(DEMO_CHILD_LOGIN_CODE, loginCodePepper),
       loginCodeHash: await hashSecret(DEMO_CHILD_LOGIN_CODE),
       loginCodeLastFour: DEMO_CHILD_LOGIN_CODE.slice(-4),
+      loginCodeCiphertext: encrypted.ciphertext,
+      loginCodeEncryptionIv: encrypted.iv,
+      loginCodeEncryptionTag: encrypted.tag,
       starBalance: { set: 200 },
       lifetimeStarsEarned: { set: 200 },
     },
@@ -86,6 +91,10 @@ async function main() {
   const loginCodePepper = process.env.LOGIN_CODE_PEPPER;
   if (!loginCodePepper || loginCodePepper.length < 32) {
     throw new Error("执行种子前必须设置至少 32 位 LOGIN_CODE_PEPPER");
+  }
+  const loginCodeEncryptionKey = process.env.AI_CONFIG_ENCRYPTION_KEY;
+  if (!loginCodeEncryptionKey || loginCodeEncryptionKey.length < 32) {
+    throw new Error("执行种子前必须设置至少 32 位 AI_CONFIG_ENCRYPTION_KEY");
   }
 
   const adminUsername = (process.env.SEED_ADMIN_USERNAME ?? "admin").toLowerCase();
@@ -119,7 +128,7 @@ async function main() {
   });
   const existingDemoChild = demoParent?.family?.children[0];
   if (existingDemoChild) {
-    await applyDemoChildLoginCode(existingDemoChild.id, loginCodePepper);
+    await applyDemoChildLoginCode(existingDemoChild.id, loginCodePepper, loginCodeEncryptionKey);
     console.log("演示孩子登录代码:", DEMO_CHILD_LOGIN_CODE);
     return;
   }
@@ -132,10 +141,11 @@ async function main() {
       parentPassword: "demo-parent-2026",
       childNicknames: ["小小探险家"],
       loginCodePepper,
+      loginCodeEncryptionKey,
     }),
   );
   const childId = result.children[0]!.childId;
-  await applyDemoChildLoginCode(childId, loginCodePepper);
+  await applyDemoChildLoginCode(childId, loginCodePepper, loginCodeEncryptionKey);
 
   await prisma.taskTemplate.createMany({
     data: [

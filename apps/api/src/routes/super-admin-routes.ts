@@ -12,6 +12,7 @@ import {
   createChildAccount,
   createFamilyWithParent,
   regenerateChildLoginCode,
+  revealChildLoginCode,
 } from "../services/account-service.js";
 import { requireAdmin } from "../services/auth-service.js";
 import { writeAudit } from "../services/audit-service.js";
@@ -297,6 +298,7 @@ export async function registerSuperAdminRoutes(
         })),
         children: family.children.map(({ sessions, lastLoginAt, ...child }) => ({
           ...child,
+          loginCode: null,
           lastActiveAt: sessions[0]?.lastSeenAt ?? lastLoginAt,
         })),
       })),
@@ -444,6 +446,7 @@ export async function registerSuperAdminRoutes(
           parentPassword: input.parent.password,
           childNicknames: input.children.map((child) => child.nickname),
           loginCodePepper: config.LOGIN_CODE_PEPPER,
+          loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
         });
         await writeAudit(tx, {
           actorType: "USER",
@@ -474,6 +477,7 @@ export async function registerSuperAdminRoutes(
         familyId,
         nickname: input.nickname,
         loginCodePepper: config.LOGIN_CODE_PEPPER,
+        loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
       });
       await writeAudit(tx, {
         actorType: "USER",
@@ -594,6 +598,7 @@ export async function registerSuperAdminRoutes(
         tx,
         id,
         config.LOGIN_CODE_PEPPER,
+        config.AI_CONFIG_ENCRYPTION_KEY,
       );
       await writeAudit(tx, {
         actorType: "USER",
@@ -607,6 +612,19 @@ export async function registerSuperAdminRoutes(
       return code;
     });
     return { childId: id, loginCode };
+  });
+
+  app.get("/api/admin/children/:id/login-code", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const child = await prisma.childProfile.findUnique({ where: { id } });
+    if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
+    return {
+      childId: child.id,
+      loginCode: revealChildLoginCode(child, config.AI_CONFIG_ENCRYPTION_KEY),
+      loginCodeLastFour: child.loginCodeLastFour,
+      recoverable: Boolean(child.loginCodeCiphertext),
+    };
   });
 
   app.patch("/api/admin/children/:id/status", async (request, reply) => {

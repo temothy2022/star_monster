@@ -2522,6 +2522,7 @@ export function App() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [loginCodeResult, setLoginCodeResult] = useState<{ childId: string; nickname: string; code: string } | null>(null);
 
   useEffect(() => {
     const token = legacyPackingShareTokenFromLocation();
@@ -2617,6 +2618,44 @@ export function App() {
     if (window.location.hash !== nextHash) window.location.hash = nextHash;
   };
 
+  async function createChild() {
+    const answer = window.prompt("请输入孩子昵称（2–9 个字符，留空可稍后设置）");
+    if (answer === null) return;
+    const nickname = answer.trim();
+    if (nickname && (nickname.length < 2 || nickname.length > 9)) {
+      setError("昵称需要 2–9 个字符");
+      return;
+    }
+    try {
+      const result = await parentApi.createChild(nickname || undefined);
+      await loadChildren(result.childId);
+      setLoginCodeResult({ childId: result.childId, nickname: nickname || "新孩子", code: result.loginCode });
+      setError("");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "新建孩子失败");
+    }
+  }
+
+  async function showLoginCode(child: Child) {
+    try {
+      if (child.loginCode) {
+        setLoginCodeResult({ childId: child.id, nickname: child.nickname ?? "孩子", code: child.loginCode });
+        return;
+      }
+      const result = await parentApi.childLoginCode(child.id);
+      if (result.loginCode) {
+        setLoginCodeResult({ childId: child.id, nickname: child.nickname ?? "孩子", code: result.loginCode });
+        return;
+      }
+      if (!window.confirm(`这个账号是旧数据，目前只能确认尾号 ${result.loginCodeLastFour}。重新生成后即可随时查看完整代码，旧代码会立即失效。继续吗？`)) return;
+      const regenerated = await parentApi.regenerateChildLoginCode(child.id);
+      await loadChildren(child.id);
+      setLoginCodeResult({ childId: child.id, nickname: child.nickname ?? "孩子", code: regenerated.loginCode });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "读取探险代码失败");
+    }
+  }
+
   const activeGroup = NAV_GROUPS.find((group) => group.items.some((item) => item.key === section));
   const mobilePrimarySection = REWARD_SECTIONS.includes(section) ? "wishes" : section;
 
@@ -2626,9 +2665,10 @@ export function App() {
   return (
     <div className="admin-app">
       {feedback ? <div className={`admin-feedback-toast admin-feedback-toast--${feedback.kind}`} role="status">{feedback.text}</div> : null}
+      {loginCodeResult ? <div className="parent-login-code-popover" role="status"><div><small>{loginCodeResult.nickname}的探险代码</small><code>{loginCodeResult.code}</code></div><button type="button" onClick={() => void navigator.clipboard.writeText(loginCodeResult.code)}>复制</button><button type="button" onClick={() => setLoginCodeResult(null)}>关闭</button></div> : null}
       <aside className="admin-sidebar">
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
-        <label className="child-switcher">当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label>
+        <div className="child-switcher"><label>当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label><div><button type="button" onClick={() => void createChild()}>＋ 新建孩子</button>{selectedChild ? <button type="button" onClick={() => void showLoginCode(selectedChild)}>查看探险代码</button> : null}</div></div>
         <nav className="admin-sidebar__nav">
           {NAV_GROUPS.map((group) => (
             <div className="admin-nav-group" key={group.label}>
@@ -2654,13 +2694,14 @@ export function App() {
               <select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>
                 {children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}
               </select>
+              <button type="button" onClick={() => void createChild()}>＋</button>
             </label>
           </div>
           {selectedChild && <div className="topbar-balance"><span>当前星星</span><strong>★ {selectedChild.starBalance}</strong></div>}
         </header>
         <div className="admin-content">
           {error && <Notice kind="error">{error}</Notice>}
-          {!selectedChild ? <Panel title="尚未绑定孩子"><p>请联系超级管理员创建并绑定孩子账号。</p></Panel> : <>
+          {!selectedChild ? <Panel title="还没有孩子档案"><p>创建孩子后，就可以为孩子设置任务和奖励。</p><button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button></Panel> : <>
             {section === "overview" && <GrowthOverview child={selectedChild} />}
             {section === "pet" && <PetManagement child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
@@ -2673,7 +2714,7 @@ export function App() {
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
             {section === "leaderboard" && <LeaderboardSettings child={selectedChild} />}
-            {section === "profile" && <div className="admin-stack"><ChildProfileSettings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} /></div>}
+            {section === "profile" && <div className="admin-stack"><Panel title="孩子账号" actions={<button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button>}><div className="child-login-code-card"><div><span>探险代码</span><code>{selectedChild.loginCodeAvailable ? `•••• ${selectedChild.loginCodeLastFour}` : `旧代码尾号 ${selectedChild.loginCodeLastFour}`}</code><small>{selectedChild.loginCodeAvailable ? "点击后可查看并复制完整代码" : "旧账号需要重置一次，之后即可随时查看"}</small></div><button type="button" className="ghost-button" onClick={() => void showLoginCode(selectedChild)}>{selectedChild.loginCodeAvailable ? "查看并复制" : "重置并显示"}</button></div></Panel><ChildProfileSettings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} /></div>}
             {section === "settings" && <Settings child={selectedChild} />}
           </>}
         </div>

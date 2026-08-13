@@ -43,6 +43,11 @@ import {
 } from "../services/footprint-service.js";
 import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
 import { generateChallengeLetterIfEligible } from "../services/challenge-conversation-service.js";
+import {
+  createChildAccount,
+  regenerateChildLoginCode,
+  revealChildLoginCode,
+} from "../services/account-service.js";
 
 const taskCategory = z.enum(TASK_CATEGORIES);
 const taskMode = z.enum(["UNTIMED", "TIMED"]);
@@ -329,6 +334,9 @@ const childProfileSchema = z.object({
   dailyGoalBonusStars: z.number().int().min(0).max(999).optional(),
   petType: petType.optional(),
   resetOnboarding: z.boolean().optional(),
+});
+const childCreateSchema = z.object({
+  nickname: z.string().trim().min(2).max(9).optional(),
 });
 const wishShape = {
   category: wishCategory,
@@ -665,10 +673,80 @@ export async function registerParentRoutes(
           starBalance: true,
           lifetimeStarsEarned: true,
           loginCodeLastFour: true,
+          loginCodeCiphertext: true,
           lastLoginAt: true,
         },
-      }),
+      }).then((children) => children.map(({ loginCodeCiphertext, ...child }) => ({
+        ...child,
+        loginCode: null,
+        loginCodeAvailable: Boolean(loginCodeCiphertext),
+      }))),
     };
+  });
+
+  app.post("/api/parent/children", async (request, reply) => {
+    const { user } = await requireParent(request, reply, config);
+    const familyId = user.familyId;
+    if (!familyId) throw new HttpError(403, "PARENT_FAMILY_REQUIRED", "当前家长没有绑定家庭");
+    const input = childCreateSchema.parse(request.body);
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM "Family" WHERE id = ${familyId} FOR UPDATE`);
+      const childCount = await tx.childProfile.count({ where: { familyId } });
+      if (childCount >= 20) throw new HttpError(409, "CHILD_LIMIT_REACHED", "一个家庭最多创建 20 个孩子");
+      const child = await createChildAccount(tx, {
+        familyId,
+        nickname: input.nickname,
+        loginCodePepper: config.LOGIN_CODE_PEPPER,
+        loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
+      });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId,
+        action: "CHILD_CREATE",
+        resourceType: "ChildProfile",
+        resourceId: child.childId,
+        ipAddress: request.ip,
+      });
+      return child;
+    });
+    reply.status(201);
+    return result;
+  });
+
+  app.get("/api/parent/children/:id/login-code", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    const { child } = await requireOwnedChild(request, reply, config, id);
+    return {
+      childId: child.id,
+      loginCode: revealChildLoginCode(child, config.AI_CONFIG_ENCRYPTION_KEY),
+      loginCodeLastFour: child.loginCodeLastFour,
+      recoverable: Boolean(child.loginCodeCiphertext),
+    };
+  });
+
+  app.post("/api/parent/children/:id/regenerate-code", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    const { user, child } = await requireOwnedChild(request, reply, config, id);
+    const loginCode = await prisma.$transaction(async (tx) => {
+      const code = await regenerateChildLoginCode(
+        tx,
+        id,
+        config.LOGIN_CODE_PEPPER,
+        config.AI_CONFIG_ENCRYPTION_KEY,
+      );
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId: child.familyId,
+        action: "CHILD_LOGIN_CODE_REGENERATE",
+        resourceType: "ChildProfile",
+        resourceId: id,
+        ipAddress: request.ip,
+      });
+      return code;
+    });
+    return { childId: id, loginCode };
   });
 
   app.patch("/api/parent/children/:id", async (request, reply) => {

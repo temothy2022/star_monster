@@ -25,6 +25,7 @@ export type AdminChild = {
   petType: string | null;
   status: "ACTIVE" | "DISABLED";
   loginCodeLastFour: string;
+  loginCode: string | null;
   lastActiveAt: string | null;
 };
 
@@ -624,6 +625,10 @@ export const adminApi = {
     api<{ childId: string; loginCode: string }>(
       `/api/admin/children/${id}/regenerate-code`,
       { method: "POST" },
+    ),
+  childLoginCode: (id: string) =>
+    api<{ childId: string; loginCode: string | null; loginCodeLastFour: string; recoverable: boolean }>(
+      `/api/admin/children/${id}/login-code`,
     ),
   logoutChild: (id: string) =>
     api<{ ok: true; sessionsRemoved: number }>(

@@ -369,6 +369,9 @@ model ChildProfile {
   loginCodeLookup       String        @unique
   loginCodeHash         String
   loginCodeLastFour     String
+  loginCodeCiphertext   String?
+  loginCodeEncryptionIv String?
+  loginCodeEncryptionTag String?
   status                AccountStatus @default(ACTIVE)
   nickname              String?
   avatarUrl             String?

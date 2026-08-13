@@ -106,6 +106,21 @@ function reorder(
   return next;
 }
 
+function swapWidgets(
+  widgets: TaskDashboardWidgetKey[],
+  source: TaskDashboardWidgetKey,
+  target: TaskDashboardWidgetKey,
+) {
+  if (source === target) return widgets;
+  const sourceIndex = widgets.indexOf(source);
+  const targetIndex = widgets.indexOf(target);
+  if (sourceIndex < 0 || targetIndex < 0) return widgets;
+  const next = [...widgets];
+  next[sourceIndex] = target;
+  next[targetIndex] = source;
+  return next;
+}
+
 function reorderAroundGroup(
   widgets: TaskDashboardWidgetKey[],
   source: TaskDashboardWidgetKey,
@@ -539,7 +554,10 @@ export function TaskDashboard({
     // The grid places widgets by their leading corner. Using the center makes a
     // wide widget hit the card two columns away and prevents valid placements.
     const placementX = session.targetLeft + Math.min(42, session.width * .12);
-    const placementY = session.targetTop + Math.min(36, session.height * .12);
+    // Use the live pointer vertically. A card can be grabbed near either edge;
+    // deriving the hit point from its top made downward and upward moves behave
+    // differently for cards with different heights.
+    const placementY = event.clientY;
     const grid = gridRef.current;
     if (!grid) return;
     const gridRect = grid.getBoundingClientRect();
@@ -655,9 +673,12 @@ export function TaskDashboard({
       });
       if (!reorderTargets.includes(targetKey)) reorderTargets.push(targetKey);
     }
-    const next = reorderTargets.length > 1
-      ? reorderAroundGroup(visualWidgetOrder(elements, session.key), session.key, reorderTargets, after)
-      : reorder(widgetsRef.current, session.key, targetKey, after);
+    const isDirectCardHit = directCandidate === candidate;
+    const next = isDirectCardHit && widgetColumnSpan(session.key) === widgetColumnSpan(targetKey)
+      ? swapWidgets(widgetsRef.current, session.key, targetKey)
+      : reorderTargets.length > 1
+        ? reorderAroundGroup(visualWidgetOrder(elements, session.key), session.key, reorderTargets, after)
+        : reorder(widgetsRef.current, session.key, targetKey, after);
     if (!hasSameOrder(next, widgetsRef.current)) {
       previousRectsRef.current = captureWidgetRects(session.key);
       session.lastSwapAt = now;

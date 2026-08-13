@@ -21,6 +21,8 @@ export type Child = {
   starBalance: number;
   lifetimeStarsEarned: number;
   loginCodeLastFour: string;
+  loginCode: string | null;
+  loginCodeAvailable: boolean;
   lastLoginAt: string | null;
 };
 
@@ -719,6 +721,20 @@ export const parentApi = {
     ),
   updatePetRoomThemes: (themes: Array<{ key: string; priceStars: number }>) => api<{ themes: Array<{ themeId: string; priceStars: number }> }>("/api/parent/pet-growth/themes", { method: "PATCH", body: JSON.stringify({ themes }) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
+  createChild: (nickname?: string) =>
+    api<{ childId: string; loginCode: string }>("/api/parent/children", {
+      method: "POST",
+      body: JSON.stringify({ nickname }),
+    }),
+  childLoginCode: (id: string) =>
+    api<{ childId: string; loginCode: string | null; loginCodeLastFour: string; recoverable: boolean }>(
+      `/api/parent/children/${id}/login-code`,
+    ),
+  regenerateChildLoginCode: (id: string) =>
+    api<{ childId: string; loginCode: string }>(
+      `/api/parent/children/${id}/regenerate-code`,
+      { method: "POST" },
+    ),
   updateChild: (id: string, data: Record<string, unknown>) =>
     api<{ child: Child }>(`/api/parent/children/${id}`, {
       method: "PATCH",

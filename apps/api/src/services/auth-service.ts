@@ -16,6 +16,7 @@ import {
 } from "../lib/crypto.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
+import { encryptSecret } from "../lib/secret-encryption.js";
 
 export const CHILD_COOKIE = "sm_child_session";
 export const STAFF_COOKIE = "sm_staff_session";
@@ -90,6 +91,9 @@ export async function loginChild(
 
   const rawToken = generateOpaqueToken();
   const metadata = metadataFromRequest(request);
+  const encryptedLoginCode = child.loginCodeCiphertext
+    ? null
+    : encryptSecret(code, config.AI_CONFIG_ENCRYPTION_KEY);
   await prisma.$transaction([
     prisma.childSession.create({
       data: {
@@ -102,7 +106,14 @@ export async function loginChild(
     }),
     prisma.childProfile.update({
       where: { id: child.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        ...(encryptedLoginCode ? {
+          loginCodeCiphertext: encryptedLoginCode.ciphertext,
+          loginCodeEncryptionIv: encryptedLoginCode.iv,
+          loginCodeEncryptionTag: encryptedLoginCode.tag,
+        } : {}),
+      },
     }),
   ]);
 
