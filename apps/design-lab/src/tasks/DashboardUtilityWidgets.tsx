@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import postcardStack from "@star-monsters/assets/images/task-dashboard/postcard-stack.webp";
 import spaceTimer from "@star-monsters/assets/images/task-dashboard/space-timer.webp";
-import { playCompletionSound, prepareCompletionSound } from "../audio/completion-sound";
+import { prepareDashboardAlarmAudio, startDashboardAlarm, stopDashboardAlarm } from "../audio/dashboard-alarm";
 import type { PetTrip } from "../api/child-api";
 import type { ChildRoute } from "../components/ChildBottomNav";
 
@@ -135,7 +135,9 @@ export function PostcardCarouselWidget({
 export function CountdownTimerWidget() {
   const [timer, setTimer] = useState<TimerState>(readTimerState);
   const [now, setNow] = useState(Date.now);
+  const [alarmActive, setAlarmActive] = useState(false);
   const announcedRef = useRef(false);
+  const alarmVisualTimeoutRef = useRef<number | null>(null);
   const remainingMs = timer.status === "running"
     ? Math.max(0, timer.endAt - now)
     : timer.status === "paused"
@@ -144,6 +146,7 @@ export function CountdownTimerWidget() {
   const durationMs = timer.status === "idle" ? 0 : timer.durationMs;
   const progress = durationMs > 0 ? Math.min(1, Math.max(0, 1 - remainingMs / durationMs)) : 0;
   const ringOffset = 100 - progress * 100;
+  const remainingProgress = durationMs > 0 ? Math.min(1, Math.max(0, remainingMs / durationMs)) : 0;
 
   useEffect(() => {
     writeTimerState(timer);
@@ -162,13 +165,44 @@ export function CountdownTimerWidget() {
     setTimer({ status: "finished", durationMs: timer.durationMs });
     if (!announcedRef.current) {
       announcedRef.current = true;
-      playCompletionSound({ bonus: false });
+      setAlarmActive(true);
+      startDashboardAlarm();
+      if (alarmVisualTimeoutRef.current !== null) window.clearTimeout(alarmVisualTimeoutRef.current);
+      alarmVisualTimeoutRef.current = window.setTimeout(() => {
+        alarmVisualTimeoutRef.current = null;
+        setAlarmActive(false);
+      }, 20_000);
       navigator.vibrate?.([180, 80, 180]);
     }
   }, [remainingMs, timer]);
 
+  useEffect(() => {
+    const stopWhenHidden = () => {
+      if (document.visibilityState === "hidden") {
+        stopDashboardAlarm();
+        if (alarmVisualTimeoutRef.current !== null) window.clearTimeout(alarmVisualTimeoutRef.current);
+        alarmVisualTimeoutRef.current = null;
+        setAlarmActive(false);
+      }
+    };
+    document.addEventListener("visibilitychange", stopWhenHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", stopWhenHidden);
+      stopDashboardAlarm();
+      if (alarmVisualTimeoutRef.current !== null) window.clearTimeout(alarmVisualTimeoutRef.current);
+    };
+  }, []);
+
+  function stopAlarm() {
+    stopDashboardAlarm();
+    if (alarmVisualTimeoutRef.current !== null) window.clearTimeout(alarmVisualTimeoutRef.current);
+    alarmVisualTimeoutRef.current = null;
+    setAlarmActive(false);
+  }
+
   function start(minutes: number) {
-    prepareCompletionSound();
+    stopAlarm();
+    prepareDashboardAlarmAudio();
     announcedRef.current = false;
     const nextDuration = Math.min(60, Math.max(1, minutes)) * 60_000;
     setNow(Date.now());
@@ -182,26 +216,35 @@ export function CountdownTimerWidget() {
 
   function resume() {
     if (timer.status !== "paused") return;
-    prepareCompletionSound();
+    prepareDashboardAlarmAudio();
     announcedRef.current = false;
     setTimer({ status: "running", durationMs: timer.durationMs, endAt: Date.now() + timer.remainingMs });
   }
 
   const active = timer.status === "running" || timer.status === "paused";
+  const displayRemaining = timer.status === "idle" ? "--:--" : formatRemaining(remainingMs);
   return (
-    <div className={`task-widget-timer task-widget-timer--${timer.status}`} aria-live="polite">
+    <div className={`task-widget-timer task-widget-timer--${timer.status}${alarmActive ? " task-widget-timer--ringing" : ""}`} aria-live="polite">
       <strong className="task-widget-timer__title">倒计时</strong>
-      <div
+      <button
+        type="button"
         className="task-widget-timer__face"
-        aria-label={timer.status === "finished" ? "倒计时结束" : active ? formatRemaining(remainingMs) : "未开始倒计时"}
+        onClick={alarmActive ? stopAlarm : undefined}
+        aria-label={timer.status === "finished" ? "停止闹铃" : active ? displayRemaining : "未开始倒计时"}
       >
         <img src={spaceTimer} alt="" />
         <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.75" /><circle className="task-widget-timer__progress" cx="18" cy="18" r="15.75" pathLength="100" style={{ strokeDashoffset: ringOffset }} /></svg>
+        <strong className="task-widget-timer__remaining">{displayRemaining}</strong>
+      </button>
+      <div className="task-widget-timer__progress-bar" role="progressbar" aria-label="倒计时进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((1 - remainingProgress) * 100)}>
+        <span style={{ width: `${remainingProgress * 100}%` }} />
       </div>
-      {timer.status === "idle" || timer.status === "finished" ? (
+      {timer.status === "idle" ? (
         <div className="task-widget-timer__presets">{TIMER_PRESETS.map((minutes) => <button type="button" key={minutes} onClick={() => start(minutes)}>{minutes}<small>分钟</small></button>)}</div>
+      ) : timer.status === "finished" ? (
+        <div className="task-widget-timer__controls"><button type="button" onClick={stopAlarm}>停止闹铃</button><button type="button" onClick={() => { stopAlarm(); setTimer({ status: "idle" }); }}>重新设置</button></div>
       ) : (
-        <div className="task-widget-timer__controls"><button type="button" onClick={timer.status === "running" ? pause : resume}>{timer.status === "running" ? "暂停" : "继续"}</button><button type="button" onClick={() => setTimer({ status: "idle" })}>结束</button></div>
+        <div className="task-widget-timer__controls"><button type="button" onClick={timer.status === "running" ? pause : resume}>{timer.status === "running" ? "暂停" : "继续"}</button><button type="button" onClick={() => { stopAlarm(); setTimer({ status: "idle" }); }}>结束</button></div>
       )}
     </div>
   );
