@@ -8,6 +8,30 @@ export type StaffUser = {
   familyId: string | null;
 };
 
+export type TravelPackingItem = {
+  id: string;
+  categoryId: string;
+  label: string;
+  quantity: number;
+  packed: boolean;
+  sortOrder: number;
+};
+
+export type TravelPackingCategory = {
+  id: string;
+  listId: string;
+  name: string;
+  sortOrder: number;
+  items: TravelPackingItem[];
+};
+
+export type TravelPackingList = {
+  id: string;
+  familyId: string;
+  title: string;
+  categories: TravelPackingCategory[];
+};
+
 export type Child = {
   id: string;
   nickname: string | null;
@@ -688,6 +712,46 @@ export const staffApi = {
 };
 
 export const parentApi = {
+  travelPackingList: () =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list"),
+  renameTravelPackingList: (title: string) =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list", {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+  addTravelPackingCategory: (name: string) =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list/categories", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  renameTravelPackingCategory: (id: string, name: string) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  deleteTravelPackingCategory: (id: string) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${id}`, {
+      method: "DELETE",
+    }),
+  addTravelPackingItem: (categoryId: string, label: string, quantity: number) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${categoryId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ label, quantity }),
+    }),
+  updateTravelPackingItem: (
+    id: string,
+    data: Partial<Pick<TravelPackingItem, "label" | "quantity" | "packed">>,
+  ) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/items/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteTravelPackingItem: (id: string) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/items/${id}`, {
+      method: "DELETE",
+    }),
+  resetTravelPackingList: () =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list/reset", { method: "POST" }),
   petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
   updatePetGrowthSettings: (childId: string, data: {
     travelEnabled: boolean;

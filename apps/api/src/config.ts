@@ -9,6 +9,7 @@ const envSchema = z.object({
   LOGIN_CODE_PEPPER: z.string().min(32),
   CHILD_SESSION_DAYS: z.coerce.number().int().positive().default(365),
   STAFF_SESSION_DAYS: z.coerce.number().int().positive().default(30),
+  PARENT_SESSION_DAYS: z.coerce.number().int().positive().default(365),
   APP_TIME_ZONE: z.string().default("Asia/Shanghai"),
   CHILD_APP_ORIGIN: z.string().url().default("http://127.0.0.1:5175"),
   PARENT_APP_ORIGIN: z.string().url().default("http://127.0.0.1:5176"),

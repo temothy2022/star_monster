@@ -252,6 +252,7 @@ model Family {
   weeklyGrowthReports  WeeklyGrowthReport[]
   petRoomThemeSettings FamilyPetRoomThemeSetting[]
   petRoomThemes        PetRoomTheme[]
+  travelPackingList    TravelPackingList?
 
   @@index([status])
 }
@@ -273,6 +274,46 @@ model User {
 
   @@index([familyId, role])
   @@index([status])
+}
+
+model TravelPackingList {
+  id        String   @id @default(cuid())
+  familyId  String   @unique
+  title     String   @default("下一次旅行")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family     Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  categories TravelPackingCategory[]
+}
+
+model TravelPackingCategory {
+  id        String   @id @default(cuid())
+  listId    String
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  list  TravelPackingList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+  items TravelPackingItem[]
+
+  @@index([listId, sortOrder])
+}
+
+model TravelPackingItem {
+  id         String   @id @default(cuid())
+  categoryId String
+  label      String
+  quantity   Int      @default(1)
+  packed     Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category TravelPackingCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId, sortOrder])
 }
 
 model UserSession {

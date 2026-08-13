@@ -35,6 +35,7 @@ import {
 import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
 import { PetManagement } from "./PetManagement";
+import { TravelPackingList } from "./TravelPackingList";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentMathPractice, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
@@ -65,6 +66,7 @@ type Section =
   | "planets"
   | "ai"
   | "leaderboard"
+  | "packing"
   | "profile"
   | "settings";
 
@@ -84,6 +86,7 @@ const SECTION_LABELS: Record<Section, string> = {
   planets: "航图规则",
   ai: "AI 助手",
   leaderboard: "排行榜设置",
+  packing: "旅行行李清单",
   profile: "孩子档案",
   settings: "登录设备",
 };
@@ -120,6 +123,12 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
       { key: "redemptions", label: "兑换处理", icon: "↔" },
       { key: "stars", label: "星星流水", icon: "★" },
       { key: "planets", label: "航图规则", icon: "◎" },
+    ],
+  },
+  {
+    label: "生活工具",
+    items: [
+      { key: "packing", label: "旅行行李清单", icon: "行" },
     ],
   },
   {
@@ -2609,6 +2618,7 @@ export function App() {
 
   if (user === undefined) return <main className="admin-loading">正在进入家长端…</main>;
   if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); void loadChildren(); }} />;
+  if (section === "packing") return <TravelPackingList onBack={() => selectSection("overview")} />;
 
   return (
     <div className="admin-app">

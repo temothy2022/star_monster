@@ -16,6 +16,7 @@ const config: AppConfig = {
   LOGIN_CODE_PEPPER: "p".repeat(32),
   CHILD_SESSION_DAYS: 365,
   STAFF_SESSION_DAYS: 30,
+  PARENT_SESSION_DAYS: 365,
   APP_TIME_ZONE: "Asia/Shanghai",
   CHILD_APP_ORIGIN: "http://127.0.0.1:5175",
   PARENT_APP_ORIGIN: "http://127.0.0.1:5176",

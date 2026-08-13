@@ -144,13 +144,14 @@ export async function loginStaff(
 
   const rawToken = generateOpaqueToken();
   const metadata = metadataFromRequest(request);
+  const sessionDays = portal === "parent" ? config.PARENT_SESSION_DAYS : config.STAFF_SESSION_DAYS;
   await prisma.$transaction([
     prisma.userSession.create({
       data: {
         userId: user.id,
         tokenHash: hashToken(rawToken),
         ...metadata,
-        expiresAt: futureDate(config.STAFF_SESSION_DAYS),
+        expiresAt: futureDate(sessionDays),
       },
     }),
     prisma.user.update({
@@ -161,7 +162,7 @@ export async function loginStaff(
 
   const cookieName = portal === "parent" ? PARENT_COOKIE : portal === "admin" ? ADMIN_COOKIE : STAFF_COOKIE;
   const cookiePath = portal === "parent" ? "/api/parent" : portal === "admin" ? "/api/admin" : "/";
-  reply.setCookie(cookieName, rawToken, cookieOptions(config, config.STAFF_SESSION_DAYS, cookiePath));
+  reply.setCookie(cookieName, rawToken, cookieOptions(config, sessionDays, cookiePath));
   return user;
 }
 
@@ -287,13 +288,14 @@ async function requirePortal(
     throw new HttpError(403, "FORBIDDEN", "没有访问权限");
   }
 
-  const expiresAt = futureDate(config.STAFF_SESSION_DAYS);
+  const sessionDays = portal === "parent" ? config.PARENT_SESSION_DAYS : config.STAFF_SESSION_DAYS;
+  const expiresAt = futureDate(sessionDays);
   await prisma.userSession.update({
     where: { id: session.id },
     data: { lastSeenAt: new Date(), expiresAt },
   });
   reply.setCookie(cookieName, rawToken, {
-    ...cookieOptions(config, config.STAFF_SESSION_DAYS, cookiePath),
+    ...cookieOptions(config, sessionDays, cookiePath),
     expires: expiresAt,
   });
   if (!request.cookies[cookieName] && request.cookies[STAFF_COOKIE]) {
