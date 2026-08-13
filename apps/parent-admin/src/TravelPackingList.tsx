@@ -8,13 +8,14 @@ import {
   type TravelPackingTips,
 } from "./api";
 import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
-import travelPackingTipsIcon from "./assets/travel-packing-tips-v1.png";
+import travelPackingTipsIcon from "./assets/travel-packing-tips-v2.png";
 import "./travel-packing-list.css";
 
 type Filter = "all" | "unpacked" | "shortage" | "packed";
 type PackingLocation = TravelPackingItem["location"];
 type PageSheet = "menu" | "rename" | "category" | null;
 type ShareResult = { url: string; expiresAt: string };
+type TipsFilter = "all" | "not-listed" | "unpacked" | "other";
 
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "全部" },
@@ -71,6 +72,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [tips, setTips] = useState<TravelPackingTips | null>(null);
   const [tipsLoading, setTipsLoading] = useState(false);
   const [tipsError, setTipsError] = useState("");
+  const [tipsFilter, setTipsFilter] = useState<TipsFilter>("all");
   const [shareDays, setShareDays] = useState(7);
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
@@ -437,6 +439,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     setShowTipsSheet(true);
     setTips(null);
     setTipsError("");
+    setTipsFilter("all");
     setTipsLoading(true);
     try {
       setTips(await packingApi.tips());
@@ -624,15 +627,24 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
               {tips && <strong>{tips.summary.attention}</strong>}
             </div>
             <p>按常见亲子出行清单粗略匹配，名称不同也会尽量识别。请结合这次行程自行判断。</p>
+            {tips && <TipsFilterTabs tips={tips} value={tipsFilter} onChange={setTipsFilter} />}
             <div className="packing-tips-sheet__scroll">
               {tipsLoading && <div className="packing-tips-loading"><span className="packing-loading-dot" aria-hidden="true" /><p>正在检查当前清单…</p></div>}
               {tipsError && <div className="packing-tips-error"><strong>检查没有完成</strong><span>{tipsError}</span><button type="button" onClick={() => void openTips()}>重新检查</button></div>}
               {tips && tips.summary.attention === 0 && <div className="packing-tips-complete"><strong>常用物品都准备好了</strong><span>还是建议出发前再按实际行程检查一次。</span></div>}
-              {tips?.groups.map((group, index) => (
+              {tips?.groups.map((group, index) => {
+                const visibleItems = group.items.filter((item) => {
+                  if (tipsFilter === "all") return true;
+                  if (tipsFilter === "not-listed") return item.status === "NOT_LISTED";
+                  if (tipsFilter === "unpacked") return item.status === "UNPACKED";
+                  return item.status === "OUT_OF_STOCK" || item.status === "EXPIRED";
+                });
+                if (visibleItems.length === 0) return null;
+                return (
                 <details className="packing-tips-group" open={index < 2} key={group.name}>
-                  <summary><span>{group.name}</span><small>{group.items.length} 项要留意</small></summary>
+                  <summary><span>{group.name}</span><small>{visibleItems.length} 项要留意</small></summary>
                   <div>
-                    {group.items.map((item) => (
+                    {visibleItems.map((item) => (
                       <article className={`packing-tip-item packing-tip-item--${item.status.toLowerCase()}`} key={item.id}>
                         <span className="packing-tip-item__dot" aria-hidden="true" />
                         <div><strong>{item.label}</strong><small>{item.priority === "ESSENTIAL" ? "优先检查" : "按行程确认"}</small></div>
@@ -641,7 +653,8 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
                     ))}
                   </div>
                 </details>
-              ))}
+                );
+              })}
             </div>
             <button type="button" className="packing-tips-sheet__done" onClick={() => setShowTipsSheet(false)}>知道了</button>
           </section>
@@ -767,6 +780,35 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         />
       )}
     </main>
+  );
+}
+
+function TipsFilterTabs({
+  tips,
+  value,
+  onChange,
+}: {
+  tips: TravelPackingTips;
+  value: TipsFilter;
+  onChange: (value: TipsFilter) => void;
+}) {
+  const items = tips.groups.flatMap((group) => group.items);
+  const counts: Record<TipsFilter, number> = {
+    all: items.length,
+    "not-listed": items.filter((item) => item.status === "NOT_LISTED").length,
+    unpacked: items.filter((item) => item.status === "UNPACKED").length,
+    other: items.filter((item) => item.status === "OUT_OF_STOCK" || item.status === "EXPIRED").length,
+  };
+  const tabs: Array<{ value: TipsFilter; label: string }> = [
+    { value: "all", label: "全部" },
+    { value: "not-listed", label: "清单里没有" },
+    { value: "unpacked", label: "还没装" },
+    { value: "other", label: "库存 / 过期" },
+  ];
+  return (
+    <nav className="packing-tips-tabs" aria-label="遗漏状态筛选">
+      {tabs.map((tab) => <button type="button" className={value === tab.value ? "is-active" : ""} aria-pressed={value === tab.value} onClick={() => onChange(tab.value)} key={tab.value}>{tab.label}<strong>{counts[tab.value]}</strong></button>)}
+    </nav>
   );
 }
 
