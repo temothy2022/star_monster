@@ -401,7 +401,12 @@ async function listDirectContacts(childId: string) {
     include: {
       participantA: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
       participantB: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
-      messages: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: CHALLENGE_HISTORY_LIMIT },
+      messages: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 1 },
+      _count: {
+        select: {
+          messages: { where: { senderChildId: { not: childId }, readAt: null } },
+        },
+      },
     },
   });
   return conversations.flatMap((conversation) => {
@@ -418,9 +423,7 @@ async function listDirectContacts(childId: string) {
       label: "真实小伙伴" as const,
       latestMessage: latest.text,
       latestAt: latest.createdAt,
-      unreadCount: conversation.messages.filter((message) =>
-        message.senderChildId !== childId && message.readAt === null,
-      ).length,
+      unreadCount: conversation._count.messages,
     }];
   });
 }
