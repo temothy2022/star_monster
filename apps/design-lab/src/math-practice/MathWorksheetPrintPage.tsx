@@ -22,14 +22,9 @@ type NumberedQuestion = {
 
 const MAX_PER_TYPE = 20;
 const MAX_TOTAL = 120;
-const DEFAULT_COUNTS: TypeCounts = {
-  N01: 1,
-  N06: 1,
-  C07: 2,
-  V01: 1,
-  W01: 1,
-  S04: 1,
-};
+// A new worksheet starts empty. Users explicitly choose the question types
+// they want, or can use "全部各 1 题" for a quick mixed worksheet.
+const DEFAULT_COUNTS: TypeCounts = {};
 
 function clampCount(value: number) {
   if (!Number.isFinite(value)) return 0;
