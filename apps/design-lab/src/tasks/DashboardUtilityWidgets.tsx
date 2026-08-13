@@ -59,25 +59,42 @@ export function PostcardCarouselWidget({
 }) {
   const [index, setIndex] = useState(0);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const programmaticScrollRef = useRef(false);
+  const scrollReleaseTimerRef = useRef<number | null>(null);
+  const postcardIds = postcards?.map((postcard) => postcard.id).join("|") ?? "";
 
   useEffect(() => {
     if (!postcards?.length || postcards.length < 2) return;
+    setIndex((current) => Math.min(current, postcards.length - 1));
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % postcards.length);
     }, 5_500);
     return () => window.clearInterval(timer);
-  }, [postcards]);
+  }, [postcardIds, postcards?.length]);
 
   useEffect(() => {
-    viewportRef.current?.scrollTo({
-      left: index * viewportRef.current.clientWidth,
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    programmaticScrollRef.current = true;
+    if (scrollReleaseTimerRef.current !== null) window.clearTimeout(scrollReleaseTimerRef.current);
+    viewport.scrollTo({
+      left: index * viewport.clientWidth,
       behavior: "smooth",
     });
+    scrollReleaseTimerRef.current = window.setTimeout(() => {
+      programmaticScrollRef.current = false;
+      scrollReleaseTimerRef.current = null;
+    }, 700);
+    return () => {
+      if (scrollReleaseTimerRef.current !== null) window.clearTimeout(scrollReleaseTimerRef.current);
+      scrollReleaseTimerRef.current = null;
+      programmaticScrollRef.current = false;
+    };
   }, [index]);
 
   function updateIndexFromScroll() {
     const viewport = viewportRef.current;
-    if (!viewport || viewport.clientWidth === 0) return;
+    if (!viewport || viewport.clientWidth === 0 || programmaticScrollRef.current) return;
     setIndex(Math.max(0, Math.min((postcards?.length ?? 1) - 1, Math.round(viewport.scrollLeft / viewport.clientWidth))));
   }
 

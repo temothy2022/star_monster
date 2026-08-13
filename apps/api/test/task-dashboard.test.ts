@@ -8,7 +8,6 @@ import {
 describe("task dashboard layout", () => {
   it("uses a useful default layout when no saved layout exists", () => {
     expect(normalizeTaskDashboardLayout(null)).toEqual(DEFAULT_TASK_DASHBOARD_LAYOUT);
-    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("TASKS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("MASCOT");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("CLOCK");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("CATEGORY_PROGRESS");
@@ -18,6 +17,26 @@ describe("task dashboard layout", () => {
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POEM_REVIEW");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POSTCARDS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("COUNTDOWN_TIMER");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toEqual([
+      "CLOCK",
+      "BALANCE",
+      "POEM_REVIEW",
+      "CATEGORY_PROGRESS",
+      "COUNTDOWN_TIMER",
+      "NOTIFICATIONS",
+      "HANZI_REVIEW",
+      "LEADERBOARD",
+      "MASCOT",
+      "POSTCARDS",
+      "STREAK",
+    ]);
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.columns).toMatchObject({
+      HANZI_REVIEW: 0,
+      CLOCK: 4,
+      CATEGORY_PROGRESS: 8,
+      POSTCARDS: 0,
+      STREAK: 8,
+    });
     expect(taskDashboardLayoutSchema.safeParse({
       version: 1,
       widgets: ["TASKS", "POSTCARDS", "COUNTDOWN_TIMER"],

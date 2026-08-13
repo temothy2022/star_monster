@@ -106,6 +106,40 @@ function reorder(
   return next;
 }
 
+function reorderAroundGroup(
+  widgets: TaskDashboardWidgetKey[],
+  source: TaskDashboardWidgetKey,
+  targets: readonly TaskDashboardWidgetKey[],
+  after: boolean,
+) {
+  const next = widgets.filter((key) => key !== source);
+  const targetIndexes = targets
+    .map((key) => next.indexOf(key))
+    .filter((index) => index >= 0);
+  if (targetIndexes.length === 0) return widgets;
+  const insertionIndex = after
+    ? Math.max(...targetIndexes) + 1
+    : Math.min(...targetIndexes);
+  next.splice(insertionIndex, 0, source);
+  return next;
+}
+
+function visualWidgetOrder(elements: readonly HTMLElement[], source: TaskDashboardWidgetKey) {
+  return elements
+    .flatMap((element) => {
+      const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+      if (!key || key === source || !WIDGET_BY_KEY.has(key)) return [];
+      return [{ key, rect: element.getBoundingClientRect() }];
+    })
+    .sort((first, second) => {
+      const sameRow = Math.abs(first.rect.top - second.rect.top) < 8;
+      return sameRow
+        ? first.rect.left - second.rect.left
+        : first.rect.top - second.rect.top;
+    })
+    .map(({ key }) => key);
+}
+
 function hasSameOrder(
   first: TaskDashboardWidgetKey[],
   second: TaskDashboardWidgetKey[],
@@ -601,7 +635,29 @@ export function TaskDashboard({
       session.lastSwapX !== null && session.lastSwapY !== null &&
       Math.hypot(event.clientX - session.lastSwapX, event.clientY - session.lastSwapY) < 14
     ) return;
-    const next = reorder(widgetsRef.current, session.key, targetKey, after);
+    let reorderTargets: TaskDashboardWidgetKey[] = [targetKey];
+    // A two-lane widget can replace a row made from two one-lane widgets. Both
+    // occupants must move as a group; moving around only the card under the
+    // pointer leaves its neighbour ahead in DOM order, so CSS Grid cannot open
+    // the requested two-lane slot.
+    if (supportsColumnPlacement && widgetColumnSpan(session.key) === 8) {
+      const targetCenterY = rect.top + rect.height / 2;
+      reorderTargets = elements.flatMap((element) => {
+        const key = element.dataset.taskWidget as TaskDashboardWidgetKey | undefined;
+        if (!key || key === session.key) return [];
+        const column = columnsRef.current[key];
+        if (column === undefined) return [];
+        const width = widgetColumnSpan(key);
+        const overlapsTargetLanes = column < targetColumn + 8 && column + width > targetColumn;
+        const itemRect = element.getBoundingClientRect();
+        const occupiesTargetRow = targetCenterY >= itemRect.top && targetCenterY <= itemRect.bottom;
+        return overlapsTargetLanes && occupiesTargetRow ? [key] : [];
+      });
+      if (!reorderTargets.includes(targetKey)) reorderTargets.push(targetKey);
+    }
+    const next = reorderTargets.length > 1
+      ? reorderAroundGroup(visualWidgetOrder(elements, session.key), session.key, reorderTargets, after)
+      : reorder(widgetsRef.current, session.key, targetKey, after);
     if (!hasSameOrder(next, widgetsRef.current)) {
       previousRectsRef.current = captureWidgetRects(session.key);
       session.lastSwapAt = now;
