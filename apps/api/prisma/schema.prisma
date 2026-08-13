@@ -252,7 +252,7 @@ model Family {
   weeklyGrowthReports  WeeklyGrowthReport[]
   petRoomThemeSettings FamilyPetRoomThemeSetting[]
   petRoomThemes        PetRoomTheme[]
-  travelPackingList    TravelPackingList?
+  travelPackingLists   TravelPackingList[]
 
   @@index([status])
 }
@@ -277,16 +277,22 @@ model User {
 }
 
 model TravelPackingList {
-  id        String   @id @default(cuid())
-  familyId  String   @unique
-  title     String   @default("下一次旅行")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  familyId     String
+  title        String   @default("下一次旅行")
+  kind         String   @default("LIST")
+  isActive     Boolean  @default(false)
+  sourceListId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   family     Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
   categories TravelPackingCategory[]
   shares     TravelPackingShare[]
   todos      TravelPackingTodo[]
+
+  @@index([familyId, kind, updatedAt])
+  @@index([familyId, isActive])
 }
 
 model TravelPackingTodo {

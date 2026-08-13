@@ -52,8 +52,17 @@ if [[ ! "$DEPLOY_RSYNC_TIMEOUT" =~ ^[0-9]+$ ]] || (( DEPLOY_RSYNC_TIMEOUT < 30 )
 fi
 
 REMOTE="$DEPLOY_USER@$DEPLOY_HOST"
-SSH=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4)
-RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4"
+DEPLOY_CONTROL_DIR="$(mktemp -d "${TMPDIR:-/tmp}/star-monsters-deploy.XXXXXX")"
+DEPLOY_CONTROL_SOCKET="$DEPLOY_CONTROL_DIR/ssh-control"
+cleanup_deploy_connection() {
+  ssh -S "$DEPLOY_CONTROL_SOCKET" -O exit "$REMOTE" >/dev/null 2>&1 || true
+  rm -f "$DEPLOY_CONTROL_SOCKET"
+  rmdir "$DEPLOY_CONTROL_DIR" >/dev/null 2>&1 || true
+}
+trap cleanup_deploy_connection EXIT
+
+SSH=(ssh -p "$DEPLOY_PORT" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ControlMaster=auto -o ControlPersist=180 -o "ControlPath=$DEPLOY_CONTROL_SOCKET")
+RSYNC_SSH="ssh -p $DEPLOY_PORT -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 -o ControlMaster=auto -o ControlPersist=180 -o ControlPath=$(printf '%q' "$DEPLOY_CONTROL_SOCKET")"
 if [[ -n "${DEPLOY_IDENTITY_FILE:-}" ]]; then
   SSH+=(-i "$DEPLOY_IDENTITY_FILE")
   RSYNC_SSH+=" -i $(printf '%q' "$DEPLOY_IDENTITY_FILE")"

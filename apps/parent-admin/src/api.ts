@@ -31,8 +31,29 @@ export type TravelPackingList = {
   id: string;
   familyId: string;
   title: string;
+  kind: "LIST" | "TEMPLATE";
+  isActive: boolean;
+  sourceListId: string | null;
   categories: TravelPackingCategory[];
   todos: TravelPackingTodo[];
+};
+
+export type TravelPackingEntrySummary = {
+  id: string;
+  title: string;
+  kind: "LIST" | "TEMPLATE";
+  isActive: boolean;
+  sourceListId: string | null;
+  categoryCount: number;
+  itemCount: number;
+  todoCount: number;
+  updatedAt: string;
+};
+
+export type TravelPackingWorkspace = {
+  activeListId: string | null;
+  lists: TravelPackingEntrySummary[];
+  templates: TravelPackingEntrySummary[];
 };
 
 export type TravelPackingTodo = {
@@ -798,6 +819,29 @@ export function createTravelPackingApi(shareToken?: string) {
 }
 
 export const parentApi = {
+  travelPackingWorkspace: () =>
+    api<TravelPackingWorkspace>("/api/parent/travel-packing-workspace"),
+  createTravelPackingList: (title: string, sourceId: string | null) =>
+    api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>("/api/parent/travel-packing-lists", {
+      method: "POST",
+      body: JSON.stringify({ title, sourceId }),
+    }),
+  activateTravelPackingList: (id: string) =>
+    api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-lists/${id}/activate`, { method: "POST" }),
+  deleteTravelPackingList: (id: string) =>
+    api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-lists/${id}`, { method: "DELETE" }),
+  createTravelPackingTemplate: (title: string, sourceListId: string) =>
+    api<{ template: TravelPackingEntrySummary; workspace: TravelPackingWorkspace }>("/api/parent/travel-packing-templates", {
+      method: "POST",
+      body: JSON.stringify({ title, sourceListId }),
+    }),
+  renameTravelPackingTemplate: (id: string, title: string) =>
+    api<{ workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-templates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+  deleteTravelPackingTemplate: (id: string) =>
+    api<{ workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-templates/${id}`, { method: "DELETE" }),
   travelPackingList: () =>
     api<{ list: TravelPackingList }>("/api/parent/travel-packing-list"),
   renameTravelPackingList: (title: string) =>
