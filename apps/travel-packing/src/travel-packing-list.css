@@ -99,24 +99,24 @@
 .packing-hero__progress span { display: block; height: 100%; border-radius: inherit; background: var(--packing-lavender); transition: width 220ms ease; }
 
 .packing-overview { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 13px 0 16px; }
-.packing-overview > div {
+.packing-location-button {
   display: flex;
   min-height: 77px;
   align-items: flex-start;
   justify-content: space-between;
   flex-direction: column;
   padding: 13px 14px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 20px;
   color: var(--packing-ink);
+  background: var(--packing-lavender-soft);
   text-align: left;
 }
-.packing-overview > div:nth-child(1) { background: var(--packing-lavender-soft); }
-.packing-overview > div:nth-child(2) { background: var(--packing-blue-soft); }
-.packing-overview > div:nth-child(3) { background: var(--packing-peach-soft); }
-.packing-overview span { color: #676d80; font-size: 11px; font-weight: 730; }
-.packing-overview strong { font-size: 23px; font-weight: 850; line-height: 1; }
-.packing-overview > div.has-unpacked strong { color: #c16652; }
+.packing-location-button:nth-child(2) { background: var(--packing-blue-soft); }
+.packing-location-button:nth-child(3) { background: var(--packing-peach-soft); }
+.packing-location-button.is-active { border-color: var(--packing-lavender); box-shadow: 0 6px 16px rgba(102, 93, 192, .18); transform: translateY(-1px); }
+.packing-location-button span { font-size: 16px; font-weight: 850; }
+.packing-location-button small { color: #777b8e; font-size: 10px; font-weight: 700; }
 
 .packing-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -4px 0 12px; padding: 10px 12px; border-radius: 12px; color: #8f404a; background: #fff0f1; font-size: 12px; }
 .packing-error button { flex: none; padding: 5px 7px; border: 0; color: inherit; background: transparent; font-weight: 800; }
@@ -366,7 +366,7 @@
   .packing-hero__content { width: 60%; padding-left: 20px; }
   .packing-hero__score strong { font-size: 43px; }
   .packing-overview { gap: 7px; }
-  .packing-overview > div { padding: 12px; }
+  .packing-location-button { padding: 12px; }
   .packing-list-tools { grid-template-columns: minmax(0, 1fr) 96px; gap: 6px; }
   .packing-todo-entry { padding-left: 9px; }
   .packing-bottom-bar { grid-template-columns: 102px 1fr; gap: 7px; padding-right: 11px; padding-left: 11px; }
