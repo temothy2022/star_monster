@@ -366,10 +366,10 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
                           ><span aria-hidden="true">{item.packed ? "✓" : ""}</span></button>
                           <button type="button" className="packing-item__main" onClick={() => openItemEditor(item)}>
                             <strong>{item.label}</strong>
-                            <small>{item.quantity === 0 ? "库存不足，点击补充" : item.packed ? "已经装进行李" : "还没有装进行李"}</small>
+                            {item.quantity === 0 && <small>库存不足，点击补充</small>}
                           </button>
                           <button type="button" className="packing-item__stock" aria-label={`调整${item.label}库存，当前${item.quantity}`} onClick={() => openItemEditor(item)}>
-                            <span>库存</span><strong>{item.quantity}</strong>
+                            <strong>{item.quantity}</strong>
                           </button>
                         </div>
                       );

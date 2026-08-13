@@ -170,8 +170,7 @@
 .packing-item__main strong { display: block; overflow: hidden; font-size: 14px; font-weight: 740; text-overflow: ellipsis; white-space: nowrap; }
 .packing-item__main small { display: block; margin-top: 3px; color: #999ca9; font-size: 10px; font-weight: 600; }
 .packing-item__stock { display: flex; min-width: 58px; min-height: 42px; align-items: center; justify-content: center; flex-direction: column; padding: 5px 9px; border: 0; border-radius: 13px; color: #555a6e; background: #f3f3f7; }
-.packing-item__stock span { color: #999ca9; font-size: 9px; }
-.packing-item__stock strong { margin-top: 1px; font-size: 14px; }
+.packing-item__stock strong { font-size: 14px; }
 .packing-item.is-packed .packing-item__toggle span { border-color: #52b779; background: #52b779; }
 .packing-item.is-packed .packing-item__main strong { color: var(--packing-ink); }
 .packing-item.is-shortage .packing-item__main small,
