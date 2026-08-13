@@ -110,6 +110,12 @@ if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.co
   if [[ -f "$NGINX_SITE_CONFIG" ]] && sudo grep -qE '^[[:space:]]*client_max_body_size[[:space:]]+' "$NGINX_SITE_CONFIG"; then
     sudo sed -i -E "s/^([[:space:]]*)client_max_body_size[[:space:]]+[^;]+;/\\1client_max_body_size $MAX_UPLOAD_SIZE;/" "$NGINX_SITE_CONFIG"
   fi
+  # The packing list used to live inside the parent admin hash route. Remove
+  # those legacy redirects before installing the standalone /packing app so a
+  # release cannot leave duplicate exact-match locations in Nginx.
+  if [[ -f "$NGINX_SITE_CONFIG" ]]; then
+    sudo sed -i -E '\|^[[:space:]]*location = /packing/? \{ return 301 /parent/#packing; \}[[:space:]]*$|d' "$NGINX_SITE_CONFIG"
+  fi
   if [[ -f "$NGINX_SITE_CONFIG" ]] && ! sudo grep -q 'location \^~ /packing/' "$NGINX_SITE_CONFIG"; then
     tmp_nginx_site="$(mktemp)"
     sudo awk -v packing_web_root="$PACKING_WEB_ROOT" '
