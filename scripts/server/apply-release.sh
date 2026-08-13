@@ -125,9 +125,9 @@ if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.co
         next
       }
       skip {
-        open = gsub(/\{/, "{", $0)
-        close = gsub(/\}/, "}", $0)
-        depth += open - close
+        open_count = gsub(/\{/, "{", $0)
+        closed_count = gsub(/\}/, "}", $0)
+        depth += open_count - closed_count
         if (depth <= 0) skip = 0
         next
       }
