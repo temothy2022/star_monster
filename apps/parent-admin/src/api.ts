@@ -8,6 +8,80 @@ export type StaffUser = {
   familyId: string | null;
 };
 
+export type TravelPackingItem = {
+  id: string;
+  categoryId: string;
+  label: string;
+  quantity: number;
+  packed: boolean;
+  location: "SUITCASE" | "BACKPACK" | "CAR";
+  expirationDate: string | null;
+  sortOrder: number;
+};
+
+export type TravelPackingCategory = {
+  id: string;
+  listId: string;
+  name: string;
+  sortOrder: number;
+  items: TravelPackingItem[];
+};
+
+export type TravelPackingList = {
+  id: string;
+  familyId: string;
+  title: string;
+  kind: "LIST" | "TEMPLATE";
+  isActive: boolean;
+  sourceListId: string | null;
+  categories: TravelPackingCategory[];
+  todos: TravelPackingTodo[];
+};
+
+export type TravelPackingEntrySummary = {
+  id: string;
+  title: string;
+  kind: "LIST" | "TEMPLATE";
+  isActive: boolean;
+  sourceListId: string | null;
+  categoryCount: number;
+  itemCount: number;
+  todoCount: number;
+  updatedAt: string;
+};
+
+export type TravelPackingWorkspace = {
+  activeListId: string | null;
+  lists: TravelPackingEntrySummary[];
+  templates: TravelPackingEntrySummary[];
+};
+
+export type TravelPackingTodo = {
+  id: string;
+  listId: string;
+  label: string;
+  completed: boolean;
+  sortOrder: number;
+};
+
+export type TravelPackingShare = {
+  token: string;
+  expiresAt: string;
+};
+
+export type TravelPackingTips = {
+  summary: { total: number; ready: number; attention: number };
+  groups: Array<{
+    name: string;
+    items: Array<{
+      id: string;
+      label: string;
+      priority: "ESSENTIAL" | "RECOMMENDED";
+      status: "NOT_LISTED" | "UNPACKED" | "OUT_OF_STOCK" | "EXPIRED";
+    }>;
+  }>;
+};
+
 export type Child = {
   id: string;
   nickname: string | null;
@@ -690,6 +764,74 @@ export const staffApi = {
 };
 
 export const parentApi = {
+  travelPackingWorkspace: () =>
+    api<TravelPackingWorkspace>("/api/parent/travel-packing-workspace"),
+  createTravelPackingList: (title: string, sourceId: string | null) =>
+    api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>("/api/parent/travel-packing-lists", {
+      method: "POST",
+      body: JSON.stringify({ title, sourceId }),
+    }),
+  activateTravelPackingList: (id: string) =>
+    api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-lists/${id}/activate`, { method: "POST" }),
+  deleteTravelPackingList: (id: string) =>
+    api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-lists/${id}`, { method: "DELETE" }),
+  createTravelPackingTemplate: (title: string, sourceListId: string) =>
+    api<{ template: TravelPackingEntrySummary; workspace: TravelPackingWorkspace }>("/api/parent/travel-packing-templates", {
+      method: "POST",
+      body: JSON.stringify({ title, sourceListId }),
+    }),
+  renameTravelPackingTemplate: (id: string, title: string) =>
+    api<{ workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-templates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+  deleteTravelPackingTemplate: (id: string) =>
+    api<{ workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-templates/${id}`, { method: "DELETE" }),
+  travelPackingList: () =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list"),
+  renameTravelPackingList: (title: string) =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list", {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    }),
+  addTravelPackingCategory: (name: string) =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list/categories", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  renameTravelPackingCategory: (id: string, name: string) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  deleteTravelPackingCategory: (id: string) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${id}`, {
+      method: "DELETE",
+    }),
+  addTravelPackingItem: (categoryId: string, label: string, quantity: number, location: TravelPackingItem["location"] = "SUITCASE", expirationDate: string | null = null) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${categoryId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ label, quantity, location, expirationDate }),
+    }),
+  updateTravelPackingItem: (
+    id: string,
+    data: Partial<Pick<TravelPackingItem, "categoryId" | "label" | "quantity" | "packed" | "location" | "expirationDate">>,
+  ) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/items/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteTravelPackingItem: (id: string) =>
+    api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/items/${id}`, {
+      method: "DELETE",
+    }),
+  resetTravelPackingList: () =>
+    api<{ list: TravelPackingList }>("/api/parent/travel-packing-list/reset", { method: "POST" }),
+  createTravelPackingShare: (expiresInDays: number) =>
+    api<TravelPackingShare>("/api/parent/travel-packing-list/shares", {
+      method: "POST",
+      body: JSON.stringify({ expiresInDays }),
+    }),
   petGrowth: (childId: string) => api<PetGrowthSummary>(`/api/parent/children/${childId}/pet-growth`),
   updatePetGrowthSettings: (childId: string, data: {
     travelEnabled: boolean;

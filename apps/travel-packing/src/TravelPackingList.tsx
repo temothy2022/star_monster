@@ -4,7 +4,9 @@ import {
   createTravelPackingApi,
   type TravelPackingItem,
   type TravelPackingList as PackingList,
+  type TravelPackingEntrySummary,
   type TravelPackingTips,
+  type TravelPackingWorkspace,
 } from "./api";
 import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
 import travelPackingTipsIcon from "./assets/travel-packing-tips-v2.png";
@@ -15,6 +17,8 @@ type PackingLocation = TravelPackingItem["location"];
 type PageSheet = "menu" | "rename" | "category" | null;
 type ShareResult = { url: string; expiresAt: string };
 type TipsFilter = "all" | "not-listed" | "unpacked" | "other";
+type LibraryTab = "lists" | "templates";
+type LibraryComposer = "list" | "template" | null;
 
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "全部" },
@@ -46,6 +50,7 @@ function formatShareExpiry(value: string) {
 export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const packingApi = useMemo(() => createTravelPackingApi(shareToken), [shareToken]);
   const [list, setList] = useState<PackingList | null>(null);
+  const [workspace, setWorkspace] = useState<TravelPackingWorkspace | null>(null);
   const [error, setError] = useState("");
   const [authRequired, setAuthRequired] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
@@ -70,6 +75,12 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showTipsSheet, setShowTipsSheet] = useState(false);
   const [showTodoSheet, setShowTodoSheet] = useState(false);
+  const [showLibrarySheet, setShowLibrarySheet] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>("lists");
+  const [libraryComposer, setLibraryComposer] = useState<LibraryComposer>(null);
+  const [libraryTitle, setLibraryTitle] = useState("");
+  const [librarySourceId, setLibrarySourceId] = useState<string | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<TravelPackingEntrySummary | null>(null);
   const [tips, setTips] = useState<TravelPackingTips | null>(null);
   const [tipsLoading, setTipsLoading] = useState(false);
   const [tipsError, setTipsError] = useState("");
@@ -103,6 +114,15 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
       });
     return () => { cancelled = true; };
   }, [packingApi]);
+
+  useEffect(() => {
+    if (shareToken) return;
+    let cancelled = false;
+    void parentApi.travelPackingWorkspace()
+      .then((value) => { if (!cancelled) setWorkspace(value); })
+      .catch((reason) => { if (!cancelled) message(reason); });
+    return () => { cancelled = true; };
+  }, [shareToken]);
 
   const allItems = useMemo(
     () => list?.categories.flatMap((category) => category.items) ?? [],
@@ -372,7 +392,110 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     try {
       const result = await packingApi.renameList(tripTitle.trim());
       setList(result.list);
+      if (!shareToken) setWorkspace(await parentApi.travelPackingWorkspace());
       closePageSheet();
+    } catch (reason) {
+      message(reason);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function applyActiveList(next: PackingList) {
+    setList(next);
+    setExpandedIds(new Set(next.categories.map((category) => category.id)));
+    setFilter("all");
+    setLocationFilter(null);
+    setLastCategoryId(null);
+  }
+
+  async function openLibrary(tab: LibraryTab = "lists") {
+    if (shareToken) return;
+    setPageSheet(null);
+    setLibraryTab(tab);
+    setShowLibrarySheet(true);
+    try {
+      setWorkspace(await parentApi.travelPackingWorkspace());
+    } catch (reason) {
+      message(reason);
+    }
+  }
+
+  async function activateList(id: string) {
+    if (submitting || id === list?.id) {
+      setShowLibrarySheet(false);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await parentApi.activateTravelPackingList(id);
+      applyActiveList(result.list);
+      setWorkspace(result.workspace);
+      setShowLibrarySheet(false);
+      setError("");
+    } catch (reason) {
+      message(reason);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function openListComposer(sourceId: string | null = list?.id ?? null) {
+    setLibraryComposer("list");
+    setLibraryTitle("新的出行清单");
+    setLibrarySourceId(sourceId);
+  }
+
+  function openTemplateComposer(sourceId: string = list?.id ?? "") {
+    if (!sourceId) return;
+    setPageSheet(null);
+    setShowLibrarySheet(false);
+    setLibraryComposer("template");
+    setLibraryTitle(`${list?.title ?? "出行"}模板`);
+    setLibrarySourceId(sourceId);
+  }
+
+  async function createLibraryEntry(event: FormEvent) {
+    event.preventDefault();
+    const title = libraryTitle.trim();
+    if (!title || !libraryComposer) return;
+    setSubmitting(true);
+    try {
+      if (libraryComposer === "list") {
+        const result = await parentApi.createTravelPackingList(title, librarySourceId);
+        applyActiveList(result.list);
+        setWorkspace(result.workspace);
+        setShowLibrarySheet(false);
+      } else {
+        if (!librarySourceId) return;
+        const result = await parentApi.createTravelPackingTemplate(title, librarySourceId);
+        setWorkspace(result.workspace);
+        setLibraryTab("templates");
+        setShowLibrarySheet(true);
+      }
+      setLibraryComposer(null);
+      setError("");
+    } catch (reason) {
+      message(reason);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function deleteLibraryEntry() {
+    if (!deletingEntry) return;
+    setSubmitting(true);
+    try {
+      if (deletingEntry.kind === "TEMPLATE") {
+        const result = await parentApi.deleteTravelPackingTemplate(deletingEntry.id);
+        setWorkspace(result.workspace);
+      } else {
+        const result = await parentApi.deleteTravelPackingList(deletingEntry.id);
+        setWorkspace(result.workspace);
+        if (result.list.id !== list?.id) applyActiveList(result.list);
+      }
+      setDeletingEntry(null);
+      setError("");
     } catch (reason) {
       message(reason);
     } finally {
@@ -571,7 +694,11 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
         <section className="packing-hero" style={{ backgroundImage: `url(${travelPackingHero})` }}>
           <div className="packing-hero__content">
-            <h1>{list.title}</h1>
+            {shareToken ? <h1>{list.title}</h1> : (
+              <button type="button" className="packing-hero__list-switch" onClick={() => void openLibrary("lists")}>
+                <span>{list.title}</span><small>切换清单</small>
+              </button>
+            )}
             <div className="packing-hero__score"><strong>{progress}</strong><small>%</small></div>
             <p>{progress === 100 && allItems.length > 0 ? "全部准备好了" : `已装好 ${packedCount} / ${allItems.length} 件`}</p>
           </div>
@@ -581,15 +708,15 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         </section>
 
         <section className="packing-overview" aria-label="物品位置">
-          {LOCATIONS.map((location) => {
+          {[{ value: null, label: "全部" }, ...LOCATIONS].map((location) => {
             const selected = locationFilter === location.value;
             return (
               <button
                 type="button"
                 className={`packing-location-button${selected ? " is-active" : ""}`}
                 aria-pressed={selected}
-                onClick={() => setLocationFilter((current) => current === location.value ? null : location.value)}
-                key={location.value}
+                onClick={() => setLocationFilter(location.value as PackingLocation | null)}
+                key={location.value ?? "ALL"}
               >
                 <span>{location.label}</span>
                 <small>{selected ? "正在查看" : "查看物品"}</small>
@@ -676,12 +803,80 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           <section className="packing-action-sheet" role="dialog" aria-modal="true" aria-label="清单操作" onMouseDown={(event) => event.stopPropagation()}>
             <div className="packing-sheet__handle" aria-hidden="true" />
             <div className="packing-action-sheet__title"><span>清单设置</span><strong>{list.title}</strong></div>
+            {!shareToken && <button type="button" onClick={() => void openLibrary("lists")}><span>清单与模板</span><small>切换清单，或从模板开始一趟新旅行</small></button>}
             <button type="button" onClick={() => { setTripTitle(list.title); setPageSheet("rename"); }}><span>修改旅行名称</span><small>更换这次行程的标题</small></button>
-            <button type="button" onClick={openAddCategory}><span>添加分类</span><small>建立一个新的物品大类</small></button>
-            <button type="button" onClick={() => { setPageSheet(null); setShowResetConfirm(true); }}><span>开始新一趟</span><small>保留清单，只清空已装状态</small></button>
+            {!shareToken && <button type="button" onClick={() => openTemplateComposer()}><span>保存为模板</span><small>保存当前分类、物品、位置和待办</small></button>}
+            <button type="button" onClick={() => { setPageSheet(null); setShowResetConfirm(true); }}><span>重新整理这份清单</span><small>保留内容，只清空已装和待办完成状态</small></button>
             {!shareToken && <button type="button" onClick={openShare}><span>分享清单</span><small>生成无需登录的临时协作链接</small></button>}
             <button type="button" className="packing-action-sheet__cancel" onClick={closePageSheet}>完成</button>
           </section>
+        </div>
+      )}
+
+      {showLibrarySheet && !shareToken && (
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => setShowLibrarySheet(false)}>
+          <section className="packing-sheet packing-library-sheet" role="dialog" aria-modal="true" aria-labelledby="packing-library-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="packing-sheet__handle" aria-hidden="true" />
+            <div className="packing-library-heading">
+              <div><span>按不同场景分别准备</span><h2 id="packing-library-title">清单与模板</h2></div>
+              <button type="button" onClick={() => setShowLibrarySheet(false)}>完成</button>
+            </div>
+            <nav className="packing-library-tabs" aria-label="清单和模板">
+              <button type="button" className={libraryTab === "lists" ? "is-active" : ""} onClick={() => setLibraryTab("lists")}>出行清单 <small>{workspace?.lists.length ?? 0}</small></button>
+              <button type="button" className={libraryTab === "templates" ? "is-active" : ""} onClick={() => setLibraryTab("templates")}>模板 <small>{workspace?.templates.length ?? 0}</small></button>
+            </nav>
+            <div className="packing-library-list">
+              {libraryTab === "lists" ? workspace?.lists.map((entry) => (
+                <article className={`packing-library-row${entry.id === list.id ? " is-current" : ""}`} key={entry.id}>
+                  <button type="button" className="packing-library-row__main" disabled={submitting} onClick={() => void activateList(entry.id)}>
+                    <span>{entry.title}</span>
+                    <small>{entry.itemCount} 件物品 · {entry.categoryCount} 个分类{entry.id === list.id ? " · 当前使用" : ""}</small>
+                  </button>
+                  <button type="button" className="packing-library-row__more" aria-label={`管理${entry.title}`} onClick={() => setDeletingEntry(entry)}>删除</button>
+                </article>
+              )) : workspace?.templates.map((entry) => (
+                <article className="packing-library-row packing-library-row--template" key={entry.id}>
+                  <button type="button" className="packing-library-row__main" onClick={() => { setShowLibrarySheet(false); openListComposer(entry.id); }}>
+                    <span>{entry.title}</span>
+                    <small>{entry.itemCount} 件物品 · 点击用它新建清单</small>
+                  </button>
+                  <button type="button" className="packing-library-row__more" aria-label={`管理${entry.title}`} onClick={() => setDeletingEntry(entry)}>删除</button>
+                </article>
+              ))}
+              {libraryTab === "templates" && workspace?.templates.length === 0 && (
+                <div className="packing-library-empty"><strong>还没有模板</strong><span>把整理好的一份清单保存下来，下次可以直接复用。</span></div>
+              )}
+            </div>
+            <button type="button" className="packing-library-create" onClick={() => libraryTab === "lists" ? openListComposer() : openTemplateComposer()}>{libraryTab === "lists" ? "新建出行清单" : "保存新模板"}</button>
+          </section>
+        </div>
+      )}
+
+      {libraryComposer && !shareToken && (
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => setLibraryComposer(null)}>
+          <form className="packing-sheet packing-library-composer" onSubmit={createLibraryEntry} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="packing-sheet__handle" aria-hidden="true" />
+            <h2>{libraryComposer === "list" ? "新建出行清单" : "保存为模板"}</h2>
+            <p>{libraryComposer === "list" ? "可以复制已有内容，也可以从空白开始。复制时会保留分类、物品、库存、位置、有效期和待办，但不会带入完成状态。" : "模板会记录这套物品和待办，今后创建新清单时可以直接继承。"}</p>
+            <label>{libraryComposer === "list" ? "清单名称" : "模板名称"}<input autoFocus value={libraryTitle} maxLength={24} onChange={(event) => setLibraryTitle(event.target.value)} /></label>
+            <fieldset className="packing-source-picker">
+              <legend>{libraryComposer === "list" ? "从哪里开始" : "继承哪份清单"}</legend>
+              {libraryComposer === "list" && (
+                <button type="button" className={librarySourceId === null ? "is-selected" : ""} onClick={() => setLibrarySourceId(null)}><strong>空白清单</strong><small>不复制任何物品</small></button>
+              )}
+              {workspace?.lists.map((entry) => (
+                <button type="button" className={librarySourceId === entry.id ? "is-selected" : ""} onClick={() => setLibrarySourceId(entry.id)} key={entry.id}>
+                  <strong>{entry.id === list.id ? "复制当前清单" : entry.title}</strong><small>{entry.itemCount} 件物品{entry.id === list.id ? ` · ${entry.title}` : ""}</small>
+                </button>
+              ))}
+              {libraryComposer === "list" && workspace?.templates.map((entry) => (
+                <button type="button" className={librarySourceId === entry.id ? "is-selected" : ""} onClick={() => setLibrarySourceId(entry.id)} key={entry.id}>
+                  <strong>{entry.title}</strong><small>模板 · {entry.itemCount} 件物品</small>
+                </button>
+              ))}
+            </fieldset>
+            <div className="packing-sheet__actions"><button type="button" onClick={() => setLibraryComposer(null)}>取消</button><button type="submit" className="is-primary" disabled={submitting || !libraryTitle.trim() || (libraryComposer === "template" && !librarySourceId)}>{submitting ? "正在保存…" : libraryComposer === "list" ? "创建并切换" : "保存模板"}</button></div>
+          </form>
         </div>
       )}
 
@@ -884,6 +1079,22 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           submitting={submitting}
           onCancel={() => setShowResetConfirm(false)}
           onConfirm={() => void resetTrip()}
+        />
+      )}
+
+      {deletingEntry && (
+        <ConfirmDialog
+          danger
+          title={`删除“${deletingEntry.title}”？`}
+          description={deletingEntry.kind === "TEMPLATE"
+            ? "模板会被删除，已经从它创建的出行清单不会受到影响。"
+            : deletingEntry.id === list.id
+              ? "当前清单会被删除，并自动切换到最近使用的另一份清单。"
+              : "这份清单和其中的物品、库存及待办会一起删除，此操作无法撤销。"}
+          confirmText="确认删除"
+          submitting={submitting}
+          onCancel={() => setDeletingEntry(null)}
+          onConfirm={() => void deleteLibraryEntry()}
         />
       )}
 

@@ -17,6 +17,14 @@ const nameInput = z.object({ name: z.string().trim().min(1).max(20) });
 const shareInput = z.object({ expiresInDays: z.number().int().min(1).max(30) });
 const todoCreateInput = z.object({ label: z.string().trim().min(1).max(80) });
 const todoUpdateInput = z.object({ completed: z.boolean() });
+const listCreateInput = z.object({
+  title: z.string().trim().min(1).max(24),
+  sourceId: z.string().trim().min(1).nullable().optional(),
+});
+const templateCreateInput = z.object({
+  title: z.string().trim().min(1).max(24),
+  sourceListId: z.string().trim().min(1),
+});
 const itemCreateInput = z.object({
   label: z.string().trim().min(1).max(30),
   quantity: z.number().int().min(0).max(999).default(1),
@@ -69,7 +77,10 @@ async function familyIdFor(request: FastifyRequest, reply: FastifyReply, config:
 }
 
 async function readList(familyId: string) {
-  return prisma.travelPackingList.findUnique({ where: { familyId }, include: listInclude });
+  return prisma.travelPackingList.findFirst({
+    where: { familyId, kind: "LIST", isActive: true },
+    include: listInclude,
+  });
 }
 
 async function readListById(listId: string) {
@@ -80,10 +91,22 @@ async function ensureList(familyId: string) {
   const existing = await readList(familyId);
   if (existing) return existing;
 
+  const inactive = await prisma.travelPackingList.findFirst({
+    where: { familyId, kind: "LIST" },
+    orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+  });
+  if (inactive) {
+    await prisma.travelPackingList.update({ where: { id: inactive.id }, data: { isActive: true } });
+    const activated = await readListById(inactive.id);
+    if (activated) return activated;
+  }
+
   try {
     return await prisma.travelPackingList.create({
       data: {
         familyId,
+        kind: "LIST",
+        isActive: true,
         categories: {
           create: DEFAULT_CATEGORIES.map((category, categoryIndex) => ({
             name: category.name,
@@ -103,6 +126,135 @@ async function ensureList(familyId: string) {
     }
     throw reason;
   }
+}
+
+async function packingWorkspace(familyId: string) {
+  const entries = await prisma.travelPackingList.findMany({
+    where: { familyId },
+    orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }, { createdAt: "desc" }],
+    include: {
+      _count: { select: { categories: true, todos: true } },
+      categories: { select: { _count: { select: { items: true } } } },
+    },
+  });
+  const summarize = (entry: typeof entries[number]) => ({
+    id: entry.id,
+    title: entry.title,
+    kind: entry.kind,
+    isActive: entry.isActive,
+    sourceListId: entry.sourceListId,
+    categoryCount: entry._count.categories,
+    itemCount: entry.categories.reduce((sum, category) => sum + category._count.items, 0),
+    todoCount: entry._count.todos,
+    updatedAt: entry.updatedAt,
+  });
+  return {
+    activeListId: entries.find((entry) => entry.kind === "LIST" && entry.isActive)?.id ?? null,
+    lists: entries.filter((entry) => entry.kind === "LIST").map(summarize),
+    templates: entries.filter((entry) => entry.kind === "TEMPLATE").map(summarize),
+  };
+}
+
+async function ownedPackingEntry(familyId: string, id: string, kind?: "LIST" | "TEMPLATE") {
+  const entry = await prisma.travelPackingList.findFirst({ where: { id, familyId, ...(kind ? { kind } : {}) } });
+  if (!entry) throw new HttpError(404, "PACKING_ENTRY_NOT_FOUND", kind === "TEMPLATE" ? "没有找到这个模板" : "没有找到这份清单");
+  return entry;
+}
+
+async function copyPackingContents(
+  tx: Prisma.TransactionClient,
+  sourceId: string,
+  targetId: string,
+) {
+  const source = await tx.travelPackingList.findUnique({ where: { id: sourceId }, include: listInclude });
+  if (!source) throw new HttpError(404, "PACKING_SOURCE_NOT_FOUND", "没有找到要继承的清单或模板");
+  for (const category of source.categories) {
+    await tx.travelPackingCategory.create({
+      data: {
+        listId: targetId,
+        name: category.name,
+        sortOrder: category.sortOrder,
+        items: {
+          create: category.items.map((item) => ({
+            label: item.label,
+            quantity: item.quantity,
+            packed: false,
+            location: item.location,
+            expirationDate: item.expirationDate,
+            sortOrder: item.sortOrder,
+          })),
+        },
+      },
+    });
+  }
+  if (source.todos.length > 0) {
+    await tx.travelPackingTodo.createMany({
+      data: source.todos.map((todo) => ({
+        listId: targetId,
+        label: todo.label,
+        completed: false,
+        sortOrder: todo.sortOrder,
+      })),
+    });
+  }
+}
+
+async function createPackingList(familyId: string, title: string, sourceId?: string | null) {
+  if (sourceId) await ownedPackingEntry(familyId, sourceId);
+  const id = await prisma.$transaction(async (tx) => {
+    await tx.travelPackingList.updateMany({
+      where: { familyId, kind: "LIST", isActive: true },
+      data: { isActive: false },
+    });
+    const created = await tx.travelPackingList.create({
+      data: { familyId, title, kind: "LIST", isActive: true, sourceListId: sourceId ?? null },
+    });
+    if (sourceId) await copyPackingContents(tx, sourceId, created.id);
+    return created.id;
+  });
+  return readListById(id);
+}
+
+async function activatePackingList(familyId: string, id: string) {
+  await ownedPackingEntry(familyId, id, "LIST");
+  await prisma.$transaction(async (tx) => {
+    await tx.travelPackingList.updateMany({ where: { familyId, kind: "LIST", isActive: true }, data: { isActive: false } });
+    await tx.travelPackingList.update({ where: { id }, data: { isActive: true } });
+  });
+  return readListById(id);
+}
+
+async function createPackingTemplate(familyId: string, title: string, sourceListId: string) {
+  await ownedPackingEntry(familyId, sourceListId);
+  const count = await prisma.travelPackingList.count({ where: { familyId, kind: "TEMPLATE" } });
+  if (count >= 30) throw new HttpError(409, "PACKING_TEMPLATE_LIMIT", "最多保存 30 个模板");
+  const id = await prisma.$transaction(async (tx) => {
+    const created = await tx.travelPackingList.create({
+      data: { familyId, title, kind: "TEMPLATE", isActive: false, sourceListId },
+    });
+    await copyPackingContents(tx, sourceListId, created.id);
+    return created.id;
+  });
+  return prisma.travelPackingList.findUnique({ where: { id } });
+}
+
+async function deletePackingEntry(familyId: string, id: string, kind: "LIST" | "TEMPLATE") {
+  const entry = await ownedPackingEntry(familyId, id, kind);
+  if (kind === "LIST") {
+    const alternatives = await prisma.travelPackingList.findMany({
+      where: { familyId, kind: "LIST", id: { not: id } },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: 1,
+    });
+    if (alternatives.length === 0) throw new HttpError(409, "PACKING_LAST_LIST", "至少要保留一份出行清单");
+    await prisma.$transaction(async (tx) => {
+      await tx.travelPackingList.delete({ where: { id } });
+      if (entry.isActive) await tx.travelPackingList.update({ where: { id: alternatives[0].id }, data: { isActive: true } });
+    });
+  } else {
+    await prisma.travelPackingList.delete({ where: { id } });
+  }
+  return packingWorkspace(familyId);
 }
 
 async function categoryForList(listId: string, id: string) {
@@ -210,7 +362,10 @@ async function deleteItem(listId: string, id: string) {
 }
 
 async function resetList(listId: string) {
-  await prisma.travelPackingItem.updateMany({ where: { category: { listId } }, data: { packed: false } });
+  await prisma.$transaction([
+    prisma.travelPackingItem.updateMany({ where: { category: { listId } }, data: { packed: false } }),
+    prisma.travelPackingTodo.updateMany({ where: { listId }, data: { completed: false } }),
+  ]);
   return readListById(listId);
 }
 
@@ -241,6 +396,57 @@ async function packingTips(listId: string) {
 }
 
 export async function registerParentTravelPackingRoutes(app: FastifyInstance, config: AppConfig) {
+  app.get("/api/parent/travel-packing-workspace", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    await ensureList(familyId);
+    reply.header("Cache-Control", "no-store");
+    return packingWorkspace(familyId);
+  });
+
+  app.post("/api/parent/travel-packing-lists", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { title, sourceId } = listCreateInput.parse(request.body);
+    const count = await prisma.travelPackingList.count({ where: { familyId, kind: "LIST" } });
+    if (count >= 30) throw new HttpError(409, "PACKING_LIST_LIMIT", "最多保留 30 份出行清单");
+    const list = await createPackingList(familyId, title, sourceId);
+    return { list, workspace: await packingWorkspace(familyId) };
+  });
+
+  app.post("/api/parent/travel-packing-lists/:id/activate", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const list = await activatePackingList(familyId, id);
+    return { list, workspace: await packingWorkspace(familyId) };
+  });
+
+  app.delete("/api/parent/travel-packing-lists/:id", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    return { workspace: await deletePackingEntry(familyId, id, "LIST"), list: await ensureList(familyId) };
+  });
+
+  app.post("/api/parent/travel-packing-templates", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { title, sourceListId } = templateCreateInput.parse(request.body);
+    const template = await createPackingTemplate(familyId, title, sourceListId);
+    return { template, workspace: await packingWorkspace(familyId) };
+  });
+
+  app.patch("/api/parent/travel-packing-templates/:id", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const { title } = titleInput.parse(request.body);
+    await ownedPackingEntry(familyId, id, "TEMPLATE");
+    await prisma.travelPackingList.update({ where: { id }, data: { title } });
+    return { workspace: await packingWorkspace(familyId) };
+  });
+
+  app.delete("/api/parent/travel-packing-templates/:id", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    return { workspace: await deletePackingEntry(familyId, id, "TEMPLATE") };
+  });
+
   app.get("/api/parent/travel-packing-list", async (request, reply) => {
     const familyId = await familyIdFor(request, reply, config);
     return { list: await ensureList(familyId) };
