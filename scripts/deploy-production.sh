@@ -52,8 +52,8 @@ if [[ ! "$DEPLOY_RSYNC_TIMEOUT" =~ ^[0-9]+$ ]] || (( DEPLOY_RSYNC_TIMEOUT < 30 )
 fi
 
 REMOTE="$DEPLOY_USER@$DEPLOY_HOST"
-DEPLOY_CONTROL_DIR="$(mktemp -d "${TMPDIR:-/tmp}/star-monsters-deploy.XXXXXX")"
-DEPLOY_CONTROL_SOCKET="$DEPLOY_CONTROL_DIR/ssh-control"
+DEPLOY_CONTROL_DIR="$(mktemp -d "/tmp/sm-deploy.XXXXXX")"
+DEPLOY_CONTROL_SOCKET="$DEPLOY_CONTROL_DIR/s"
 cleanup_deploy_connection() {
   ssh -S "$DEPLOY_CONTROL_SOCKET" -O exit "$REMOTE" >/dev/null 2>&1 || true
   rm -f "$DEPLOY_CONTROL_SOCKET"
