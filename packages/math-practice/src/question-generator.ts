@@ -233,7 +233,7 @@ function generateCubeStructure(rng: SeededRng, difficulty: 1 | 2 | 3) {
 }
 
 const MULTI_ARITHMETIC_TYPES = new Set<MathQuestionTypeId>([
-  "C01", "C02", "C03", "C04", "C05", "C06",
+  "C01", "C02", "C03", "C04", "C06",
   "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14",
 ]);
 
@@ -310,6 +310,42 @@ export function generateMathQuestion(
   const total = a + b;
   const baseVisual: MathVisualSpec = { kind: "NONE" };
 
+  if (input.typeId === "C05") {
+    // C05 is a number-bond exercise, not a disguised addition worksheet. Keep
+    // one blank in each tree so the child practises both "合成" and "分开".
+    const bondCount = Math.max(2, Math.min(4, arithmeticItemCount(input)));
+    const maximumTotal = difficulty === 1 ? 10 : 20;
+    const minimumTotal = difficulty === 1 ? 4 : 10;
+    const bonds: Array<{ total: number | null; parts: readonly [number | null, number | null] }> = [];
+    const answers: string[] = [];
+    const explanations: string[] = [];
+
+    for (let index = 0; index < bondCount; index += 1) {
+      const bondTotal = rng.int(minimumTotal, maximumTotal);
+      const leftPart = rng.int(1, bondTotal - 1);
+      const rightPart = bondTotal - leftPart;
+      const missing = difficulty === 1
+        ? rng.pick(["LEFT", "RIGHT", "RIGHT"] as const)
+        : rng.pick(["TOTAL", "LEFT", "RIGHT"] as const);
+      const bond = missing === "TOTAL"
+        ? { total: null, parts: [leftPart, rightPart] as const }
+        : missing === "LEFT"
+          ? { total: bondTotal, parts: [null, rightPart] as const }
+          : { total: bondTotal, parts: [leftPart, null] as const };
+      bonds.push(bond);
+      answers.push(String(missing === "TOTAL" ? bondTotal : missing === "LEFT" ? leftPart : rightPart));
+      explanations.push(`${leftPart} 和 ${rightPart} 合成 ${bondTotal}`);
+    }
+
+    return question(input, {
+      prompt: "把 20 以内的分与合填完整。",
+      visual: { kind: "NUMBER_BOND_SET", bonds },
+      response: numericResponse(bondCount),
+      answer: { values: answers, display: answers.join("，") },
+      explanation: explanations.join("；"),
+    });
+  }
+
   if (MULTI_ARITHMETIC_TYPES.has(input.typeId)) {
     const count = arithmeticItemCount(input);
     const items: Array<{ tokens: MathArithmeticToken[]; answer: string; explanation: string }> = [];
@@ -359,11 +395,6 @@ export function generateMathQuestion(
         const right = b;
         const result = addition ? total : a;
         items.push({ tokens: [left, { kind: "BLANK", placeholder: "○" }, right, "=", result], answer: addition ? "+" : "-", explanation: `${left} ${addition ? "+" : "-"} ${right} = ${result}` });
-      } else if (input.typeId === "C05") {
-        const askTotal = difficulty === 2 && rng.next() > 0.65;
-        items.push(askTotal
-          ? { tokens: [a, "+", b, "=", { kind: "BLANK" }], answer: String(total), explanation: `${a} + ${b} = ${total}` }
-          : { tokens: [a, "+", { kind: "BLANK" }, "=", total], answer: String(b), explanation: `${a} + ${b} = ${total}` });
       } else {
         if (difficulty === 1) items.push({ tokens: [a, "+", b, "=", { kind: "BLANK" }], answer: String(total), explanation: `${a} + ${b} = ${total}` });
         else if (difficulty === 2) items.push({ tokens: [{ kind: "BLANK" }, "+", b, "=", total], answer: String(a), explanation: `${a} + ${b} = ${total}` });
@@ -376,7 +407,7 @@ export function generateMathQuestion(
       }
     }
     const labels: Record<string, string> = {
-      C01: "算一算，完成下面的加减法。", C02: "连加算一算。", C03: "连减算一算。", C04: "在○里填上加号或减号。", C05: "把数的分与合填完整。", C06: "把缺少的数填进去。",
+      C01: "算一算，完成下面的加减法。", C02: "连加算一算。", C03: "连减算一算。", C04: "在○里填上加号或减号。", C06: "把缺少的数填进去。",
       C07: "算一算：10以内不进位、不退位。", C08: "算一算：20以内不进位、不退位。", C09: "算一算：50以内不进位、不退位。", C10: "算一算：100以内不进位、不退位。", C11: "算一算：10以内进位、退位。", C12: "算一算：20以内进位、退位。", C13: "算一算：50以内进位、退位。", C14: "算一算：100以内进位、退位。",
     };
     return arithmeticQuestion(input, labels[input.typeId]!, items);
@@ -401,7 +432,7 @@ export function generateMathQuestion(
     case "N03": {
       const bundle = difficulty === 1 ? 5 : 10;
       const ones = rng.int(1, difficulty === 1 ? 4 : 9);
-      return question(input, { prompt: `先按 ${bundle} 个一组，再数一数一共有多少？`, visual: { kind: "OBJECT_GROUPS", asset, groups: [bundle, ones], groupColumns: [difficulty === 1 ? 5 : 5, ones] }, response: numericResponse(), answer: { values: [String(bundle + ones)], display: String(bundle + ones) }, explanation: `${bundle} 个和 ${ones} 个合起来是 ${bundle + ones} 个。` });
+      return question(input, { prompt: `先按 ${bundle} 个一组，再数一数一共有多少？`, visual: { kind: "OBJECT_GROUPS", asset, groups: [bundle, ones], groupColumns: [5, Math.min(5, ones)] }, response: numericResponse(), answer: { values: [String(bundle + ones)], display: String(bundle + ones) }, explanation: `${bundle} 个和 ${ones} 个合起来是 ${bundle + ones} 个。` });
     }
     case "N04": {
       const length = difficulty === 1 ? 5 : 7;
@@ -719,10 +750,6 @@ export function generateMathQuestion(
       const helper = addition ? `${a} ○ ${b} = ${total}` : `${total} ○ ${b} = ${a}`;
       const symbol = addition ? "+" : "-";
       return question(input, { prompt: "填上加号或减号，让算式成立。", helper, visual: baseVisual, response: optionResponse(["+", "-"], "R03"), answer: { values: [symbol], display: symbol }, explanation: helper.replace("○", symbol) + "。" });
-    }
-    case "C05": {
-      const askTotal = difficulty === 2 && rng.next() > 0.65;
-      return question(input, { prompt: "把数的分与合填完整。", visual: askTotal ? { kind: "NUMBER_BOND", total: null, parts: [a, b] } : { kind: "NUMBER_BOND", total, parts: [a, null] }, response: numericResponse(), answer: { values: [String(askTotal ? total : b)], display: String(askTotal ? total : b) }, explanation: `${a} 和 ${b} 合成 ${total}。` });
     }
     case "C06": {
       if (difficulty === 1) {

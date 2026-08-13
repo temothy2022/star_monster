@@ -594,6 +594,26 @@
 .math-paper-question .math-object-group--grid { grid-auto-rows: 9mm; gap: .6mm; grid-template-columns: repeat(5, 9mm) !important; }
 .math-paper-question .math-object-group--grid .math-object,
 .math-paper-question .math-object-group--grid .math-object .math-sprite { width: 9mm; height: 9mm; }
+.math-paper-question[data-question-type="N03"] .math-object-groups,
+.math-paper-question[data-question-type="V04"] .math-object-groups,
+.math-paper-question[data-question-type="V05"] .math-object-groups,
+.math-paper-question[data-question-type="W03"] .math-object-groups,
+.math-paper-question[data-question-type="W04"] .math-object-groups { gap: 1.5mm; align-items: center; }
+.math-paper-question[data-question-type="N03"] .math-object-group--grid,
+.math-paper-question[data-question-type="V04"] .math-object-group--grid,
+.math-paper-question[data-question-type="V05"] .math-object-group--grid,
+.math-paper-question[data-question-type="W03"] .math-object-group--grid,
+.math-paper-question[data-question-type="W04"] .math-object-group--grid { grid-template-columns: repeat(5, 7.2mm) !important; grid-auto-rows: 7.2mm; gap: .35mm; }
+.math-paper-question[data-question-type="N03"] .math-object-group--grid .math-object,
+.math-paper-question[data-question-type="N03"] .math-object-group--grid .math-object .math-sprite,
+.math-paper-question[data-question-type="V04"] .math-object-group--grid .math-object,
+.math-paper-question[data-question-type="V04"] .math-object-group--grid .math-object .math-sprite,
+.math-paper-question[data-question-type="V05"] .math-object-group--grid .math-object,
+.math-paper-question[data-question-type="V05"] .math-object-group--grid .math-object .math-sprite,
+.math-paper-question[data-question-type="W03"] .math-object-group--grid .math-object,
+.math-paper-question[data-question-type="W03"] .math-object-group--grid .math-object .math-sprite,
+.math-paper-question[data-question-type="W04"] .math-object-group--grid .math-object,
+.math-paper-question[data-question-type="W04"] .math-object-group--grid .math-object .math-sprite { width: 7.2mm; height: 7.2mm; }
 .math-paper-question .math-object-groups--vertical { gap: 1mm; }
 .math-paper-question .math-object-groups--vertical .math-object-group { min-height: 12mm; padding: 1mm 1mm 1mm 14mm; }
 .math-paper-question .math-object-groups--vertical .math-object,
@@ -622,6 +642,11 @@
 .math-paper-question .math-number-bond__total,
 .math-paper-question .math-number-bond__field > span { border-width: .7mm; border-radius: 2mm; font-size: 16pt; }
 .math-paper-question .math-number-bond__field small { margin-top: 1mm; font-size: 7pt; }
+.math-paper-question[data-question-type="C05"] .math-paper-visual { margin-top: 1mm; }
+.math-paper-question[data-question-type="C05"] .math-number-bond-set { width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3mm; }
+.math-paper-question[data-question-type="C05"] .math-number-bond { width: 100%; max-width: none; aspect-ratio: 360 / 210; }
+.math-paper-question[data-question-type="C05"] .math-number-bond__total,
+.math-paper-question[data-question-type="C05"] .math-number-bond__field > span { border-width: .6mm; border-radius: 2mm; font-size: 13pt; }
 .math-paper-question .math-queue { gap: .5mm; }
 .math-paper-question .math-queue__item .math-sprite { width: 10mm; height: 10mm; }
 .math-paper-question .math-queue__item b { top: -3mm; font-size: 12pt; }

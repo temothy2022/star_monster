@@ -131,6 +131,11 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
         {displayGroups.map(({ count, removed, key }, groupIndex) => {
           const groupStart = globalIndex;
           globalIndex += count;
+          // Split subtraction models used to leave removal stages as free-flow
+          // groups. Five or more objects could then become one long vertical
+          // column on paper. Give every stage a compact, readable grid.
+          const gridColumns = visual.groupColumns?.[groupIndex]
+            ?? (splitRemovalGroups ? Math.min(5, count) : undefined);
           if (visual.unknownGroupIndex === groupIndex) {
             return (
               <div className="math-object-group math-object-group--unknown" key={groupIndex}>
@@ -140,9 +145,9 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
           }
           return (
             <div
-              className={`math-object-group${visual.groupColumns?.[groupIndex] ? " math-object-group--grid" : ""}${visual.containers ? " math-object-group--container" : ""}${removed ? " math-object-group--removed" : ""}`}
-              style={visual.groupColumns?.[groupIndex]
-                ? { gridTemplateColumns: `repeat(${visual.groupColumns[groupIndex]}, 58px)` }
+              className={`math-object-group${gridColumns ? " math-object-group--grid" : ""}${visual.containers ? " math-object-group--container" : ""}${removed ? " math-object-group--removed" : ""}`}
+              style={gridColumns
+                ? { gridTemplateColumns: `repeat(${gridColumns}, 58px)` }
                 : undefined}
               key={key}
             >
@@ -308,6 +313,8 @@ function NumberBond({
   parts,
   answerValues = [],
   activeSlot = 0,
+  totalSlotIndex,
+  partSlotIndexes,
   slotLabels,
   showLines = true,
   disabled = false,
@@ -317,32 +324,45 @@ function NumberBond({
   parts: readonly [number | null, number | null];
   answerValues?: readonly string[];
   activeSlot?: number;
+  totalSlotIndex?: number;
+  partSlotIndexes?: readonly [number | undefined, number | undefined];
   slotLabels?: readonly string[];
   showLines?: boolean;
   disabled?: boolean;
   onSlotSelect?: (index: number) => void;
 }) {
+  const totalValue = total ?? (totalSlotIndex === undefined ? "" : answerValues[totalSlotIndex] ?? "");
   return (
     <div className="math-number-bond" role="group" aria-label="数的组成与分解">
-      <span className="math-number-bond__total">{total ?? "?"}</span>
+      {totalSlotIndex !== undefined && onSlotSelect ? (
+        <button
+          className={`math-number-bond__total${activeSlot === totalSlotIndex ? " is-active" : ""}`}
+          type="button"
+          disabled={disabled}
+          aria-label={totalValue ? `合成数已填写 ${totalValue}` : "填写合成数"}
+          onClick={() => onSlotSelect(totalSlotIndex)}
+        >{totalValue || "?"}</button>
+      ) : <span className="math-number-bond__total">{totalValue || "?"}</span>}
       {showLines ? (
         <svg className="math-number-bond__lines" viewBox="0 0 360 210" aria-hidden="true">
           <path d="M180 76 L95 148 M180 76 L265 148" />
         </svg>
       ) : null}
-      <div className="math-number-bond__branches">
-        {parts.map((part, index) => {
-          const value = part ?? answerValues[index] ?? "";
+        <div className="math-number-bond__branches">
+          {parts.map((part, index) => {
+          const slotIndex = partSlotIndexes?.[index] ?? index;
+          const value = part ?? answerValues[slotIndex] ?? "";
           const label = slotLabels?.[index];
+          const editable = part === null && Boolean(onSlotSelect);
           return (
             <div className="math-number-bond__field" key={index}>
-              {onSlotSelect ? (
+              {editable ? (
                 <button
-                  className={activeSlot === index ? "is-active" : ""}
+                  className={activeSlot === slotIndex ? "is-active" : ""}
                   type="button"
                   disabled={disabled}
                   aria-label={`${label ?? `第 ${index + 1} 个分支`}，${value ? `已填写 ${value}` : "未填写"}`}
-                  onClick={() => onSlotSelect(index)}
+                  onClick={() => onSlotSelect?.(slotIndex)}
                 >
                   {value || <span>?</span>}
                 </button>
@@ -352,6 +372,45 @@ function NumberBond({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function NumberBondSet({
+  bonds,
+  answerValues,
+  activeSlot,
+  disabled,
+  onSlotSelect,
+}: {
+  bonds: readonly { total: number | null; parts: readonly [number | null, number | null] }[];
+  answerValues: readonly string[];
+  activeSlot: number;
+  disabled: boolean;
+  onSlotSelect?: (index: number) => void;
+}) {
+  let nextSlot = 0;
+  const configuredBonds = bonds.map((bond) => {
+    const totalSlotIndex = bond.total === null ? nextSlot++ : undefined;
+    const partSlotIndexes = bond.parts.map((part) => part === null ? nextSlot++ : undefined) as [number | undefined, number | undefined];
+    return { bond, totalSlotIndex, partSlotIndexes };
+  });
+
+  return (
+    <div className="math-number-bond-set" aria-label="20以内数的分与合">
+      {configuredBonds.map(({ bond, totalSlotIndex, partSlotIndexes }, index) => (
+        <NumberBond
+          total={bond.total}
+          parts={bond.parts}
+          answerValues={answerValues}
+          activeSlot={activeSlot}
+          totalSlotIndex={totalSlotIndex}
+          partSlotIndexes={partSlotIndexes}
+          disabled={disabled}
+          onSlotSelect={onSlotSelect}
+          key={index}
+        />
+      ))}
     </div>
   );
 }
@@ -798,6 +857,16 @@ function MathVisualComponent({
           onSlotSelect={["P03", "P04"].includes(question.typeId) ? onSlotSelect : undefined}
         />
       );
+    case "NUMBER_BOND_SET":
+      return (
+        <NumberBondSet
+          bonds={question.visual.bonds}
+          answerValues={values}
+          activeSlot={activeSlot}
+          disabled={disabled}
+          onSlotSelect={onSlotSelect}
+        />
+      );
     case "QUEUE":
       return <Queue question={question} values={values} disabled={disabled} onChange={onChange} />;
     case "COUNT_ADJUST":
@@ -824,7 +893,7 @@ function mathVisualPropsEqual(previous: MathVisualProps, next: MathVisualProps) 
   if (previous.question !== next.question) return false;
   if (previous.cubeVisibleLayers !== next.cubeVisibleLayers || previous.cubeAnimatingLayer !== next.cubeAnimatingLayer) return false;
   if (previous.activeSlot !== next.activeSlot) return false;
-  if (!["ARITHMETIC_LIST", "LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES", "NUMBER_BOND"].includes(previous.question.visual.kind)) return true;
+  if (!["ARITHMETIC_LIST", "LOGIC_GRID", "QUEUE", "COUNT_ADJUST", "NUMBER_BOXES", "NUMBER_BOND", "NUMBER_BOND_SET"].includes(previous.question.visual.kind)) return true;
   return previous.disabled === next.disabled && sameValues(previous.values, next.values);
 }
 

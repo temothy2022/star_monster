@@ -67,6 +67,14 @@ export type MathVisualSpec =
       parts: readonly [number | null, number | null];
     }
   | {
+      /** A compact set of standard top-total / bottom-parts number bonds. */
+      kind: "NUMBER_BOND_SET";
+      bonds: readonly {
+        total: number | null;
+        parts: readonly [number | null, number | null];
+      }[];
+    }
+  | {
       kind: "QUEUE";
       assets: readonly MathSpriteKey[];
       targetIndex?: number;

@@ -163,6 +163,29 @@ describe("math practice question generator", () => {
     }
   });
 
+  it("renders C05 as four standard 20-within number-bond trees", () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const question = generateMathQuestion({ typeId: "C05", seed, difficulty: 2 });
+      expect(question.visual.kind).toBe("NUMBER_BOND_SET");
+      if (question.visual.kind !== "NUMBER_BOND_SET") continue;
+
+      expect(question.visual.bonds).toHaveLength(4);
+      expect(question.response.slots).toBe(4);
+      expect(question.answer.values).toHaveLength(4);
+
+      question.visual.bonds.forEach((bond, index) => {
+        const values = [bond.total, ...bond.parts];
+        expect(values.filter((value) => value === null)).toHaveLength(1);
+        const total = bond.total ?? Number(question.answer.values[index]);
+        const left = bond.parts[0] ?? Number(question.answer.values[index]);
+        const right = bond.parts[1] ?? Number(question.answer.values[index]);
+        expect(total).toBeGreaterThanOrEqual(10);
+        expect(total).toBeLessThanOrEqual(20);
+        expect(left + right).toBe(total);
+      });
+    }
+  });
+
   it("keeps N02 wording stable when containers wrap across rows", () => {
     for (let seed = 1; seed <= 80; seed += 1) {
       const question = generateMathQuestion({ typeId: "N02", seed });

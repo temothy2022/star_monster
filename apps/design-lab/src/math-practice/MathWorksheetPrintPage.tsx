@@ -67,6 +67,9 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
   if (question.typeId === "N02") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N15") return { heightMm: 82, size: "wide-visual", wide: true };
   if (question.typeId === "N16") return { heightMm: 104, size: "wide-visual", wide: true };
+  // Four small number-bond trees follow the familiar classroom layout and fit
+  // best across a full-width card rather than in a narrow visual column.
+  if (question.typeId === "C05") return { heightMm: 62, size: "wide-visual", wide: true };
   if (question.visual.kind === "ARITHMETIC_LIST") {
     const rows = question.visual.items.length;
     // Arithmetic exercises can contain several independent rows.  Their card
@@ -86,7 +89,7 @@ export function getPaperQuestionLayout(question: MathQuestion): PaperQuestionLay
   if (question.visual.kind === "NONE" && !question.helper && question.typeId !== "N09") {
     return { heightMm: 60, size: "compact", wide: false };
   }
-  if (["S02", "S04", "C05", "P01", "P02", "P05", "P06", "P07"].includes(question.typeId)) {
+  if (["S02", "S04", "P01", "P02", "P05", "P06", "P07"].includes(question.typeId)) {
     return { heightMm: 84, size: "tall-visual", wide: false };
   }
   if (question.typeId.startsWith("W")) return { heightMm: 86, size: "tall-visual", wide: false };
