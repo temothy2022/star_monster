@@ -157,10 +157,12 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     setItemQuantity(1);
     setItemLocation("SUITCASE");
     setItemExpirationDate("");
+    const expandedCategories = list.categories.filter((category) => expandedIds.has(category.id));
+    const expandedCategoryId = expandedCategories.length === 1 ? expandedCategories[0].id : null;
     const remembered = lastCategoryId && list.categories.some((category) => category.id === lastCategoryId)
       ? lastCategoryId
       : list.categories[0].id;
-    setItemSheetCategoryId(categoryId ?? remembered);
+    setItemSheetCategoryId(categoryId ?? expandedCategoryId ?? remembered);
     setCategoryPickerOpen(false);
   }
 
