@@ -37,7 +37,7 @@ const challengeReplySchema = z.object({
 const challengeStartSchema = z.object({
   competitorId: z.string().trim().min(1),
   displayName: z.string().trim().min(1).max(32),
-  avatarKey: z.string().trim().min(1).max(64),
+  avatarKey: z.string().trim().min(1).max(64).nullable().optional(),
 });
 const challengeConversationQuery = z.object({ competitorId: z.string().trim().min(1).optional() });
 

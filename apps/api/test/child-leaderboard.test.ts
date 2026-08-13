@@ -192,6 +192,31 @@ describe("孩子激励排行榜", () => {
     );
   });
 
+  it("真实孩子按实际得星加入榜单且不伪装成虚拟伙伴", () => {
+    const result = buildMotivationalLeaderboard({
+      ...baseInput,
+      stars: 8,
+      completedTasks: 3,
+      realCompetitors: [{
+        childId: "child-b",
+        nickname: "雅雅",
+        avatarUrl: "/uploads/yaya.webp",
+        petType: "MILU",
+        stars: 11,
+        completedTasks: 4,
+      }],
+    });
+    expect(result.entries.find((entry) => entry.competitorId === "real:child-b")).toMatchObject({
+      displayName: "雅雅",
+      stars: 11,
+      completedTasks: 4,
+      avatarUrl: "/uploads/yaya.webp",
+      avatarKey: null,
+      participantType: "REAL",
+      isSelf: false,
+    });
+  });
+
   it("新一天零点加入新参赛者但不会改写既有周榜成绩", () => {
     const firstDay = {
       seed: "2026-08-03",

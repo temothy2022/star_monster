@@ -4,11 +4,19 @@ import {
   challengeReplyDelayMs,
   CHALLENGE_HISTORY_LIMIT,
   DAILY_CHILD_MESSAGE_LIMIT,
+  directParticipantIds,
   mergeChallengePromptCandidates,
   normalizeVirtualMessage,
+  realChildId,
 } from "../src/services/challenge-conversation-service.js";
 
 describe("你的挑战伙伴规则", () => {
+  it("只把 real 前缀识别为真实孩子并稳定会话参与者顺序", () => {
+    expect(realChildId("real:child-b")).toBe("child-b");
+    expect(realChildId("v03")).toBeNull();
+    expect(directParticipantIds("child-z", "child-a")).toEqual(["child-a", "child-z"]);
+    expect(directParticipantIds("child-a", "child-z")).toEqual(["child-a", "child-z"]);
+  });
   it("只在中午后、低完成量且处于后半区时触发", () => {
     expect(challengeOfferEligible({ minuteOfDay: 720, completedTasks: 1, rank: 9, totalParticipants: 14, selfIndex: 8 })).toBe(true);
     expect(challengeOfferEligible({ minuteOfDay: 719, completedTasks: 0, rank: null, totalParticipants: 14, selfIndex: 13 })).toBe(false);

@@ -164,6 +164,8 @@ function buildChildLeaderboards(input: {
   today: Date;
   weekStart: Date;
   currentMinute: number;
+  realDailyCompetitors: RealLeaderboardCompetitor[];
+  realWeeklyCompetitors: RealLeaderboardCompetitor[];
 }) {
   const {
     childId,
@@ -174,6 +176,8 @@ function buildChildLeaderboards(input: {
     today,
     weekStart,
     currentMinute,
+    realDailyCompetitors,
+    realWeeklyCompetitors,
   } = input;
   const todayKey = businessDateKey(today);
   const weekStartKey = businessDateKey(weekStart);
@@ -286,6 +290,7 @@ function buildChildLeaderboards(input: {
         maxAvailableStars: dailyStats.maxAvailableStars + dailyGoalBonusPotential,
       }],
       competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
+      realCompetitors: realDailyCompetitors,
     }),
     weekly: buildMotivationalLeaderboard({
       childId,
@@ -301,7 +306,89 @@ function buildChildLeaderboards(input: {
       habitualDailyStars,
       scoreDays: weeklyScoreDays,
       competitorStarDelta: leaderboardSettings.dailyCompetitorStarDelta,
+      realCompetitors: realWeeklyCompetitors,
     }),
+  };
+}
+
+type RealLeaderboardCompetitor = {
+  childId: string;
+  nickname: string | null;
+  avatarUrl: string | null;
+  petType: PetType | null;
+  stars: number;
+  completedTasks: number;
+};
+
+async function loadRealLeaderboardCompetitors(
+  childId: string,
+  weekStart: Date,
+  today: Date,
+  config: AppConfig,
+) {
+  const todayKey = businessDateKey(today);
+  const weekStartKey = businessDateKey(weekStart);
+  const peers = await prisma.childProfile.findMany({
+    where: {
+      id: { not: childId },
+      status: "ACTIVE",
+      onboardingCompletedAt: { not: null },
+    },
+    select: {
+      id: true,
+      nickname: true,
+      avatarUrl: true,
+      petType: true,
+      dailyTasks: {
+        where: { taskDate: { gte: weekStart, lte: today } },
+        select: {
+          taskDate: true,
+          attempts: {
+            where: { status: "COMPLETED" },
+            select: { baseStarsAwarded: true, bonusStarsAwarded: true },
+          },
+        },
+      },
+      starLedger: {
+        where: {
+          createdAt: {
+            gte: businessDateStartInstant(weekStart, config.APP_TIME_ZONE),
+            lt: businessDateStartInstant(addBusinessDays(today, 1), config.APP_TIME_ZONE),
+          },
+          type: { in: ["DAILY_GOAL_BONUS", "PLANET_BONUS", "PET_RED_PACKET_REWARD"] },
+        },
+        select: { amount: true, createdAt: true },
+      },
+    },
+  });
+
+  const summarize = (fromKey: string) => peers.map((peer) => {
+    const attempts = peer.dailyTasks
+      .filter((task) => {
+        const key = businessDateKey(task.taskDate);
+        return key >= fromKey && key <= todayKey;
+      })
+      .flatMap((task) => task.attempts);
+    const rewardStars = peer.starLedger.reduce((sum, ledger) => {
+      const key = businessDateKey(businessDateAt(ledger.createdAt, config.APP_TIME_ZONE));
+      return key >= fromKey && key <= todayKey ? sum + ledger.amount : sum;
+    }, 0);
+    return {
+      childId: peer.id,
+      nickname: peer.nickname,
+      avatarUrl: peer.avatarUrl,
+      petType: peer.petType,
+      stars: attempts.reduce(
+        (sum, attempt) => sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
+        rewardStars,
+      ),
+      completedTasks: attempts.length,
+    };
+  });
+
+  return {
+    daily: summarize(todayKey),
+    weekly: summarize(weekStartKey),
   };
 }
 
@@ -446,6 +533,12 @@ export async function getFootprints(
     selectedKey,
     config.APP_TIME_ZONE,
   );
+  const realCompetitors = await loadRealLeaderboardCompetitors(
+    childId,
+    weekStart,
+    today,
+    config,
+  );
 
   const leaderboards = buildChildLeaderboards({
     childId,
@@ -456,6 +549,8 @@ export async function getFootprints(
     today,
     weekStart,
     currentMinute,
+    realDailyCompetitors: realCompetitors.daily,
+    realWeeklyCompetitors: realCompetitors.weekly,
   });
 
   return {
@@ -530,6 +625,12 @@ export async function getChildLeaderboards(
       select: { amount: true, createdAt: true },
     }),
   ]);
+  const realCompetitors = await loadRealLeaderboardCompetitors(
+    childId,
+    weekStart,
+    today,
+    config,
+  );
 
   return {
     leaderboards: buildChildLeaderboards({
@@ -545,6 +646,8 @@ export async function getChildLeaderboards(
       today,
       weekStart,
       currentMinute,
+      realDailyCompetitors: realCompetitors.daily,
+      realWeeklyCompetitors: realCompetitors.weekly,
     }),
   };
 }

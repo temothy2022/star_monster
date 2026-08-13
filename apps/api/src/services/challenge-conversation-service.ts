@@ -30,6 +30,24 @@ type ChallengePartner = {
   stars: number;
 };
 
+const REAL_COMPETITOR_PREFIX = "real:";
+
+export function realChildId(competitorId: string) {
+  return competitorId.startsWith(REAL_COMPETITOR_PREFIX)
+    ? competitorId.slice(REAL_COMPETITOR_PREFIX.length)
+    : null;
+}
+
+export function directParticipantIds(childId: string, partnerChildId: string) {
+  return childId.localeCompare(partnerChildId) < 0
+    ? [childId, partnerChildId] as const
+    : [partnerChildId, childId] as const;
+}
+
+function directCompetitorId(childId: string) {
+  return `${REAL_COMPETITOR_PREFIX}${childId}`;
+}
+
 function virtualPartnerPrompt(childName?: string | null) {
   return [
     "你是儿童任务应用里孩子的挑战伙伴，明确不是现实中的真人。",
@@ -68,8 +86,9 @@ export function normalizeVirtualMessage(text: string) {
 
 function anonymizeChildReply(text: string) {
   return text
+    .replace(/https?:\/\/\S+|www\.\S+/gi, "[已隐藏]")
     .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[已隐藏]")
-    .replace(/\d{5,}/g, "[已隐藏]");
+    .replace(/(?:\d[\s-]?){5,}/g, "[已隐藏]");
 }
 
 function normalizePromptTemplate(text: string) {
@@ -283,6 +302,9 @@ function serializeConversations(conversations: LoadedConversation[], config: App
       competitorId: latest.competitorId,
       displayName: latest.competitorName,
       avatarKey: latest.competitorAvatarKey,
+      avatarUrl: null,
+      petType: null,
+      participantType: "VIRTUAL" as const,
       label: "你的挑战伙伴" as const,
     },
     messages: allVisibleMessages.map((message) => ({
@@ -300,6 +322,107 @@ function serializeConversations(conversations: LoadedConversation[], config: App
 
 function serializeConversation(conversation: LoadedConversation | null, config: AppConfig, now: Date) {
   return conversation ? serializeConversations([conversation], config, now) : null;
+}
+
+async function loadDirectConversation(childId: string, partnerChildId: string) {
+  const [participantAId, participantBId] = directParticipantIds(childId, partnerChildId);
+  return prisma.directChildConversation.findUnique({
+    where: { participantAId_participantBId: { participantAId, participantBId } },
+    include: {
+      participantA: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
+      participantB: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
+      messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+    },
+  });
+}
+
+type LoadedDirectConversation = NonNullable<Awaited<ReturnType<typeof loadDirectConversation>>>;
+
+function directPartner(conversation: LoadedDirectConversation, childId: string) {
+  return conversation.participantAId === childId
+    ? conversation.participantB
+    : conversation.participantA;
+}
+
+async function serializeDirectConversation(
+  conversation: LoadedDirectConversation,
+  childId: string,
+  config: AppConfig,
+  now: Date,
+  sentTodayOverride?: number,
+) {
+  const partner = directPartner(conversation, childId);
+  const sentToday = sentTodayOverride ?? await countChildMessagesToday(childId, config, now);
+  return {
+    id: conversation.id,
+    businessDate: businessDateAt(now, config.APP_TIME_ZONE).toISOString().slice(0, 10),
+    partner: {
+      competitorId: directCompetitorId(partner.id),
+      displayName: partner.nickname?.trim() || "小伙伴",
+      avatarKey: null,
+      avatarUrl: partner.avatarUrl?.trim() || null,
+      petType: partner.petType ?? "DOUYA",
+      participantType: "REAL" as const,
+      label: "真实小伙伴" as const,
+    },
+    messages: conversation.messages.slice(-CHALLENGE_HISTORY_LIMIT).map((message) => ({
+      id: message.id,
+      sender: message.senderChildId === childId ? "CHILD" as const : "REAL_PARTNER" as const,
+      text: message.text,
+      createdAt: message.createdAt,
+    })),
+    nextVisibleAt: null,
+    dailyLimit: DAILY_CHILD_MESSAGE_LIMIT,
+    sentToday,
+    remainingToday: Math.max(0, DAILY_CHILD_MESSAGE_LIMIT - sentToday),
+  };
+}
+
+async function ensureDirectConversation(childId: string, partnerChildId: string) {
+  if (childId === partnerChildId) throw new HttpError(409, "DIRECT_MESSAGE_SELF", "不能给自己发消息");
+  const partner = await prisma.childProfile.findFirst({
+    where: { id: partnerChildId, status: "ACTIVE", onboardingCompletedAt: { not: null } },
+    select: { id: true },
+  });
+  if (!partner) throw new HttpError(404, "DIRECT_PARTNER_NOT_FOUND", "这个小伙伴暂时无法联系");
+  const [participantAId, participantBId] = directParticipantIds(childId, partnerChildId);
+  await prisma.directChildConversation.upsert({
+    where: { participantAId_participantBId: { participantAId, participantBId } },
+    create: { participantAId, participantBId },
+    update: {},
+  });
+  return (await loadDirectConversation(childId, partnerChildId))!;
+}
+
+async function listDirectContacts(childId: string) {
+  const conversations = await prisma.directChildConversation.findMany({
+    where: { OR: [{ participantAId: childId }, { participantBId: childId }] },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      participantA: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
+      participantB: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
+      messages: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: CHALLENGE_HISTORY_LIMIT },
+    },
+  });
+  return conversations.flatMap((conversation) => {
+    const latest = conversation.messages[0];
+    if (!latest) return [];
+    const partner = directPartner(conversation, childId);
+    return [{
+      competitorId: directCompetitorId(partner.id),
+      displayName: partner.nickname?.trim() || "小伙伴",
+      avatarKey: null,
+      avatarUrl: partner.avatarUrl?.trim() || null,
+      petType: partner.petType ?? "DOUYA",
+      participantType: "REAL" as const,
+      label: "真实小伙伴" as const,
+      latestMessage: latest.text,
+      latestAt: latest.createdAt,
+      unreadCount: conversation.messages.filter((message) =>
+        message.senderChildId !== childId && message.readAt === null,
+      ).length,
+    }];
+  });
 }
 
 async function loadTodayConversation(childId: string, config: AppConfig, now = new Date(), competitorId?: string) {
@@ -324,17 +447,22 @@ async function prunePartnerHistory(childId: string, competitorId: string) {
 
 export async function startChallengeConversation(
   childId: string,
-  partner: { competitorId: string; displayName: string; avatarKey: string },
+  partner: { competitorId: string; displayName: string; avatarKey?: string | null },
   config: AppConfig,
   now = new Date(),
 ) {
   const { leaderboards } = await getChildLeaderboards(childId, config, now);
   const verified = [...leaderboards.daily.entries, ...leaderboards.weekly.entries].find((entry) =>
-    !entry.isSelf && entry.competitorId === partner.competitorId && entry.avatarKey,
+    !entry.isSelf && entry.competitorId === partner.competitorId,
   );
-  if (!verified?.competitorId || !verified.avatarKey) {
-    throw new HttpError(404, "CHALLENGE_PARTNER_NOT_FOUND", "这个挑战伙伴暂时不在排行榜里");
+  if (!verified?.competitorId) throw new HttpError(404, "CHALLENGE_PARTNER_NOT_FOUND", "这个挑战伙伴暂时不在排行榜里");
+  const partnerChildId = realChildId(verified.competitorId);
+  if (verified.participantType === "REAL" && partnerChildId) {
+    const conversation = await ensureDirectConversation(childId, partnerChildId);
+    const contacts = (await listChallengeContacts(childId, config, now)).contacts;
+    return { contacts, conversation: await serializeDirectConversation(conversation, childId, config, now) };
   }
+  if (!verified.avatarKey) throw new HttpError(404, "CHALLENGE_PARTNER_NOT_FOUND", "这个挑战伙伴暂时不在排行榜里");
   const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
   await prisma.challengeConversation.upsert({
     where: { childId_businessDate_competitorId: { childId, businessDate, competitorId: verified.competitorId } },
@@ -369,9 +497,15 @@ async function countChildMessagesToday(childId: string, config: AppConfig, now: 
   const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
   const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
   const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
-  return prisma.challengeConversationMessage.count({
-    where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } },
-  });
+  const [virtualCount, directCount] = await Promise.all([
+    prisma.challengeConversationMessage.count({
+      where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } },
+    }),
+    prisma.directChildMessage.count({
+      where: { senderChildId: childId, createdAt: { gte: todayStart, lt: tomorrowStart } },
+    }),
+  ]);
+  return virtualCount + directCount;
 }
 
 export async function listChallengeContacts(childId: string, config: AppConfig, now = new Date()) {
@@ -380,7 +514,7 @@ export async function listChallengeContacts(childId: string, config: AppConfig, 
     orderBy: [{ businessDate: "desc" }, { createdAt: "desc" }],
     include: { messages: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
   });
-  const contacts = new Map<string, { competitorId: string; displayName: string; avatarKey: string; label: "你的挑战伙伴"; latestMessage: string; latestAt: Date; unreadCount: number }>();
+  const contacts = new Map<string, { competitorId: string; displayName: string; avatarKey: string | null; avatarUrl: string | null; petType: string | null; participantType: "VIRTUAL" | "REAL"; label: "你的挑战伙伴" | "真实小伙伴"; latestMessage: string; latestAt: Date; unreadCount: number }>();
   for (const conversation of conversations) {
     const messages = visibleMessages(conversation, now);
     if (!messages.length) continue;
@@ -388,7 +522,7 @@ export async function listChallengeContacts(childId: string, config: AppConfig, 
     const unreadCount = messages.filter((message) => message.sender === "VIRTUAL_PARTNER" && !message.readAt).length;
     const current = contacts.get(conversation.competitorId);
     if (!current) {
-      contacts.set(conversation.competitorId, { competitorId: conversation.competitorId, displayName: conversation.competitorName, avatarKey: conversation.competitorAvatarKey, label: "你的挑战伙伴", latestMessage: latestMessage.text, latestAt: latestMessage.createdAt, unreadCount });
+      contacts.set(conversation.competitorId, { competitorId: conversation.competitorId, displayName: conversation.competitorName, avatarKey: conversation.competitorAvatarKey, avatarUrl: null, petType: null, participantType: "VIRTUAL", label: "你的挑战伙伴", latestMessage: latestMessage.text, latestAt: latestMessage.createdAt, unreadCount });
     } else {
       current.unreadCount += unreadCount;
       if (latestMessage.createdAt > current.latestAt) {
@@ -398,6 +532,9 @@ export async function listChallengeContacts(childId: string, config: AppConfig, 
         current.avatarKey = conversation.competitorAvatarKey;
       }
     }
+  }
+  for (const contact of await listDirectContacts(childId)) {
+    contacts.set(contact.competitorId, contact);
   }
   return { contacts: [...contacts.values()].sort((left, right) => right.latestAt.getTime() - left.latestAt.getTime() || left.competitorId.localeCompare(right.competitorId)) };
 }
@@ -490,17 +627,45 @@ export async function challengeLetterNotification(
   config: AppConfig,
   now = new Date(),
 ) {
-  const firstMessage = await prisma.challengeConversationMessage.findFirst({
-    where: { sender: "VIRTUAL_PARTNER", visibleAt: { lte: now }, readAt: null, conversation: { childId, status: "READY" } },
-    orderBy: [{ visibleAt: "desc" }, { createdAt: "desc" }],
-    include: { conversation: true },
-  });
+  const [firstMessage, directMessage] = await Promise.all([
+    prisma.challengeConversationMessage.findFirst({
+      where: { sender: "VIRTUAL_PARTNER", visibleAt: { lte: now }, readAt: null, conversation: { childId, status: "READY" } },
+      orderBy: [{ visibleAt: "desc" }, { createdAt: "desc" }],
+      include: { conversation: true },
+    }),
+    prisma.directChildMessage.findFirst({
+      where: {
+        readAt: null,
+        senderChildId: { not: childId },
+        conversation: { is: { OR: [{ participantAId: childId }, { participantBId: childId }] } },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      include: {
+        sender: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
+      },
+    }),
+  ]);
+  if (directMessage && (!firstMessage || directMessage.createdAt >= firstMessage.createdAt)) {
+    return {
+      conversationId: directMessage.conversationId,
+      partnerId: directCompetitorId(directMessage.sender.id),
+      partnerName: directMessage.sender.nickname?.trim() || "小伙伴",
+      partnerAvatarKey: null,
+      partnerAvatarUrl: directMessage.sender.avatarUrl?.trim() || null,
+      partnerPetType: directMessage.sender.petType ?? "DOUYA",
+      preview: directMessage.text,
+      unread: true,
+      partnerLabel: "真实小伙伴" as const,
+    };
+  }
   if (!firstMessage) return null;
   return {
     conversationId: firstMessage.conversation.id,
     partnerId: firstMessage.conversation.competitorId,
     partnerName: firstMessage.conversation.competitorName,
     partnerAvatarKey: firstMessage.conversation.competitorAvatarKey,
+    partnerAvatarUrl: null,
+    partnerPetType: null,
     preview: firstMessage.text,
     unread: true,
     partnerLabel: "你的挑战伙伴" as const,
@@ -511,6 +676,19 @@ export async function getChallengeConversation(childId: string, config: AppConfi
   const { contacts: initialContacts } = await listChallengeContacts(childId, config, now);
   let competitorId = requestedCompetitorId ?? initialContacts[0]?.competitorId;
   if (!competitorId) return { contacts: initialContacts, conversation: null };
+  const requestedRealChildId = realChildId(competitorId);
+  if (requestedRealChildId) {
+    const conversation = await loadDirectConversation(childId, requestedRealChildId);
+    if (!conversation) return { contacts: initialContacts, conversation: null };
+    await prisma.directChildMessage.updateMany({
+      where: { conversationId: conversation.id, senderChildId: { not: childId }, readAt: null },
+      data: { readAt: now },
+    });
+    const refreshed = (await loadDirectConversation(childId, requestedRealChildId))!;
+    const contacts = (await listChallengeContacts(childId, config, now)).contacts;
+    const sentToday = await countChildMessagesToday(childId, config, now);
+    return { contacts, conversation: await serializeDirectConversation(refreshed, childId, config, now, sentToday) };
+  }
   let conversations = await loadPartnerConversations(childId, competitorId);
   if (!conversations.length && requestedCompetitorId && initialContacts[0]) {
     competitorId = initialContacts[0].competitorId;
@@ -541,6 +719,31 @@ export async function sendChallengeReply(
   config: AppConfig,
   now = new Date(),
 ) {
+  const partnerChildId = realChildId(competitorId);
+  if (partnerChildId) {
+    const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
+    const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
+    const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
+    const conversation = await loadDirectConversation(childId, partnerChildId);
+    if (!conversation) throw new HttpError(404, "DIRECT_CONVERSATION_NOT_FOUND", "请先从排行榜打开这个小伙伴");
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "ChildProfile" WHERE "id" = ${childId} FOR UPDATE`;
+      const [virtualCount, directCount] = await Promise.all([
+        tx.challengeConversationMessage.count({ where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } } }),
+        tx.directChildMessage.count({ where: { senderChildId: childId, createdAt: { gte: todayStart, lt: tomorrowStart } } }),
+      ]);
+      if (virtualCount + directCount >= DAILY_CHILD_MESSAGE_LIMIT) {
+        throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
+      }
+      await tx.directChildMessage.create({
+        data: { conversationId: conversation.id, senderChildId: childId, text: anonymizeChildReply(text) },
+      });
+      await tx.directChildConversation.update({ where: { id: conversation.id }, data: { updatedAt: now } });
+    });
+    const refreshed = (await loadDirectConversation(childId, partnerChildId))!;
+    const contacts = (await listChallengeContacts(childId, config, now)).contacts;
+    return { contacts, conversation: await serializeDirectConversation(refreshed, childId, config, now) };
+  }
   const conversations = await loadPartnerConversations(childId, competitorId);
   const conversation = conversations[0];
   if (!conversation) throw new HttpError(404, "CHALLENGE_CONVERSATION_NOT_FOUND", "还没有和这个挑战伙伴联系过");
@@ -549,10 +752,13 @@ export async function sendChallengeReply(
   const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
   const childMessage = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "ChildProfile" WHERE "id" = ${childId} FOR UPDATE`;
-    const currentCount = await tx.challengeConversationMessage.count({
-      where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } },
-    });
-    if (currentCount >= DAILY_CHILD_MESSAGE_LIMIT) throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
+    const [virtualCount, directCount] = await Promise.all([
+      tx.challengeConversationMessage.count({
+        where: { sender: "CHILD", createdAt: { gte: todayStart, lt: tomorrowStart }, conversation: { childId } },
+      }),
+      tx.directChildMessage.count({ where: { senderChildId: childId, createdAt: { gte: todayStart, lt: tomorrowStart } } }),
+    ]);
+    if (virtualCount + directCount >= DAILY_CHILD_MESSAGE_LIMIT) throw new HttpError(429, "CHALLENGE_DAILY_LIMIT", "今天的 5 条消息已经发完啦，明天再聊");
     return tx.challengeConversationMessage.create({ data: { conversationId: conversation.id, sender: "CHILD", text } });
   });
   await prunePartnerHistory(childId, competitorId);

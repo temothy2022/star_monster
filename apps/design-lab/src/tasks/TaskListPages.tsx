@@ -1028,7 +1028,7 @@ function NotificationWidget({
         {challengeLetter && (
           <button type="button" className="task-widget-notifications__challenge" onClick={openChallengeLetter}>
             <span className="task-widget-notifications__avatar">
-              <img src={LEADERBOARD_AVATARS[challengeLetter.partnerAvatarKey] ?? fallbackChallengeAvatar} alt="" />
+              <img src={challengeLetter.partnerAvatarUrl ?? (challengeLetter.partnerAvatarKey ? LEADERBOARD_AVATARS[challengeLetter.partnerAvatarKey] : challengeLetter.partnerPetType ? MASCOTS[challengeLetter.partnerPetType].images.neutral : fallbackChallengeAvatar)} alt="" />
               {challengeLetter.unread && <i aria-label="新来信" />}
             </span>
             <span><strong>{challengeLetter.partnerName} 来信</strong><small>{challengeLetter.preview}</small></span>

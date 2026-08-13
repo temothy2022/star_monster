@@ -240,18 +240,23 @@ export type PetNotificationSummary = {
     conversationId: string;
     partnerId: string;
     partnerName: string;
-    partnerAvatarKey: string;
+    partnerAvatarKey: string | null;
+    partnerAvatarUrl: string | null;
+    partnerPetType: ChildLeaderboardEntry["petType"] | null;
     preview: string;
     unread: boolean;
-    partnerLabel: "你的挑战伙伴";
+    partnerLabel: "你的挑战伙伴" | "真实小伙伴";
   };
 };
 
 export type ChallengeContact = {
   competitorId: string;
   displayName: string;
-  avatarKey: string;
-  label: "你的挑战伙伴";
+  avatarKey: string | null;
+  avatarUrl: string | null;
+  petType: ChildLeaderboardEntry["petType"] | null;
+  participantType: "VIRTUAL" | "REAL";
+  label: "你的挑战伙伴" | "真实小伙伴";
   latestMessage: string;
   latestAt: string;
   unreadCount: number;
@@ -263,12 +268,15 @@ export type ChallengeConversation = {
   partner: {
     competitorId: string;
     displayName: string;
-    avatarKey: string;
-    label: "你的挑战伙伴";
+    avatarKey: string | null;
+    avatarUrl: string | null;
+    petType: ChildLeaderboardEntry["petType"] | null;
+    participantType: "VIRTUAL" | "REAL";
+    label: "你的挑战伙伴" | "真实小伙伴";
   };
   messages: Array<{
     id: string;
-    sender: "VIRTUAL_PARTNER" | "CHILD";
+    sender: "VIRTUAL_PARTNER" | "REAL_PARTNER" | "CHILD";
     text: string;
     createdAt: string;
   }>;
@@ -328,7 +336,7 @@ export function getChallengeConversation(competitorId?: string, signal?: AbortSi
   );
 }
 
-export function startChallengeConversation(partner: { competitorId: string; displayName: string; avatarKey: string }) {
+export function startChallengeConversation(partner: { competitorId: string; displayName: string; avatarKey: string | null }) {
   return request<{ contacts: ChallengeContact[]; conversation: ChallengeConversation | null }>(
     "/api/child/challenge-conversation/start",
     { method: "POST", body: JSON.stringify(partner) },
@@ -1131,6 +1139,7 @@ export type ChildLeaderboardEntry = {
     | "BRAZIL"
     | "UNITED_STATES";
   isSelf: boolean;
+  participantType: "SELF" | "REAL" | "VIRTUAL";
 };
 
 export type ChildLeaderboard = {

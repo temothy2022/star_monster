@@ -62,6 +62,16 @@ type RequestedWish = {
   actionText: string;
 };
 
+function challengeAvatar(input: {
+  avatarUrl: string | null;
+  avatarKey: string | null;
+  petType: ChallengeContact["petType"];
+}) {
+  if (input.avatarUrl) return input.avatarUrl;
+  if (input.avatarKey) return LEADERBOARD_AVATARS[input.avatarKey] ?? fallbackChallengeAvatar;
+  return input.petType ? MASCOTS[input.petType].images.neutral : fallbackChallengeAvatar;
+}
+
 const CATEGORY_IMAGES: Record<ChildWish["category"], string> = {
   SPORTS: sportsReward,
   GAMES: gamesReward,
@@ -325,7 +335,7 @@ function FootprintLeaderboard({
   leaderboards: FootprintResponse["leaderboards"];
   period: LeaderboardPeriod;
   onPeriodChange: (period: LeaderboardPeriod) => void;
-  onPartnerSelect: (partner: { competitorId: string; displayName: string; avatarKey: string }) => void;
+  onPartnerSelect: (partner: { competitorId: string; displayName: string; avatarKey: string | null }) => void;
 }) {
   const leaderboard = leaderboards[period];
   return (
@@ -358,7 +368,7 @@ function FootprintLeaderboard({
             <span className={`footprints-leaderboard__rank footprints-leaderboard__rank--${Math.min(entry.rank ?? 4, 4)}${entry.rank === null ? " footprints-leaderboard__rank--unlisted" : ""}`}>
               {entry.rank ?? "..."}
             </span>
-            {entry.isSelf || !entry.competitorId || !entry.avatarKey ? <span className="footprints-leaderboard__avatar" aria-hidden="true">
+            {entry.isSelf || !entry.competitorId ? <span className="footprints-leaderboard__avatar" aria-hidden="true">
               <img
                 className="footprints-leaderboard__portrait"
                 src={entry.avatarUrl ?? (entry.avatarKey ? LEADERBOARD_AVATARS[entry.avatarKey] : MASCOTS[entry.petType].images.neutral)}
@@ -367,7 +377,7 @@ function FootprintLeaderboard({
                 decoding="async"
               />
               <img className="footprints-leaderboard__flag" src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" />
-            </span> : <button type="button" className="footprints-leaderboard__avatar footprints-leaderboard__avatar--chat" aria-label={`给${entry.displayName}发消息`} onClick={() => onPartnerSelect({ competitorId: entry.competitorId!, displayName: entry.displayName, avatarKey: entry.avatarKey! })}><img className="footprints-leaderboard__portrait" src={entry.avatarUrl ?? LEADERBOARD_AVATARS[entry.avatarKey]} alt="" loading="lazy" decoding="async" /><img className="footprints-leaderboard__flag" src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" /></button>}
+            </span> : <button type="button" className="footprints-leaderboard__avatar footprints-leaderboard__avatar--chat" aria-label={`给${entry.displayName}发消息`} onClick={() => onPartnerSelect({ competitorId: entry.competitorId!, displayName: entry.displayName, avatarKey: entry.avatarKey })}><img className="footprints-leaderboard__portrait" src={entry.avatarUrl ?? (entry.avatarKey ? LEADERBOARD_AVATARS[entry.avatarKey] : MASCOTS[entry.petType].images.neutral)} alt="" loading="lazy" decoding="async" /><img className="footprints-leaderboard__flag" src={LEADERBOARD_FLAGS[entry.flagKey]} alt="" loading="lazy" /></button>}
             <span className="footprints-leaderboard__name">
               <strong>{entry.displayName}</strong>
             </span>
@@ -411,7 +421,7 @@ export function Footprints({
     }
   }
 
-  async function openLeaderboardPartner(partner: { competitorId: string; displayName: string; avatarKey: string }) {
+  async function openLeaderboardPartner(partner: { competitorId: string; displayName: string; avatarKey: string | null }) {
     setChallengeOpen(true); setChallengeError("");
     try {
       const result = await startChallengeConversation(partner);
@@ -449,6 +459,26 @@ export function Footprints({
     }, Math.min(wait, 61_000));
     return () => window.clearTimeout(timer);
   }, [challengeConversation, challengeOpen]);
+
+  useEffect(() => {
+    if (!challengeOpen || challengeConversation?.partner.participantType !== "REAL") return;
+    const competitorId = challengeConversation.partner.competitorId;
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      void getChallengeConversation(competitorId).then((result) => {
+        setChallengeContacts(result.contacts);
+        setChallengeConversation(result.conversation);
+      }).catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 4_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [challengeConversation?.partner.competitorId, challengeConversation?.partner.participantType, challengeOpen]);
 
   useEffect(() => {
     void getChallengeContacts().then(({ contacts }) => setChallengeContacts(contacts)).catch(() => undefined);
@@ -668,7 +698,7 @@ export function Footprints({
         </div>
       </section>
       <ChildBottomNav active="footprints" onNavigate={onNavigate} />
-      {challengeOpen && <><button type="button" className="challenge-chat-backdrop" aria-label="关闭挑战伙伴对话" onClick={() => setChallengeOpen(false)} /><section className="challenge-chat" role="dialog" aria-modal="true" aria-labelledby="challenge-chat-title" style={{ backgroundImage: `url(${challengeChatPaper})` }}><aside className="challenge-chat__contacts" aria-label="联系过的伙伴">{challengeContacts.map((contact) => <button type="button" key={contact.competitorId} className={challengeConversation?.partner.competitorId === contact.competitorId ? "is-active" : ""} onClick={() => void openChallengeInbox(contact.competitorId)} aria-label={`切换到${contact.displayName}`}><img src={LEADERBOARD_AVATARS[contact.avatarKey] ?? fallbackChallengeAvatar} alt="" />{contact.unreadCount > 0 && <i aria-label={`${contact.unreadCount} 条未读消息`} />}<small>{contact.displayName}</small></button>)}</aside>{challengeConversation ? <div className="challenge-chat__panel"><header><img src={LEADERBOARD_AVATARS[challengeConversation.partner.avatarKey] ?? fallbackChallengeAvatar} alt="" /><div><h2 id="challenge-chat-title">{challengeConversation.partner.displayName}</h2><span>{challengeConversation.partner.label}</span></div><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button></header><div className="challenge-chat__messages" ref={challengeMessagesRef} aria-live="polite">{challengeConversation.messages.map((message) => <div className={`challenge-chat__bubble challenge-chat__bubble--${message.sender === "CHILD" ? "child" : "partner"}`} key={message.id}>{message.text}</div>)}{(challengeSending || challengeConversation.nextVisibleAt) && <div className="challenge-chat__typing"><i /><i /><i /><span>伙伴稍后会回复你…</span></div>}</div><form onSubmit={(event) => void submitChallengeReply(event)}><div className="challenge-chat__limit">今天还能发送 {challengeConversation.remainingToday}/{challengeConversation.dailyLimit} 条</div><div className="challenge-chat__composer"><input value={challengeInput} onChange={(event) => setChallengeInput(event.target.value)} maxLength={60} disabled={challengeConversation.remainingToday === 0 || challengeSending} placeholder={challengeConversation.remainingToday === 0 ? "今天先聊到这里吧" : "写一句话回复…"} aria-label="回复你的挑战伙伴" /><button disabled={!challengeInput.trim() || challengeConversation.remainingToday === 0 || challengeSending}>{challengeSending ? "已发送" : "发送"}</button></div>{challengeError && <p role="alert">{challengeError}</p>}</form></div> : <div className="challenge-chat__empty"><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button><img src={challengeInboxEntry} alt="" /><h2 id="challenge-chat-title">还没有伙伴来信</h2><p>有新消息时，会在这里看到。</p>{challengeError && <p role="alert">{challengeError}</p>}</div>}</section></>}
+      {challengeOpen && <><button type="button" className="challenge-chat-backdrop" aria-label="关闭挑战伙伴对话" onClick={() => setChallengeOpen(false)} /><section className="challenge-chat" role="dialog" aria-modal="true" aria-labelledby="challenge-chat-title" style={{ backgroundImage: `url(${challengeChatPaper})` }}><aside className="challenge-chat__contacts" aria-label="联系过的伙伴">{challengeContacts.map((contact) => <button type="button" key={contact.competitorId} className={challengeConversation?.partner.competitorId === contact.competitorId ? "is-active" : ""} onClick={() => void openChallengeInbox(contact.competitorId)} aria-label={`切换到${contact.displayName}`}><img src={challengeAvatar(contact)} alt="" />{contact.unreadCount > 0 && <i aria-label={`${contact.unreadCount} 条未读消息`} />}<small>{contact.displayName}</small></button>)}</aside>{challengeConversation ? <div className="challenge-chat__panel"><header><img src={challengeAvatar(challengeConversation.partner)} alt="" /><div><h2 id="challenge-chat-title">{challengeConversation.partner.displayName}</h2><span>{challengeConversation.partner.label}</span></div><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button></header><div className="challenge-chat__messages" ref={challengeMessagesRef} aria-live="polite">{challengeConversation.messages.map((message) => <div className={`challenge-chat__bubble challenge-chat__bubble--${message.sender === "CHILD" ? "child" : "partner"}`} key={message.id}>{message.text}</div>)}{(challengeConversation.nextVisibleAt || (challengeSending && challengeConversation.partner.participantType === "VIRTUAL")) && <div className="challenge-chat__typing"><i /><i /><i /><span>伙伴稍后会回复你…</span></div>}</div><form onSubmit={(event) => void submitChallengeReply(event)}><div className="challenge-chat__limit">今天还能发送 {challengeConversation.remainingToday}/{challengeConversation.dailyLimit} 条</div><div className="challenge-chat__composer"><input value={challengeInput} onChange={(event) => setChallengeInput(event.target.value)} maxLength={60} disabled={challengeConversation.remainingToday === 0 || challengeSending} placeholder={challengeConversation.remainingToday === 0 ? "今天先聊到这里吧" : "写一句话回复…"} aria-label="回复你的挑战伙伴" /><button disabled={!challengeInput.trim() || challengeConversation.remainingToday === 0 || challengeSending}>{challengeSending ? "已发送" : "发送"}</button></div>{challengeError && <p role="alert">{challengeError}</p>}</form></div> : <div className="challenge-chat__empty"><button type="button" aria-label="关闭" onClick={() => setChallengeOpen(false)}>×</button><img src={challengeInboxEntry} alt="" /><h2 id="challenge-chat-title">还没有伙伴来信</h2><p>有新消息时，会在这里看到。</p>{challengeError && <p role="alert">{challengeError}</p>}</div>}</section></>}
     </main>
   );
 }

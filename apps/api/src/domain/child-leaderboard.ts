@@ -43,6 +43,14 @@ export type MotivationalLeaderboardInput = {
   scoreDays?: ReadonlyArray<LeaderboardScoreDay>;
   participantCount?: number;
   competitorStarDelta?: number;
+  realCompetitors?: ReadonlyArray<{
+    childId: string;
+    nickname: string | null;
+    avatarUrl: string | null;
+    petType: LeaderboardPetType | null;
+    stars: number;
+    completedTasks: number;
+  }>;
 };
 
 type VirtualProfile = {
@@ -301,9 +309,25 @@ export function buildMotivationalLeaderboard(input: MotivationalLeaderboardInput
     avatarKey: competitor.profile.avatarKey,
     avatarUrl: null as string | null,
     isSelf: false,
+    participantType: "VIRTUAL" as const,
   }));
+  const realCompetitors = (input.realCompetitors ?? [])
+    .filter((competitor) => competitor.childId !== input.childId)
+    .map((competitor) => ({
+      competitorId: `real:${competitor.childId}`,
+      displayName: competitor.nickname?.trim() || "小伙伴",
+      stars: Math.max(0, Math.round(competitor.stars)),
+      completedTasks: Math.max(0, Math.round(competitor.completedTasks)),
+      petType: competitor.petType ?? "DOUYA",
+      flagKey: "CHINA" as const,
+      avatarKey: null,
+      avatarUrl: competitor.avatarUrl?.trim() || null,
+      isSelf: false,
+      participantType: "REAL" as const,
+    }));
   const rankedEntries = [
     ...competitors,
+    ...realCompetitors,
     {
       competitorId: null,
       displayName: input.nickname?.trim() || "我",
@@ -314,6 +338,7 @@ export function buildMotivationalLeaderboard(input: MotivationalLeaderboardInput
       avatarKey: null,
       avatarUrl: input.avatarUrl?.trim() || null,
       isSelf: true,
+      participantType: "SELF" as const,
     },
   ]
     .sort((left, right) => {
@@ -328,7 +353,8 @@ export function buildMotivationalLeaderboard(input: MotivationalLeaderboardInput
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 
   const selfPosition = rankedEntries.findIndex((entry) => entry.isSelf);
-  const unlisted = stars < 3 && competitors.every((competitor) => competitor.stars > stars);
+  const otherParticipants = [...competitors, ...realCompetitors];
+  const unlisted = stars < 3 && otherParticipants.every((competitor) => competitor.stars > stars);
   const entries = rankedEntries.map((entry) => entry.isSelf && unlisted ? { ...entry, rank: null } : entry);
   const selfEntry = entries[selfPosition]!;
   const childAbove = selfPosition > 0 ? rankedEntries[selfPosition - 1] : null;
