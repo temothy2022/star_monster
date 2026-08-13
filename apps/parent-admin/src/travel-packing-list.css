@@ -153,6 +153,12 @@
 .packing-list__heading > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .packing-list__heading span { font-size: 18px; font-weight: 860; }
 .packing-list__heading small { color: #9699a8; font-size: 10px; font-weight: 650; }
+.packing-flat-items { overflow: hidden; border: 1px solid #e8e9ee; border-radius: 23px; background: #fff; box-shadow: 0 8px 22px rgba(38, 39, 60, .055); }
+.packing-flat-items .packing-item { padding-right: 13px; }
+.packing-flat-items .packing-item__toggle { padding-left: 13px; }
+.packing-flat-empty { display: grid; min-height: 140px; place-content: center; gap: 5px; border: 1px solid #e8e9ee; border-radius: 23px; color: #8d91a1; background: #fff; text-align: center; box-shadow: 0 8px 22px rgba(38, 39, 60, .055); }
+.packing-flat-empty strong { color: var(--packing-ink); font-size: 16px; }
+.packing-flat-empty span { font-size: 11px; }
 
 .packing-category { margin-top: 11px; overflow: hidden; border: 1px solid #e8e9ee; border-radius: 23px; background: #fff; box-shadow: 0 8px 22px rgba(38, 39, 60, .055); }
 .packing-category.is-pending,

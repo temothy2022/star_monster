@@ -520,6 +520,29 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     }
   }
 
+  function renderPackingItem(item: TravelPackingItem) {
+    const working = workingIds.has(item.id);
+    return (
+      <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}`} key={item.id}>
+        <button
+          type="button"
+          className="packing-item__toggle"
+          aria-label={`${item.packed ? "取消已装" : "标记已装"}：${item.label}`}
+          aria-pressed={item.packed}
+          disabled={working || item.quantity === 0}
+          onClick={() => void updateItem(item.id, { packed: !item.packed })}
+        ><span aria-hidden="true">{item.packed ? "✓" : ""}</span></button>
+        <button type="button" className="packing-item__main" onClick={() => openItemEditor(item)}>
+          <strong>{item.label}</strong>
+          <small className={isExpired(item.expirationDate) ? "is-expired" : ""}>{isExpired(item.expirationDate) ? "已过期 · " : ""}{item.quantity === 0 ? "库存不足，点击补充 · " : ""}{LOCATIONS.find((location) => location.value === item.location)?.label ?? "行李箱"}</small>
+        </button>
+        <button type="button" className="packing-item__stock" aria-label={`调整${item.label}库存，当前${item.quantity}`} onClick={() => openItemEditor(item)}>
+          <strong>{item.quantity}</strong>
+        </button>
+      </div>
+    );
+  }
+
   if (!list) {
     return (
       <main className="packing-page packing-page--centered">
@@ -575,14 +598,21 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
         <div className="packing-list">
           <div className="packing-list__heading">
-            <div><span>我的分类</span><small>{filter === "all" ? "轻触分类可收起" : `正在查看：${FILTERS.find((entry) => entry.value === filter)?.label}`}</small></div>
+            <div><span>{filter === "unpacked" ? "待装物品" : "我的分类"}</span><small>{filter === "all" ? "轻触分类可收起" : `正在查看：${FILTERS.find((entry) => entry.value === filter)?.label}`}</small></div>
           </div>
 
-          {list.categories.map((category, categoryIndex) => {
+          {filter === "unpacked" ? (
+            allItems.some((item) => !item.packed) ? (
+              <section className="packing-flat-items" aria-label="待装物品">
+                {allItems.filter((item) => !item.packed).map(renderPackingItem)}
+              </section>
+            ) : (
+              <div className="packing-flat-empty"><strong>都装好了</strong><span>清单里的物品已经全部准备完成。</span></div>
+            )
+          ) : list.categories.map((category, categoryIndex) => {
             const visibleItems = category.items.filter((item) =>
               filter === "all" ||
-              (filter === "packed" && item.packed) ||
-              (filter === "unpacked" && !item.packed),
+              (filter === "packed" && item.packed),
             );
             if (visibleItems.length === 0 && filter !== "all") return null;
             const open = expandedIds.has(category.id);
@@ -602,28 +632,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
                 {open && (
                   <div className="packing-category__body">
-                    {visibleItems.map((item) => {
-                      const working = workingIds.has(item.id);
-                      return (
-                        <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}`} key={item.id}>
-                          <button
-                            type="button"
-                            className="packing-item__toggle"
-                            aria-label={`${item.packed ? "取消已装" : "标记已装"}：${item.label}`}
-                            aria-pressed={item.packed}
-                            disabled={working || item.quantity === 0}
-                            onClick={() => void updateItem(item.id, { packed: !item.packed })}
-                          ><span aria-hidden="true">{item.packed ? "✓" : ""}</span></button>
-                          <button type="button" className="packing-item__main" onClick={() => openItemEditor(item)}>
-                            <strong>{item.label}</strong>
-                            <small className={isExpired(item.expirationDate) ? "is-expired" : ""}>{isExpired(item.expirationDate) ? "已过期 · " : ""}{item.quantity === 0 ? "库存不足，点击补充 · " : ""}{LOCATIONS.find((location) => location.value === item.location)?.label ?? "行李箱"}</small>
-                          </button>
-                          <button type="button" className="packing-item__stock" aria-label={`调整${item.label}库存，当前${item.quantity}`} onClick={() => openItemEditor(item)}>
-                            <strong>{item.quantity}</strong>
-                          </button>
-                        </div>
-                      );
-                    })}
+                    {visibleItems.map(renderPackingItem)}
                     {category.items.length === 0 && <button type="button" className="packing-category__empty" onClick={() => openAddItem(category.id)}>这个分类还没有物品，点击添加</button>}
                   </div>
                 )}
