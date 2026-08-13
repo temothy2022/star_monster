@@ -9,6 +9,7 @@ import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
 import "./travel-packing-list.css";
 
 type Filter = "all" | "unpacked" | "shortage" | "packed";
+type PackingLocation = TravelPackingItem["location"];
 type PageSheet = "menu" | "rename" | "category" | null;
 
 const FILTERS: Array<{ value: Filter; label: string }> = [
@@ -17,6 +18,13 @@ const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "shortage", label: "待补" },
   { value: "packed", label: "已装" },
 ];
+const LOCATIONS: Array<{ value: PackingLocation; label: string }> = [
+  { value: "SUITCASE", label: "行李箱" },
+  { value: "BACKPACK", label: "背包" },
+  { value: "CAR", label: "家用车" },
+];
+function isMedicineCategory(name: string | undefined) { return name?.trim() === "药品"; }
+function isExpired(date: string | null | undefined) { return Boolean(date && date < new Date().toISOString().slice(0, 10)); }
 
 export function TravelPackingList({ onBack }: { onBack: () => void }) {
   const [list, setList] = useState<PackingList | null>(null);
@@ -41,6 +49,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   const [categoryName, setCategoryName] = useState("");
   const [itemName, setItemName] = useState("");
   const [itemQuantity, setItemQuantity] = useState(1);
+  const [itemLocation, setItemLocation] = useState<PackingLocation>("SUITCASE");
+  const [itemExpirationDate, setItemExpirationDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -111,6 +121,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     setCategoryMenuId(null);
     setItemName("");
     setItemQuantity(1);
+    setItemLocation("SUITCASE");
+    setItemExpirationDate("");
     const remembered = lastCategoryId && list.categories.some((category) => category.id === lastCategoryId)
       ? lastCategoryId
       : list.categories[0].id;
@@ -124,6 +136,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     const categoryId = itemSheetCategoryId;
     const label = itemName.trim();
     const quantity = itemQuantity;
+    const location = itemLocation;
+    const expirationDate = itemExpirationDate || null;
     const optimisticId = `optimistic-item-${Date.now()}`;
     const optimisticItem: TravelPackingItem = {
       id: optimisticId,
@@ -131,6 +145,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
       label,
       quantity,
       packed: false,
+      location,
+      expirationDate,
       sortOrder: Number.MAX_SAFE_INTEGER,
     };
     setList((current) => current ? {
@@ -148,7 +164,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     setFilter("all");
     setError("");
     try {
-      const result = await parentApi.addTravelPackingItem(categoryId, label, quantity);
+      const result = await parentApi.addTravelPackingItem(categoryId, label, quantity, location, expirationDate);
       setList(result.list);
     } catch (reason) {
       setList((current) => current ? {
@@ -264,6 +280,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     setEditingItemId(item.id);
     setItemName(item.label);
     setItemQuantity(item.quantity);
+    setItemLocation(item.location);
+    setItemExpirationDate(item.expirationDate ?? "");
   }
 
   async function saveItem(event: FormEvent) {
@@ -274,6 +292,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
       const result = await parentApi.updateTravelPackingItem(editingItemId, {
         label: itemName.trim(),
         quantity: itemQuantity,
+        location: itemLocation,
+        expirationDate: itemExpirationDate || null,
         ...(itemQuantity === 0 ? { packed: false } : {}),
       });
       setList(result.list);
@@ -432,7 +452,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
                           ><span aria-hidden="true">{item.packed ? "✓" : ""}</span></button>
                           <button type="button" className="packing-item__main" onClick={() => openItemEditor(item)}>
                             <strong>{item.label}</strong>
-                            {item.quantity === 0 && <small>库存不足，点击补充</small>}
+                            <small className={isExpired(item.expirationDate) ? "is-expired" : ""}>{isExpired(item.expirationDate) ? "已过期 · " : ""}{item.quantity === 0 ? "库存不足，点击补充 · " : ""}{LOCATIONS.find((location) => location.value === item.location)?.label ?? "行李箱"}</small>
                           </button>
                           <button type="button" className="packing-item__stock" aria-label={`调整${item.label}库存，当前${item.quantity}`} onClick={() => openItemEditor(item)}>
                             <strong>{item.quantity}</strong>
@@ -515,13 +535,15 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
             <h2>添加物品</h2><p>物品和库存会保存在你的长期清单里。</p>
             <label>所属分类
               <button type="button" className="packing-category-picker" aria-expanded={categoryPickerOpen} onClick={() => setCategoryPickerOpen((value) => !value)}>
-                <span>{list.categories.find((category) => category.id === itemSheetCategoryId)?.name ?? "选择分类"}</span><span aria-hidden="true">⌄</span>
+                <span>{list.categories.find((category) => category.id === itemSheetCategoryId)?.name ?? "选择分类"}</span>
               </button>
               {categoryPickerOpen && <div className="packing-category-picker__menu" role="listbox">
                 {list.categories.map((category) => <button type="button" role="option" aria-selected={category.id === itemSheetCategoryId} className={category.id === itemSheetCategoryId ? "is-selected" : ""} onClick={() => { setItemSheetCategoryId(category.id); setLastCategoryId(category.id); setCategoryPickerOpen(false); try { window.localStorage.setItem("star-monsters:last-packing-category", category.id); } catch { /* storage is optional */ } }} key={category.id}>{category.name}{category.id === itemSheetCategoryId && <span aria-hidden="true">✓</span>}</button>)}
               </div>}
             </label>
             <label>物品名称<input autoFocus value={itemName} maxLength={30} placeholder="例如：儿童退烧药" onChange={(event) => setItemName(event.target.value)} /></label>
+            <LocationPicker value={itemLocation} onChange={setItemLocation} />
+            {isMedicineCategory(list.categories.find((category) => category.id === itemSheetCategoryId)?.name) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
             <label>现有库存<div className="packing-sheet__quantity"><button type="button" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}>−</button><strong>{itemQuantity}</strong><button type="button" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}>＋</button></div></label>
             <div className="packing-sheet__actions"><button type="button" onClick={() => setItemSheetCategoryId(null)}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>加入清单</button></div>
           </form>
@@ -534,6 +556,8 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
             <div className="packing-sheet__handle" aria-hidden="true" />
             <h2>物品详情</h2><p>调整名称或库存，修改会立即保存到长期清单。</p>
             <label>物品名称<input value={itemName} maxLength={30} onChange={(event) => setItemName(event.target.value)} /></label>
+            <LocationPicker value={itemLocation} onChange={setItemLocation} />
+            {isMedicineCategory(editingItem ? list.categories.find((category) => category.id === editingItem.categoryId)?.name : undefined) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
             <label>现有库存<div className="packing-sheet__quantity"><button type="button" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}>−</button><strong>{itemQuantity}</strong><button type="button" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}>＋</button></div></label>
             <button type="button" className="packing-sheet__danger" onClick={() => { setEditingItemId(null); setDeletingItemId(editingItem.id); }}>从清单中删除这件物品</button>
             <div className="packing-sheet__actions"><button type="button" onClick={() => setEditingItemId(null)}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>保存修改</button></div>
@@ -576,6 +600,16 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
         />
       )}
     </main>
+  );
+}
+
+function LocationPicker({ value, onChange }: { value: PackingLocation; onChange: (value: PackingLocation) => void }) {
+  return (
+    <label className="packing-location-field">物品位置
+      <div className="packing-location-picker" role="radiogroup" aria-label="物品位置">
+        {LOCATIONS.map((location) => <button type="button" role="radio" aria-checked={value === location.value} className={value === location.value ? "is-selected" : ""} onClick={() => onChange(location.value)} key={location.value}>{location.label}</button>)}
+      </div>
+    </label>
   );
 }
 

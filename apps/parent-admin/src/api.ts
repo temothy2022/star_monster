@@ -14,6 +14,8 @@ export type TravelPackingItem = {
   label: string;
   quantity: number;
   packed: boolean;
+  location: "SUITCASE" | "BACKPACK" | "CAR";
+  expirationDate: string | null;
   sortOrder: number;
 };
 
@@ -733,14 +735,14 @@ export const parentApi = {
     api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${id}`, {
       method: "DELETE",
     }),
-  addTravelPackingItem: (categoryId: string, label: string, quantity: number) =>
+  addTravelPackingItem: (categoryId: string, label: string, quantity: number, location: TravelPackingItem["location"] = "SUITCASE", expirationDate: string | null = null) =>
     api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/categories/${categoryId}/items`, {
       method: "POST",
-      body: JSON.stringify({ label, quantity }),
+      body: JSON.stringify({ label, quantity, location, expirationDate }),
     }),
   updateTravelPackingItem: (
     id: string,
-    data: Partial<Pick<TravelPackingItem, "label" | "quantity" | "packed">>,
+    data: Partial<Pick<TravelPackingItem, "label" | "quantity" | "packed" | "location" | "expirationDate">>,
   ) =>
     api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/items/${id}`, {
       method: "PATCH",

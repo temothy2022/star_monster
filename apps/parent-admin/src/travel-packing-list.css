@@ -171,6 +171,7 @@
 .packing-item__main { min-width: 0; height: 100%; padding: 10px 7px 10px 2px; border: 0; color: inherit; background: transparent; text-align: left; }
 .packing-item__main strong { display: block; overflow: hidden; font-size: 14px; font-weight: 740; text-overflow: ellipsis; white-space: nowrap; }
 .packing-item__main small { display: block; margin-top: 3px; color: #999ca9; font-size: 10px; font-weight: 600; }
+.packing-item__main small.is-expired { color: var(--packing-red); font-weight: 800; }
 .packing-item__stock { display: flex; min-width: 58px; min-height: 42px; align-items: center; justify-content: center; flex-direction: column; padding: 5px 9px; border: 0; border-radius: 13px; color: #555a6e; background: #f3f3f7; }
 .packing-item__stock strong { font-size: 14px; }
 .packing-item.is-packed .packing-item__toggle span { border-color: #52b779; background: #52b779; }
@@ -224,6 +225,11 @@
 .packing-category-picker__menu button { display: flex; width: 100%; min-height: 45px; align-items: center; justify-content: space-between; padding: 0 14px; border: 0; border-bottom: 1px solid #f0f0f3; color: var(--packing-ink); background: #fff; text-align: left; }
 .packing-category-picker__menu button:last-child { border-bottom: 0; }
 .packing-category-picker__menu button.is-selected { color: var(--packing-lavender-dark); background: var(--packing-lavender-soft); font-weight: 800; }
+.packing-location-field { margin-top: 13px !important; }
+.packing-location-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 7px; }
+.packing-location-picker button { min-height: 44px; padding: 0 6px; border: 1px solid #e1e2e8; border-radius: 13px; color: #74788a; background: #f8f8fa; font-size: 12px; font-weight: 750; }
+.packing-location-picker button.is-selected { border-color: var(--packing-lavender); color: var(--packing-lavender-dark); background: var(--packing-lavender-soft); box-shadow: 0 0 0 2px rgba(119, 112, 215, .08); }
+.packing-sheet input[type="date"] { color-scheme: light; }
 .packing-sheet__quantity { display: grid; grid-template-columns: 50px 1fr 50px; align-items: center; min-height: 51px; margin-top: 7px; overflow: hidden; border: 1px solid #e1e2e8; border-radius: 15px; background: #f8f8fa; }
 .packing-sheet__quantity button { height: 51px; border: 0; color: #595d73; background: transparent; font-size: 22px; }
 .packing-sheet__quantity strong { font-size: 18px; text-align: center; }

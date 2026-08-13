@@ -307,6 +307,8 @@ model TravelPackingItem {
   label      String
   quantity   Int      @default(1)
   packed     Boolean  @default(false)
+  location   String   @default("SUITCASE")
+  expirationDate String?
   sortOrder  Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -315,6 +317,7 @@ model TravelPackingItem {
 
   @@index([categoryId, sortOrder])
 }
+
 
 model UserSession {
   id         String   @id @default(cuid())

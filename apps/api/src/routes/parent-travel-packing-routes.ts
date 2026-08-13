@@ -13,12 +13,16 @@ const nameInput = z.object({ name: z.string().trim().min(1).max(20) });
 const itemCreateInput = z.object({
   label: z.string().trim().min(1).max(30),
   quantity: z.number().int().min(0).max(999).default(1),
+  location: z.enum(["SUITCASE", "BACKPACK", "CAR"]).default("SUITCASE"),
+  expirationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 const itemUpdateInput = z.object({
   label: z.string().trim().min(1).max(30).optional(),
   quantity: z.number().int().min(0).max(999).optional(),
   packed: z.boolean().optional(),
-}).refine((value) => value.label !== undefined || value.quantity !== undefined || value.packed !== undefined);
+  location: z.enum(["SUITCASE", "BACKPACK", "CAR"]).optional(),
+  expirationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+}).refine((value) => value.label !== undefined || value.quantity !== undefined || value.packed !== undefined || value.location !== undefined);
 
 const DEFAULT_CATEGORIES = [
   { name: "证件与出行", items: ["身份证件", "车票或登机信息", "钱包与银行卡"] },
@@ -143,14 +147,14 @@ export async function registerParentTravelPackingRoutes(app: FastifyInstance, co
   app.post("/api/parent/travel-packing-list/categories/:id/items", async (request, reply) => {
     const familyId = await familyIdFor(request, reply, config);
     const { id } = categoryItemParams.parse(request.params);
-    const { label, quantity } = itemCreateInput.parse(request.body);
+    const { label, quantity, location, expirationDate } = itemCreateInput.parse(request.body);
     await ownedCategory(familyId, id);
     const maximum = await prisma.travelPackingItem.aggregate({
       where: { categoryId: id },
       _max: { sortOrder: true },
     });
     await prisma.travelPackingItem.create({
-      data: { categoryId: id, label, quantity, sortOrder: (maximum._max.sortOrder ?? -1) + 1 },
+      data: { categoryId: id, label, quantity, location, expirationDate: expirationDate ?? null, sortOrder: (maximum._max.sortOrder ?? -1) + 1 },
     });
     return { list: await readList(familyId) };
   });

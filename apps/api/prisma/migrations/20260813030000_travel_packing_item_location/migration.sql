@@ -1,0 +1,1 @@
+ALTER TABLE "TravelPackingItem" ADD COLUMN "location" TEXT NOT NULL DEFAULT 'SUITCASE';
