@@ -857,9 +857,11 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     redPacketClaimKeyRef.current = claimKey;
     setBusy("red-packet");
     setRedPacketStage("opening");
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
     try {
       const [result] = await Promise.all([
-        openPetRedPacket(claimKey),
+        openPetRedPacket(claimKey, controller.signal),
         new Promise((resolve) => window.setTimeout(resolve, 620)),
       ]);
       setState(result.state);
@@ -874,6 +876,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       playRedPacketRainSound();
       showRoomNotice(reason instanceof ApiError ? reason.message : "红包暂时没有打开，请再试一次");
     } finally {
+      window.clearTimeout(timeoutId);
       setBusy(null);
     }
   }

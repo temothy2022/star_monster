@@ -74,6 +74,17 @@ async function minimaxCredentials(config: AppConfig) {
       "请先在超级后台保存并启用 MiniMax 密钥",
     );
   }
+  if (
+    !stored.encryptedApiKey ||
+    !stored.encryptionIv ||
+    !stored.encryptionTag
+  ) {
+    throw new HttpError(
+      409,
+      "MINIMAX_KEY_INCOMPLETE",
+      "MiniMax 密钥配置不完整，请在超级后台重新保存密钥",
+    );
+  }
   return {
     apiKey: decryptSecret(
       {
@@ -251,16 +262,35 @@ export async function registerAdminMinimaxRoutes(
     const encrypted = input.apiKey
       ? encryptSecret(input.apiKey, config.AI_CONFIG_ENCRYPTION_KEY)
       : null;
+    const storedSecret = encrypted
+      ? {
+          encryptedApiKey: encrypted.ciphertext,
+          encryptionIv: encrypted.iv,
+          encryptionTag: encrypted.tag,
+          apiKeyLastFour: input.apiKey!.slice(-4),
+        }
+      : existing
+        ? {
+            encryptedApiKey: existing.encryptedApiKey,
+            encryptionIv: existing.encryptionIv,
+            encryptionTag: existing.encryptionTag,
+            apiKeyLastFour: existing.apiKeyLastFour,
+          }
+        : null;
+    if (!storedSecret) {
+      throw new HttpError(
+        400,
+        "MINIMAX_KEY_REQUIRED",
+        "首次配置必须填写 MiniMax 密钥",
+      );
+    }
     const stored = await prisma.$transaction(async (tx) => {
       const saved = await tx.systemMinimaxConfig.upsert({
         where: { id: "default" },
         create: {
           id: "default",
           enabled: input.enabled,
-          encryptedApiKey: encrypted!.ciphertext,
-          encryptionIv: encrypted!.iv,
-          encryptionTag: encrypted!.tag,
-          apiKeyLastFour: input.apiKey!.slice(-4),
+          ...storedSecret,
           updatedByUserId: user.id,
         },
         update: {

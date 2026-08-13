@@ -149,5 +149,39 @@ if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.co
   sudo systemctl reload nginx
 fi
 
-sudo systemctl restart "$API_SERVICE"
+API_RELEASE_HASH="$(
+  find \
+    apps/api/dist \
+    apps/api/prisma \
+    packages/math-practice/dist \
+    -type f -print0 \
+    | sort -z \
+    | xargs -0 sha256sum
+  sha256sum apps/api/package.json packages/math-practice/package.json pnpm-lock.yaml
+)"
+API_RELEASE_HASH="$(printf '%s' "$API_RELEASE_HASH" | sha256sum | awk '{print $1}')"
+API_RELEASE_STAMP=".deploy-api-release.sha256"
+
+if [[ -f "$API_RELEASE_STAMP" ]] \
+  && [[ "$(cat "$API_RELEASE_STAMP")" == "$API_RELEASE_HASH" ]] \
+  && sudo systemctl is-active --quiet "$API_SERVICE"; then
+  echo "API release is unchanged; keeping the running process to avoid a brief 502 window."
+else
+  sudo systemctl restart "$API_SERVICE"
+  api_ready=false
+  for _ in {1..20}; do
+    if curl --fail --silent --show-error http://127.0.0.1:8787/api/health >/dev/null; then
+      api_ready=true
+      break
+    fi
+    sleep 0.5
+  done
+  if [[ "$api_ready" != "true" ]]; then
+    echo "API did not become healthy after restart."
+    sudo systemctl status "$API_SERVICE" --no-pager || true
+    exit 1
+  fi
+  printf '%s\n' "$API_RELEASE_HASH" > "$API_RELEASE_STAMP"
+fi
+
 sudo systemctl is-active --quiet "$API_SERVICE"

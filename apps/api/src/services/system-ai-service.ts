@@ -17,6 +17,17 @@ export async function systemAiCredentials(
       "请先在超级后台保存并启用 DeepSeek 密钥",
     );
   }
+  if (
+    !stored.encryptedApiKey ||
+    !stored.encryptionIv ||
+    !stored.encryptionTag
+  ) {
+    throw new HttpError(
+      409,
+      "AI_KEY_INCOMPLETE",
+      "DeepSeek 密钥配置不完整，请在超级后台重新保存密钥",
+    );
+  }
   return {
     model: stored.model,
     apiKey: decryptSecret(

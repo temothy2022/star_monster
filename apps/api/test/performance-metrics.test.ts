@@ -200,4 +200,75 @@ describe("performance metrics", () => {
     expect(result.dataQuality.ignoredNoiseCount).toBe(1);
     expect(result.recentSlowEvents).toEqual([]);
   });
+
+  it("ignores requests interrupted while the page is hidden or offline", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "hidden-interruption",
+          kind: "api",
+          operation: "load_tasks",
+          method: "GET",
+          status: 0,
+          visibilityState: "hidden",
+        }),
+        metric({
+          id: "offline-interruption",
+          kind: "api",
+          operation: "load_wishes",
+          method: "GET",
+          status: 0,
+          online: false,
+        }),
+      ],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.dataQuality.usableCount).toBe(0);
+    expect(result.dataQuality.ignoredNoiseCount).toBe(2);
+    expect(result.recentSlowEvents).toEqual([]);
+  });
+
+  it("does not treat stale task state conflicts as platform failures", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "already-completed",
+          kind: "api",
+          operation: "complete_task",
+          method: "POST",
+          status: 409,
+        }),
+      ],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.dataQuality.usableCount).toBe(0);
+    expect(result.summary.interactionFailureCount).toBe(0);
+  });
+
+  it("ignores page timers that crossed an iPad browser suspension", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({
+          id: "suspended-navigation",
+          kind: "navigation",
+          operation: "open_pet-growth",
+          totalMs: 132_507,
+          apiTotalMs: 34,
+          serverMs: 25,
+          clientOverheadMs: 9,
+          nonApiMs: 132_473,
+        }),
+      ],
+      7,
+      "Asia/Shanghai",
+    );
+
+    expect(result.dataQuality.usableCount).toBe(0);
+    expect(result.dataQuality.ignoredNoiseCount).toBe(1);
+    expect(result.summary.slowPageCount).toBe(0);
+  });
 });

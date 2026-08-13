@@ -490,6 +490,8 @@
 .task-widget-timer__controls button { min-height: 34px; border: 1px solid #35516c; border-radius: 8px; color: #35516c; background: rgb(255 255 255 / 76%); font: inherit; font-size: 11px; font-weight: 900; }
 .task-widget-timer__controls button:first-child { color: #fff; background: #f07857; }
 .task-widget-timer--ringing .task-widget-timer__face { animation: task-timer-alarm 420ms ease-in-out infinite; }
+.task-widget-timer--idle .task-widget-timer__face { width: min(156px, 100%); }
+.task-widget-timer--idle .task-widget-timer__progress-bar { width: min(156px, 100%); }
 @keyframes task-timer-alarm {
   0%, 100% { transform: rotate(0deg); }
   20% { transform: rotate(-5deg); }
@@ -501,6 +503,8 @@
 
 .task-dashboard-widget[data-widget-density="expanded"] .task-widget-timer__face { width: min(212px, 100%); }
 .task-dashboard-widget[data-widget-density="expanded"] .task-widget-timer__progress-bar { width: min(212px, 100%); }
+.task-dashboard-widget[data-widget-density="expanded"] .task-widget-timer--idle .task-widget-timer__face { width: min(156px, 100%); }
+.task-dashboard-widget[data-widget-density="expanded"] .task-widget-timer--idle .task-widget-timer__progress-bar { width: min(156px, 100%); }
 .task-dashboard-widget[data-widget-density="expanded"] .task-widget-postcards__track > button > img { min-height: 140px; }
 .task-dashboard-widget[data-widget-density="compact"] .task-widget-postcards > header { min-height: 44px; padding-top: 8px; }
 .task-dashboard-widget[data-widget-density="compact"] .task-widget-postcards > header button { display: none; }
@@ -705,6 +709,8 @@
   .task-widget-timer { padding-inline: 7px; }
   .task-widget-timer__face { width: min(148px, 100%); }
   .task-widget-timer__progress-bar { width: min(148px, 100%); }
+  .task-widget-timer--idle .task-widget-timer__face { width: min(126px, 100%); }
+  .task-widget-timer--idle .task-widget-timer__progress-bar { width: min(126px, 100%); }
   .task-widget-timer__presets { gap: 3px; }
   .task-widget-timer__presets button { min-height: 27px; font-size: 11px; }
   .task-widget-postcards > header { padding-inline: 12px; }
@@ -13922,7 +13928,7 @@ body:has(.footprints-page),
 
 .pet-red-packet-modal__backdrop {
   position: absolute;
-  z-index: -3;
+  z-index: 0;
   inset: 0;
   background:
     radial-gradient(circle at 50% 46%, rgb(255 204 73 / 42%) 0 7%, transparent 34%),
@@ -13953,9 +13959,13 @@ body:has(.footprints-page),
   font-size: 30px;
   line-height: 1;
   box-shadow: 0 5px 18px rgb(31 4 4 / 25%);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.pet-red-packet-light-show { position: absolute; z-index: -2; inset: 0; overflow: hidden; pointer-events: none; }
+.pet-red-packet-light-show { position: absolute; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
 .pet-red-packet-light-show__ring {
   position: absolute;
   left: 50%;
@@ -13986,7 +13996,7 @@ body:has(.footprints-page),
   transform: scale(var(--red-packet-light-scale));
 }
 
-.pet-red-packet-rain { position: absolute; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; transition: opacity 220ms ease; }
+.pet-red-packet-rain { position: absolute; z-index: 2; inset: 0; overflow: hidden; pointer-events: none; transition: opacity 220ms ease; }
 .pet-red-packet-rain img {
   --red-packet-left: 50%;
   --red-packet-delay: 0s;
@@ -14007,7 +14017,7 @@ body:has(.footprints-page),
 
 .pet-red-packet-modal.is-opening .pet-red-packet-rain,
 .pet-red-packet-modal.is-revealed .pet-red-packet-rain { opacity: 0; }
-.pet-red-packet-stage { position: relative; z-index: 3; width: min(760px, 94vw); display: grid; place-items: center; text-align: center; }
+.pet-red-packet-stage { position: relative; z-index: 3; width: min(760px, 94vw); display: grid; place-items: center; text-align: center; pointer-events: auto; transform: translateZ(0); }
 .pet-red-packet-arriving { display: grid; place-items: center; gap: 15px; animation: pet-red-packet-arriving 680ms ease-out both; }
 .pet-red-packet-arriving span { font-size: clamp(68px, 10vw, 116px); color: #ffd34f; filter: drop-shadow(0 0 22px #ffb927); animation: pet-red-packet-star-pulse .62s ease-in-out infinite alternate; }
 .pet-red-packet-arriving strong { font-size: clamp(23px, 4vw, 40px); text-shadow: 0 4px 0 #6b1712, 0 8px 28px rgb(255 188 57 / 32%); }
@@ -14023,9 +14033,13 @@ body:has(.footprints-page),
   background: transparent;
   font: inherit;
   animation: pet-red-packet-main-in 540ms cubic-bezier(.16, 1.25, .34, 1) both;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.pet-red-packet-main img { position: relative; z-index: 2; width: 100%; height: auto; filter: drop-shadow(0 26px 22px rgb(39 4 4 / 42%)); }
+.pet-red-packet-main img { position: relative; z-index: 2; width: 100%; height: auto; filter: drop-shadow(0 26px 22px rgb(39 4 4 / 42%)); pointer-events: none; }
 .pet-red-packet-main__halo {
   position: absolute;
   z-index: 1;
@@ -14039,6 +14053,7 @@ body:has(.footprints-page),
   box-shadow: 0 0 70px rgb(255 195 48 / 65%), inset 0 0 45px rgb(255 207 71 / 20%);
   transform: translate(-50%, -50%);
   animation: pet-red-packet-halo 9s linear infinite;
+  pointer-events: none;
 }
 
 .pet-red-packet-main strong {
@@ -14053,6 +14068,7 @@ body:has(.footprints-page),
   background: #fff2bf;
   box-shadow: 0 7px 0 #d48c25, 0 15px 30px rgb(42 5 4 / 35%);
   font-size: clamp(18px, 3vw, 25px);
+  pointer-events: none;
 }
 
 .pet-red-packet-modal.is-opening .pet-red-packet-main { animation: pet-red-packet-opening .62s ease-in-out both; }

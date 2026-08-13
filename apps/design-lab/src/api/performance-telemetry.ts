@@ -68,7 +68,18 @@ const IMPORTANT_MUTATIONS = new Set([
   "reveal_postcard",
   "purchase_pet_room_theme",
   "select_pet_room_theme",
+  "open_pet_red_packet",
 ]);
+
+function sanitizeDiagnosticText(value: string | null | undefined, maxLength: number) {
+  if (!value) return null;
+  return value
+    .replace(
+      /([?&](?:token|key|code|secret|password)=)[^&\s]+/gi,
+      "$1[redacted]",
+    )
+    .slice(0, maxLength);
+}
 
 function now() {
   return globalThis.performance?.now() ?? Date.now();
@@ -159,6 +170,7 @@ function operationFor(path: string) {
     "/api/child/pet/trips/:id/reveal": "reveal_postcard",
     "/api/child/pet/room-themes/:key/purchase": "purchase_pet_room_theme",
     "/api/child/pet/room-themes/:key/select": "select_pet_room_theme",
+    "/api/child/pet/red-packets/open": "open_pet_red_packet",
     "/api/child/planets/:planet/celebrated": "celebrate_planet",
     "/api/child/planets/:planet/notified": "acknowledge_planet",
   };
@@ -281,7 +293,11 @@ function sendPerformanceMetric(
   payload: Record<string, unknown>,
   { urgent = false }: { urgent?: boolean } = {},
 ) {
-  pendingMetrics.push({ ...payload, ...clientContext() });
+  pendingMetrics.push({
+    ...payload,
+    ...clientContext(),
+    appVersion: import.meta.env.VITE_APP_VERSION ?? null,
+  });
   if (pendingMetrics.length > MAX_PENDING_METRICS) {
     pendingMetrics.splice(0, pendingMetrics.length - MAX_PENDING_METRICS);
   }
@@ -314,7 +330,9 @@ export function reportChildMediaDiagnostic(input: {
 export function reportChildRuntimeFailure(input: {
   operation: "chunk_load_failed" | "render_failed";
   path?: string;
+  error?: unknown;
 }) {
+  const error = input.error;
   sendPerformanceMetric(
     {
       kind: "runtime",
@@ -322,6 +340,14 @@ export function reportChildRuntimeFailure(input: {
       path: input.path ?? window.location.pathname,
       status: 0,
       totalMs: 0,
+      errorName: sanitizeDiagnosticText(
+        error instanceof Error ? error.name : typeof error,
+        80,
+      ),
+      errorMessage: sanitizeDiagnosticText(
+        error instanceof Error ? error.message : String(error ?? ""),
+        500,
+      ),
     },
     { urgent: true },
   );
@@ -375,6 +401,8 @@ export function recordApiPerformance(input: {
   startedAt: number;
   totalMs: number;
   serverMs: number | null;
+  errorName?: string | null;
+  errorMessage?: string | null;
 }) {
   if (
     input.path.startsWith("/api/child/telemetry/") ||
@@ -422,6 +450,8 @@ export function recordApiPerformance(input: {
     ttfbMs: roundDuration(metric.ttfbMs),
     downloadMs: roundDuration(metric.downloadMs),
     transferSize: metric.transferSize,
+    errorName: sanitizeDiagnosticText(input.errorName, 80),
+    errorMessage: sanitizeDiagnosticText(input.errorMessage, 500),
   });
 }
 
@@ -522,6 +552,9 @@ if (typeof window !== "undefined") {
   window.addEventListener("pagehide", flushPerformanceMetricsWithBeacon);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
+      // iPad Safari can suspend a hidden page for minutes. Any navigation timer
+      // that spans that suspension is not a real page-open duration.
+      navigationStartedAt.clear();
       flushPerformanceMetricsWithBeacon();
     } else if (navigator.onLine) {
       scheduleMetricFlush(250);

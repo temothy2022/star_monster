@@ -1547,6 +1547,9 @@ model ChildPerformanceMetric {
   effectiveType    String?
   connectionRttMs  Float?
   downlinkMbps     Float?
+  errorName        String?
+  errorMessage     String?
+  appVersion       String?
   createdAt        DateTime @default(now())
 
   child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)

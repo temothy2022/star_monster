@@ -22,6 +22,9 @@ export type PerformanceMetricRecord = {
   effectiveType: string | null;
   connectionRttMs: number | null;
   downlinkMbps: number | null;
+  errorName?: string | null;
+  errorMessage?: string | null;
+  appVersion?: string | null;
   createdAt: Date;
 };
 
@@ -64,6 +67,31 @@ function isExpectedAuthenticationMetric(metric: PerformanceMetricRecord) {
     metric.status === 401 &&
     (metric.path === "/api/child/me" ||
       metric.path.startsWith("/api/child/auth/"))
+  );
+}
+
+function isExpectedInterruptedMetric(metric: PerformanceMetricRecord) {
+  return (
+    metric.kind === "api" &&
+    metric.status === 0 &&
+    (metric.online === false || metric.visibilityState === "hidden")
+  );
+}
+
+function isExpectedTaskStateConflict(metric: PerformanceMetricRecord) {
+  return (
+    metric.kind === "api" &&
+    metric.status === 409 &&
+    (metric.operation === "abandon_task" || metric.operation === "complete_task")
+  );
+}
+
+function isSuspendedPageTimer(metric: PerformanceMetricRecord) {
+  if (metric.kind !== "navigation" && metric.kind !== "route") return false;
+  return (
+    metric.totalMs >= 30_000 &&
+    (metric.apiTotalMs === null || (metric.apiTotalMs ?? 0) < 10_000) &&
+    (metric.nonApiMs ?? metric.totalMs) >= metric.totalMs * 0.9
   );
 }
 
@@ -215,7 +243,10 @@ export function buildPerformanceDashboard(
   const usableRecords = records.filter(
     (metric) =>
       !isLegacyAbsoluteStartupMetric(metric) &&
-      !isExpectedAuthenticationMetric(metric),
+      !isExpectedAuthenticationMetric(metric) &&
+      !isExpectedInterruptedMetric(metric) &&
+      !isExpectedTaskStateConflict(metric) &&
+      !isSuspendedPageTimer(metric),
   );
   const navigation = usableRecords.filter((metric) => metric.kind === "navigation");
   const api = usableRecords.filter((metric) => metric.kind === "api");

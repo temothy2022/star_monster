@@ -68,13 +68,34 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let status = 0;
   let requestId: string | null = null;
   let serverMs: number | null = null;
+  let requestError: unknown = null;
 
   try {
-    const response = await fetch(path, {
-      ...init,
-      credentials: "include",
-      headers,
-    });
+    let response: Response | null = null;
+    const maxAttempts = method === "GET" ? 2 : 1;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        response = await fetch(path, {
+          ...init,
+          credentials: "include",
+          headers,
+        });
+      } catch (error) {
+        if (attempt >= maxAttempts || init?.signal?.aborted) throw error;
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        continue;
+      }
+      if (
+        attempt < maxAttempts &&
+        (response.status === 502 || response.status === 503 || response.status === 504)
+      ) {
+        await response.body?.cancel().catch(() => undefined);
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        continue;
+      }
+      break;
+    }
+    if (!response) throw new Error("请求没有返回结果");
     status = response.status;
     requestId = response.headers.get("x-request-id");
     const serverTiming = response.headers.get("server-timing");
@@ -108,8 +129,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       getMemoryCache.clear();
     }
     return result;
+  } catch (error) {
+    requestError = error;
+    throw error;
   } finally {
-    if (!init?.signal?.aborted) {
+    const intentionallyInterruptedRead = method === "GET" && init?.signal?.aborted;
+    if (!intentionallyInterruptedRead) {
       const finishedAt = globalThis.performance?.now() ?? Date.now();
       recordApiPerformance({
         path,
@@ -119,6 +144,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
         startedAt,
         totalMs: Math.max(0, finishedAt - startedAt),
         serverMs,
+        errorName: requestError instanceof Error ? requestError.name : null,
+        errorMessage: requestError instanceof Error ? requestError.message : null,
       });
     }
   }
@@ -364,13 +391,14 @@ export function cleanPetWaste(wasteId: string, idempotencyKey: string) {
   });
 }
 
-export function openPetRedPacket(idempotencyKey: string) {
+export function openPetRedPacket(idempotencyKey: string, signal?: AbortSignal) {
   return request<{
     state: PetGrowthState;
     reward: { packetId: string; stars: number; sourceLevel: number };
   }>("/api/child/pet/red-packets/open", {
     method: "POST",
     body: JSON.stringify({ idempotencyKey }),
+    signal,
   });
 }
 

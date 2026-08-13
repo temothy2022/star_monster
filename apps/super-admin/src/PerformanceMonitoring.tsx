@@ -41,6 +41,7 @@ const PERFORMANCE_OPERATION_LABELS: Record<string, string> = {
   redeem_wish: "兑换星愿",
   feed_pet: "喂点心",
   give_pet_water: "喂水",
+  open_pet_red_packet: "拆开星宠红包",
   start_pet_trip: "开始旅行",
   reveal_postcard: "拆开明信片",
   celebrate_planet: "确认星球点亮",
@@ -285,8 +286,8 @@ export function PerformanceMonitoring() {
           )}
 
           <Panel title="最近真实慢等待与失败">
-            <div className="table-wrap"><table><thead><tr><th>时间</th><th>家庭</th><th>孩子</th><th>操作</th><th>耗时</th><th>状态</th><th>主要原因</th><th>服务端</th><th>网络</th><th>前端</th><th>请求编号</th></tr></thead><tbody>{data.recentSlowEvents.map((item) => (
-              <tr key={item.id}><td>{formatDate(item.createdAt)}</td><td>{item.familyName ?? "—"}</td><td>{item.childNickname ?? item.childId?.slice(-6) ?? "—"}</td><td>{performanceOperationLabel(item.operation)}</td><td><strong>{formatPerformanceMs(item.totalMs)}</strong></td><td>{item.status ?? "—"}</td><td><span className={`performance-cause performance-cause--${item.diagnosis}`}>{PERFORMANCE_DIAGNOSIS[item.diagnosis].label}</span></td><td>{formatPerformanceMs(item.serverMs)}</td><td>{formatPerformanceMs(item.clientOverheadMs)}</td><td>{formatPerformanceMs(item.nonApiMs)}</td><td className="performance-request-id" title={item.requestId ?? ""}>{item.requestId?.slice(0, 10) ?? "—"}</td></tr>
+            <div className="table-wrap"><table><thead><tr><th>时间</th><th>家庭</th><th>孩子</th><th>操作</th><th>耗时</th><th>状态</th><th>主要原因</th><th>错误详情</th><th>版本</th><th>服务端</th><th>网络</th><th>前端</th><th>请求编号</th></tr></thead><tbody>{data.recentSlowEvents.map((item) => (
+              <tr key={item.id}><td>{formatDate(item.createdAt)}</td><td>{item.familyName ?? "—"}</td><td>{item.childNickname ?? item.childId?.slice(-6) ?? "—"}</td><td>{performanceOperationLabel(item.operation)}</td><td><strong>{formatPerformanceMs(item.totalMs)}</strong></td><td>{item.status ?? "—"}</td><td><span className={`performance-cause performance-cause--${item.diagnosis}`}>{PERFORMANCE_DIAGNOSIS[item.diagnosis].label}</span></td><td className="performance-request-id" title={item.errorMessage ?? ""}>{item.errorMessage ?? item.errorName ?? "—"}</td><td className="performance-request-id" title={item.appVersion ?? ""}>{item.appVersion?.slice(0, 10) ?? "—"}</td><td>{formatPerformanceMs(item.serverMs)}</td><td>{formatPerformanceMs(item.clientOverheadMs)}</td><td>{formatPerformanceMs(item.nonApiMs)}</td><td className="performance-request-id" title={item.requestId ?? ""}>{item.requestId?.slice(0, 10) ?? "—"}</td></tr>
             ))}</tbody></table>{!data.recentSlowEvents.length && <div className="empty-state">当前范围没有超过 1 秒的真实等待或失败</div>}</div>
             <p className="performance-collected">最早记录 {formatDate(data.collectedFrom)} · 最新记录 {formatDate(data.collectedTo)} · 忽略认证噪音和旧版异常样本 {data.dataQuality.ignoredNoiseCount} 条</p>
           </Panel>

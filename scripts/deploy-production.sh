@@ -110,6 +110,7 @@ echo "Using $RSYNC_BIN (protocol $RSYNC_PROTOCOL)."
   --exclude '.env' \
   --exclude '.env.*' \
   --exclude '.deploy-pnpm-lock.sha256' \
+  --exclude '.deploy-api-release.sha256' \
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \
   --exclude 'work/' \

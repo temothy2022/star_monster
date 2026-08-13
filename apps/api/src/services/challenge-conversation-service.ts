@@ -196,11 +196,10 @@ async function generatePromptPool(config: AppConfig, replace = false) {
   }
   if (messages.size < PROMPT_POOL_SIZE) {
     if (lastError instanceof HttpError && messages.size === 0) throw lastError;
-    throw new HttpError(
-      502,
-      "CHALLENGE_PROMPT_POOL_INCOMPLETE",
-      `主动来信已保存 ${messages.size}/100 条，请再次点击继续补齐，已生成内容不会丢失`,
-    );
+    // Partial batches are valid progress. Return them as a successful result
+    // so administrators can continue later without turning a provider-format
+    // variance into a misleading 502 platform failure.
+    return messages.size;
   }
   const completedMessages = await prisma.challengePromptTemplate.findMany({
     where: { isEnabled: false, text: { in: [...messages] } },
@@ -209,11 +208,7 @@ async function generatePromptPool(config: AppConfig, replace = false) {
     select: { id: true },
   });
   if (completedMessages.length < PROMPT_POOL_SIZE) {
-    throw new HttpError(
-      502,
-      "CHALLENGE_PROMPT_POOL_INCOMPLETE",
-      `主动来信已保存 ${completedMessages.length}/100 条，请再次点击继续补齐，已生成内容不会丢失`,
-    );
+    return completedMessages.length;
   }
   const completedIds = completedMessages.map((message) => message.id);
   await prisma.$transaction(async (tx) => {

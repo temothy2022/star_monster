@@ -38,6 +38,9 @@ const telemetrySchema = z.object({
       downlink: z.number().finite().min(0).max(100_000).nullable(),
     })
     .optional(),
+  errorName: z.string().trim().max(80).nullable().optional(),
+  errorMessage: z.string().trim().max(500).nullable().optional(),
+  appVersion: z.string().trim().max(120).nullable().optional(),
 });
 
 const telemetryPayloadSchema = z.union([
@@ -78,6 +81,9 @@ export async function registerClientTelemetryRoutes(
         effectiveType: metric.connection?.effectiveType,
         connectionRttMs: metric.connection?.rtt,
         downlinkMbps: metric.connection?.downlink,
+        errorName: metric.errorName,
+        errorMessage: metric.errorMessage,
+        appVersion: metric.appVersion,
     }));
 
     await prisma.childPerformanceMetric.createMany({ data: records });

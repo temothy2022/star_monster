@@ -267,6 +267,9 @@ export type PerformanceDashboard = {
     effectiveType: string | null;
     connectionRttMs: number | null;
     downlinkMbps: number | null;
+    errorName?: string | null;
+    errorMessage?: string | null;
+    appVersion?: string | null;
     createdAt: string;
     diagnosis: PerformanceDiagnosis;
   }>;

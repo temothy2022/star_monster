@@ -90,6 +90,7 @@ export class AppErrorBoundary extends Component<
     reportChildRuntimeFailure({
       operation: chunkFailure ? "chunk_load_failed" : "render_failed",
       path: failingAssetPath(error),
+      error,
     });
 
     if (!chunkFailure) return;
