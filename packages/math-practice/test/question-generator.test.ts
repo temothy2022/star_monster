@@ -375,7 +375,8 @@ describe("math practice question generator", () => {
     const sequence = generateMathQuestion({ typeId: "N07", seed: 20260810, difficulty: 2 });
     const comparison = generateMathQuestion({ typeId: "N08", seed: 20260810 });
 
-    expect(adjacent.response).toMatchObject({ mode: "R01", slots: 1 });
+    expect(adjacent.response.slots).toBe(adjacent.answer.values.length);
+    expect(["R01", "R02"]).toContain(adjacent.response.mode);
     expect(adjacent.response.options).toBeUndefined();
     expect(sequence.response).toMatchObject({ mode: "R02", slots: 2 });
     expect(sequence.response.options).toBeUndefined();
@@ -579,16 +580,66 @@ describe("math practice question generator", () => {
     }
   });
 
-  it("generates valid adjacent and patterned number gaps", () => {
+  it("generates all three adjacent-number variants and valid patterned gaps", () => {
+    let middleOnlySeen = false;
+    const twentyAnchorIndexes = new Set<number>();
+    const multiDirections = new Set<number>();
+    const multiSteps = new Set<number>();
+
     for (let seed = 1; seed <= 80; seed += 1) {
-      const adjacent = generateMathQuestion({ typeId: "N06", seed });
-      expect(adjacent.visual.kind).toBe("NUMBER_BOXES");
-      if (adjacent.visual.kind === "NUMBER_BOXES") {
-        expect(adjacent.visual.values.filter((value) => value === null)).toHaveLength(1);
-        const rebuilt = [...adjacent.visual.values];
-        rebuilt[rebuilt.indexOf(null)] = Number(adjacent.answer.values[0]);
+      const adjacentWithinTen = generateMathQuestion({ typeId: "N06", seed, difficulty: 1 });
+      expect(adjacentWithinTen.visual.kind).toBe("NUMBER_BOXES");
+      if (adjacentWithinTen.visual.kind === "NUMBER_BOXES") {
+        expect(adjacentWithinTen.visual.values).toHaveLength(3);
+        expect([1, 2]).toContain(adjacentWithinTen.answer.values.length);
+        middleOnlySeen ||= adjacentWithinTen.visual.values[0] === null &&
+          adjacentWithinTen.visual.values[1] !== null &&
+          adjacentWithinTen.visual.values[2] === null;
+        const rebuilt = [...adjacentWithinTen.visual.values];
+        let answerIndex = 0;
+        for (let index = 0; index < rebuilt.length; index += 1) {
+          if (rebuilt[index] === null) rebuilt[index] = Number(adjacentWithinTen.answer.values[answerIndex++]);
+        }
+        expect(Math.min(...rebuilt as number[])).toBeGreaterThanOrEqual(1);
+        expect(Math.max(...rebuilt as number[])).toBeLessThanOrEqual(10);
         expect(rebuilt[1]! - rebuilt[0]!).toBe(1);
         expect(rebuilt[2]! - rebuilt[1]!).toBe(1);
+      }
+
+      const adjacentWithinTwenty = generateMathQuestion({ typeId: "N06", seed, difficulty: 2 });
+      expect(adjacentWithinTwenty.visual.kind).toBe("NUMBER_BOXES");
+      if (adjacentWithinTwenty.visual.kind === "NUMBER_BOXES") {
+        expect(adjacentWithinTwenty.visual.values).toHaveLength(3);
+        expect(adjacentWithinTwenty.answer.values).toHaveLength(2);
+        twentyAnchorIndexes.add(adjacentWithinTwenty.visual.values.findIndex((value) => value !== null));
+        const rebuilt = [...adjacentWithinTwenty.visual.values];
+        let answerIndex = 0;
+        for (let index = 0; index < rebuilt.length; index += 1) {
+          if (rebuilt[index] === null) rebuilt[index] = Number(adjacentWithinTwenty.answer.values[answerIndex++]);
+        }
+        expect(Math.min(...rebuilt as number[])).toBeGreaterThanOrEqual(1);
+        expect(Math.max(...rebuilt as number[])).toBeLessThanOrEqual(20);
+        expect(rebuilt[1]! - rebuilt[0]!).toBe(1);
+        expect(rebuilt[2]! - rebuilt[1]!).toBe(1);
+      }
+
+      const adjacentMulti = generateMathQuestion({ typeId: "N06", seed, difficulty: 3 });
+      expect(adjacentMulti.visual.kind).toBe("NUMBER_BOXES");
+      if (adjacentMulti.visual.kind === "NUMBER_BOXES") {
+        expect(adjacentMulti.visual.values).toHaveLength(5);
+        expect(adjacentMulti.answer.values).toHaveLength(2);
+        const rebuilt = [...adjacentMulti.visual.values];
+        let answerIndex = 0;
+        for (let index = 0; index < rebuilt.length; index += 1) {
+          if (rebuilt[index] === null) rebuilt[index] = Number(adjacentMulti.answer.values[answerIndex++]);
+        }
+        const gaps = rebuilt.slice(1).map((value, index) => value! - rebuilt[index]!);
+        expect(new Set(gaps).size).toBe(1);
+        expect([1, 2]).toContain(Math.abs(gaps[0]!));
+        expect(Math.min(...rebuilt as number[])).toBeGreaterThanOrEqual(1);
+        expect(Math.max(...rebuilt as number[])).toBeLessThanOrEqual(20);
+        multiDirections.add(Math.sign(gaps[0]!));
+        multiSteps.add(Math.abs(gaps[0]!));
       }
 
       const sequence = generateMathQuestion({ typeId: "N07", seed });
@@ -604,6 +655,11 @@ describe("math practice question generator", () => {
         expect([1, 2]).toContain(Math.abs(gaps[0]!));
       }
     }
+
+    expect(middleOnlySeen).toBe(true);
+    expect(twentyAnchorIndexes).toEqual(new Set([0, 1, 2]));
+    expect(multiDirections).toEqual(new Set([1, -1]));
+    expect(multiSteps).toEqual(new Set([1, 2]));
   });
 
   it("covers both arithmetic signs and restores V06 equation entry", () => {

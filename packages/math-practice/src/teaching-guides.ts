@@ -55,9 +55,9 @@ export const MATH_TEACHING_GUIDES_BY_TYPE: Record<MathQuestionTypeId, MathTeachi
     visual: "DIRECTION",
   },
   N06: {
-    focus: "理解相邻数相差1和数序关系。",
-    commonMistake: "把前后位置与大小关系弄反。",
-    hints: ["把这些数放进数字队伍里。", "左边少1，右边多1。"],
+    focus: "从已知数判断数序方向，并识别五格中的固定间隔。",
+    commonMistake: "没有先判断顺数或倒数，也没有检查每次相差几。",
+    hints: ["先找已知数，看看数字往哪边变。", "检查每一格都增加或减少同样多。"],
     visual: "NUMBER_PATH",
   },
   N07: {

@@ -280,7 +280,7 @@ function NumberBoxes({
 }) {
   let missingSlot = 0;
   return (
-    <div className="math-number-boxes">
+    <div className={`math-number-boxes math-number-boxes--${values.length}`}>
       {values.map((value, index) => {
         const answerSlot = value === null ? missingSlot++ : -1;
         const answer = interactive && answerSlot >= 0 ? answerValues[answerSlot] : undefined;
@@ -838,7 +838,7 @@ function MathVisualComponent({
         <NumberBoxes
           values={question.visual.values}
           answerValues={values}
-          interactive={question.typeId === "N07"}
+          interactive={["N06", "N07"].includes(question.typeId)}
           activeSlot={activeSlot}
           disabled={disabled}
           onSlotSelect={onSlotSelect}

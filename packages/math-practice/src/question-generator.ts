@@ -460,16 +460,63 @@ export function generateMathQuestion(
       });
     }
     case "N06": {
-      const center = difficulty === 1 ? rng.int(2, 8) : rng.int(10, 18);
-      const missingIndex = rng.int(0, 2);
-      const sequence = [center - 1, center, center + 1];
-      const answer = sequence[missingIndex]!;
+      if (difficulty === 1) {
+        const center = rng.int(2, 9);
+        const sequence = [center - 1, center, center + 1];
+        const missingIndexes: readonly number[] = rng.next() < 0.5 ? [1] : [0, 2];
+        const answers = missingIndexes.map((index) => String(sequence[index]!));
+        return question(input, {
+          prompt: "把 10 以内的相邻数填完整。",
+          visual: {
+            kind: "NUMBER_BOXES",
+            values: sequence.map((value, index) => missingIndexes.includes(index) ? null : value),
+          },
+          response: numericResponse(missingIndexes.length),
+          answer: { values: answers, display: answers.join("，") },
+          explanation: `${sequence.join("、")} 是连续的三个数。`,
+        });
+      }
+
+      if (difficulty === 2) {
+        const start = rng.int(1, 18);
+        const sequence = [start, start + 1, start + 2];
+        const givenIndex = rng.int(0, 2);
+        const missingIndexes = [0, 1, 2].filter((index) => index !== givenIndex);
+        const answers = missingIndexes.map((index) => String(sequence[index]!));
+        return question(input, {
+          prompt: "把 20 以内的相邻数填完整。",
+          visual: {
+            kind: "NUMBER_BOXES",
+            values: sequence.map((value, index) => index === givenIndex ? value : null),
+          },
+          response: numericResponse(2),
+          answer: { values: answers, display: answers.join("，") },
+          explanation: `${sequence.join("、")} 是连续的三个数。`,
+        });
+      }
+
+      const step = rng.next() < 0.35 ? 2 : 1;
+      const direction = rng.pick([1, -1] as const);
+      const span = step * 4;
+      const start = direction === 1 ? rng.int(1, 20 - span) : rng.int(1 + span, 20);
+      const sequence = Array.from({ length: 5 }, (_, index) => start + direction * step * index);
+      const missingIndexes: readonly number[] = rng.pick([
+        [1, 4],
+        [1, 3],
+        [0, 2],
+        [0, 3],
+        [0, 4],
+      ] as const);
+      const answers = missingIndexes.map((index) => String(sequence[index]!));
       return question(input, {
-        prompt: "把相邻的数填完整。",
-        visual: { kind: "NUMBER_BOXES", values: sequence.map((value, index) => index === missingIndex ? null : value) },
-        response: numericResponse(),
-        answer: { values: [String(answer)], display: String(answer) },
-        explanation: `${sequence.join("、")} 是相邻的三个数。`,
+        prompt: "看规律，把五格相邻数填完整。",
+        visual: {
+          kind: "NUMBER_BOXES",
+          values: sequence.map((value, index) => missingIndexes.includes(index) ? null : value),
+        },
+        response: numericResponse(2),
+        answer: { values: answers, display: answers.join("，") },
+        explanation: `从左到右，每次${direction === 1 ? "增加" : "减少"} ${step}。`,
       });
     }
     case "N07": {

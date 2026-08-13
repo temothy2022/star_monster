@@ -556,7 +556,8 @@
 .math-paper-question .math-arithmetic-token { min-width: 5mm; font-size: 12pt; }
 .math-paper-question .math-arithmetic-blank { width: 11mm; height: 7mm; border-width: .4mm; border-radius: 1.5mm; font-size: 11pt; }
 .math-paper-question--number-strip .math-number-boxes { gap: 1mm; }
-.math-paper-question--number-strip .math-number-boxes span {
+.math-paper-question--number-strip .math-number-boxes span,
+.math-paper-question--number-strip .math-number-boxes button {
   width: 12mm;
   min-width: 11mm;
   max-width: 13mm;
@@ -637,7 +638,8 @@
 .math-paper-question .math-place-value__bundles { min-height: 24mm; grid-template-columns: repeat(5, 10mm); grid-auto-rows: 12mm; gap: .4mm; }
 .math-paper-question .math-place-value__bundles .math-stick-bundle { width: 10mm; height: 12mm; }
 .math-paper-question .math-number-boxes { gap: 2mm; }
-.math-paper-question .math-number-boxes span { width: 15mm; height: 15mm; border-width: .7mm; border-radius: 3mm; font-size: 18pt; }
+.math-paper-question .math-number-boxes span,
+.math-paper-question .math-number-boxes button { width: 15mm; height: 15mm; border-width: .7mm; border-radius: 3mm; font-size: 18pt; }
 .math-paper-question .math-number-bond { width: 56mm; max-width: 100%; }
 .math-paper-question .math-number-bond__total,
 .math-paper-question .math-number-bond__field > span { border-width: .7mm; border-radius: 2mm; font-size: 16pt; }
