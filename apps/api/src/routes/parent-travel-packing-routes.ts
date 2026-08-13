@@ -22,12 +22,14 @@ const itemCreateInput = z.object({
   expirationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 const itemUpdateInput = z.object({
+  categoryId: z.string().trim().min(1).optional(),
   label: z.string().trim().min(1).max(30).optional(),
   quantity: z.number().int().min(0).max(999).optional(),
   packed: z.boolean().optional(),
   location: z.enum(["SUITCASE", "BACKPACK", "CAR"]).optional(),
   expirationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 }).refine((value) => (
+  value.categoryId !== undefined ||
   value.label !== undefined ||
   value.quantity !== undefined ||
   value.packed !== undefined ||
@@ -176,8 +178,17 @@ async function addItem(listId: string, categoryId: string, input: z.infer<typeof
 }
 
 async function updateItem(listId: string, id: string, input: z.infer<typeof itemUpdateInput>) {
-  await itemForList(listId, id);
-  await prisma.travelPackingItem.update({ where: { id }, data: input });
+  const current = await itemForList(listId, id);
+  let sortOrder: number | undefined;
+  if (input.categoryId && input.categoryId !== current.categoryId) {
+    await categoryForList(listId, input.categoryId);
+    const maximum = await prisma.travelPackingItem.aggregate({
+      where: { categoryId: input.categoryId },
+      _max: { sortOrder: true },
+    });
+    sortOrder = (maximum._max.sortOrder ?? -1) + 1;
+  }
+  await prisma.travelPackingItem.update({ where: { id }, data: { ...input, sortOrder } });
   return readListById(listId);
 }
 

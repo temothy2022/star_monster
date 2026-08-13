@@ -765,7 +765,7 @@ export function createTravelPackingApi(shareToken?: string) {
     }),
     updateItem: (
       id: string,
-      data: Partial<Pick<TravelPackingItem, "label" | "quantity" | "packed" | "location" | "expirationDate">>,
+      data: Partial<Pick<TravelPackingItem, "categoryId" | "label" | "quantity" | "packed" | "location" | "expirationDate">>,
     ) => api<{ list: TravelPackingList }>(`${base}/items/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -806,7 +806,7 @@ export const parentApi = {
     }),
   updateTravelPackingItem: (
     id: string,
-    data: Partial<Pick<TravelPackingItem, "label" | "quantity" | "packed" | "location" | "expirationDate">>,
+    data: Partial<Pick<TravelPackingItem, "categoryId" | "label" | "quantity" | "packed" | "location" | "expirationDate">>,
   ) =>
     api<{ list: TravelPackingList }>(`/api/parent/travel-packing-list/items/${id}`, {
       method: "PATCH",

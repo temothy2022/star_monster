@@ -62,6 +62,8 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     try { return window.localStorage.getItem("star-monsters:last-packing-category"); } catch { return null; }
   });
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemCategoryId, setEditingItemCategoryId] = useState<string | null>(null);
+  const [editingCategoryPickerOpen, setEditingCategoryPickerOpen] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -305,6 +307,8 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
   function openItemEditor(item: TravelPackingItem) {
     setEditingItemId(item.id);
+    setEditingItemCategoryId(item.categoryId);
+    setEditingCategoryPickerOpen(false);
     setItemName(item.label);
     setItemQuantity(item.quantity);
     setItemLocation(item.location);
@@ -313,10 +317,11 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
   async function saveItem(event: FormEvent) {
     event.preventDefault();
-    if (!editingItemId || !itemName.trim()) return;
+    if (!editingItemId || !editingItemCategoryId || !itemName.trim()) return;
     setSubmitting(true);
     try {
       const result = await packingApi.updateItem(editingItemId, {
+        categoryId: editingItemCategoryId,
         label: itemName.trim(),
         quantity: itemQuantity,
         location: itemLocation,
@@ -324,7 +329,9 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         ...(itemQuantity === 0 ? { packed: false } : {}),
       });
       setList(result.list);
+      setExpandedIds((current) => new Set(current).add(editingItemCategoryId));
       setEditingItemId(null);
+      setEditingItemCategoryId(null);
       setError("");
     } catch (reason) {
       message(reason);
@@ -702,16 +709,25 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
       )}
 
       {editingItemId && editingItem && (
-        <div className="packing-backdrop" role="presentation" onMouseDown={() => setEditingItemId(null)}>
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => { setEditingItemId(null); setEditingItemCategoryId(null); }}>
           <form className="packing-sheet" onSubmit={saveItem} onMouseDown={(event) => event.stopPropagation()}>
             <div className="packing-sheet__handle" aria-hidden="true" />
             <h2>物品详情</h2><p>调整名称或库存，修改会立即保存到长期清单。</p>
+            <div className="packing-field">
+              <span className="packing-field__label">所属分类</span>
+              <button type="button" className="packing-category-picker" aria-expanded={editingCategoryPickerOpen} onClick={() => setEditingCategoryPickerOpen((value) => !value)}>
+                <span>{list.categories.find((category) => category.id === editingItemCategoryId)?.name ?? "选择分类"}</span>
+              </button>
+              {editingCategoryPickerOpen && <div className="packing-category-picker__menu" role="listbox" onClick={(event) => event.stopPropagation()}>
+                {list.categories.map((category) => <button type="button" role="option" aria-selected={category.id === editingItemCategoryId} className={category.id === editingItemCategoryId ? "is-selected" : ""} onClick={(event) => { event.stopPropagation(); setEditingItemCategoryId(category.id); setEditingCategoryPickerOpen(false); }} key={category.id}>{category.name}{category.id === editingItemCategoryId && <span aria-hidden="true">✓</span>}</button>)}
+              </div>}
+            </div>
             <label>物品名称<input value={itemName} maxLength={30} onChange={(event) => setItemName(event.target.value)} /></label>
             <LocationPicker value={itemLocation} onChange={setItemLocation} />
-            {isMedicineCategory(editingItem ? list.categories.find((category) => category.id === editingItem.categoryId)?.name : undefined) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
+            {isMedicineCategory(list.categories.find((category) => category.id === editingItemCategoryId)?.name) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
             <label>现有库存<div className="packing-sheet__quantity"><button type="button" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}>−</button><strong>{itemQuantity}</strong><button type="button" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}>＋</button></div></label>
             <button type="button" className="packing-sheet__danger" onClick={() => { setEditingItemId(null); setDeletingItemId(editingItem.id); }}>从清单中删除这件物品</button>
-            <div className="packing-sheet__actions"><button type="button" onClick={() => setEditingItemId(null)}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>保存修改</button></div>
+            <div className="packing-sheet__actions"><button type="button" onClick={() => { setEditingItemId(null); setEditingItemCategoryId(null); }}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>保存修改</button></div>
           </form>
         </div>
       )}
