@@ -532,14 +532,15 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
           <form className="packing-sheet" onSubmit={addItem} onMouseDown={(event) => event.stopPropagation()}>
             <div className="packing-sheet__handle" aria-hidden="true" />
             <h2>添加物品</h2><p>物品和库存会保存在你的长期清单里。</p>
-            <label>所属分类
+            <div className="packing-field">
+              <span className="packing-field__label">所属分类</span>
               <button type="button" className="packing-category-picker" aria-expanded={categoryPickerOpen} onClick={() => setCategoryPickerOpen((value) => !value)}>
                 <span>{list.categories.find((category) => category.id === itemSheetCategoryId)?.name ?? "选择分类"}</span>
               </button>
-              {categoryPickerOpen && <div className="packing-category-picker__menu" role="listbox">
+              {categoryPickerOpen && <div className="packing-category-picker__menu" role="listbox" onClick={(event) => event.stopPropagation()}>
                 {list.categories.map((category) => <button type="button" role="option" aria-selected={category.id === itemSheetCategoryId} className={category.id === itemSheetCategoryId ? "is-selected" : ""} onClick={(event) => { event.stopPropagation(); setItemSheetCategoryId(category.id); setLastCategoryId(category.id); setCategoryPickerOpen(false); try { window.localStorage.setItem("star-monsters:last-packing-category", category.id); } catch { /* storage is optional */ } }} key={category.id}>{category.name}{category.id === itemSheetCategoryId && <span aria-hidden="true">✓</span>}</button>)}
               </div>}
-            </label>
+            </div>
             <label>物品名称<input autoFocus value={itemName} maxLength={30} placeholder="例如：儿童退烧药" onChange={(event) => setItemName(event.target.value)} /></label>
             <LocationPicker value={itemLocation} onChange={setItemLocation} />
             {isMedicineCategory(list.categories.find((category) => category.id === itemSheetCategoryId)?.name) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}

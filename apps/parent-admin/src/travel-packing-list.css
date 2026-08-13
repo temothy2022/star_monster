@@ -212,7 +212,9 @@
 .packing-sheet__handle { width: 38px; height: 4px; margin: 0 auto 18px; border-radius: 99px; background: #d8d9e0; }
 .packing-sheet h2 { margin: 0; font-size: 22px; font-weight: 880; }
 .packing-sheet > p { margin: 7px 0 16px; color: var(--packing-muted); font-size: 12px; line-height: 1.55; }
-.packing-sheet label { display: block; margin-top: 13px; color: #5f6375; font-size: 11px; font-weight: 760; }
+.packing-sheet label,
+.packing-field { display: block; margin-top: 13px; color: #5f6375; font-size: 11px; font-weight: 760; }
+.packing-field__label { display: block; }
 .packing-sheet label > input,
 .packing-sheet label > select { width: 100%; min-height: 51px; margin-top: 7px; padding: 0 14px; border: 1px solid #e1e2e8; border-radius: 15px; outline: 0; color: var(--packing-ink); background: #f8f8fa; font-size: 16px; }
 .packing-sheet label > input { display: block; min-width: 0; max-width: 100%; }
