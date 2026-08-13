@@ -30,6 +30,10 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [itemSheetCategoryId, setItemSheetCategoryId] = useState<string | null>(null);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const [lastCategoryId, setLastCategoryId] = useState<string | null>(() => {
+    try { return window.localStorage.getItem("star-monsters:last-packing-category"); } catch { return null; }
+  });
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -107,7 +111,11 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     setCategoryMenuId(null);
     setItemName("");
     setItemQuantity(1);
-    setItemSheetCategoryId(categoryId ?? list.categories[0].id);
+    const remembered = lastCategoryId && list.categories.some((category) => category.id === lastCategoryId)
+      ? lastCategoryId
+      : list.categories[0].id;
+    setItemSheetCategoryId(categoryId ?? remembered);
+    setCategoryPickerOpen(false);
   }
 
   async function addItem(event: FormEvent) {
@@ -134,6 +142,9 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     setPendingIds((current) => new Set(current).add(optimisticId));
     setExpandedIds((current) => new Set(current).add(categoryId));
     setItemSheetCategoryId(null);
+    setCategoryPickerOpen(false);
+    setLastCategoryId(categoryId);
+    try { window.localStorage.setItem("star-monsters:last-packing-category", categoryId); } catch { /* storage is optional */ }
     setFilter("all");
     setError("");
     try {
@@ -502,7 +513,14 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
           <form className="packing-sheet" onSubmit={addItem} onMouseDown={(event) => event.stopPropagation()}>
             <div className="packing-sheet__handle" aria-hidden="true" />
             <h2>添加物品</h2><p>物品和库存会保存在你的长期清单里。</p>
-            <label>所属分类<select value={itemSheetCategoryId} onChange={(event) => setItemSheetCategoryId(event.target.value)}>{list.categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label>
+            <label>所属分类
+              <button type="button" className="packing-category-picker" aria-expanded={categoryPickerOpen} onClick={() => setCategoryPickerOpen((value) => !value)}>
+                <span>{list.categories.find((category) => category.id === itemSheetCategoryId)?.name ?? "选择分类"}</span><span aria-hidden="true">⌄</span>
+              </button>
+              {categoryPickerOpen && <div className="packing-category-picker__menu" role="listbox">
+                {list.categories.map((category) => <button type="button" role="option" aria-selected={category.id === itemSheetCategoryId} className={category.id === itemSheetCategoryId ? "is-selected" : ""} onClick={() => { setItemSheetCategoryId(category.id); setLastCategoryId(category.id); setCategoryPickerOpen(false); try { window.localStorage.setItem("star-monsters:last-packing-category", category.id); } catch { /* storage is optional */ } }} key={category.id}>{category.name}{category.id === itemSheetCategoryId && <span aria-hidden="true">✓</span>}</button>)}
+              </div>}
+            </label>
             <label>物品名称<input autoFocus value={itemName} maxLength={30} placeholder="例如：儿童退烧药" onChange={(event) => setItemName(event.target.value)} /></label>
             <label>现有库存<div className="packing-sheet__quantity"><button type="button" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}>−</button><strong>{itemQuantity}</strong><button type="button" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}>＋</button></div></label>
             <div className="packing-sheet__actions"><button type="button" onClick={() => setItemSheetCategoryId(null)}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>加入清单</button></div>
