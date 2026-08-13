@@ -15,6 +15,8 @@ const sharedIdParams = z.object({ token: z.string().trim().min(32).max(160), id:
 const titleInput = z.object({ title: z.string().trim().min(1).max(24) });
 const nameInput = z.object({ name: z.string().trim().min(1).max(20) });
 const shareInput = z.object({ expiresInDays: z.number().int().min(1).max(30) });
+const todoCreateInput = z.object({ label: z.string().trim().min(1).max(80) });
+const todoUpdateInput = z.object({ completed: z.boolean() });
 const itemCreateInput = z.object({
   label: z.string().trim().min(1).max(30),
   quantity: z.number().int().min(0).max(999).default(1),
@@ -47,6 +49,9 @@ const DEFAULT_CATEGORIES = [
 ] as const;
 
 const listInclude = {
+  todos: {
+    orderBy: [{ completed: "asc" as const }, { sortOrder: "asc" as const }, { createdAt: "asc" as const }],
+  },
   categories: {
     orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }],
     include: {
@@ -112,6 +117,12 @@ async function itemForList(listId: string, id: string) {
   });
   if (!item) throw new HttpError(404, "PACKING_ITEM_NOT_FOUND", "没有找到这件物品");
   return item;
+}
+
+async function todoForList(listId: string, id: string) {
+  const todo = await prisma.travelPackingTodo.findFirst({ where: { id, listId } });
+  if (!todo) throw new HttpError(404, "PACKING_TODO_NOT_FOUND", "没有找到这条待办");
+  return todo;
 }
 
 async function sharedListId(token: string) {
@@ -203,6 +214,26 @@ async function resetList(listId: string) {
   return readListById(listId);
 }
 
+async function addTodo(listId: string, label: string) {
+  const maximum = await prisma.travelPackingTodo.aggregate({ where: { listId }, _max: { sortOrder: true } });
+  await prisma.travelPackingTodo.create({
+    data: { listId, label, sortOrder: (maximum._max.sortOrder ?? -1) + 1 },
+  });
+  return readListById(listId);
+}
+
+async function updateTodo(listId: string, id: string, completed: boolean) {
+  await todoForList(listId, id);
+  await prisma.travelPackingTodo.update({ where: { id }, data: { completed } });
+  return readListById(listId);
+}
+
+async function deleteTodo(listId: string, id: string) {
+  await todoForList(listId, id);
+  await prisma.travelPackingTodo.delete({ where: { id } });
+  return readListById(listId);
+}
+
 async function packingTips(listId: string) {
   const list = await readListById(listId);
   if (!list) throw new HttpError(404, "PACKING_LIST_NOT_FOUND", "没有找到这份行李清单");
@@ -240,6 +271,28 @@ export async function registerParentTravelPackingRoutes(app: FastifyInstance, co
     const list = await ensureList(familyId);
     reply.header("Cache-Control", "no-store");
     return packingTips(list.id);
+  });
+
+  app.post("/api/parent/travel-packing-list/todos", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { label } = todoCreateInput.parse(request.body);
+    const list = await ensureList(familyId);
+    return { list: await addTodo(list.id, label) };
+  });
+
+  app.patch("/api/parent/travel-packing-list/todos/:id", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const { completed } = todoUpdateInput.parse(request.body);
+    const list = await ensureList(familyId);
+    return { list: await updateTodo(list.id, id, completed) };
+  });
+
+  app.delete("/api/parent/travel-packing-list/todos/:id", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { id } = idParams.parse(request.params);
+    const list = await ensureList(familyId);
+    return { list: await deleteTodo(list.id, id) };
   });
 
   app.post("/api/parent/travel-packing-list/categories", async (request, reply) => {
@@ -306,6 +359,29 @@ export async function registerParentTravelPackingRoutes(app: FastifyInstance, co
     protectSharedRequest(request, token, false);
     reply.header("Cache-Control", "no-store");
     return packingTips(await sharedListId(token));
+  });
+
+  app.post("/api/public/travel-packing/:token/todos", async (request, reply) => {
+    const { token } = shareParams.parse(request.params);
+    protectSharedRequest(request, token);
+    reply.header("Cache-Control", "no-store");
+    const { label } = todoCreateInput.parse(request.body);
+    return { list: await addTodo(await sharedListId(token), label) };
+  });
+
+  app.patch("/api/public/travel-packing/:token/todos/:id", async (request, reply) => {
+    const { token, id } = sharedIdParams.parse(request.params);
+    protectSharedRequest(request, token);
+    reply.header("Cache-Control", "no-store");
+    const { completed } = todoUpdateInput.parse(request.body);
+    return { list: await updateTodo(await sharedListId(token), id, completed) };
+  });
+
+  app.delete("/api/public/travel-packing/:token/todos/:id", async (request, reply) => {
+    const { token, id } = sharedIdParams.parse(request.params);
+    protectSharedRequest(request, token);
+    reply.header("Cache-Control", "no-store");
+    return { list: await deleteTodo(await sharedListId(token), id) };
   });
 
   app.patch("/api/public/travel-packing/:token", async (request, reply) => {

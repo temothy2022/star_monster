@@ -32,6 +32,15 @@ export type TravelPackingList = {
   familyId: string;
   title: string;
   categories: TravelPackingCategory[];
+  todos: TravelPackingTodo[];
+};
+
+export type TravelPackingTodo = {
+  id: string;
+  listId: string;
+  label: string;
+  completed: boolean;
+  sortOrder: number;
 };
 
 export type TravelPackingShare = {
@@ -738,6 +747,17 @@ export function createTravelPackingApi(shareToken?: string) {
   return {
     list: () => api<{ list: TravelPackingList }>(base),
     tips: () => api<TravelPackingTips>(`${base}/tips`),
+    addTodo: (label: string) => api<{ list: TravelPackingList }>(`${base}/todos`, {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    }),
+    updateTodo: (id: string, completed: boolean) => api<{ list: TravelPackingList }>(`${base}/todos/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ completed }),
+    }),
+    deleteTodo: (id: string) => api<{ list: TravelPackingList }>(`${base}/todos/${id}`, {
+      method: "DELETE",
+    }),
     renameList: (title: string) => api<{ list: TravelPackingList }>(base, {
       method: "PATCH",
       body: JSON.stringify({ title }),

@@ -11,7 +11,7 @@ import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
 import travelPackingTipsIcon from "./assets/travel-packing-tips-v2.png";
 import "./travel-packing-list.css";
 
-type Filter = "all" | "unpacked" | "shortage" | "packed";
+type Filter = "all" | "unpacked" | "packed";
 type PackingLocation = TravelPackingItem["location"];
 type PageSheet = "menu" | "rename" | "category" | null;
 type ShareResult = { url: string; expiresAt: string };
@@ -20,7 +20,6 @@ type TipsFilter = "all" | "not-listed" | "unpacked" | "other";
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "全部" },
   { value: "unpacked", label: "待装" },
-  { value: "shortage", label: "待补" },
   { value: "packed", label: "已装" },
 ];
 const LOCATIONS: Array<{ value: PackingLocation; label: string }> = [
@@ -69,6 +68,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showTipsSheet, setShowTipsSheet] = useState(false);
+  const [showTodoSheet, setShowTodoSheet] = useState(false);
   const [tips, setTips] = useState<TravelPackingTips | null>(null);
   const [tipsLoading, setTipsLoading] = useState(false);
   const [tipsError, setTipsError] = useState("");
@@ -76,6 +76,8 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [shareDays, setShareDays] = useState(7);
   const [shareResult, setShareResult] = useState<ShareResult | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
+  const [todoName, setTodoName] = useState("");
+  const [workingTodoIds, setWorkingTodoIds] = useState<Set<string>>(new Set());
   const [tripTitle, setTripTitle] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [itemName, setItemName] = useState("");
@@ -104,6 +106,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   );
   const packedCount = allItems.filter((item) => item.packed).length;
   const shortageCount = allItems.filter((item) => item.quantity === 0).length;
+  const pendingTodoCount = list?.todos.filter((todo) => !todo.completed).length ?? 0;
   const progress = allItems.length === 0 ? 0 : Math.round((packedCount / allItems.length) * 100);
   const activeCategory = list?.categories.find((category) => category.id === categoryMenuId) ?? null;
   const editingItem = allItems.find((item) => item.id === editingItemId) ?? null;
@@ -450,6 +453,73 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     }
   }
 
+  async function addTodo(event: FormEvent) {
+    event.preventDefault();
+    const label = todoName.trim();
+    if (!list || !label || submitting) return;
+    const previous = list;
+    const optimisticId = `optimistic-todo-${Date.now()}`;
+    setList({
+      ...list,
+      todos: [...list.todos, { id: optimisticId, listId: list.id, label, completed: false, sortOrder: Number.MAX_SAFE_INTEGER }],
+    });
+    setTodoName("");
+    setSubmitting(true);
+    try {
+      const result = await packingApi.addTodo(label);
+      setList(result.list);
+      setError("");
+    } catch (reason) {
+      setList(previous);
+      setTodoName(label);
+      message(reason);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function toggleTodo(id: string, completed: boolean) {
+    if (!list || workingTodoIds.has(id)) return;
+    const previous = list;
+    setWorkingTodoIds((current) => new Set(current).add(id));
+    setList({ ...list, todos: list.todos.map((todo) => todo.id === id ? { ...todo, completed } : todo) });
+    try {
+      const result = await packingApi.updateTodo(id, completed);
+      setList(result.list);
+      setError("");
+    } catch (reason) {
+      setList(previous);
+      message(reason);
+    } finally {
+      setWorkingTodoIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  async function deleteTodo(id: string) {
+    if (!list || workingTodoIds.has(id)) return;
+    const previous = list;
+    setWorkingTodoIds((current) => new Set(current).add(id));
+    setList({ ...list, todos: list.todos.filter((todo) => todo.id !== id) });
+    try {
+      const result = await packingApi.deleteTodo(id);
+      setList(result.list);
+      setError("");
+    } catch (reason) {
+      setList(previous);
+      message(reason);
+    } finally {
+      setWorkingTodoIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
   if (!list) {
     return (
       <main className="packing-page packing-page--centered">
@@ -485,18 +555,23 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         <section className="packing-overview" aria-label="清单概况">
           <div><span>分类</span><strong>{list.categories.length}</strong></div>
           <div><span>物品</span><strong>{allItems.length}</strong></div>
-          <button type="button" className={shortageCount > 0 ? "has-shortage" : ""} onClick={() => setFilter("shortage")}>
+          <div className={shortageCount > 0 ? "has-shortage" : ""}>
             <span>待补充</span><strong>{shortageCount}</strong>
-          </button>
+          </div>
         </section>
 
         {error && <div className="packing-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError("")}>关闭</button></div>}
 
-        <nav className="packing-filters" aria-label="筛选清单">
-          {FILTERS.map(({ value, label }) => (
-            <button type="button" className={filter === value ? "is-active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>
-          ))}
-        </nav>
+        <div className="packing-list-tools">
+          <nav className="packing-filters" aria-label="筛选清单">
+            {FILTERS.map(({ value, label }) => (
+              <button type="button" className={filter === value ? "is-active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>
+            ))}
+          </nav>
+          <button type="button" className="packing-todo-entry" onClick={() => setShowTodoSheet(true)}>
+            <span>出发待办</span><strong>{pendingTodoCount}</strong>
+          </button>
+        </div>
 
         <div className="packing-list">
           <div className="packing-list__heading">
@@ -507,8 +582,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
             const visibleItems = category.items.filter((item) =>
               filter === "all" ||
               (filter === "packed" && item.packed) ||
-              (filter === "unpacked" && !item.packed) ||
-              (filter === "shortage" && item.quantity === 0),
+              (filter === "unpacked" && !item.packed),
             );
             if (visibleItems.length === 0 && filter !== "all") return null;
             const open = expandedIds.has(category.id);
@@ -657,6 +731,34 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
               })}
             </div>
             <button type="button" className="packing-tips-sheet__done" onClick={() => setShowTipsSheet(false)}>知道了</button>
+          </section>
+        </div>
+      )}
+
+      {showTodoSheet && (
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => setShowTodoSheet(false)}>
+          <section className="packing-sheet packing-todo-sheet" role="dialog" aria-modal="true" aria-labelledby="packing-todo-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="packing-sheet__handle" aria-hidden="true" />
+            <div className="packing-todo-sheet__heading">
+              <div><span>出发前别忘记</span><h2 id="packing-todo-title">待办清单</h2></div>
+              <strong>{pendingTodoCount}</strong>
+            </div>
+            <p>把出门前需要处理的小事记在这里，完成一项就勾掉一项。</p>
+            <form className="packing-todo-add" onSubmit={addTodo}>
+              <input value={todoName} maxLength={80} placeholder="例如：关水电、检查煤气" aria-label="新增待办" onChange={(event) => setTodoName(event.target.value)} />
+              <button type="submit" disabled={submitting || !todoName.trim()}>添加</button>
+            </form>
+            <div className="packing-todo-list">
+              {list.todos.length === 0 && <div className="packing-todo-empty"><strong>暂时没有待办</strong><span>临出发前想到什么，就随手记一条。</span></div>}
+              {list.todos.map((todo) => (
+                <article className={`packing-todo${todo.completed ? " is-completed" : ""}`} key={todo.id}>
+                  <button type="button" className="packing-todo__check" aria-label={`${todo.completed ? "恢复" : "完成"}：${todo.label}`} aria-pressed={todo.completed} disabled={workingTodoIds.has(todo.id)} onClick={() => void toggleTodo(todo.id, !todo.completed)}><span aria-hidden="true">{todo.completed ? "✓" : ""}</span></button>
+                  <strong>{todo.label}</strong>
+                  <button type="button" className="packing-todo__delete" disabled={workingTodoIds.has(todo.id)} onClick={() => void deleteTodo(todo.id)}>删除</button>
+                </article>
+              ))}
+            </div>
+            <button type="button" className="packing-todo-sheet__done" onClick={() => setShowTodoSheet(false)}>完成</button>
           </section>
         </div>
       )}
