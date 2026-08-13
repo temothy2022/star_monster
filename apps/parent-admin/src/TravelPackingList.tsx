@@ -23,6 +23,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [workingIds, setWorkingIds] = useState<Set<string>>(new Set());
   const [pageSheet, setPageSheet] = useState<PageSheet>(null);
   const [categoryMenuId, setCategoryMenuId] = useState<string | null>(null);
@@ -112,22 +113,47 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
   async function addItem(event: FormEvent) {
     event.preventDefault();
     if (!itemSheetCategoryId || !itemName.trim()) return;
-    setSubmitting(true);
+    const categoryId = itemSheetCategoryId;
+    const label = itemName.trim();
+    const quantity = itemQuantity;
+    const optimisticId = `optimistic-item-${Date.now()}`;
+    const optimisticItem: TravelPackingItem = {
+      id: optimisticId,
+      categoryId,
+      label,
+      quantity,
+      packed: false,
+      sortOrder: Number.MAX_SAFE_INTEGER,
+    };
+    setList((current) => current ? {
+      ...current,
+      categories: current.categories.map((category) => category.id === categoryId
+        ? { ...category, items: [...category.items, optimisticItem] }
+        : category),
+    } : current);
+    setPendingIds((current) => new Set(current).add(optimisticId));
+    setExpandedIds((current) => new Set(current).add(categoryId));
+    setItemSheetCategoryId(null);
+    setFilter("all");
+    setError("");
     try {
-      const result = await parentApi.addTravelPackingItem(
-        itemSheetCategoryId,
-        itemName.trim(),
-        itemQuantity,
-      );
+      const result = await parentApi.addTravelPackingItem(categoryId, label, quantity);
       setList(result.list);
-      setExpandedIds((current) => new Set(current).add(itemSheetCategoryId));
-      setItemSheetCategoryId(null);
-      setFilter("all");
-      setError("");
     } catch (reason) {
+      setList((current) => current ? {
+        ...current,
+        categories: current.categories.map((category) => ({
+          ...category,
+          items: category.items.filter((item) => item.id !== optimisticId),
+        })),
+      } : current);
       message(reason);
     } finally {
-      setSubmitting(false);
+      setPendingIds((current) => {
+        const next = new Set(current);
+        next.delete(optimisticId);
+        return next;
+      });
     }
   }
 
@@ -151,6 +177,35 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
     event.preventDefault();
     const name = categoryName.trim();
     if (!name) return;
+    if (!editingCategoryId) {
+      const optimisticId = `optimistic-category-${Date.now()}`;
+      const optimisticCategory = {
+        id: optimisticId,
+        listId: list?.id ?? "",
+        name,
+        sortOrder: Number.MAX_SAFE_INTEGER,
+        items: [],
+      };
+      setList((current) => current ? { ...current, categories: [...current.categories, optimisticCategory] } : current);
+      setPendingIds((current) => new Set(current).add(optimisticId));
+      setExpandedIds((current) => new Set(current).add(optimisticId));
+      closePageSheet();
+      setError("");
+      try {
+        const result = await parentApi.addTravelPackingCategory(name);
+        setList(result.list);
+      } catch (reason) {
+        setList((current) => current ? { ...current, categories: current.categories.filter((category) => category.id !== optimisticId) } : current);
+        message(reason);
+      } finally {
+        setPendingIds((current) => {
+          const next = new Set(current);
+          next.delete(optimisticId);
+          return next;
+        });
+      }
+      return;
+    }
     setSubmitting(true);
     try {
       const previousIds = new Set(list?.categories.map((category) => category.id));
@@ -340,7 +395,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
             const tint = categoryIndex % 4;
 
             return (
-              <section className={`packing-category packing-category--tint-${tint}${open ? " is-open" : ""}`} key={category.id}>
+              <section className={`packing-category packing-category--tint-${tint}${open ? " is-open" : ""}${pendingIds.has(category.id) ? " is-pending" : ""}`} key={category.id}>
                 <div className="packing-category__header">
                   <button type="button" className="packing-category__toggle" aria-expanded={open} onClick={() => toggleCategory(category.id)}>
                     <span className="packing-category__mark" aria-hidden="true">{category.name.slice(0, 1)}</span>
@@ -355,7 +410,7 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
                     {visibleItems.map((item) => {
                       const working = workingIds.has(item.id);
                       return (
-                        <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}`} key={item.id}>
+                        <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}`} key={item.id}>
                           <button
                             type="button"
                             className="packing-item__toggle"
