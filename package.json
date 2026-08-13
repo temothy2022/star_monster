@@ -5,10 +5,11 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "pnpm --filter @star-monsters/design-lab dev",
-    "dev:all": "pnpm --parallel --filter @star-monsters/api --filter @star-monsters/design-lab --filter @star-monsters/parent-admin --filter @star-monsters/super-admin dev",
+    "dev:all": "pnpm --parallel --filter @star-monsters/api --filter @star-monsters/design-lab --filter @star-monsters/parent-admin --filter @star-monsters/super-admin --filter @star-monsters/travel-packing dev",
     "dev:child": "pnpm --filter @star-monsters/design-lab dev",
     "dev:parent": "pnpm --filter @star-monsters/parent-admin dev",
     "dev:super": "pnpm --filter @star-monsters/super-admin dev",
+    "dev:packing": "pnpm --filter @star-monsters/travel-packing dev",
     "dev:api": "pnpm --filter @star-monsters/api dev",
     "local:ipad": "bash scripts/start-local-ipad-test.sh",
     "build": "pnpm -r build",

@@ -2,7 +2,6 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ApiError,
   createTravelPackingApi,
-  parentApi,
   type TravelPackingItem,
   type TravelPackingList as PackingList,
   type TravelPackingTips,
@@ -48,6 +47,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const packingApi = useMemo(() => createTravelPackingApi(shareToken), [shareToken]);
   const [list, setList] = useState<PackingList | null>(null);
   const [error, setError] = useState("");
+  const [authRequired, setAuthRequired] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
@@ -95,7 +95,10 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         setExpandedIds(new Set(value.categories.map((category) => category.id)));
       })
       .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "行李清单暂时无法读取");
+        if (!cancelled) {
+          setAuthRequired(reason instanceof ApiError && reason.status === 401);
+          setError(reason instanceof Error ? reason.message : "行李清单暂时无法读取");
+        }
       });
     return () => { cancelled = true; };
   }, [packingApi]);
@@ -410,8 +413,8 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   async function createShare() {
     setSubmitting(true);
     try {
-      const result = await parentApi.createTravelPackingShare(shareDays);
-      const url = `${window.location.origin}${window.location.pathname}#packing-share/${result.token}`;
+      const result = await packingApi.createShare(shareDays);
+      const url = `${window.location.origin}/packing/#share/${result.token}`;
       setShareResult({ url, expiresAt: result.expiresAt });
       setCopyStatus("idle");
       setError("");
@@ -549,7 +552,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     return (
       <main className="packing-page packing-page--centered">
         {error ? (
-          <><strong>{shareToken ? "分享链接无法打开" : "清单没有打开"}</strong><p>{error}</p><button type="button" onClick={() => window.location.reload()}>重新加载</button></>
+          <><strong>{shareToken ? "分享链接无法打开" : authRequired ? "请先登录家长账号" : "清单没有打开"}</strong><p>{error}</p>{authRequired ? <a className="packing-empty-action" href="/parent/">进入家长登录</a> : <button type="button" onClick={() => window.location.reload()}>重新加载</button>}</>
         ) : (
           <><span className="packing-loading-dot" aria-hidden="true" /><p>正在整理你的行李清单…</p></>
         )}

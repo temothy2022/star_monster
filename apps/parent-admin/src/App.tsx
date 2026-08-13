@@ -35,7 +35,6 @@ import {
 import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
 import { PetManagement } from "./PetManagement";
-import { TravelPackingList } from "./TravelPackingList";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentMathPractice, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
@@ -66,7 +65,6 @@ type Section =
   | "planets"
   | "ai"
   | "leaderboard"
-  | "packing"
   | "profile"
   | "settings";
 
@@ -86,7 +84,6 @@ const SECTION_LABELS: Record<Section, string> = {
   planets: "航图规则",
   ai: "AI 助手",
   leaderboard: "排行榜设置",
-  packing: "旅行行李清单",
   profile: "孩子档案",
   settings: "登录设备",
 };
@@ -126,12 +123,6 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     ],
   },
   {
-    label: "生活工具",
-    items: [
-      { key: "packing", label: "旅行行李清单", icon: "行" },
-    ],
-  },
-  {
     label: "智能与设置",
     items: [
       { key: "ai", label: "AI 助手", icon: "✦" },
@@ -156,14 +147,10 @@ function sectionFromLocation(): Section {
   return (Object.keys(SECTION_LABELS) as Section[]).includes(candidate) ? candidate : "overview";
 }
 
-function packingShareTokenFromLocation(): string | null {
+function legacyPackingShareTokenFromLocation(): string | null {
   const match = window.location.hash.match(/^#packing-share\/([^/?#]+)$/);
   if (!match?.[1]) return null;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return null;
-  }
+  try { return decodeURIComponent(match[1]); } catch { return null; }
 }
 
 const LEDGER_LABELS: Record<LedgerEntry["type"], string> = {
@@ -2535,17 +2522,19 @@ export function App() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sharedPackingToken, setSharedPackingToken] = useState<string | null>(() => packingShareTokenFromLocation());
 
   useEffect(() => {
-    document.title = sharedPackingToken
-      ? "旅行行李清单"
-      : user === null
+    const token = legacyPackingShareTokenFromLocation();
+    if (token) window.location.replace(`/packing/#share/${encodeURIComponent(token)}`);
+  }, []);
+
+  useEffect(() => {
+    document.title = user === null
       ? "星宠-家长登录"
       : user === undefined
         ? "星宠-家长管理"
         : `星宠-${SECTION_LABELS[section]}`;
-  }, [section, sharedPackingToken, user]);
+  }, [section, user]);
 
   async function loadChildren(preferredId?: string) {
     const result = await parentApi.children();
@@ -2559,10 +2548,6 @@ export function App() {
   }
 
   useEffect(() => {
-    if (sharedPackingToken) {
-      setUser(null);
-      return;
-    }
     void staffApi.me()
       .then(({ user: current }) => {
         if (current.role !== "PARENT") throw new Error("账号角色不匹配");
@@ -2570,7 +2555,7 @@ export function App() {
         return loadChildren();
       })
       .catch(() => setUser(null));
-  }, [sharedPackingToken]);
+  }, []);
 
   useEffect(() => {
     let timer: number | undefined;
@@ -2591,7 +2576,6 @@ export function App() {
   useEffect(() => {
     const handleHashChange = () => {
       setSection(sectionFromLocation());
-      setSharedPackingToken(packingShareTokenFromLocation());
     };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
@@ -2636,10 +2620,8 @@ export function App() {
   const activeGroup = NAV_GROUPS.find((group) => group.items.some((item) => item.key === section));
   const mobilePrimarySection = REWARD_SECTIONS.includes(section) ? "wishes" : section;
 
-  if (sharedPackingToken) return <TravelPackingList shareToken={sharedPackingToken} />;
   if (user === undefined) return <main className="admin-loading">正在进入家长端…</main>;
   if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); void loadChildren(); }} />;
-  if (section === "packing") return <TravelPackingList />;
 
   return (
     <div className="admin-app">

@@ -77,18 +77,20 @@ else
   RELEASE_VERSION="$(git rev-parse HEAD)"
 fi
 
-echo "1/3 Building the shared math package, API and three web apps locally..."
+echo "1/3 Building the shared math package, API and four web apps locally..."
 pnpm --filter @star-monsters/api pet:generate-destination-images
 pnpm --filter @star-monsters/math-practice build
 pnpm --filter @star-monsters/api build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/design-lab build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/parent-admin build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/super-admin build
+VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/travel-packing build
 node scripts/write-web-version.mjs \
   "$RELEASE_VERSION" \
   apps/design-lab/dist \
   apps/parent-admin/dist \
-  apps/super-admin/dist
+  apps/super-admin/dist \
+  apps/travel-packing/dist
 
 echo "2/3 Checking SSH access..."
 "${SSH[@]}" "$REMOTE" "test -d '$DEPLOY_PATH'"
@@ -100,6 +102,7 @@ echo "Using $RSYNC_BIN (protocol $RSYNC_PROTOCOL)."
   --filter 'P /apps/design-lab/dist/assets/***' \
   --filter 'P /apps/parent-admin/dist/assets/***' \
   --filter 'P /apps/super-admin/dist/assets/***' \
+  --filter 'P /apps/travel-packing/dist/assets/***' \
   --exclude '.git/' \
   --exclude '.pnpm-store/' \
   --exclude 'node_modules/' \

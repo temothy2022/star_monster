@@ -16,6 +16,7 @@ source "$SERVER_CONFIG"
 : "${CHILD_WEB_ROOT:?CHILD_WEB_ROOT is required}"
 : "${PARENT_WEB_ROOT:?PARENT_WEB_ROOT is required}"
 : "${SUPER_WEB_ROOT:?SUPER_WEB_ROOT is required}"
+PACKING_WEB_ROOT="${PACKING_WEB_ROOT:-/opt/star-monsters/apps/travel-packing/dist}"
 API_SERVICE="${API_SERVICE:-star-monsters-api.service}"
 HANZI_UPLOAD_DIR="${HANZI_UPLOAD_DIR:-/opt/star-monsters/hanzi-assets/v1/uploads}"
 POEM_UPLOAD_DIR="${POEM_UPLOAD_DIR:-/opt/star-monsters/poem-assets/v1/uploads}"
@@ -100,6 +101,7 @@ sync_static() {
 sync_static "apps/design-lab/dist" "$CHILD_WEB_ROOT"
 sync_static "apps/parent-admin/dist" "$PARENT_WEB_ROOT"
 sync_static "apps/super-admin/dist" "$SUPER_WEB_ROOT"
+sync_static "apps/travel-packing/dist" "$PACKING_WEB_ROOT"
 
 # Keep compression, immutable asset caching, and proxy timeouts aligned with
 # the release instead of relying on a one-time manual server change.
@@ -107,6 +109,23 @@ if command -v nginx >/dev/null 2>&1 && [[ -f scripts/server/nginx-performance.co
   sudo install -m 644 scripts/server/nginx-performance.conf "$NGINX_PERFORMANCE_CONF"
   if [[ -f "$NGINX_SITE_CONFIG" ]] && sudo grep -qE '^[[:space:]]*client_max_body_size[[:space:]]+' "$NGINX_SITE_CONFIG"; then
     sudo sed -i -E "s/^([[:space:]]*)client_max_body_size[[:space:]]+[^;]+;/\\1client_max_body_size $MAX_UPLOAD_SIZE;/" "$NGINX_SITE_CONFIG"
+  fi
+  if [[ -f "$NGINX_SITE_CONFIG" ]] && ! sudo grep -q 'location \^~ /packing/' "$NGINX_SITE_CONFIG"; then
+    tmp_nginx_site="$(mktemp)"
+    sudo awk -v packing_web_root="$PACKING_WEB_ROOT" '
+      /^[[:space:]]*location[[:space:]]+\/api\/[[:space:]]*\{/ && !packing_inserted {
+        print "    location = /packing { return 301 /packing/; }"
+        print "    location ^~ /packing/ {"
+        print "        alias " packing_web_root "/;"
+        print "        try_files $uri $uri/ /packing/index.html;"
+        print "    }"
+        print ""
+        packing_inserted = 1
+      }
+      { print }
+    ' "$NGINX_SITE_CONFIG" > "$tmp_nginx_site"
+    sudo install -m 644 "$tmp_nginx_site" "$NGINX_SITE_CONFIG"
+    rm -f "$tmp_nginx_site"
   fi
   if [[ -f "$NGINX_SITE_CONFIG" ]] && ! sudo grep -q 'location \^~ /pet-assets/' "$NGINX_SITE_CONFIG"; then
     tmp_nginx_site="$(mktemp)"
