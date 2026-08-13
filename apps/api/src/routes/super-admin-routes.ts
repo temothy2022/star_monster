@@ -21,6 +21,10 @@ import {
   challengePromptPoolSummary,
   ensureChallengePromptPool,
 } from "../services/challenge-conversation-service.js";
+import {
+  getPlatformFeatureSettings,
+  updatePlatformFeatureSettings,
+} from "../services/platform-feature-service.js";
 
 const familySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -81,11 +85,41 @@ const aiConfigSchema = z.object({
   enabled: z.boolean(),
 });
 const aiConnectionSchema = z.object({ ok: z.literal(true), message: z.string() });
+const platformFeatureSchema = z.object({
+  realChildCompetitionEnabled: z.boolean(),
+});
 
 export async function registerSuperAdminRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ): Promise<void> {
+  app.get("/api/admin/platform-features", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    return { settings: await getPlatformFeatureSettings() };
+  });
+
+  app.put("/api/admin/platform-features", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    const input = platformFeatureSchema.parse(request.body);
+    const settings = await prisma.$transaction(async (tx) => {
+      const updated = await updatePlatformFeatureSettings(tx, {
+        ...input,
+        updatedByUserId: user.id,
+      });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        action: "PLATFORM_FEATURE_UPDATE",
+        resourceType: "PlatformFeatureConfig",
+        resourceId: "default",
+        metadata: input,
+        ipAddress: request.ip,
+      });
+      return updated;
+    });
+    return { settings };
+  });
+
   app.get("/api/admin/ai/config", async (request, reply) => {
     await requireAdmin(request, reply, config);
     const stored = await prisma.systemAiConfig.findUnique({

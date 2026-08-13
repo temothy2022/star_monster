@@ -6,6 +6,11 @@ export type StaffUser = {
   familyId: string | null;
 };
 
+export type PlatformFeatureSettings = {
+  realChildCompetitionEnabled: boolean;
+  updatedAt: string | null;
+};
+
 export type ParentAccount = {
   id: string;
   username: string;
@@ -475,6 +480,12 @@ export const staffApi = {
 };
 
 export const adminApi = {
+  platformFeatures: () => api<{ settings: PlatformFeatureSettings }>("/api/admin/platform-features"),
+  savePlatformFeatures: (data: { realChildCompetitionEnabled: boolean }) =>
+    api<{ settings: PlatformFeatureSettings }>("/api/admin/platform-features", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
   aiConfig: () => api<{ config: SystemAiConfig }>("/api/admin/ai/config"),
   saveAiConfig: (data: { apiKey?: string; model: string; enabled: boolean }) => api<{ config: SystemAiConfig }>("/api/admin/ai/config", { method: "PUT", body: JSON.stringify(data) }),
   aiModels: () => api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/admin/ai/models"),

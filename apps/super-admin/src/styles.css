@@ -11,6 +11,16 @@
 .super-app .admin-sidebar nav button.active span { color: white; }
 .super-app .admin-sidebar__account { border-color: #35425c; }
 .super-app .admin-sidebar__account button { color: #ffb28e; }
+.platform-feature-settings { max-width: 860px; }
+.platform-feature-settings__row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px; border: 1px solid #dce3eb; border-radius: 14px; background: #f8fafc; }
+.platform-feature-settings__row > div { display: grid; gap: 6px; }
+.platform-feature-settings__row strong { color: #243654; font-size: 18px; }
+.platform-feature-settings__row span { color: #718096; font-size: 13px; line-height: 1.6; }
+.platform-switch { position: relative; width: 64px; height: 36px; flex: 0 0 auto; padding: 3px; border: 0; border-radius: 999px; background: #bdc7d4; cursor: pointer; transition: background .2s ease; }
+.platform-switch span { display: block; width: 30px; height: 30px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgb(34 54 83 / 18%); transition: transform .2s ease; }
+.platform-switch.is-on { background: #4cae9b; }
+.platform-switch.is-on span { transform: translateX(28px); }
+.platform-switch:disabled { cursor: wait; opacity: .55; }
 .super-family-grid { display: grid; gap: 16px; }
 .super-family-card { overflow: hidden; border: 1px solid #dce1e8; border-radius: 17px; background: white; }
 .super-family-card > header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; background: #fafbfc; }

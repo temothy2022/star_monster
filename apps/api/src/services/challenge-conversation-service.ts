@@ -10,6 +10,7 @@ import {
 } from "../lib/time.js";
 import { callDeepSeekJson, callDeepSeekText } from "./deepseek-service.js";
 import { getChildLeaderboards } from "./footprint-service.js";
+import { getPlatformFeatureSettings } from "./platform-feature-service.js";
 import { systemAiCredentials } from "./system-ai-service.js";
 
 export const DAILY_CHILD_MESSAGE_LIMIT = 5;
@@ -536,8 +537,11 @@ export async function listChallengeContacts(childId: string, config: AppConfig, 
       }
     }
   }
-  for (const contact of await listDirectContacts(childId)) {
-    contacts.set(contact.competitorId, contact);
+  const featureSettings = await getPlatformFeatureSettings();
+  if (featureSettings.realChildCompetitionEnabled) {
+    for (const contact of await listDirectContacts(childId)) {
+      contacts.set(contact.competitorId, contact);
+    }
   }
   return { contacts: [...contacts.values()].sort((left, right) => right.latestAt.getTime() - left.latestAt.getTime() || left.competitorId.localeCompare(right.competitorId)) };
 }
@@ -630,13 +634,15 @@ export async function challengeLetterNotification(
   config: AppConfig,
   now = new Date(),
 ) {
+  const featureSettings = await getPlatformFeatureSettings();
   const [firstMessage, directMessage] = await Promise.all([
     prisma.challengeConversationMessage.findFirst({
       where: { sender: "VIRTUAL_PARTNER", visibleAt: { lte: now }, readAt: null, conversation: { childId, status: "READY" } },
       orderBy: [{ visibleAt: "desc" }, { createdAt: "desc" }],
       include: { conversation: true },
     }),
-    prisma.directChildMessage.findFirst({
+    featureSettings.realChildCompetitionEnabled
+      ? prisma.directChildMessage.findFirst({
       where: {
         readAt: null,
         senderChildId: { not: childId },
@@ -646,7 +652,8 @@ export async function challengeLetterNotification(
       include: {
         sender: { select: { id: true, nickname: true, avatarUrl: true, petType: true } },
       },
-    }),
+      })
+      : Promise.resolve(null),
   ]);
   if (directMessage && (!firstMessage || directMessage.createdAt >= firstMessage.createdAt)) {
     return {
@@ -681,6 +688,10 @@ export async function getChallengeConversation(childId: string, config: AppConfi
   if (!competitorId) return { contacts: initialContacts, conversation: null };
   const requestedRealChildId = realChildId(competitorId);
   if (requestedRealChildId) {
+    const featureSettings = await getPlatformFeatureSettings();
+    if (!featureSettings.realChildCompetitionEnabled) {
+      return { contacts: initialContacts, conversation: null };
+    }
     const conversation = await loadDirectConversation(childId, requestedRealChildId);
     if (!conversation) return { contacts: initialContacts, conversation: null };
     await prisma.directChildMessage.updateMany({
@@ -724,6 +735,10 @@ export async function sendChallengeReply(
 ) {
   const partnerChildId = realChildId(competitorId);
   if (partnerChildId) {
+    const featureSettings = await getPlatformFeatureSettings();
+    if (!featureSettings.realChildCompetitionEnabled) {
+      throw new HttpError(403, "REAL_CHILD_COMPETITION_DISABLED", "真实小伙伴互动暂时关闭啦");
+    }
     const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
     const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
     const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);

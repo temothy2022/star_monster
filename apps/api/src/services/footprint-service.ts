@@ -12,6 +12,7 @@ import {
 import {
   buildMotivationalLeaderboard,
 } from "../domain/child-leaderboard.js";
+import { getPlatformFeatureSettings } from "./platform-feature-service.js";
 
 const PLANET_NAMES: Record<PlanetKey, string> = {
   MERCURY: "水星",
@@ -533,12 +534,10 @@ export async function getFootprints(
     selectedKey,
     config.APP_TIME_ZONE,
   );
-  const realCompetitors = await loadRealLeaderboardCompetitors(
-    childId,
-    weekStart,
-    today,
-    config,
-  );
+  const featureSettings = await getPlatformFeatureSettings();
+  const realCompetitors = featureSettings.realChildCompetitionEnabled
+    ? await loadRealLeaderboardCompetitors(childId, weekStart, today, config)
+    : { daily: [], weekly: [] };
 
   const leaderboards = buildChildLeaderboards({
     childId,
@@ -625,12 +624,10 @@ export async function getChildLeaderboards(
       select: { amount: true, createdAt: true },
     }),
   ]);
-  const realCompetitors = await loadRealLeaderboardCompetitors(
-    childId,
-    weekStart,
-    today,
-    config,
-  );
+  const featureSettings = await getPlatformFeatureSettings();
+  const realCompetitors = featureSettings.realChildCompetitionEnabled
+    ? await loadRealLeaderboardCompetitors(childId, weekStart, today, config)
+    : { daily: [], weekly: [] };
 
   return {
     leaderboards: buildChildLeaderboards({
