@@ -152,6 +152,7 @@ const PRIMARY_MOBILE_NAV: NavItem[] = [
 const REWARD_SECTIONS: Section[] = ["wishes", "redemptions", "stars", "planets"];
 
 function sectionFromLocation(): Section {
+  if (window.location.pathname.replace(/\/+$/, "") === "/packing") return "packing";
   const candidate = window.location.hash.replace(/^#/, "") as Section;
   return (Object.keys(SECTION_LABELS) as Section[]).includes(candidate) ? candidate : "overview";
 }
