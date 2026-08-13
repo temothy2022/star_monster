@@ -296,7 +296,6 @@ export function TravelPackingList({ onBack }: { onBack: () => void }) {
 
         <section className="packing-hero" style={{ backgroundImage: `url(${travelPackingHero})` }}>
           <div className="packing-hero__content">
-            <span>下一站，轻松出发</span>
             <h1>{list.title}</h1>
             <div className="packing-hero__score"><strong>{progress}</strong><small>%</small></div>
             <p>{progress === 100 && allItems.length > 0 ? "全部准备好了" : `已装好 ${packedCount} / ${allItems.length} 件`}</p>
