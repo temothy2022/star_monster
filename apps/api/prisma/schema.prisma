@@ -410,6 +410,7 @@ model ChildProfile {
   hanziSettings           HanziLearningSettings?
   hanziProgress           HanziLearningProgress[]
   hanziSessions           HanziLearningSession[]
+  hanziSchoolTargets      HanziSchoolTarget[]
   clockSettings           ClockLearningSettings?
   clockSessions           ClockLearningSession[]
   makeTenSettings         MakeTenLearningSettings?
@@ -422,6 +423,7 @@ model ChildProfile {
   poemSettings            PoemLearningSettings?
   poemProgress            PoemLearningProgress[]
   poemSessions            PoemLearningSession[]
+  poemSchoolTargets       PoemSchoolTarget[]
   performanceMetrics      ChildPerformanceMetric[]
   leaderboardSettings     ChildLeaderboardSettings?
   petGrowthProfile        PetGrowthProfile?
@@ -1076,8 +1078,24 @@ model HanziCharacter {
   updatedAt         DateTime @updatedAt
 
   progress HanziLearningProgress[]
+  schoolTargets HanziSchoolTarget[]
 
   @@index([isEnabled, sortOrder])
+}
+
+model HanziSchoolTarget {
+  id          String   @id @default(cuid())
+  childId     String
+  characterId String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  child     ChildProfile   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  character HanziCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, characterId])
+  @@index([childId, sortOrder, createdAt])
 }
 
 model HanziLearningSettings {
@@ -1337,9 +1355,25 @@ model Poem {
   updatedAt DateTime @updatedAt
 
   progress PoemLearningProgress[]
+  schoolTargets PoemSchoolTarget[]
 
   @@unique([title, dynasty, author, grade, semester])
   @@index([isEnabled, grade, semester, sortOrder])
+}
+
+model PoemSchoolTarget {
+  id        String   @id @default(cuid())
+  childId   String
+  poemId    String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+  poem  Poem         @relation(fields: [poemId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, poemId])
+  @@index([childId, sortOrder, createdAt])
 }
 
 model PoemLearningSettings {

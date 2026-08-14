@@ -104,21 +104,35 @@ export async function startPoemSession(
 
   let poemIds: string[];
   if (kind === "LEARNING") {
-    const poem = await prisma.poem.findFirst({
+    const schoolTarget = await prisma.poemSchoolTarget.findFirst({
       where: {
-        isEnabled: true,
-        progress: { none: { childId } },
+        childId,
+        poem: {
+          isEnabled: true,
+          progress: { none: { childId } },
+        },
       },
-      orderBy: [
-        { grade: "asc" },
-        { sortOrder: "asc" },
-      ],
-      select: { id: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { poemId: true },
     });
-    if (!poem) {
+    const fallbackPoem = schoolTarget
+      ? null
+      : await prisma.poem.findFirst({
+          where: {
+            isEnabled: true,
+            progress: { none: { childId } },
+          },
+          orderBy: [
+            { grade: "asc" },
+            { sortOrder: "asc" },
+          ],
+          select: { id: true },
+        });
+    const poemId = schoolTarget?.poemId ?? fallbackPoem?.id;
+    if (!poemId) {
       throw new HttpError(409, "NO_NEW_POEM", "古诗库中的诗已经全部学习完成");
     }
-    poemIds = [poem.id];
+    poemIds = [poemId];
   } else {
     const due = await prisma.poemLearningProgress.findMany({
       where: {

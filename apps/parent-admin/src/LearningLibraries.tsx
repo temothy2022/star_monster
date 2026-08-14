@@ -100,6 +100,7 @@ export function ParentHanziLearning({ child }: { child: Child }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [schoolTargetCount, setSchoolTargetCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -111,6 +112,7 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     void parentApi.hanziSettings(child.id)
       .then((result) => {
         setSettings(result.settings);
+        setSchoolTargetCount(result.schoolTargetCount);
       })
       .catch((reason) => setError(reason instanceof Error ? reason.message : "汉字学习配置加载失败"))
       .finally(() => setLoading(false));
@@ -147,6 +149,30 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     setSearchQuery(searchInput.trim());
   }
 
+  async function toggleSchoolTarget(item: HanziCharacterResource) {
+    setBusy(true);
+    setError("");
+    try {
+      if (item.schoolTarget) {
+        await parentApi.removeHanziSchoolTarget(child.id, item.id);
+        setCharacters((current) => current.map((character) =>
+          character.id === item.id ? { ...character, schoolTarget: null } : character,
+        ));
+        setSchoolTargetCount((count) => Math.max(0, count - 1));
+      } else {
+        const result = await parentApi.addHanziSchoolTarget(child.id, item.id);
+        setCharacters((current) => current.map((character) =>
+          character.id === item.id ? { ...character, schoolTarget: result.target } : character,
+        ));
+        setSchoolTargetCount((count) => count + 1);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "学校学习清单更新失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return <div className="admin-stack">
     <div className="admin-two-column">
       <Panel title="每日学习参数">
@@ -163,10 +189,14 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     </div>
     <Panel title={`基础汉字库（${total} 个）`}>
       <p className="admin-help">汉字库由超级后台统一维护。家长端可以搜索、查看和试听，不可编辑资源。</p>
+      <div className="admin-notice">学校优先清单：已加入 {schoolTargetCount} 个。加入后，新汉字会优先按加入顺序学习；学过后仍会自动进入复习计划。</div>
       <form className="hanzi-library-search" onSubmit={search}><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索汉字、拼音、含义或例句" /><button type="submit">搜索</button>{searchQuery ? <button type="button" onClick={() => { setSearchInput(""); setSearchQuery(""); setPage(1); }}>清除</button> : null}</form>
       {error ? <Notice error>{error}</Notice> : null}
       <div className="admin-list hanzi-library-list">
-        {characters.map((item) => <article className="list-card" key={item.id}><div className="list-card__main"><div className="hanzi-admin-media">{item.imageKey !== "default-hanzi" ? <img src={item.imageKey} alt={`${item.character}配图`} loading="lazy" /> : <div className="hanzi-admin-glyph">{item.character}</div>}</div><div><h3>{item.character}（{item.internalPinyin}）· {item.meaning}</h3><p>{item.words.join("、")}</p><small>{item.sentence.replace("__", item.character)}</small></div></div><div className="hanzi-resource-actions"><AudioButton label="播放字音" url={item.characterAudioUrl} fallbackText={item.character} /><AudioButton label="播放例句" url={item.sentenceAudioUrl} fallbackText={item.sentence.replace("__", item.character)} /></div></article>)}
+        {characters.map((item) => <article className="list-card" key={item.id}>
+          <div className="list-card__main"><div className="hanzi-admin-media">{item.imageKey !== "default-hanzi" ? <img src={item.imageKey} alt={`${item.character}配图`} loading="lazy" /> : <div className="hanzi-admin-glyph">{item.character}</div>}</div><div><h3>{item.character}（{item.internalPinyin}）· {item.meaning} {item.schoolTarget ? <span className="status status--pending">学校优先</span> : null}</h3><p>{item.words.join("、")}</p><small>{item.sentence.replace("__", item.character)}</small></div></div>
+          <div className="hanzi-resource-actions"><AudioButton label="播放字音" url={item.characterAudioUrl} fallbackText={item.character} /><AudioButton label="播放例句" url={item.sentenceAudioUrl} fallbackText={item.sentence.replace("__", item.character)} /><button type="button" className={item.schoolTarget ? "ghost-button" : "primary-button"} disabled={busy} onClick={() => void toggleSchoolTarget(item)}>{item.schoolTarget ? "移出学校清单" : "加入学校学习"}</button></div>
+        </article>)}
         {!characters.length && !busy ? <div className="empty-state">没有找到符合条件的汉字</div> : null}
         {busy && !characters.length ? <div className="empty-state">正在读取基础字库…</div> : null}
       </div>
@@ -495,6 +525,7 @@ const POEM_WEEKDAYS = [{ value: 1, label: "周一" }, { value: 2, label: "周二
 export function ParentPoemLearning({ child }: { child: Child }) {
   const [settings, setSettings] = useState(DEFAULT_POEM_SETTINGS);
   const [poems, setPoems] = useState<PoemResource[]>([]);
+  const [schoolTargetCount, setSchoolTargetCount] = useState(0);
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -505,6 +536,7 @@ export function ParentPoemLearning({ child }: { child: Child }) {
   async function loadSettings() {
     const result = await parentApi.poemSettings(child.id);
     setSettings(result.settings);
+    setSchoolTargetCount(result.schoolTargetCount);
   }
   async function loadPoems(nextQuery = query, nextGrade = grade) {
     const result = await parentApi.poems(child.id, { q: nextQuery || undefined, grade: nextGrade || undefined });
@@ -537,8 +569,32 @@ export function ParentPoemLearning({ child }: { child: Child }) {
     void audio.play().catch(() => { if (audioRef.current === audio) audioRef.current = null; setPlayingId(null); setError("暂时无法播放古诗朗读"); });
   }
 
+  async function toggleSchoolTarget(poem: PoemResource) {
+    setBusy(true);
+    setError("");
+    try {
+      if (poem.schoolTarget) {
+        await parentApi.removePoemSchoolTarget(child.id, poem.id);
+        setPoems((current) => current.map((item) =>
+          item.id === poem.id ? { ...item, schoolTarget: null } : item,
+        ));
+        setSchoolTargetCount((count) => Math.max(0, count - 1));
+      } else {
+        const result = await parentApi.addPoemSchoolTarget(child.id, poem.id);
+        setPoems((current) => current.map((item) =>
+          item.id === poem.id ? { ...item, schoolTarget: result.target } : item,
+        ));
+        setSchoolTargetCount((count) => count + 1);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "学校学习清单更新失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return <div className="admin-stack">
     <Panel title="古诗学习设置"><form className="admin-form poem-settings-form" onSubmit={save}><label className="checkbox field-span"><input type="checkbox" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />开启古诗学习任务</label><div className="field-span"><span className="poem-settings-label">每周新诗学习日（可多选）</span><div className="poem-weekday-picker">{POEM_WEEKDAYS.map((weekday) => <button type="button" key={weekday.value} className={settings.learningWeekdays.includes(weekday.value) ? "active" : ""} onClick={() => toggleWeekday(weekday.value)}>{weekday.label}</button>)}</div></div><label>学习任务星星<input type="number" min={1} max={999} value={settings.learningTaskStars} onChange={(event) => setSettings({ ...settings, learningTaskStars: Number(event.target.value) })} /></label><label>复习任务星星<input type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label><div className="field-span admin-help">所选日期只控制“学习新古诗”；“复习古诗”会按照学习后第 1、2、4、7、15、30 天自动出现，有到期内容才生成任务。古诗内容和媒体资源由超级后台统一维护。</div><div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div></form>{error ? <Notice error>{error}</Notice> : null}</Panel>
-    <Panel title={`古诗库（${poems.length} 首）`}><form className="poem-library-toolbar" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、作者或诗句" /><select value={grade} onChange={(event) => setGrade(Number(event.target.value))}><option value={0}>全部年级</option>{[1, 2, 3, 4, 5, 6].map((value) => <option value={value} key={value}>{value} 年级</option>)}</select><button className="ghost-button" disabled={busy}>查询</button></form>{error ? <Notice error>{error}</Notice> : null}<div className="table-wrap poem-library-table responsive-card-table"><table><thead><tr><th>年级</th><th>古诗</th><th>作者</th><th>学习状态</th><th>媒体</th></tr></thead><tbody>{poems.map((poem) => <tr key={poem.id}><td data-label="年级">{poem.grade} 年级{poem.semester}</td><td data-label="古诗"><strong>《{poem.title}》</strong><small>{poem.content}</small></td><td data-label="作者">{poem.dynasty} · {poem.author}</td><td data-label="学习状态"><span className={`status status--${poem.progress?.status === "MASTERED" ? "completed" : poem.progress ? "pending" : "cancelled"}`}>{poem.progress?.status === "MASTERED" ? "已掌握" : poem.progress ? `复习 ${poem.progress.reviewStage}/6` : "未学习"}</span>{poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}</td><td data-label="媒体"><div className="poem-media-cell">{poem.imageUrl ? <img src={poem.imageUrl} alt={`《${poem.title}》配图`} loading="lazy" decoding="async" /> : <div className="poem-media-placeholder">暂无配图</div>}<div className="poem-media-actions"><button type="button" className="hanzi-audio-button" disabled={!poem.audioUrl} onClick={() => toggleAudio(poem)}>{playingId === poem.id ? "停止" : "试听朗读"}</button></div></div></td></tr>)}</tbody></table>{!poems.length ? <div className="empty-state">没有找到符合条件的古诗</div> : null}</div></Panel>
+    <Panel title={`古诗库（${poems.length} 首）`}><p className="admin-help">学校优先清单：已加入 {schoolTargetCount} 首。加入后，新古诗会优先按加入顺序学习；学过后仍会自动进入复习计划。</p><form className="poem-library-toolbar" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、作者或诗句" /><select value={grade} onChange={(event) => setGrade(Number(event.target.value))}><option value={0}>全部年级</option>{[1, 2, 3, 4, 5, 6].map((value) => <option value={value} key={value}>{value} 年级</option>)}</select><button className="ghost-button" disabled={busy}>查询</button></form>{error ? <Notice error>{error}</Notice> : null}<div className="table-wrap poem-library-table responsive-card-table"><table><thead><tr><th>年级</th><th>古诗</th><th>作者</th><th>学习状态</th><th>媒体</th><th>学校学习</th></tr></thead><tbody>{poems.map((poem) => <tr key={poem.id}><td data-label="年级">{poem.grade} 年级{poem.semester}</td><td data-label="古诗"><strong>《{poem.title}》</strong><small>{poem.content}</small></td><td data-label="作者">{poem.dynasty} · {poem.author}</td><td data-label="学习状态"><span className={`status status--${poem.progress?.status === "MASTERED" ? "completed" : poem.progress ? "pending" : "cancelled"}`}>{poem.progress?.status === "MASTERED" ? "已掌握" : poem.progress ? `复习 ${poem.progress.reviewStage}/6` : "未学习"}</span>{poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}</td><td data-label="媒体"><div className="poem-media-cell">{poem.imageUrl ? <img src={poem.imageUrl} alt={`《${poem.title}》配图`} loading="lazy" decoding="async" /> : <div className="poem-media-placeholder">暂无配图</div>}<div className="poem-media-actions"><button type="button" className="hanzi-audio-button" disabled={!poem.audioUrl} onClick={() => toggleAudio(poem)}>{playingId === poem.id ? "停止" : "试听朗读"}</button></div></div></td><td data-label="学校学习"><button type="button" className={poem.schoolTarget ? "ghost-button" : "primary-button"} disabled={busy} onClick={() => void toggleSchoolTarget(poem)}>{poem.schoolTarget ? "移出清单" : "加入学校学习"}</button></td></tr>)}</tbody></table>{!poems.length ? <div className="empty-state">没有找到符合条件的古诗</div> : null}</div></Panel>
   </div>;
 }

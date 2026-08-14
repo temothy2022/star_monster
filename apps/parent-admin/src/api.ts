@@ -297,6 +297,7 @@ export type HanziCharacterResource = {
   sentenceAudioUrl: string | null;
   sortOrder: number;
   isEnabled: boolean;
+  schoolTarget: { id: string; sortOrder: number } | null;
 };
 
 export type HanziMediaKind =
@@ -309,6 +310,7 @@ export type HanziSettingsResponse = {
   settings: HanziLearningSettings;
   progress: Partial<Record<"LEARNING" | "MASTERED", number>>;
   characterCount: number;
+  schoolTargetCount: number;
 };
 
 export type PoemLearningSettings = {
@@ -334,6 +336,7 @@ export type PoemResource = {
     reviewStage: number;
     nextReviewDate: string | null;
   } | null;
+  schoolTarget: { id: string; sortOrder: number } | null;
 };
 
 export type PoemSettingsResponse = {
@@ -341,6 +344,7 @@ export type PoemSettingsResponse = {
   progress: Partial<Record<"LEARNING" | "MASTERED", number>>;
   poemCount: number;
   dueCount: number;
+  schoolTargetCount: number;
 };
 
 export type AiConfig = {
@@ -1024,6 +1028,16 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/characters/${id}`,
       { method: "DELETE" },
     ),
+  addHanziSchoolTarget: (childId: string, characterId: string) =>
+    api<{ target: { id: string; sortOrder: number } }>(
+      `/api/parent/children/${childId}/hanzi/school-targets/${characterId}`,
+      { method: "POST" },
+    ),
+  removeHanziSchoolTarget: (childId: string, characterId: string) =>
+    api<{ ok: true }>(
+      `/api/parent/children/${childId}/hanzi/school-targets/${characterId}`,
+      { method: "DELETE" },
+    ),
   poemSettings: (childId: string) =>
     api<PoemSettingsResponse>(
       `/api/parent/children/${childId}/poems/settings`,
@@ -1052,9 +1066,19 @@ export const parentApi = {
     id: string,
     kind: "image" | "audio",
   ) =>
-    api<{ poem: Omit<PoemResource, "progress"> }>(
+    api<{ poem: Omit<PoemResource, "progress" | "schoolTarget"> }>(
       `/api/parent/children/${childId}/poems/${id}/generate/${kind}`,
       { method: "POST" },
+    ),
+  addPoemSchoolTarget: (childId: string, poemId: string) =>
+    api<{ target: { id: string; sortOrder: number } }>(
+      `/api/parent/children/${childId}/poems/school-targets/${poemId}`,
+      { method: "POST" },
+    ),
+  removePoemSchoolTarget: (childId: string, poemId: string) =>
+    api<{ ok: true }>(
+      `/api/parent/children/${childId}/poems/school-targets/${poemId}`,
+      { method: "DELETE" },
     ),
   createTemplate: (childId: string, data: Record<string, unknown>) =>
     api<{ template: TaskTemplate }>(

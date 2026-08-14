@@ -5,7 +5,7 @@ import {
   type HanziQuestionAnswer,
   type HanziReviewAnswer,
 } from "../domain/hanzi-completion.js";
-import { selectDailyHanziCharacters } from "../domain/hanzi-selection.js";
+import { selectPrioritizedHanziCharacters } from "../domain/hanzi-selection.js";
 import {
   firstHanziReviewDate,
   HANZI_REVIEW_STAGE_COUNT,
@@ -211,7 +211,7 @@ export async function startHanziSession(
   const kind = attemptKindForExperience(
     attempt.dailyTask.experienceKindSnapshot,
   );
-  const [dueProgress, unlearnedCharacterIds, pool] = await Promise.all([
+  const [dueProgress, unlearnedCharacters, schoolTargets, pool] = await Promise.all([
     prisma.hanziLearningProgress.findMany({
       where: {
         childId,
@@ -234,6 +234,17 @@ export async function startHanziSession(
       orderBy: { id: "asc" },
       select: { id: true },
     }),
+    prisma.hanziSchoolTarget.findMany({
+      where: {
+        childId,
+        character: {
+          isEnabled: true,
+          progress: { none: { childId } },
+        },
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { characterId: true },
+    }),
     prisma.hanziCharacter.findMany({
       where: { isEnabled: true },
       orderBy: { sortOrder: "asc" },
@@ -241,13 +252,16 @@ export async function startHanziSession(
     }),
   ]);
   const poolById = new Map(pool.map((character) => [character.id, character]));
-  const newCharacterIds = kind === "REVIEW" ? [] : selectDailyHanziCharacters(
-    unlearnedCharacterIds,
-    normalizedSettings.newCharactersPerDay,
-    `${childId}:${today.toISOString().slice(0, 10)}`,
-  )
-    .map(({ id }) => id)
-    .filter((id) => poolById.has(id));
+  const newCharacterIds = kind === "REVIEW"
+    ? []
+    : selectPrioritizedHanziCharacters(
+        unlearnedCharacters,
+        schoolTargets.map((target) => target.characterId),
+        normalizedSettings.newCharactersPerDay,
+        `${childId}:${today.toISOString().slice(0, 10)}`,
+      )
+        .map(({ id }) => id)
+        .filter((id) => poolById.has(id));
   if (!pool.length) {
     throw new HttpError(409, "HANZI_LIBRARY_EMPTY", "汉字词库还没有可学习的内容");
   }

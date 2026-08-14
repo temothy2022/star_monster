@@ -27,3 +27,28 @@ export function selectDailyHanziCharacters<T extends { id: string }>(
     .slice(0, count)
     .map(({ character }) => character);
 }
+
+/**
+ * Keep the parent's school list ahead of the normal rotating pool. Items that
+ * are no longer in the enabled/unlearned pool are ignored, so a stale school
+ * entry cannot block new content indefinitely.
+ */
+export function selectPrioritizedHanziCharacters<T extends { id: string }>(
+  characters: T[],
+  priorityIds: string[],
+  count: number,
+  seed: string,
+): T[] {
+  if (count <= 0 || characters.length === 0) return [];
+  const byId = new Map(characters.map((character) => [character.id, character]));
+  const priority = priorityIds.flatMap((id) => {
+    const character = byId.get(id);
+    return character ? [character] : [];
+  });
+  const priorityIdSet = new Set(priority.map((character) => character.id));
+  const remaining = characters.filter((character) => !priorityIdSet.has(character.id));
+  return [
+    ...priority,
+    ...selectDailyHanziCharacters(remaining, count, seed),
+  ].slice(0, count);
+}

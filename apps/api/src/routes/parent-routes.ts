@@ -434,6 +434,10 @@ const childResourceParams = z.object({
   childId: z.string().min(1),
   id: z.string().min(1),
 });
+const schoolTargetParams = z.object({
+  childId: z.string().min(1),
+  targetId: z.string().min(1),
+});
 const statsQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -1161,7 +1165,7 @@ export async function registerParentRoutes(
       ensurePoemTaskTemplates(tx, id, settings),
     );
 
-    const [progress, poemCount, dueCount] = await Promise.all([
+    const [progress, poemCount, dueCount, schoolTargetCount] = await Promise.all([
       prisma.poemLearningProgress.groupBy({
         by: ["status"],
         where: { childId: id },
@@ -1178,6 +1182,9 @@ export async function registerParentRoutes(
           poem: { isEnabled: true },
         },
       }),
+      prisma.poemSchoolTarget.count({
+        where: { childId: id, poem: { isEnabled: true } },
+      }),
     ]);
 
     return {
@@ -1187,6 +1194,7 @@ export async function registerParentRoutes(
       ),
       poemCount,
       dueCount,
+      schoolTargetCount,
     };
   });
 
@@ -1234,6 +1242,10 @@ export async function registerParentRoutes(
             nextReviewDate: true,
           },
         },
+        schoolTargets: {
+          where: { childId: id },
+          select: { id: true, sortOrder: true },
+        },
       },
       orderBy: [
         { grade: "asc" },
@@ -1242,12 +1254,52 @@ export async function registerParentRoutes(
     });
 
     return {
-      poems: poems.map(({ progress, ...poem }) => ({
+      poems: poems.map(({ progress, schoolTargets, ...poem }) => ({
         ...poem,
         progress: progress[0] ?? null,
+        schoolTarget: schoolTargets[0] ?? null,
       })),
     };
   });
+
+  app.post(
+    "/api/parent/children/:childId/poems/school-targets/:targetId",
+    async (request, reply) => {
+      const { childId, targetId } = schoolTargetParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const poem = await prisma.poem.findFirst({
+        where: { id: targetId, isEnabled: true },
+        select: { id: true },
+      });
+      if (!poem) throw new HttpError(404, "POEM_NOT_FOUND", "没有找到这首古诗");
+      const currentMax = await prisma.poemSchoolTarget.aggregate({
+        where: { childId },
+        _max: { sortOrder: true },
+      });
+      const target = await prisma.poemSchoolTarget.upsert({
+        where: { childId_poemId: { childId, poemId: targetId } },
+        create: {
+          childId,
+          poemId: targetId,
+          sortOrder: (currentMax._max.sortOrder ?? -1) + 1,
+        },
+        update: {},
+      });
+      return { target };
+    },
+  );
+
+  app.delete(
+    "/api/parent/children/:childId/poems/school-targets/:targetId",
+    async (request, reply) => {
+      const { childId, targetId } = schoolTargetParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      await prisma.poemSchoolTarget.deleteMany({
+        where: { childId, poemId: targetId },
+      });
+      return { ok: true };
+    },
+  );
 
   app.get("/api/parent/children/:id/hanzi/settings", async (request, reply) => {
     const { id } = idParams.parse(request.params);
@@ -1258,13 +1310,16 @@ export async function registerParentRoutes(
         create: { childId: id },
       });
     await prisma.$transaction((tx) => ensureHanziTaskTemplates(tx, id, settings));
-    const [progress, characterCount] = await Promise.all([
+    const [progress, characterCount, schoolTargetCount] = await Promise.all([
       prisma.hanziLearningProgress.groupBy({
         by: ["status"],
         where: { childId: id },
         _count: { _all: true },
       }),
       prisma.hanziCharacter.count({ where: { isEnabled: true } }),
+      prisma.hanziSchoolTarget.count({
+        where: { childId: id, character: { isEnabled: true } },
+      }),
     ]);
     return {
       settings,
@@ -1272,6 +1327,7 @@ export async function registerParentRoutes(
         progress.map((item) => [item.status, item._count._all]),
       ),
       characterCount,
+      schoolTargetCount,
     };
   });
 
@@ -1474,13 +1530,66 @@ export async function registerParentRoutes(
       const [characters, total] = await Promise.all([
         prisma.hanziCharacter.findMany({
           where,
+          include: {
+            schoolTargets: {
+              where: { childId: id },
+              select: { id: true, sortOrder: true },
+            },
+          },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
           skip: (page - 1) * pageSize,
           take: pageSize,
         }),
         prisma.hanziCharacter.count({ where }),
       ]);
-      return { characters, total, page, pageSize };
+      return {
+        characters: characters.map(({ schoolTargets, ...character }) => ({
+          ...character,
+          schoolTarget: schoolTargets[0] ?? null,
+        })),
+        total,
+        page,
+        pageSize,
+      };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:childId/hanzi/school-targets/:targetId",
+    async (request, reply) => {
+      const { childId, targetId } = schoolTargetParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const character = await prisma.hanziCharacter.findFirst({
+        where: { id: targetId, isEnabled: true },
+        select: { id: true },
+      });
+      if (!character) throw new HttpError(404, "HANZI_NOT_FOUND", "没有找到这个汉字");
+      const currentMax = await prisma.hanziSchoolTarget.aggregate({
+        where: { childId },
+        _max: { sortOrder: true },
+      });
+      const target = await prisma.hanziSchoolTarget.upsert({
+        where: { childId_characterId: { childId, characterId: targetId } },
+        create: {
+          childId,
+          characterId: targetId,
+          sortOrder: (currentMax._max.sortOrder ?? -1) + 1,
+        },
+        update: {},
+      });
+      return { target };
+    },
+  );
+
+  app.delete(
+    "/api/parent/children/:childId/hanzi/school-targets/:targetId",
+    async (request, reply) => {
+      const { childId, targetId } = schoolTargetParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      await prisma.hanziSchoolTarget.deleteMany({
+        where: { childId, characterId: targetId },
+      });
+      return { ok: true };
     },
   );
 
