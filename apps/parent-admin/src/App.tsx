@@ -36,6 +36,7 @@ import {
 import { AiAssistant } from "./AiAssistant";
 import { GrowthOverview } from "./GrowthOverview";
 import { PetManagement } from "./PetManagement";
+import { NumberField } from "./NumberField";
 import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentMathPractice, ParentPoemLearning } from "./LearningLibraries";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
@@ -766,12 +767,12 @@ function Tasks({ child }: { child: Child }) {
             {categories.filter((category) => category.kind === "CUSTOM" && (category.isEnabled || category.key === form.category)).map((category) => <option key={category.key} value={category.key}>{category.name}</option>)}
           </select></label>
           <label>计时类型<select disabled={form.experienceKind !== "STANDARD"} value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
-          <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<input type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
-          <label>基础星星<input type="number" min={1} max={999} value={form.baseStars} onChange={(event) => setForm({ ...form, baseStars: Number(event.target.value) })} /></label>
+          <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<NumberField type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
+          <label>基础星星<NumberField type="number" min={1} max={999} value={form.baseStars} onChange={(event) => setForm({ ...form, baseStars: Number(event.target.value) })} /></label>
           {form.mode === "TIMED" && <label className="checkbox field-span"><input type="checkbox" checked={form.earlyBonusEnabled} onChange={(event) => setForm({ ...form, earlyBonusEnabled: event.target.checked })} />启用提前完成加奖</label>}
           {form.mode === "TIMED" && form.earlyBonusEnabled && <>
-            <label>剩余至少（分钟）<input type="number" min={1} value={form.earlyThresholdMinutes} onChange={(event) => setForm({ ...form, earlyThresholdMinutes: Number(event.target.value) })} /></label>
-            <label>额外星星<input type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
+            <label>剩余至少（分钟）<NumberField type="number" min={1} value={form.earlyThresholdMinutes} onChange={(event) => setForm({ ...form, earlyThresholdMinutes: Number(event.target.value) })} /></label>
+            <label>额外星星<NumberField type="number" min={1} value={form.earlyBonusStars} onChange={(event) => setForm({ ...form, earlyBonusStars: Number(event.target.value) })} /></label>
           </>}
           {(form.experienceKind === "STANDARD" || form.experienceKind === "MAKE_TEN" || form.experienceKind === "MATH_PRACTICE") && <label className="checkbox field-span"><input type="checkbox" checked={form.repeatableDaily} onChange={(event) => setForm({ ...form, repeatableDaily: event.target.checked })} />当天可反复完成并领取奖励（不限制次数）</label>}
           {form.experienceKind === "MATH_PRACTICE" && <div className="field-span admin-help">题目总量和题型配比统一在“学习内容”中的“数学练习”设置；这里仅配置任务出现时间、奖励和是否可重复完成。</div>}
@@ -781,8 +782,8 @@ function Tasks({ child }: { child: Child }) {
           {form.scheduleKind !== "ONE_TIME" && <label className="checkbox field-span"><input type="checkbox" checked={form.aiSchedulingEnabled} onChange={(event) => setForm({ ...form, aiSchedulingEnabled: event.target.checked })} />参与 AI 智能排班</label>}
           {form.scheduleKind !== "ONE_TIME" && form.aiSchedulingEnabled && <>
             <label>练习类型<select value={form.learningPracticeKind} onChange={(event) => setForm({ ...form, learningPracticeKind: event.target.value as TaskForm["learningPracticeKind"] })}><option value="GENERAL">一般任务</option><option value="NEW_CONTENT">学习新内容</option><option value="REVIEW">复习巩固</option><option value="MIXED">新学与复习混合</option></select></label>
-            <label>每周目标次数<input type="number" min={1} max={7} value={form.targetSessionsPerWeek} onChange={(event) => setForm({ ...form, targetSessionsPerWeek: Number(event.target.value) })} /></label>
-            <label>至少间隔天数<input type="number" min={0} max={6} value={form.minimumGapDays} onChange={(event) => setForm({ ...form, minimumGapDays: Number(event.target.value) })} /></label>
+            <label>每周目标次数<NumberField type="number" min={1} max={7} value={form.targetSessionsPerWeek} onChange={(event) => setForm({ ...form, targetSessionsPerWeek: Number(event.target.value) })} /></label>
+            <label>至少间隔天数<NumberField type="number" min={0} max={6} value={form.minimumGapDays} onChange={(event) => setForm({ ...form, minimumGapDays: Number(event.target.value) })} /></label>
           </>}
           <label className="checkbox field-span"><input type="checkbox" checked={form.isEnabled} onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} />立即启用</label>
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
@@ -1340,10 +1341,10 @@ function HanziLearning({ child }: { child: Child }) {
         <Panel title="每日学习参数">
           {loading ? <div className="empty-state">正在读取设置…</div> : (
             <form className="admin-form" onSubmit={submit}>
-              <label>每日新字数量<input type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
-              <label>每日复习上限<input type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
-              <label>听句挑战题数<input type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
-              <label>汉字复习任务星星<input type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label>
+              <label>每日新字数量<NumberField type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
+              <label>每日复习上限<NumberField type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
+              <label>听句挑战题数<NumberField type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
+              <label>汉字复习任务星星<NumberField type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label>
               <div className="field-span admin-help">新字学习任务仍按任务配置中的星期出现；汉字复习任务根据到期汉字每天自动出现，不受学习日限制。</div>
               {message && <div className="field-span"><Notice>{message}</Notice></div>}
               <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
@@ -1495,7 +1496,7 @@ function HanziLearning({ child }: { child: Child }) {
                   </div>
                 ))}
             </section>
-            <label>学习顺序<input type="number" min={0} max={1000000} value={characterForm.sortOrder} onChange={(event) => setCharacterForm({ ...characterForm, sortOrder: Number(event.target.value) })} /></label>
+            <label>学习顺序<NumberField type="number" min={0} max={1000000} value={characterForm.sortOrder} onChange={(event) => setCharacterForm({ ...characterForm, sortOrder: Number(event.target.value) })} /></label>
             <div className="form-actions field-span">
               {editingCharacterId ? <button type="button" className="ghost-button" onClick={() => { setEditingCharacterId(null); setCharacterForm(EMPTY_HANZI_CHARACTER); }}>取消编辑</button> : null}
               <button className="primary-button" disabled={libraryBusy}>{libraryBusy ? "保存中…" : editingCharacterId ? "保存修改" : "加入字库"}</button>
@@ -1771,7 +1772,7 @@ function PoemLearning({ child }: { child: Child }) {
           </div>
           <label>
             学习任务星星
-            <input
+            <NumberField
               type="number"
               min={1}
               max={999}
@@ -1786,7 +1787,7 @@ function PoemLearning({ child }: { child: Child }) {
           </label>
           <label>
             复习任务星星
-            <input
+            <NumberField
               type="number"
               min={1}
               max={999}
@@ -1970,7 +1971,7 @@ function Wishes({ child }: { child: Child }) {
       <Panel title={editingId ? "编辑星愿" : "添加星愿"}>
         <form className="admin-form" onSubmit={submit}>
           <label>分类<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as Wish["category"] })}><option value="SPORTS">活动体验</option><option value="TELEVISION">娱乐时间</option><option value="TOYS">物品消费</option></select></label>
-          <label>兑换星数<input type="number" min={1} required value={form.costStars} onChange={(event) => setForm({ ...form, costStars: Number(event.target.value) })} /></label>
+          <label>兑换星数<NumberField type="number" min={1} required value={form.costStars} onChange={(event) => setForm({ ...form, costStars: Number(event.target.value) })} /></label>
           <label className="field-span">星愿名称<input required maxLength={80} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
           <label>兑换类型
             <select
@@ -2013,7 +2014,7 @@ function Wishes({ child }: { child: Child }) {
           )}
           {form.redemptionType === "RECURRING" && form.recurrenceKind === "INTERVAL" && (
             <label>间隔天数
-              <input
+              <NumberField
                 type="number"
                 min={1}
                 max={365}
@@ -2025,7 +2026,7 @@ function Wishes({ child }: { child: Child }) {
           )}
           {form.redemptionType === "STOCK" && (
             <label>剩余库存
-              <input
+              <NumberField
                 type="number"
                 min={0}
                 max={99999}
@@ -2080,7 +2081,7 @@ function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "调整失败"); }
     finally { setBusy(false); }
   }
-  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<input type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
+  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<NumberField type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
 }
 
 function Planets({
@@ -2216,7 +2217,7 @@ function Planets({
                     </div>
                     <label>
                       点亮所需历史星星
-                      <input
+                      <NumberField
                         type="number"
                         min={0}
                         max={1_000_000}
@@ -2232,7 +2233,7 @@ function Planets({
                     </label>
                     <label>
                       点亮加送星星
-                      <input
+                      <NumberField
                         type="number"
                         min={0}
                         max={10_000}
@@ -2338,11 +2339,11 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
         </label>
         <label>
           每日星星目标
-          <input type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} />
+          <NumberField type="number" min={1} max={999} value={dailyStarGoal} onChange={(event) => setDailyStarGoal(Number(event.target.value))} />
         </label>
         <label>
           达标后额外奖励
-          <input
+          <NumberField
             type="number"
             min={1}
             max={999}

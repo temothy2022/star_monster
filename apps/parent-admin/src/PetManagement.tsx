@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { parentApi, type Child, type PetGrowthSummary } from "./api";
+import { NumberField } from "./NumberField";
 
 const PET_LABELS: Record<string, string> = {
   DOUYA: "豆芽",
@@ -189,23 +190,23 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
           <form className="parent-pet-settings-form" onSubmit={savePetSettings}>
             <label>当前星宠<select value={petType} onChange={(event) => setPetType(event.target.value)}>{Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="checkbox"><input type="checkbox" checked={travelEnabled} onChange={(event) => setTravelEnabled(event.target.checked)} />允许星宠旅行</label>
-            <label>每日星宠消费上限<input type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
-            <label>饱食度<input type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
-            <label>饮水状态<input type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
+            <label>每日星宠消费上限<NumberField type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
+            <label>饱食度<NumberField type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
+            <label>饮水状态<NumberField type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
             <div className="parent-pet-care-rules">
               <div><strong>日常照顾规则</strong><small>衰减数值表示每隔多少分钟下降 1 点，数值越小消耗越快。当天排泄计划生成后，次数调整从次日生效。</small></div>
-              <label>饱食度衰减<input type="number" min={10} max={10080} value={satietyDecayMinutes} onChange={(event) => setSatietyDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
-              <label>饮水状态衰减<input type="number" min={10} max={10080} value={hydrationDecayMinutes} onChange={(event) => setHydrationDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
-              <label>每日出现粑粑<input type="number" min={0} max={8} value={dailyWasteCount} onChange={(event) => setDailyWasteCount(Number(event.target.value))} /><span>次</span></label>
-              <label>每次清理消耗<input type="number" min={0} max={100} value={wasteCleanCostStars} onChange={(event) => setWasteCleanCostStars(Number(event.target.value))} /><span>星</span></label>
+              <label>饱食度衰减<NumberField type="number" min={10} max={10080} value={satietyDecayMinutes} onChange={(event) => setSatietyDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
+              <label>饮水状态衰减<NumberField type="number" min={10} max={10080} value={hydrationDecayMinutes} onChange={(event) => setHydrationDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
+              <label>每日出现粑粑<NumberField type="number" min={0} max={8} value={dailyWasteCount} onChange={(event) => setDailyWasteCount(Number(event.target.value))} /><span>次</span></label>
+              <label>每次清理消耗<NumberField type="number" min={0} max={100} value={wasteCleanCostStars} onChange={(event) => setWasteCleanCostStars(Number(event.target.value))} /><span>星</span></label>
             </div>
             <div className="parent-pet-red-packet-settings">
               <div><strong>星宠升级红包</strong><small>配置只影响之后升级获得的新红包</small></div>
-              <label>每次升级赠送<input type="number" min={0} max={10} value={redPacketsPerLevel} onChange={(event) => setRedPacketsPerLevel(Number(event.target.value))} /><span>个</span></label>
-              <label>最低奖励<input type="number" min={1} max={100} value={redPacketMinStars} onChange={(event) => setRedPacketMinStars(Number(event.target.value))} /><span>星</span></label>
-              <label>最高奖励<input type="number" min={1} max={100} value={redPacketMaxStars} onChange={(event) => setRedPacketMaxStars(Number(event.target.value))} /><span>星</span></label>
+              <label>每次升级赠送<NumberField type="number" min={0} max={10} value={redPacketsPerLevel} onChange={(event) => setRedPacketsPerLevel(Number(event.target.value))} /><span>个</span></label>
+              <label>最低奖励<NumberField type="number" min={1} max={100} value={redPacketMinStars} onChange={(event) => setRedPacketMinStars(Number(event.target.value))} /><span>星</span></label>
+              <label>最高奖励<NumberField type="number" min={1} max={100} value={redPacketMaxStars} onChange={(event) => setRedPacketMaxStars(Number(event.target.value))} /><span>星</span></label>
               <div className="parent-pet-red-packet-grant">
-                <label>额外补发<input type="number" min={1} max={50} value={redPacketGrantCount} onChange={(event) => setRedPacketGrantCount(Number(event.target.value))} /><span>个</span></label>
+                <label>额外补发<NumberField type="number" min={1} max={50} value={redPacketGrantCount} onChange={(event) => setRedPacketGrantCount(Number(event.target.value))} /><span>个</span></label>
                 <button className="primary-button" type="button" disabled={busy !== null} onClick={() => void grantRedPackets()}>{busy === "red-packet-grant" ? "补发中…" : "立即补发"}</button>
                 <small>按当前奖励范围生成，孩子打开后才获得星星</small>
               </div>
@@ -222,7 +223,7 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
               <img src={theme.previewUrl} alt={`${theme.name}预览`} loading="lazy" />
               <div className="pet-room-theme-admin-card__body">
                 <strong>{theme.name}</strong>
-                <label>解锁价格<input type="number" min={0} max={10000} value={prices[theme.key] ?? theme.priceStars} onChange={(event) => setPrices((current) => ({ ...current, [theme.key]: Number(event.target.value) }))} /><em>星</em></label>
+                <label>解锁价格<NumberField type="number" min={0} max={10000} value={prices[theme.key] ?? theme.priceStars} onChange={(event) => setPrices((current) => ({ ...current, [theme.key]: Number(event.target.value) }))} /><em>星</em></label>
               </div>
             </article>
           ))}

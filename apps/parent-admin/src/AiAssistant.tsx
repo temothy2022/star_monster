@@ -18,6 +18,7 @@ import {
   type TaskTemplate,
   type Wish,
 } from "./api";
+import { NumberField } from "./NumberField";
 
 const DAY_LABELS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 const CATEGORY_LABELS: Record<string, string> = {
@@ -772,9 +773,9 @@ function SmartScheduler({ child }: { child: Child }) {
         <div>
           <h3 className="ai-subheading">负荷边界</h3>
           <div className="admin-form">
-            <label>每天任务上限（分钟）<input type="number" min={5} max={180} value={preference.maxDailyMinutes} onChange={(event) => setPreference({ ...preference, maxDailyMinutes: Number(event.target.value) })} /></label>
-            <label>单次连续上限（分钟）<input type="number" min={5} max={60} value={preference.maxConsecutiveMinutes} onChange={(event) => setPreference({ ...preference, maxConsecutiveMinutes: Number(event.target.value) })} /></label>
-            <label>任务间休息（分钟）<input type="number" min={0} max={60} value={preference.minimumBreakMinutes} onChange={(event) => setPreference({ ...preference, minimumBreakMinutes: Number(event.target.value) })} /></label>
+            <label>每天任务上限（分钟）<NumberField type="number" min={5} max={180} value={preference.maxDailyMinutes} onChange={(event) => setPreference({ ...preference, maxDailyMinutes: Number(event.target.value) })} /></label>
+            <label>单次连续上限（分钟）<NumberField type="number" min={5} max={60} value={preference.maxConsecutiveMinutes} onChange={(event) => setPreference({ ...preference, maxConsecutiveMinutes: Number(event.target.value) })} /></label>
+            <label>任务间休息（分钟）<NumberField type="number" min={0} max={60} value={preference.minimumBreakMinutes} onChange={(event) => setPreference({ ...preference, minimumBreakMinutes: Number(event.target.value) })} /></label>
           </div>
           <h3 className="ai-subheading">参与排班的任务（{eligible.length}）</h3>
           <div className="ai-task-chips">

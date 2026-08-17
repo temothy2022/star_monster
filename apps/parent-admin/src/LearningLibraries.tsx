@@ -25,6 +25,7 @@ import {
   normalizeLegacyMathTypeCounts,
   rebalanceTypeCounts,
 } from "./math-practice-settings";
+import { NumberField } from "./NumberField";
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return <section className="admin-panel"><header className="admin-panel__header"><h2>{title}</h2></header>{children}</section>;
@@ -246,10 +247,10 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     <div className="admin-two-column">
       <Panel title="每日学习参数">
         {loading ? <div className="empty-state">正在读取设置…</div> : <form className="admin-form" onSubmit={save}>
-          <label>每日新字数量<input type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
-          <label>每日复习上限<input type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
-          <label>听句挑战题数<input type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
-          <label>汉字复习任务星星<input type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label>
+          <label>每日新字数量<NumberField type="number" min={1} max={10} value={settings.newCharactersPerDay} onChange={(event) => setSettings({ ...settings, newCharactersPerDay: Number(event.target.value) })} /></label>
+          <label>每日复习上限<NumberField type="number" min={1} max={50} value={settings.reviewDailyLimit} onChange={(event) => setSettings({ ...settings, reviewDailyLimit: Number(event.target.value) })} /></label>
+          <label>听句挑战题数<NumberField type="number" min={1} max={10} value={settings.consolidationQuestionCount} onChange={(event) => setSettings({ ...settings, consolidationQuestionCount: Number(event.target.value) })} /></label>
+          <label>汉字复习任务星星<NumberField type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label>
           <div className="field-span admin-help">新字学习任务仍按任务配置中的星期出现；汉字复习任务根据到期汉字每天自动出现，不受学习日限制。</div>
           <div className="field-span admin-help">学习参数只影响当前孩子，不会修改共享汉字库。</div>
           <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
@@ -339,7 +340,7 @@ export function ParentClockLearning({ child }: { child: Child }) {
   return <div className="admin-stack">
     <Panel title="时钟学习设置">
         {loading ? <div className="empty-state">正在读取设置…</div> : <form className="admin-form" onSubmit={save}>
-          <label>每日题量<input type="number" min={1} max={20} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
+          <label>每日题量<NumberField type="number" min={1} max={20} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
           <div className="field-span">
             <span className="poem-settings-label">题目难度</span>
             <div className="clock-settings-choice" role="radiogroup" aria-label="时钟题目难度">
@@ -400,9 +401,9 @@ export function ParentMakeTenLearning({ child }: { child: Child }) {
   return <div className="admin-stack">
     <Panel title="凑十训练设置">
       {loading ? <div className="empty-state">正在读取设置…</div> : <form className="admin-form" onSubmit={save}>
-        <label>每日题量<input type="number" min={1} max={50} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
-        <label>每题时间（秒）<input type="number" min={2} max={30} step={0.1} inputMode="decimal" value={settings.secondsPerQuestion} onChange={(event) => setSettings({ ...settings, secondsPerQuestion: Number(event.target.value) })} /></label>
-        <label>达标正确率（%）<input type="number" min={1} max={100} value={settings.passAccuracyPercent} onChange={(event) => setSettings({ ...settings, passAccuracyPercent: Number(event.target.value) })} /></label>
+        <label>每日题量<NumberField type="number" min={1} max={50} value={settings.questionsPerDay} onChange={(event) => setSettings({ ...settings, questionsPerDay: Number(event.target.value) })} /></label>
+        <label>每题时间（秒）<NumberField type="number" min={2} max={30} step={0.1} inputMode="decimal" value={settings.secondsPerQuestion} onChange={(event) => setSettings({ ...settings, secondsPerQuestion: Number(event.target.value) })} /></label>
+        <label>达标正确率（%）<NumberField type="number" min={1} max={100} value={settings.passAccuracyPercent} onChange={(event) => setSettings({ ...settings, passAccuracyPercent: Number(event.target.value) })} /></label>
         <div className="field-span admin-help">未在规定时间内作答或选错均计为错误；最终正确率低于达标值时，本次任务不获得星星。请在“任务配置”中新建“凑十训练任务”。</div>
         <div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div>
       </form>}
@@ -531,7 +532,7 @@ export function ParentMathPractice({ child }: { child: Child }) {
         <div className="math-settings-intro">
           <div>
             <span>每次练习总题数</span>
-            <input aria-label="每次练习总题数" type="number" min={1} max={100} value={settings.totalQuestions} onChange={(event) => setTotalQuestions(Number(event.target.value))} />
+            <NumberField aria-label="每次练习总题数" type="number" min={1} max={100} value={settings.totalQuestions} onChange={(event) => setTotalQuestions(Number(event.target.value))} />
             <small>修改后会按当前配比自动换算</small>
           </div>
           <div className={allocationValid ? "is-valid" : "is-invalid"}>
@@ -587,9 +588,9 @@ export function ParentMathPractice({ child }: { child: Child }) {
                       <span><b>{type.id}</b><span>{type.name}</span><small>{type.description} · 难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
                       <div>
                         <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}>−</button>
-                        <input aria-label={`${type.name}数量`} type="number" min={0} max={100 - allocatedQuestions + count} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
+                        <NumberField aria-label={`${type.name}数量`} type="number" min={0} max={100 - allocatedQuestions + count} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
                         <button type="button" aria-label={`增加${type.name}`} disabled={allocatedQuestions >= 100} onClick={() => setTypeCount(type.id, count + 1)}>＋</button>
-                        {arithmeticItems !== null ? <label className="math-config__items-per-question"><span>每题小题</span><input aria-label={`${type.name}每题小题数`} type="number" min={1} max={20} value={arithmeticItems} onChange={(event) => setArithmeticItemsPerQuestion(type.id, Number(event.target.value))} /></label> : null}
+                        {arithmeticItems !== null ? <label className="math-config__items-per-question"><span>每题小题</span><NumberField aria-label={`${type.name}每题小题数`} type="number" min={1} max={20} value={arithmeticItems} onChange={(event) => setArithmeticItemsPerQuestion(type.id, Number(event.target.value))} /></label> : null}
                       </div>
                     </div>;
                   })}
@@ -724,7 +725,7 @@ export function ParentPoemLearning({ child }: { child: Child }) {
   }
 
   return <div className="admin-stack">
-    <Panel title="古诗学习设置"><form className="admin-form poem-settings-form" onSubmit={save}><label className="checkbox field-span"><input type="checkbox" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />开启古诗学习任务</label><div className="field-span"><span className="poem-settings-label">每周新诗学习日（可多选）</span><div className="poem-weekday-picker">{POEM_WEEKDAYS.map((weekday) => <button type="button" key={weekday.value} className={settings.learningWeekdays.includes(weekday.value) ? "active" : ""} onClick={() => toggleWeekday(weekday.value)}>{weekday.label}</button>)}</div></div><label>学习任务星星<input type="number" min={1} max={999} value={settings.learningTaskStars} onChange={(event) => setSettings({ ...settings, learningTaskStars: Number(event.target.value) })} /></label><label>复习任务星星<input type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label><div className="field-span admin-help">所选日期只控制“学习新古诗”；“复习古诗”会按照学习后第 1、2、4、7、15、30 天自动出现，有到期内容才生成任务。古诗内容和媒体资源由超级后台统一维护。</div><div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div></form>{error ? <Notice error>{error}</Notice> : null}</Panel>
+    <Panel title="古诗学习设置"><form className="admin-form poem-settings-form" onSubmit={save}><label className="checkbox field-span"><input type="checkbox" checked={settings.enabled} onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />开启古诗学习任务</label><div className="field-span"><span className="poem-settings-label">每周新诗学习日（可多选）</span><div className="poem-weekday-picker">{POEM_WEEKDAYS.map((weekday) => <button type="button" key={weekday.value} className={settings.learningWeekdays.includes(weekday.value) ? "active" : ""} onClick={() => toggleWeekday(weekday.value)}>{weekday.label}</button>)}</div></div><label>学习任务星星<NumberField type="number" min={1} max={999} value={settings.learningTaskStars} onChange={(event) => setSettings({ ...settings, learningTaskStars: Number(event.target.value) })} /></label><label>复习任务星星<NumberField type="number" min={1} max={999} value={settings.reviewTaskStars} onChange={(event) => setSettings({ ...settings, reviewTaskStars: Number(event.target.value) })} /></label><div className="field-span admin-help">所选日期只控制“学习新古诗”；“复习古诗”会按照学习后第 1、2、4、7、15、30 天自动出现，有到期内容才生成任务。古诗内容和媒体资源由超级后台统一维护。</div><div className="form-actions field-span"><button className="primary-button" disabled={busy}>{busy ? "保存中…" : "保存设置"}</button></div></form>{error ? <Notice error>{error}</Notice> : null}</Panel>
     <Panel title={`古诗库（${poems.length} 首）`}><p className="admin-help">学校优先清单：已加入 {schoolTargetCount} 首。加入后，新古诗会优先按加入顺序学习；学过后仍会自动进入复习计划。</p><form className="poem-library-toolbar" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、作者或诗句" /><select value={grade} onChange={(event) => setGrade(Number(event.target.value))}><option value={0}>全部年级</option>{[1, 2, 3, 4, 5, 6].map((value) => <option value={value} key={value}>{value} 年级</option>)}</select><button className="ghost-button" disabled={busy}>查询</button></form><div className="school-target-toolbar"><label><input type="checkbox" checked={poems.length > 0 && poems.every((poem) => selectedIds.has(poem.id))} onChange={toggleAllPoems} />全选当前结果（{poems.length} 首）</label><span>已选 {selectedIds.size} 首</span><button type="button" className="primary-button" disabled={busy || !poems.some((poem) => selectedIds.has(poem.id) && !poem.schoolTarget)} onClick={() => void batchUpdateSchoolTargets("add")}>批量加入学校学习</button><button type="button" className="ghost-button" disabled={busy || !poems.some((poem) => selectedIds.has(poem.id) && poem.schoolTarget)} onClick={() => void batchUpdateSchoolTargets("remove")}>批量移出学校清单</button></div>{error ? <Notice error>{error}</Notice> : null}<div className="table-wrap poem-library-table responsive-card-table"><table><thead><tr><th>选择</th><th>年级</th><th>古诗</th><th>作者</th><th>学习状态</th><th>媒体</th><th>学校学习</th></tr></thead><tbody>{poems.map((poem) => <tr key={poem.id}><td data-label="选择"><input type="checkbox" aria-label={`选择《${poem.title}》`} checked={selectedIds.has(poem.id)} onChange={() => toggleSelected(poem.id)} /></td><td data-label="年级">{poem.grade} 年级{poem.semester}</td><td data-label="古诗"><strong>《{poem.title}》</strong><small>{poem.content}</small></td><td data-label="作者">{poem.dynasty} · {poem.author}</td><td data-label="学习状态"><span className={`status status--${poem.progress?.status === "MASTERED" ? "completed" : poem.progress ? "pending" : "cancelled"}`}>{poem.progress?.status === "MASTERED" ? "已掌握" : poem.progress ? `复习 ${poem.progress.reviewStage}/6` : "未学习"}</span>{poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}</td><td data-label="媒体"><div className="poem-media-cell">{poem.imageUrl ? <img src={poem.imageUrl} alt={`《${poem.title}》配图`} loading="lazy" decoding="async" /> : <div className="poem-media-placeholder">暂无配图</div>}<div className="poem-media-actions"><button type="button" className="hanzi-audio-button" disabled={!poem.audioUrl} onClick={() => toggleAudio(poem)}>{playingId === poem.id ? "停止" : "试听朗读"}</button></div></div></td><td data-label="学校学习"><button type="button" className={poem.schoolTarget ? "ghost-button" : "primary-button"} disabled={busy} onClick={() => void toggleSchoolTarget(poem)}>{poem.schoolTarget ? "移出清单" : "加入学校学习"}</button></td></tr>)}</tbody></table>{!poems.length ? <div className="empty-state">没有找到符合条件的古诗</div> : null}</div></Panel>
   </div>;
 }
