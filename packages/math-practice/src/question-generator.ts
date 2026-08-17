@@ -390,11 +390,36 @@ export function generateMathQuestion(
         tokens.push("=", { kind: "BLANK" });
         items.push({ tokens, answer: String(result), explanation: `${start} - ${removals.join(" - ")} = ${result}` });
       } else if (input.typeId === "C04") {
-        const addition = rng.next() > 0.5;
-        const left = addition ? a : total;
-        const right = b;
-        const result = addition ? total : a;
-        items.push({ tokens: [left, { kind: "BLANK", placeholder: "○" }, right, "=", result], answer: addition ? "+" : "-", explanation: `${left} ${addition ? "+" : "-"} ${right} = ${result}` });
+        // Every row must be a different visible equation. Reusing the shared
+        // worksheet operands here used to produce the same two equations over
+        // and over when one C04 question contained several rows.
+        const used = new Set(items.map((item) => item.tokens
+          .filter((token): token is number => typeof token === "number")
+          .join("|")));
+        let candidate: { left: number; right: number; result: number; symbol: "+" | "-" } | null = null;
+        for (let attempt = 0; attempt < 128; attempt += 1) {
+          const addition = rng.next() > 0.5;
+          const candidateA = difficulty === 1 ? rng.int(2, 5) : rng.int(5, 10);
+          const candidateB = difficulty === 1
+            ? rng.int(1, Math.min(4, 9 - candidateA))
+            : rng.int(2, Math.min(8, 18 - candidateA));
+          const next = addition
+            ? { left: candidateA, right: candidateB, result: candidateA + candidateB, symbol: "+" as const }
+            : { left: candidateA + candidateB, right: candidateB, result: candidateA, symbol: "-" as const };
+          const signature = `${next.left}|${next.right}|${next.result}`;
+          if (!used.has(signature)) {
+            candidate = next;
+            break;
+          }
+        }
+        // The configured maximum is well below the finite C04 material pool,
+        // but retain the requested row count if a future configuration exceeds
+        // it rather than failing worksheet generation.
+        candidate ??= rng.next() > 0.5
+          ? { left: a, right: b, result: total, symbol: "+" }
+          : { left: total, right: b, result: a, symbol: "-" };
+        const { left, right, result, symbol } = candidate;
+        items.push({ tokens: [left, { kind: "BLANK", placeholder: "○" }, right, "=", result], answer: symbol, explanation: `${left} ${symbol} ${right} = ${result}` });
       } else {
         if (difficulty === 1) items.push({ tokens: [a, "+", b, "=", { kind: "BLANK" }], answer: String(total), explanation: `${a} + ${b} = ${total}` });
         else if (difficulty === 2) items.push({ tokens: [{ kind: "BLANK" }, "+", b, "=", total], answer: String(a), explanation: `${a} + ${b} = ${total}` });

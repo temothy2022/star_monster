@@ -806,6 +806,9 @@
 .math-keypad--fact-family .math-keypad__numbers button { min-height: 46px; font-size: 20px; border-radius: 13px; }
 .math-keypad--fact-family .math-keypad__symbols { grid-template-columns: repeat(2, 1fr); }
 .math-keypad--fact-family .math-keypad__symbols button { min-height: 43px; }
+.math-keypad--operator-only { justify-content: center; }
+.math-keypad--operator-only .math-keypad__symbols { grid-template-columns: repeat(2, minmax(96px, 1fr)); gap: 10px; }
+.math-keypad--operator-only .math-keypad__symbols button { min-height: 58px; font-size: 28px; }
 
 .math-preview .math-submit-answer,
 .math-session .math-submit-answer {

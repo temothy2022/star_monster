@@ -703,6 +703,19 @@ describe("math practice question generator", () => {
     expect(signs).toEqual(new Set(["+", "-"]));
   });
 
+  it("does not repeat visible equations inside a C04 symbol-fill question", () => {
+    for (const seed of [1, 17, 20260810]) {
+      const question = generateMathQuestion({ typeId: "C04", seed, itemsPerQuestion: 20 });
+      expect(question.visual.kind).toBe("ARITHMETIC_LIST");
+      if (question.visual.kind !== "ARITHMETIC_LIST") continue;
+      const signatures = question.visual.items.map((item) => item.tokens
+        .filter((token): token is number => typeof token === "number")
+        .join("|"));
+      expect(new Set(signatures).size).toBe(signatures.length);
+      expect(question.response).toMatchObject({ mode: "R04", slots: 20 });
+    }
+  });
+
   it("generates a configurable group of arithmetic items and keeps range rules", () => {
     const ids = ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"] as const;
     for (const typeId of ids) {

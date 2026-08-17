@@ -321,6 +321,10 @@ export function MathAnswerEditor({
   const response = question.response;
   const isOptionMode = ["R03", "R05", "R06", "R08"].includes(response.mode);
   const isFactFamily = Boolean(response.equationRows && response.equationSlotsPerRow);
+  // C04 uses the R04 response shape because it contains several equations,
+  // but every blank is an operator. Keep old snapshots safe as well: they may
+  // still carry R04 without an options list and must never show number keys.
+  const isOperatorOnly = question.typeId === "C04";
   const slotCount = response.slots ?? (response.template ? Math.max(...Array.from(response.template.matchAll(/\{(\d+)\}/g), (match) => Number(match[1]))) + 1 : 1);
   const options = useMemo(() => {
     if (!isOptionMode) return [];
@@ -333,6 +337,11 @@ export function MathAnswerEditor({
     }
     return uniqueOptions;
   }, [isOptionMode, question.typeId, response.options]);
+  const operatorOptions = useMemo(() => {
+    const allowedOperators = new Set(["+", "-", "×", "÷", ">", "<", "="]);
+    const configured = (response.options ?? []).filter((option) => allowedOperators.has(option));
+    return isOperatorOnly ? (configured.length > 0 ? configured : ["+", "-"]) : configured;
+  }, [isOperatorOnly, response.options]);
   const operatorSlot = isFactFamily && activeSlot % (response.equationSlotsPerRow ?? 4) === 1;
 
   function setActiveSlot(nextSlot: number) {
@@ -434,29 +443,39 @@ export function MathAnswerEditor({
           {!hideSlots ? (isFactFamily
             ? <FactFamilySlots question={question} values={values} activeSlot={activeSlot} onSelect={setActiveSlot} />
             : <EquationSlots question={question} values={values} activeSlot={activeSlot} onSelect={setActiveSlot} />) : null}
-          <div className={`math-keypad${isFactFamily ? " math-keypad--fact-family" : ""}`} aria-label="数字和符号选择器">
-            <div className="math-keypad__numbers">
-              {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
-                <button type="button" disabled={operatorSlot} onClick={() => inputDigit(digit)} key={digit}>{digit}</button>
-              ))}
-              {!isFactFamily ? <button
-                  className="math-keypad__next"
-                  type="button"
-                  disabled={slotCount === 1 || activeSlot >= slotCount - 1 || !values[activeSlot]}
-                  onClick={() => setActiveSlot(activeSlot + 1)}
-                >
-                  下一格
-                </button> : null}
-              <button type="button" disabled={operatorSlot} onClick={() => inputDigit("0")}>0</button>
-              <button className="math-keypad__erase" type="button" onClick={removeDigit} aria-label="退格">⌫</button>
-            </div>
-            {response.mode === "R04" ? (
+          <div className={`math-keypad${isFactFamily ? " math-keypad--fact-family" : ""}${isOperatorOnly ? " math-keypad--operator-only" : ""}`} aria-label={isOperatorOnly ? "运算符选择器" : "数字和符号选择器"}>
+            {isOperatorOnly ? (
               <div className="math-keypad__symbols">
-                {(isFactFamily ? ["+", "-"] : ["+", "-", ">", "<", "="]).map((symbol) => (
-                  <button type="button" disabled={isFactFamily && !operatorSlot} onClick={() => updateSlot(symbol)} key={symbol}>{symbol}</button>
+                {operatorOptions.map((symbol) => (
+                  <button type="button" onClick={() => updateSlot(symbol)} key={symbol}>{symbol}</button>
                 ))}
               </div>
-            ) : null}
+            ) : (
+              <>
+                <div className="math-keypad__numbers">
+                  {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
+                    <button type="button" disabled={operatorSlot} onClick={() => inputDigit(digit)} key={digit}>{digit}</button>
+                  ))}
+                  {!isFactFamily ? <button
+                      className="math-keypad__next"
+                      type="button"
+                      disabled={slotCount === 1 || activeSlot >= slotCount - 1 || !values[activeSlot]}
+                      onClick={() => setActiveSlot(activeSlot + 1)}
+                    >
+                      下一格
+                    </button> : null}
+                  <button type="button" disabled={operatorSlot} onClick={() => inputDigit("0")}>0</button>
+                  <button className="math-keypad__erase" type="button" onClick={removeDigit} aria-label="退格">⌫</button>
+                </div>
+                {response.mode === "R04" ? (
+                  <div className="math-keypad__symbols">
+                    {(isFactFamily ? ["+", "-"] : ["+", "-", ">", "<", "="]).map((symbol) => (
+                      <button type="button" disabled={isFactFamily && !operatorSlot} onClick={() => updateSlot(symbol)} key={symbol}>{symbol}</button>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </>
       )}
