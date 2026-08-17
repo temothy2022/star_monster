@@ -9,6 +9,7 @@ import {
 import {
   ApiError,
   finalizeHanziLearningSession,
+  finishHanziLearningSession,
   startHanziLearningSession,
   type HanziCharacter,
   type HanziLearningSession,
@@ -512,6 +513,7 @@ export function HanziLearningExperience({
   const [knownToast, setKnownToast] = useState(false);
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
   const [pendingSession, setPendingSession] = useState<HanziLearningSession | null>(null);
+  const [completionReward, setCompletionReward] = useState<CompletionReward | null>(null);
   const [answerSelections, setAnswerSelections] = useState<Record<string, string>>({});
   const [masteredNewCharacterIds, setMasteredNewCharacterIds] = useState<string[]>([]);
   const [assetProgress, setAssetProgress] = useState({
@@ -600,6 +602,7 @@ export function HanziLearningExperience({
     requestAbort.current = requestController;
     let cancelled = false;
     setError("");
+    setCompletionReward(null);
     void startHanziLearningSession(attemptId, requestController.signal)
       .then(({ session: loaded }) => {
         if (cancelled) return;
@@ -607,7 +610,7 @@ export function HanziLearningExperience({
         setSession(restored.session);
         setMasteredNewCharacterIds(restored.masteredNewCharacterIds);
         setAnswerSelections(restored.answerSelections);
-        setStarted(false);
+        setStarted(restored.session.phase === "COMPLETED");
         reportChildPageReady(
           "hanzi-session",
           "/api/child/hanzi/sessions/start",
@@ -714,7 +717,19 @@ export function HanziLearningExperience({
     )
       .then((result) => {
         clearLocalDraft(session.id);
-        onCompleted(result.reward);
+        setCompletionReward(result.reward);
+        setSession((current) => current
+          ? {
+              ...current,
+              phase: "COMPLETED",
+              reviewIndex: current.reviewCharacterIds.length,
+              summary: {
+                ...current.summary,
+                reviewKnown: current.reviewKnownIds.length,
+                reviewUnknown: current.reviewUnknownIds.length,
+              },
+            }
+          : current);
       })
       .catch((reason: unknown) => {
         autoCompletingReviewId.current = null;
@@ -733,7 +748,6 @@ export function HanziLearningExperience({
       .finally(() => setBusy(false));
   }, [
     flowTransition,
-    onCompleted,
     onExit,
     pendingSession,
     session,
@@ -1032,6 +1046,26 @@ export function HanziLearningExperience({
     setBusy(true);
     setError("");
     try {
+      if (session!.phase === "COMPLETED") {
+        const reward = completionReward ?? (await finishHanziLearningSession(
+          session!.id,
+          requestAbort.current.signal,
+        )).reward;
+        clearLocalDraft(session!.id);
+        onCompleted(reward);
+        return;
+      }
+
+      if (session!.kind === "REVIEW") {
+        const result = await finishHanziLearningSession(
+          session!.id,
+          requestAbort.current.signal,
+        );
+        clearLocalDraft(session!.id);
+        onCompleted(result.reward);
+        return;
+      }
+
       const reviewKnownIds = new Set(session!.reviewKnownIds);
       const reviewUnknownIds = new Set(session!.reviewUnknownIds);
       const result = await finalizeHanziLearningSession(
@@ -1539,6 +1573,10 @@ export function HanziLearningExperience({
     scoreTotal > 0
       ? Math.min(1, Math.max(0, session.summary.correct / scoreTotal))
       : 0;
+  const hasReviewSummary =
+    session.kind === "REVIEW" ||
+    session.summary.reviewKnown > 0 ||
+    session.summary.reviewUnknown > 0;
 
   return (
     <main className="hanzi-page hanzi-page--result">
@@ -1548,11 +1586,13 @@ export function HanziLearningExperience({
         <div><h1>{session.kind === "REVIEW" ? "今天的汉字复习完成啦！" : "今天的汉字学习完成啦！"}</h1><p>{session.kind === "REVIEW" ? "记得越多，汉字朋友越牢固！" : "今天认识了好多汉字朋友！"}</p></div>
       </header>
       <section className="hanzi-result-grid" aria-label="学习结果">
-        <article>
-          <h2>今天复习</h2>
-          <p><span>认识</span><strong>{session.summary.reviewKnown} 个</strong></p>
-          <p><span>再见几次</span><strong>{session.summary.reviewUnknown} 个</strong></p>
-        </article>
+        {hasReviewSummary ? (
+          <article>
+            <h2>今天复习</h2>
+            <p><span>认识</span><strong>{session.summary.reviewKnown} 个</strong></p>
+            <p><span>再见几次</span><strong>{session.summary.reviewUnknown} 个</strong></p>
+          </article>
+        ) : null}
         {session.kind !== "REVIEW" ? (
           <>
             <article>
