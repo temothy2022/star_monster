@@ -16,14 +16,17 @@ import "./math-practice.css";
 
 export function MathPracticeExperience({
   attemptId,
+  rewardStars,
   onExit,
   onCompleted,
 }: {
   attemptId: string;
+  rewardStars: number;
   onExit: () => void;
   onCompleted: (reward: { baseStars: number; bonusStars: number; dailyGoalBonusStars: number; totalStars: number }) => void;
 }) {
   const { mascot } = useMascot();
+  const configuredRewardStars = Math.max(0, Math.round(rewardStars));
   const [session, setSession] = useState<MathPracticeSession | null>(null);
   const [values, setValues] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<MathPracticeFeedback | null>(null);
@@ -278,7 +281,9 @@ export function MathPracticeExperience({
               <strong>{session.totalQuestions} <small>题</small></strong>
               <strong>{session.correctCount} <small>题答对</small></strong>
             </div>
-            <div className="math-session__result-stars">获得星星：⭐⭐⭐</div>
+            <div className="math-session__result-stars" aria-label={`完成后可获得 ${configuredRewardStars} 颗星星`}>
+              获得星星：{configuredRewardStars > 0 ? "⭐".repeat(configuredRewardStars) : "0 颗"}
+            </div>
             <button type="button" disabled={busy} onClick={() => void finish()}>
               {busy ? "正在领取…" : "领取星星"}
             </button>

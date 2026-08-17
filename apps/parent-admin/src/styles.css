@@ -594,6 +594,25 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 }
 .hanzi-library-layout { align-items: start; grid-template-columns: minmax(340px, .78fr) minmax(520px, 1.22fr); }
 .hanzi-library-search { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; margin: 16px 0; }
+.school-target-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #e2e6eb;
+  border-radius: 12px;
+  background: #fffaf2;
+  color: #697489;
+  font-size: 13px;
+}
+.school-target-toolbar label { display: inline-flex; align-items: center; gap: 7px; color: #243654; font-weight: 700; }
+.school-target-toolbar input[type="checkbox"],
+.hanzi-library-list .list-card > input[type="checkbox"] { width: 18px; min-height: 18px; margin: 0; accent-color: #f47a3f; }
+.school-target-toolbar span { margin-right: auto; }
+.school-target-toolbar button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.hanzi-library-list .list-card > input[type="checkbox"] { flex: 0 0 18px; }
 .hanzi-library-search button,
 .hanzi-library-pagination button {
   min-height: 42px;
@@ -2132,6 +2151,9 @@ td { font-size: 13px; }
     justify-content: flex-start;
   }
   .hanzi-library-list .list-card__main { width: 100%; }
+  .school-target-toolbar { align-items: stretch; }
+  .school-target-toolbar span { width: 100%; margin-right: 0; }
+  .school-target-toolbar button { flex: 1 1 150px; }
   .hanzi-library-pagination {
     justify-content: space-between;
     gap: 8px;

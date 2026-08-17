@@ -438,6 +438,10 @@ const schoolTargetParams = z.object({
   childId: z.string().min(1),
   targetId: z.string().min(1),
 });
+const schoolTargetChildParams = z.object({ childId: z.string().min(1) });
+const schoolTargetBatchBody = z.object({
+  targetIds: z.array(z.string().min(1)).min(1).max(500),
+});
 const statsQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -1263,6 +1267,56 @@ export async function registerParentRoutes(
   });
 
   app.post(
+    "/api/parent/children/:childId/poems/school-targets/batch",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const targetIds = [...new Set(schoolTargetBatchBody.parse(request.body).targetIds)];
+      const result = await prisma.$transaction(async (tx) => {
+        const poems = await tx.poem.findMany({
+          where: { id: { in: targetIds }, isEnabled: true },
+          select: { id: true },
+        });
+        if (poems.length !== targetIds.length) {
+          throw new HttpError(404, "POEM_NOT_FOUND", "部分古诗已不存在或已停用");
+        }
+        const existing = await tx.poemSchoolTarget.findMany({
+          where: { childId, poemId: { in: targetIds } },
+          select: { poemId: true },
+        });
+        const existingIds = new Set(existing.map((item) => item.poemId));
+        const currentMax = await tx.poemSchoolTarget.aggregate({
+          where: { childId },
+          _max: { sortOrder: true },
+        });
+        const data = targetIds
+          .filter((poemId) => !existingIds.has(poemId))
+          .map((poemId, index) => ({
+            childId,
+            poemId,
+            sortOrder: (currentMax._max.sortOrder ?? -1) + index + 1,
+          }));
+        if (data.length) await tx.poemSchoolTarget.createMany({ data, skipDuplicates: true });
+        return { addedCount: data.length };
+      });
+      return result;
+    },
+  );
+
+  app.delete(
+    "/api/parent/children/:childId/poems/school-targets/batch",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const targetIds = [...new Set(schoolTargetBatchBody.parse(request.body).targetIds)];
+      const result = await prisma.poemSchoolTarget.deleteMany({
+        where: { childId, poemId: { in: targetIds } },
+      });
+      return { removedCount: result.count };
+    },
+  );
+
+  app.post(
     "/api/parent/children/:childId/poems/school-targets/:targetId",
     async (request, reply) => {
       const { childId, targetId } = schoolTargetParams.parse(request.params);
@@ -1551,6 +1605,56 @@ export async function registerParentRoutes(
         page,
         pageSize,
       };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:childId/hanzi/school-targets/batch",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const targetIds = [...new Set(schoolTargetBatchBody.parse(request.body).targetIds)];
+      const result = await prisma.$transaction(async (tx) => {
+        const characters = await tx.hanziCharacter.findMany({
+          where: { id: { in: targetIds }, isEnabled: true },
+          select: { id: true },
+        });
+        if (characters.length !== targetIds.length) {
+          throw new HttpError(404, "HANZI_NOT_FOUND", "部分汉字已不存在或已停用");
+        }
+        const existing = await tx.hanziSchoolTarget.findMany({
+          where: { childId, characterId: { in: targetIds } },
+          select: { characterId: true },
+        });
+        const existingIds = new Set(existing.map((item) => item.characterId));
+        const currentMax = await tx.hanziSchoolTarget.aggregate({
+          where: { childId },
+          _max: { sortOrder: true },
+        });
+        const data = targetIds
+          .filter((characterId) => !existingIds.has(characterId))
+          .map((characterId, index) => ({
+            childId,
+            characterId,
+            sortOrder: (currentMax._max.sortOrder ?? -1) + index + 1,
+          }));
+        if (data.length) await tx.hanziSchoolTarget.createMany({ data, skipDuplicates: true });
+        return { addedCount: data.length };
+      });
+      return result;
+    },
+  );
+
+  app.delete(
+    "/api/parent/children/:childId/hanzi/school-targets/batch",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const targetIds = [...new Set(schoolTargetBatchBody.parse(request.body).targetIds)];
+      const result = await prisma.hanziSchoolTarget.deleteMany({
+        where: { childId, characterId: { in: targetIds } },
+      });
+      return { removedCount: result.count };
     },
   );
 

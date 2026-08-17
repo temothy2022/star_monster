@@ -722,6 +722,7 @@ export function App() {
     return (
       <MathPracticeExperience
         attemptId={activeAttempt!.id}
+        rewardStars={activeAttempt!.dailyTask.baseStarsSnapshot}
         onExit={leaveActiveAttempt}
         onCompleted={(reward) => {
           setLastCompletion({

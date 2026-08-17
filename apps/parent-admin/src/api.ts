@@ -1038,6 +1038,16 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/school-targets/${characterId}`,
       { method: "DELETE" },
     ),
+  addHanziSchoolTargets: (childId: string, characterIds: string[]) =>
+    api<{ addedCount: number }>(
+      `/api/parent/children/${childId}/hanzi/school-targets/batch`,
+      { method: "POST", body: JSON.stringify({ targetIds: characterIds }) },
+    ),
+  removeHanziSchoolTargets: (childId: string, characterIds: string[]) =>
+    api<{ removedCount: number }>(
+      `/api/parent/children/${childId}/hanzi/school-targets/batch`,
+      { method: "DELETE", body: JSON.stringify({ targetIds: characterIds }) },
+    ),
   poemSettings: (childId: string) =>
     api<PoemSettingsResponse>(
       `/api/parent/children/${childId}/poems/settings`,
@@ -1079,6 +1089,16 @@ export const parentApi = {
     api<{ ok: true }>(
       `/api/parent/children/${childId}/poems/school-targets/${poemId}`,
       { method: "DELETE" },
+    ),
+  addPoemSchoolTargets: (childId: string, poemIds: string[]) =>
+    api<{ addedCount: number }>(
+      `/api/parent/children/${childId}/poems/school-targets/batch`,
+      { method: "POST", body: JSON.stringify({ targetIds: poemIds }) },
+    ),
+  removePoemSchoolTargets: (childId: string, poemIds: string[]) =>
+    api<{ removedCount: number }>(
+      `/api/parent/children/${childId}/poems/school-targets/batch`,
+      { method: "DELETE", body: JSON.stringify({ targetIds: poemIds }) },
     ),
   createTemplate: (childId: string, data: Record<string, unknown>) =>
     api<{ template: TaskTemplate }>(

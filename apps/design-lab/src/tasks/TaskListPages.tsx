@@ -522,12 +522,16 @@ const TASK_CATEGORY_PROGRESS: Array<{
 ];
 
 function CategoryProgressWidget({ tasks }: { tasks: TaskItem[] }) {
+  // Repeatable tasks stay PENDING so the child can claim them again today.
+  // For this summary, an attempt completed at least once still counts as done.
+  const completedForProgress = (task: TaskItem) =>
+    task.status === "completed" || task.repeatCompletionCount > 0;
   const rows = TASK_CATEGORY_PROGRESS.map((category) => {
     const categoryTasks = tasks.filter((task) => taskCategoryFilterFor(task.category) === category.key);
     return {
       ...category,
       total: categoryTasks.length,
-      completed: categoryTasks.filter((task) => task.status === "completed").length,
+      completed: categoryTasks.filter(completedForProgress).length,
     };
   }).filter((category) => category.total > 0);
 
@@ -539,7 +543,7 @@ function CategoryProgressWidget({ tasks }: { tasks: TaskItem[] }) {
   return (
     <div className="task-widget-category-progress">
       <header className="task-widget-category-progress__heading">
-        <div><small>今天的安排</small><strong>分类进度</strong></div>
+        <div><strong>分类进度</strong></div>
         <span>{completed}/{tasks.length}</span>
       </header>
       <div className="task-widget-category-progress__grid">
