@@ -830,7 +830,22 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .category-dot--english { background: #a781ce; }
 .category-dot--chinese, .category-dot--reading { background: #d65a72; }
 .category-dot--chores, .category-dot--organizing { background: #e9a23b; }
+.category-dot--homework { background: #c68a5a; }
 .category-dot--other, .category-dot--music { background: #9ca3af; }
+
+.task-category-manager { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5e9f0; }
+.task-category-manager__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.task-category-manager__heading strong { color: #263d60; font-size: 16px; }
+.task-category-manager__heading span,
+.task-category-manager__item small { color: #8792a4; font-size: 12px; }
+.task-category-manager__form { display: flex; align-items: center; gap: 8px; }
+.task-category-manager__form input:not([type="color"]) { min-width: 0; flex: 1; }
+.task-category-manager__form input[type="color"] { width: 42px; height: 40px; padding: 3px; }
+.task-category-manager__list { display: grid; gap: 7px; margin-top: 12px; }
+.task-category-manager__item { display: flex; align-items: center; gap: 8px; min-height: 34px; }
+.task-category-manager__item .category-dot { width: 10px; height: 22px; flex-basis: 10px; }
+.task-category-manager__item > span:nth-child(2) { min-width: 0; flex: 1; color: #344a6c; font-weight: 650; }
+.task-category-manager__item button { padding: 5px 8px; }
 .list-card__actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .list-card__actions button, .wish-admin-card button, .table-actions button { min-height: 32px; padding: 0 10px; border-color: #d4d9e1; font-size: 12px; }
 .empty-state { padding: 42px 20px; color: #8a93a3; text-align: center; }

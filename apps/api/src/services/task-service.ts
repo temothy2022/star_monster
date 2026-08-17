@@ -29,6 +29,11 @@ type TaskTemplateWithMathConfig = TaskTemplate & {
     typeCounts: Prisma.JsonValue;
     arithmeticItemsPerQuestion: Prisma.JsonValue;
   } | null;
+  customCategory: {
+    id: string;
+    name: string;
+    color: string;
+  } | null;
 };
 type CompleteTaskTiming = { stage: string; ms: number };
 type CompleteTaskOptions = {
@@ -226,7 +231,7 @@ async function eligibleTaskTemplates(
       isEnabled: true,
       archivedAt: null,
     },
-    include: { mathPracticeConfig: true },
+    include: { mathPracticeConfig: true, customCategory: true },
   });
 
   const due = templates.filter((template) =>
@@ -301,6 +306,9 @@ export async function generateDailyTasks(
       sortOrder: template.sortOrder,
       titleSnapshot: template.title,
       categorySnapshot: template.category,
+      categoryLabelSnapshot: template.customCategory?.name ?? null,
+      categoryColorSnapshot: template.customCategory?.color ?? null,
+      customCategoryIdSnapshot: template.customCategory?.id ?? null,
       iconKeySnapshot: template.iconKey,
       modeSnapshot: template.mode,
       experienceKindSnapshot: template.experienceKind,
@@ -407,7 +415,9 @@ async function normalizeTodaySystemSnapshots(
             experienceKind: true,
             title: true,
             category: true,
+            customCategoryId: true,
             iconKey: true,
+            customCategory: { select: { name: true, color: true } },
           },
         },
       },
@@ -425,6 +435,9 @@ async function normalizeTodaySystemSnapshots(
           experienceKindSnapshot: task.template.experienceKind,
           titleSnapshot: task.template.title,
           categorySnapshot: task.template.category,
+          categoryLabelSnapshot: task.template.customCategory?.name ?? null,
+          categoryColorSnapshot: task.template.customCategory?.color ?? null,
+          customCategoryIdSnapshot: task.template.customCategoryId,
           iconKeySnapshot: task.template.iconKey,
         },
       });
@@ -544,6 +557,9 @@ export async function getTodayTaskExperience(
         sortOrder: true,
         titleSnapshot: true,
         categorySnapshot: true,
+        categoryLabelSnapshot: true,
+        categoryColorSnapshot: true,
+        customCategoryIdSnapshot: true,
         iconKeySnapshot: true,
         modeSnapshot: true,
         experienceKindSnapshot: true,

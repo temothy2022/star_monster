@@ -6,6 +6,7 @@ export const TASK_CATEGORIES = [
   "CHORES",
   "CHINESE",
   "ENGLISH",
+  "HOMEWORK",
   "OTHER",
 ] as const;
 
@@ -17,6 +18,7 @@ export const TASK_CATEGORY_LABELS: Record<TaskCategoryValue, string> = {
   CHORES: "生活习惯",
   CHINESE: "语文",
   ENGLISH: "英语",
+  HOMEWORK: "家庭作业",
   OTHER: "综合任务",
 };
 

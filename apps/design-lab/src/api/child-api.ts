@@ -460,8 +460,12 @@ export type DailyTask = {
     | "MUSIC"
     | "CHINESE"
     | "ENGLISH"
+    | "HOMEWORK"
     | "PE"
     | "OTHER";
+  categoryLabelSnapshot: string | null;
+  categoryColorSnapshot: string | null;
+  customCategoryIdSnapshot: string | null;
   iconKeySnapshot: string;
   modeSnapshot: "UNTIMED" | "TIMED";
   experienceKindSnapshot:

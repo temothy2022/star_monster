@@ -69,6 +69,7 @@ enum TaskCategory {
   MUSIC
   CHINESE
   ENGLISH
+  HOMEWORK
   PE
   OTHER
 }
@@ -253,8 +254,26 @@ model Family {
   petRoomThemeSettings FamilyPetRoomThemeSetting[]
   petRoomThemes        PetRoomTheme[]
   travelPackingLists   TravelPackingList[]
+  taskCategories      TaskCategoryDefinition[]
 
   @@index([status])
+}
+
+model TaskCategoryDefinition {
+  id        String   @id @default(cuid())
+  familyId  String
+  name      String
+  color     String   @default("#9CA3AF")
+  sortOrder Int      @default(0)
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family        Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  taskTemplates TaskTemplate[]
+
+  @@unique([familyId, name])
+  @@index([familyId, isEnabled, sortOrder])
 }
 
 model User {
@@ -737,11 +756,14 @@ model TaskTemplate {
   updatedAt             DateTime             @updatedAt
 
   child              ChildProfile        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  customCategoryId   String?
+  customCategory     TaskCategoryDefinition? @relation(fields: [customCategoryId], references: [id], onDelete: SetNull)
   dailyTasks         DailyTask[]
   mathPracticeConfig MathPracticeConfig?
 
   @@index([childId, isEnabled, archivedAt])
   @@index([childId, scheduleKind, oneTimeDate])
+  @@index([customCategoryId])
 }
 
 model FamilyAiConfig {
@@ -1035,6 +1057,9 @@ model DailyTask {
   sortOrder                  Int
   titleSnapshot              String
   categorySnapshot           TaskCategory
+  categoryLabelSnapshot      String?
+  categoryColorSnapshot      String?
+  customCategoryIdSnapshot   String?
   iconKeySnapshot            String
   modeSnapshot               TaskMode
   experienceKindSnapshot     TaskExperienceKind @default(STANDARD)

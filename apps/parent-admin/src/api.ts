@@ -168,6 +168,13 @@ export type TaskTemplate = {
     | "POEM_REVIEW";
   systemManaged: boolean;
   category: string;
+  customCategoryId: string | null;
+  customCategory: {
+    id: string;
+    name: string;
+    color: string;
+    isEnabled: boolean;
+  } | null;
   iconKey: string;
   mode: "UNTIMED" | "TIMED";
   suggestedSeconds: number | null;
@@ -191,6 +198,15 @@ export type TaskTemplate = {
     typeCounts: Record<string, number>;
     arithmeticItemsPerQuestion: Record<string, number>;
   } | null;
+};
+
+export type TaskCategoryOption = {
+  id: string;
+  key: string;
+  name: string;
+  color: string;
+  kind: "BUILT_IN" | "CUSTOM";
+  isEnabled: boolean;
 };
 
 export type HanziLearningSettings = {
@@ -523,7 +539,7 @@ export type GrowthAnalytics = {
     starsRefunded: number;
   }>;
   categories: Array<{
-    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "OTHER";
+    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "HOMEWORK" | "OTHER";
     label: string;
     scheduledTasks: number;
     completedTasks: number;
@@ -535,7 +551,7 @@ export type GrowthAnalytics = {
   tasks: Array<{
     templateId: string;
     title: string;
-    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "OTHER";
+    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "HOMEWORK" | "OTHER";
     categoryLabel: string;
     repeatableDaily: boolean;
     scheduledDays: number;
@@ -912,6 +928,24 @@ export const parentApi = {
   templates: (childId: string) =>
     api<{ templates: TaskTemplate[] }>(
       `/api/parent/children/${childId}/task-templates`,
+    ),
+  taskCategories: (childId: string) =>
+    api<{ categories: TaskCategoryOption[] }>(
+      `/api/parent/children/${childId}/task-categories`,
+    ),
+  createTaskCategory: (childId: string, data: { name: string; color: string }) =>
+    api<{ category: TaskCategoryOption }>(
+      `/api/parent/children/${childId}/task-categories`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
+  updateTaskCategory: (
+    childId: string,
+    categoryId: string,
+    data: Partial<{ name: string; color: string; isEnabled: boolean }>,
+  ) =>
+    api<{ category: TaskCategoryOption }>(
+      `/api/parent/children/${childId}/task-categories/${categoryId}`,
+      { method: "PATCH", body: JSON.stringify(data) },
     ),
   hanziSettings: (childId: string) =>
     api<HanziSettingsResponse>(

@@ -41,7 +41,11 @@ import {
   getFootprints,
   leaderboardEffectiveMinute,
 } from "../services/footprint-service.js";
-import { TASK_CATEGORIES, WISH_CATEGORIES } from "../domain/constants.js";
+import {
+  TASK_CATEGORIES,
+  TASK_CATEGORY_LABELS,
+  WISH_CATEGORIES,
+} from "../domain/constants.js";
 import { generateChallengeLetterIfEligible } from "../services/challenge-conversation-service.js";
 import {
   createChildAccount,
@@ -75,6 +79,7 @@ const presetIcon = z.enum([
   "chores",
   "chinese",
   "english",
+  "homework",
   "other",
 ]);
 const planetSettingsSchema = z
@@ -215,6 +220,7 @@ const poemLibraryQuery = z.object({
 const taskTemplateShape = {
   title: z.string().trim().min(1).max(80),
   category: taskCategory,
+  customCategoryId: z.string().min(1).nullable().optional(),
   iconKey: presetIcon,
   mode: taskMode,
   experienceKind: taskExperienceKind.default("STANDARD"),
@@ -249,6 +255,13 @@ const taskTemplateShape = {
 const taskTemplateSchema = z
   .object(taskTemplateShape)
   .superRefine((input, context) => {
+    if (input.customCategoryId && input.category !== "OTHER") {
+      context.addIssue({
+        code: "custom",
+        path: ["category"],
+        message: "自定义分类必须使用综合任务分类位",
+      });
+    }
     if (input.mode === "TIMED" && !input.timeLimitSeconds) {
       context.addIssue({
         code: "custom",
@@ -484,6 +497,7 @@ function templateData(input: z.infer<typeof taskTemplateSchema>) {
   return {
     title: input.title,
     category: input.category,
+    customCategoryId: input.category === "OTHER" ? (input.customCategoryId ?? null) : null,
     iconKey: input.iconKey,
     mode: input.mode,
     experienceKind: input.experienceKind,
@@ -525,6 +539,78 @@ function templateData(input: z.infer<typeof taskTemplateSchema>) {
       ? (input.minimumGapDays ?? null)
       : null,
   };
+}
+
+const TASK_CATEGORY_COLORS: Record<(typeof TASK_CATEGORIES)[number], string> = {
+  MATH: "#7F83D4",
+  EXERCISE: "#F36F6A",
+  CHORES: "#E9A23B",
+  CHINESE: "#D65A72",
+  ENGLISH: "#45B7C6",
+  HOMEWORK: "#C68A5A",
+  OTHER: "#9CA3AF",
+};
+
+const taskCategoryDefinitionSchema = z.object({
+  name: z.string().trim().min(1).max(20),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "分类颜色格式不正确"),
+  isEnabled: z.boolean().optional(),
+});
+const taskCategoryDefinitionPatchSchema = taskCategoryDefinitionSchema.partial();
+const taskCategoryDefinitionParams = z.object({
+  childId: z.string().min(1),
+  categoryId: z.string().min(1),
+});
+
+async function requireFamilyTaskCategory(
+  familyId: string,
+  categoryId: string,
+  options: { allowDisabled?: boolean } = {},
+) {
+  const category = await prisma.taskCategoryDefinition.findFirst({
+    where: {
+      id: categoryId,
+      familyId,
+      ...(options.allowDisabled ? {} : { isEnabled: true }),
+    },
+  });
+  if (!category) {
+    throw new HttpError(400, "TASK_CATEGORY_NOT_FOUND", "没有找到可用的自定义任务分类");
+  }
+  return category;
+}
+
+function builtInTaskCategories() {
+  return TASK_CATEGORIES.map((key) => ({
+    id: key,
+    key,
+    name: TASK_CATEGORY_LABELS[key],
+    color: TASK_CATEGORY_COLORS[key],
+    kind: "BUILT_IN" as const,
+    isEnabled: true,
+  }));
+}
+
+function customTaskCategoryResponse(category: {
+  id: string;
+  name: string;
+  color: string;
+  isEnabled: boolean;
+}) {
+  return {
+    id: category.id,
+    key: `CUSTOM:${category.id}`,
+    name: category.name,
+    color: category.color,
+    kind: "CUSTOM" as const,
+    isEnabled: category.isEnabled,
+  };
+}
+
+function assertCustomCategoryName(name: string) {
+  if (TASK_CATEGORIES.some((key) => TASK_CATEGORY_LABELS[key] === name)) {
+    throw new HttpError(409, "TASK_CATEGORY_EXISTS", "这个名称已经是内置任务分类");
+  }
 }
 
 type PoemSettingsInput = z.infer<typeof poemSettingsSchema>;
@@ -907,16 +993,87 @@ export async function registerParentRoutes(
     return {
       templates: await prisma.taskTemplate.findMany({
         where: { childId: id, archivedAt: null },
-        include: { mathPracticeConfig: true },
+        include: { mathPracticeConfig: true, customCategory: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       }),
     };
   });
 
+  app.get("/api/parent/children/:id/task-categories", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    const { child } = await requireOwnedChild(request, reply, config, id);
+    const custom = await prisma.taskCategoryDefinition.findMany({
+      where: { familyId: child.familyId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    return {
+      categories: [
+        ...builtInTaskCategories(),
+        ...custom.map(customTaskCategoryResponse),
+      ],
+    };
+  });
+
+  app.post("/api/parent/children/:id/task-categories", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    const { child } = await requireOwnedChild(request, reply, config, id);
+    const input = taskCategoryDefinitionSchema.parse(request.body);
+    assertCustomCategoryName(input.name);
+    const last = await prisma.taskCategoryDefinition.findFirst({
+      where: { familyId: child.familyId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    try {
+      const category = await prisma.taskCategoryDefinition.create({
+        data: {
+          familyId: child.familyId,
+          name: input.name,
+          color: input.color,
+          sortOrder: (last?.sortOrder ?? -1) + 1,
+          isEnabled: input.isEnabled ?? true,
+        },
+      });
+      reply.status(201);
+      return { category: customTaskCategoryResponse(category) };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new HttpError(409, "TASK_CATEGORY_EXISTS", "这个分类名称已经存在");
+      }
+      throw error;
+    }
+  });
+
+  app.patch(
+    "/api/parent/children/:childId/task-categories/:categoryId",
+    async (request, reply) => {
+      const { childId, categoryId } = taskCategoryDefinitionParams.parse(request.params);
+      const { child } = await requireOwnedChild(request, reply, config, childId);
+      const input = taskCategoryDefinitionPatchSchema.parse(request.body);
+      if (input.name) assertCustomCategoryName(input.name);
+      await requireFamilyTaskCategory(child.familyId, categoryId, { allowDisabled: true });
+      try {
+        const category = await prisma.taskCategoryDefinition.update({
+          where: { id: categoryId },
+          data: input,
+        });
+        return { category: customTaskCategoryResponse(category) };
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          throw new HttpError(409, "TASK_CATEGORY_EXISTS", "这个分类名称已经存在");
+        }
+        throw error;
+      }
+    },
+  );
+
   app.post("/api/parent/children/:id/task-templates", async (request, reply) => {
     const { id } = idParams.parse(request.params);
-    await requireOwnedChild(request, reply, config, id);
+    const { child } = await requireOwnedChild(request, reply, config, id);
     const input = taskTemplateSchema.parse(request.body);
+    if (input.customCategoryId) {
+      await requireFamilyTaskCategory(child.familyId, input.customCategoryId);
+    }
     const mathPracticeConfig = input.experienceKind === "MATH_PRACTICE"
       ? await loadMathPracticeSettings(id)
       : null;
@@ -936,7 +1093,7 @@ export async function registerParentRoutes(
             }
           : {}),
       },
-      include: { mathPracticeConfig: true },
+      include: { mathPracticeConfig: true, customCategory: true },
     });
     await generateDailyTasks(
       id,
@@ -989,7 +1146,7 @@ export async function registerParentRoutes(
     "/api/parent/children/:childId/task-templates/:id",
     async (request, reply) => {
       const { childId, id } = childResourceParams.parse(request.params);
-      await requireOwnedChild(request, reply, config, childId);
+      const { child } = await requireOwnedChild(request, reply, config, childId);
       const patch = taskTemplatePatchSchema.parse(request.body);
       const existing = await prisma.taskTemplate.findFirst({
         where: { id, childId, archivedAt: null, systemManaged: false },
@@ -1006,6 +1163,11 @@ export async function registerParentRoutes(
             ? patch.oneTimeDate
             : existing.oneTimeDate?.toISOString().slice(0, 10),
       });
+      if (merged.customCategoryId) {
+        await requireFamilyTaskCategory(child.familyId, merged.customCategoryId, {
+          allowDisabled: existing.customCategoryId === merged.customCategoryId,
+        });
+      }
       const mathPracticeConfig = merged.experienceKind === "MATH_PRACTICE"
         ? await loadMathPracticeSettings(childId)
         : null;
@@ -1033,7 +1195,7 @@ export async function registerParentRoutes(
                 ? { delete: true }
                 : undefined,
         },
-        include: { mathPracticeConfig: true },
+        include: { mathPracticeConfig: true, customCategory: true },
       });
       const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
       const remainsScheduledToday =
@@ -1055,6 +1217,9 @@ export async function registerParentRoutes(
               sortOrder: template.sortOrder,
               titleSnapshot: template.title,
               categorySnapshot: template.category,
+              categoryLabelSnapshot: template.customCategory?.name ?? TASK_CATEGORY_LABELS[template.category as keyof typeof TASK_CATEGORY_LABELS],
+              categoryColorSnapshot: template.customCategory?.color ?? TASK_CATEGORY_COLORS[template.category as keyof typeof TASK_CATEGORY_COLORS],
+              customCategoryIdSnapshot: template.customCategoryId,
               iconKeySnapshot: template.iconKey,
               modeSnapshot: template.mode,
               experienceKindSnapshot: template.experienceKind,

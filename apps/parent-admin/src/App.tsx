@@ -29,6 +29,7 @@ import {
   type Redemption,
   type StaffUser,
   type TaskHistoryItem,
+  type TaskCategoryOption,
   type TaskTemplate,
   type Wish,
 } from "./api";
@@ -197,6 +198,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   CHORES: "生活习惯",
   CHINESE: "语文",
   ENGLISH: "英语",
+  HOMEWORK: "家庭作业",
   OTHER: "综合任务",
 };
 
@@ -513,7 +515,7 @@ function taskFormFrom(template: TaskTemplate): TaskForm {
       template.experienceKind === "MATH_PRACTICE"
         ? template.experienceKind
         : "STANDARD",
-    category: template.category,
+    category: template.customCategoryId ? `CUSTOM:${template.customCategoryId}` : template.category,
     mode: template.mode,
     durationMinutes: Math.round(((template.mode === "TIMED" ? template.timeLimitSeconds : template.suggestedSeconds) ?? 60) / 60),
     baseStars: template.baseStars,
@@ -539,11 +541,14 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
   const isMathPractice = form.experienceKind === "MATH_PRACTICE";
   const isLearningExperience = isHanzi || isClock || isMakeTen || isMathPractice;
   const supportsRepeatableDaily = form.experienceKind === "STANDARD" || isMakeTen || isMathPractice;
+  const customCategoryId = form.category.startsWith("CUSTOM:") ? form.category.slice("CUSTOM:".length) : null;
+  const category = customCategoryId ? "OTHER" : form.category;
   return {
     title: form.title,
     experienceKind: form.experienceKind,
-    category: isHanzi ? "CHINESE" : isClock || isMakeTen || isMathPractice ? "MATH" : form.category,
-    iconKey: isHanzi ? "chinese" : isClock || isMakeTen || isMathPractice ? "math" : form.category.toLowerCase(),
+    category: isHanzi ? "CHINESE" : isClock || isMakeTen || isMathPractice ? "MATH" : category,
+    customCategoryId: isLearningExperience ? null : customCategoryId,
+    iconKey: isHanzi ? "chinese" : isClock || isMakeTen || isMathPractice ? "math" : category.toLowerCase(),
     mode: isLearningExperience ? "UNTIMED" : form.mode,
     suggestedSeconds: isLearningExperience || form.mode === "UNTIMED" ? form.durationMinutes * 60 : null,
     timeLimitSeconds: !isLearningExperience && form.mode === "TIMED" ? form.durationMinutes * 60 : null,
@@ -566,18 +571,27 @@ function taskPayload(form: TaskForm, sortOrder = 0) {
 
 function Tasks({ child }: { child: Child }) {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
+  const [categories, setCategories] = useState<TaskCategoryOption[]>([]);
   const [form, setForm] = useState<TaskForm>(EMPTY_TASK);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [categoryDraft, setCategoryDraft] = useState({ name: "", color: "#9CA3AF" });
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [categoryBusy, setCategoryBusy] = useState(false);
+  const [categoryError, setCategoryError] = useState("");
   const systemTemplates = templates.filter((template) => template.systemManaged);
   const editableTemplates = templates.filter((template) => !template.systemManaged);
 
   async function load() {
-    const result = await parentApi.templates(child.id);
-    setTemplates(result.templates);
+    const [templateResult, categoryResult] = await Promise.all([
+      parentApi.templates(child.id),
+      parentApi.taskCategories(child.id),
+    ]);
+    setTemplates(templateResult.templates);
+    setCategories(categoryResult.categories);
   }
   useEffect(() => { void load(); }, [child.id]);
 
@@ -601,6 +615,27 @@ function Tasks({ child }: { child: Child }) {
       setError(reason instanceof Error ? reason.message : "保存失败");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function saveCategory(event: FormEvent) {
+    event.preventDefault();
+    setCategoryBusy(true);
+    setCategoryError("");
+    try {
+      if (editingCategoryId) {
+        await parentApi.updateTaskCategory(child.id, editingCategoryId, categoryDraft);
+      } else {
+        await parentApi.createTaskCategory(child.id, categoryDraft);
+      }
+      setCategoryDraft({ name: "", color: "#9CA3AF" });
+      setEditingCategoryId(null);
+      const result = await parentApi.taskCategories(child.id);
+      setCategories(result.categories);
+    } catch (reason) {
+      setCategoryError(reason instanceof Error ? reason.message : "分类保存失败");
+    } finally {
+      setCategoryBusy(false);
     }
   }
 
@@ -726,7 +761,10 @@ function Tasks({ child }: { child: Child }) {
               earlyBonusEnabled: experienceKind === "STANDARD" ? form.earlyBonusEnabled : false,
             });
           }}><option value="STANDARD">普通任务</option><option value="HANZI_LEARNING">汉字学习任务</option><option value="CLOCK_LEARNING">时钟学习任务</option><option value="MAKE_TEN">凑十训练任务</option><option value="MATH_PRACTICE">数学练习任务</option></select></label>
-          <label>分类<select disabled={form.experienceKind !== "STANDARD"} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>{Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label>分类<select disabled={form.experienceKind !== "STANDARD"} value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
+            {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {categories.filter((category) => category.kind === "CUSTOM" && (category.isEnabled || category.key === form.category)).map((category) => <option key={category.key} value={category.key}>{category.name}</option>)}
+          </select></label>
           <label>计时类型<select disabled={form.experienceKind !== "STANDARD"} value={form.mode} onChange={(event) => setForm({ ...form, mode: event.target.value as TaskForm["mode"] })}><option value="UNTIMED">不限时</option><option value="TIMED">限时任务</option></select></label>
           <label>{form.mode === "TIMED" ? "倒计时（分钟）" : "建议时长（分钟）"}<input type="number" min={1} max={1440} value={form.durationMinutes} onChange={(event) => setForm({ ...form, durationMinutes: Number(event.target.value) })} /></label>
           <label>基础星星<input type="number" min={1} max={999} value={form.baseStars} onChange={(event) => setForm({ ...form, baseStars: Number(event.target.value) })} /></label>
@@ -750,6 +788,27 @@ function Tasks({ child }: { child: Child }) {
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
           <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_TASK); }}>取消编辑</button>}<button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
         </form>
+        <section className="task-category-manager">
+          <div className="task-category-manager__heading"><strong>任务分类</strong><span>内置分类和家庭自定义分类</span></div>
+          <form className="task-category-manager__form" onSubmit={saveCategory}>
+            <input required maxLength={20} placeholder="例如：家庭作业" value={categoryDraft.name} onChange={(event) => setCategoryDraft({ ...categoryDraft, name: event.target.value })} />
+            <input aria-label="分类颜色" type="color" value={categoryDraft.color} onChange={(event) => setCategoryDraft({ ...categoryDraft, color: event.target.value })} />
+            <button className="secondary-button" disabled={categoryBusy}>{editingCategoryId ? "保存分类" : "新增分类"}</button>
+            {editingCategoryId && <button type="button" className="ghost-button" onClick={() => { setEditingCategoryId(null); setCategoryDraft({ name: "", color: "#9CA3AF" }); }}>取消</button>}
+          </form>
+          {categoryError && <Notice kind="error">{categoryError}</Notice>}
+          <div className="task-category-manager__list">
+            {categories.map((category) => <div className="task-category-manager__item" key={category.key}>
+              <span className="category-dot" style={{ backgroundColor: category.color }} />
+              <span>{category.name}</span>
+              {category.kind === "CUSTOM" ? <>
+                <small>{category.isEnabled ? "启用" : "已停用"}</small>
+                <button type="button" className="ghost-button" onClick={() => { setEditingCategoryId(category.id); setCategoryDraft({ name: category.name, color: category.color }); }}>编辑</button>
+                <button type="button" className="ghost-button" onClick={() => void parentApi.updateTaskCategory(child.id, category.id, { isEnabled: !category.isEnabled }).then(load)}>{category.isEnabled ? "停用" : "启用"}</button>
+              </> : <small>内置</small>}
+            </div>)}
+          </div>
+        </section>
       </Panel>
       <Panel title={`任务模板（${templates.length}）`}>
         <div className="admin-list">
@@ -806,7 +865,7 @@ function Tasks({ child }: { child: Child }) {
                   setDragOverId(null);
                 }}
                 onClick={(event) => event.preventDefault()}
-              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : template.experienceKind === "MATH_PRACTICE" ? `数学练习 ${template.mathPracticeConfig?.totalQuestions ?? 0} 道` : CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} style={template.customCategory ? { backgroundColor: template.customCategory.color } : undefined} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : template.experienceKind === "MATH_PRACTICE" ? `数学练习 ${template.mathPracticeConfig?.totalQuestions ?? 0} 道` : template.customCategory?.name ?? CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>

@@ -143,6 +143,7 @@ const TASK_ACCENT_COLORS: Record<DailyTask["categorySnapshot"], string> = {
   MUSIC: "#9CA3AF",
   CHINESE: "#D65A72",
   ENGLISH: "#45B7C6",
+  HOMEWORK: "#C68A5A",
   PE: "#F36F6A",
   OTHER: "#9CA3AF",
 };
@@ -517,6 +518,7 @@ const TASK_CATEGORY_PROGRESS: Array<{
   { key: "MATH", label: "数学", color: "#7f83d4" },
   { key: "ENGLISH", label: "英语", color: "#45b7c6" },
   { key: "EXERCISE", label: "运动", color: "#f36f6a" },
+  { key: "HOMEWORK", label: "家庭作业", color: "#c68a5a" },
   { key: "LIFE", label: "生活", color: "#e9a23b" },
   { key: "OTHER", label: "综合", color: "#9ca3af" },
 ];
@@ -1396,7 +1398,7 @@ function taskItemFromApi(task: DailyTask): TaskItem {
       ? completedAttempt.baseStarsAwarded + completedAttempt.bonusStarsAwarded
       : task.baseStarsSnapshot,
     icon: iconForTask(task),
-    accentColor: accentForTask(task),
+    accentColor: task.categoryColorSnapshot ?? accentForTask(task),
     status: isCompleted ? "completed" : "pending",
     mode: task.modeSnapshot,
     repeatableDaily: task.repeatableDailySnapshot,
@@ -1406,13 +1408,14 @@ function taskItemFromApi(task: DailyTask): TaskItem {
   };
 }
 
-type TaskCategoryFilter = "ALL" | "CHINESE" | "MATH" | "ENGLISH" | "EXERCISE" | "LIFE" | "OTHER";
+type TaskCategoryFilter = "ALL" | "CHINESE" | "MATH" | "ENGLISH" | "EXERCISE" | "HOMEWORK" | "LIFE" | "OTHER";
 
 const TASK_CATEGORY_FILTER_ORDER: Exclude<TaskCategoryFilter, "ALL">[] = [
   "CHINESE",
   "MATH",
   "ENGLISH",
   "EXERCISE",
+  "HOMEWORK",
   "LIFE",
   "OTHER",
 ];
@@ -1423,6 +1426,7 @@ const TASK_CATEGORY_LABELS: Record<TaskCategoryFilter, string> = {
   MATH: "数学",
   ENGLISH: "英语",
   EXERCISE: "运动",
+  HOMEWORK: "家庭作业",
   LIFE: "生活",
   OTHER: "综合",
 };
@@ -1432,6 +1436,7 @@ function taskCategoryFilterFor(category: DailyTask["categorySnapshot"]): Exclude
   if (category === "MATH") return "MATH";
   if (category === "ENGLISH") return "ENGLISH";
   if (category === "EXERCISE" || category === "PE") return "EXERCISE";
+  if (category === "HOMEWORK") return "HOMEWORK";
   if (category === "CHORES" || category === "ORGANIZING") return "LIFE";
   return "OTHER";
 }
