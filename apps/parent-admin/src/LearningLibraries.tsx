@@ -101,6 +101,8 @@ export function ParentHanziLearning({ child }: { child: Child }) {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [schoolTargetCount, setSchoolTargetCount] = useState(0);
+  const [schoolTargetText, setSchoolTargetText] = useState("");
+  const [schoolTargetTextMessage, setSchoolTargetTextMessage] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -214,6 +216,32 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     }
   }
 
+  async function addSchoolTargetsFromText(event: FormEvent) {
+    event.preventDefault();
+    if (!schoolTargetText.trim()) return;
+    setBusy(true);
+    setError("");
+    setSchoolTargetTextMessage("");
+    try {
+      const result = await parentApi.addHanziSchoolTargetsFromText(child.id, schoolTargetText);
+      const refreshed = await parentApi.hanziCharacters(child.id, { q: searchQuery, page, pageSize });
+      setCharacters(refreshed.characters);
+      setTotal(refreshed.total);
+      setSchoolTargetCount((count) => count + result.addedCount);
+      setSchoolTargetText("");
+      const details = [
+        result.addedCount ? `已加入 ${result.addedCount} 个汉字` : "没有新增汉字",
+        result.alreadyAddedCharacters.length ? `已在清单：${result.alreadyAddedCharacters.join("、")}` : "",
+        result.missingCharacters.length ? `字库未找到：${result.missingCharacters.join("、")}` : "",
+      ].filter(Boolean);
+      setSchoolTargetTextMessage(details.join("；"));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "学校学习清单更新失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return <div className="admin-stack">
     <div className="admin-two-column">
       <Panel title="每日学习参数">
@@ -231,6 +259,22 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     <Panel title={`基础汉字库（${total} 个）`}>
       <p className="admin-help">汉字库由超级后台统一维护。家长端可以搜索、查看和试听，不可编辑资源。</p>
       <div className="admin-notice">学校优先清单：已加入 {schoolTargetCount} 个。加入后，新汉字会优先按加入顺序学习；学过后仍会自动进入复习计划。</div>
+      <form className="school-target-text-form" onSubmit={addSchoolTargetsFromText}>
+        <label htmlFor="school-target-hanzi-input">按文字批量加入学校学习</label>
+        <textarea
+          id="school-target-hanzi-input"
+          value={schoolTargetText}
+          onChange={(event) => setSchoolTargetText(event.target.value)}
+          placeholder="输入汉字即可，例如：春夏秋冬\n也支持空格、逗号或分行"
+          rows={3}
+          maxLength={1_000}
+        />
+        <div className="school-target-text-form__footer">
+          <small>系统会自动去重；不在字库中的汉字会单独提示。</small>
+          <button type="submit" className="primary-button" disabled={busy || !schoolTargetText.trim()}>{busy ? "加入中…" : "批量加入"}</button>
+        </div>
+        {schoolTargetTextMessage ? <div className="admin-notice" role="status">{schoolTargetTextMessage}</div> : null}
+      </form>
       <form className="hanzi-library-search" onSubmit={search}><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索汉字、拼音、含义或例句" /><button type="submit">搜索</button>{searchQuery ? <button type="button" onClick={() => { setSearchInput(""); setSearchQuery(""); setPage(1); }}>清除</button> : null}</form>
       <div className="school-target-toolbar">
         <label><input type="checkbox" checked={characters.length > 0 && characters.every((item) => selectedIds.has(item.id))} onChange={togglePageSelection} />全选本页（{characters.length} 个）</label>

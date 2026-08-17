@@ -612,6 +612,32 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .hanzi-library-list .list-card > input[type="checkbox"] { width: 18px; min-height: 18px; margin: 0; accent-color: #f47a3f; }
 .school-target-toolbar span { margin-right: auto; }
 .school-target-toolbar button { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.school-target-text-form {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #dce6f0;
+  border-radius: 12px;
+  background: #f8fbfe;
+}
+.school-target-text-form label { color: #243654; font-weight: 800; }
+.school-target-text-form textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 10px 12px;
+  border: 1px solid #cbd7e5;
+  border-radius: 9px;
+  color: #243654;
+  background: #fff;
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.school-target-text-form textarea:focus { outline: 2px solid rgba(74, 160, 202, .28); border-color: #5ca9cd; }
+.school-target-text-form__footer { display: flex; align-items: center; gap: 12px; }
+.school-target-text-form__footer small { color: #718096; margin-right: auto; }
 .hanzi-library-list .list-card > input[type="checkbox"] { flex: 0 0 18px; }
 .hanzi-library-search button,
 .hanzi-library-pagination button {

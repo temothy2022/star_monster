@@ -442,6 +442,9 @@ const schoolTargetChildParams = z.object({ childId: z.string().min(1) });
 const schoolTargetBatchBody = z.object({
   targetIds: z.array(z.string().min(1)).min(1).max(500),
 });
+const schoolTargetHanziTextBody = z.object({
+  characters: z.string().trim().min(1).max(1_000),
+});
 const statsQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -1655,6 +1658,57 @@ export async function registerParentRoutes(
         where: { childId, characterId: { in: targetIds } },
       });
       return { removedCount: result.count };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:childId/hanzi/school-targets/text",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const { characters: input } = schoolTargetHanziTextBody.parse(request.body);
+      const requestedCharacters = [...new Set(input.match(/\p{Script=Han}/gu) ?? [])];
+      if (requestedCharacters.length === 0) {
+        throw new HttpError(400, "HANZI_INPUT_EMPTY", "请输入至少一个汉字");
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const characters = await tx.hanziCharacter.findMany({
+          where: { character: { in: requestedCharacters }, isEnabled: true },
+          select: { id: true, character: true },
+        });
+        const foundCharacters = new Set(characters.map((item) => item.character));
+        const missingCharacters = requestedCharacters.filter((character) => !foundCharacters.has(character));
+        const existing = await tx.hanziSchoolTarget.findMany({
+          where: { childId, characterId: { in: characters.map((item) => item.id) } },
+          select: { characterId: true },
+        });
+        const existingIds = new Set(existing.map((item) => item.characterId));
+        const currentMax = await tx.hanziSchoolTarget.aggregate({
+          where: { childId },
+          _max: { sortOrder: true },
+        });
+        const data = requestedCharacters
+          .map((character) => characters.find((item) => item.character === character))
+          .filter((item): item is { id: string; character: string } => Boolean(item))
+          .filter((item) => !existingIds.has(item.id))
+          .map((item, index) => ({
+            childId,
+            characterId: item.id,
+            sortOrder: (currentMax._max.sortOrder ?? -1) + index + 1,
+          }));
+        if (data.length) await tx.hanziSchoolTarget.createMany({ data, skipDuplicates: true });
+        return {
+          addedCount: data.length,
+          alreadyAddedCharacters: requestedCharacters
+            .map((character) => characters.find((item) => item.character === character))
+            .filter((item): item is { id: string; character: string } => Boolean(item))
+            .filter((item) => existingIds.has(item.id))
+            .map((item) => item.character),
+          missingCharacters,
+        };
+      });
+      return result;
     },
   );
 

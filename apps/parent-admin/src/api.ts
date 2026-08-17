@@ -1048,6 +1048,15 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/school-targets/batch`,
       { method: "DELETE", body: JSON.stringify({ targetIds: characterIds }) },
     ),
+  addHanziSchoolTargetsFromText: (childId: string, characters: string) =>
+    api<{
+      addedCount: number;
+      alreadyAddedCharacters: string[];
+      missingCharacters: string[];
+    }>(
+      `/api/parent/children/${childId}/hanzi/school-targets/text`,
+      { method: "POST", body: JSON.stringify({ characters }) },
+    ),
   poemSettings: (childId: string) =>
     api<PoemSettingsResponse>(
       `/api/parent/children/${childId}/poems/settings`,
