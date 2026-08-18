@@ -80,6 +80,11 @@ const MathPracticeExperience = lazy(() =>
     default: module.MathPracticeExperience,
   })),
 );
+const BundleComposePracticePage = lazy(() =>
+  import("./bundle-practice/BundleComposePracticePage").then((module) => ({
+    default: module.BundleComposePracticePage,
+  })),
+);
 const UntimedTaskActive = lazy(() =>
   loadUntimedTaskPages().then((module) => ({
     default: module.UntimedTaskActive,
@@ -255,6 +260,7 @@ type AppRoute =
   | "poem-session"
   | "math-preview"
   | "math-print"
+  | "bundle-practice"
   | "poem-recitation";
 
 const DEFAULT_TASK_ROUTE: AppRoute = "home";
@@ -327,6 +333,7 @@ function readRouteFromHash(): AppRoute {
     "poem-session",
     "math-preview",
     "math-print",
+    "bundle-practice",
     "poem-recitation",
   ];
 
@@ -370,6 +377,7 @@ function childPageTitle(route: AppRoute) {
   if (route === "math-practice-session") return "数学练习";
   if (route === "math-preview") return "数学练习设计室";
   if (route === "math-print") return "A4 数学练习卷";
+  if (route === "bundle-practice") return "捆和根练习";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
   if (route === "pet-growth") return "星宠小屋";
@@ -763,6 +771,10 @@ export function App() {
 
   if (route === "math-print") {
     return <MathWorksheetPrintPage />;
+  }
+
+  if (route === "bundle-practice") {
+    return <BundleComposePracticePage />;
   }
 
   if (route === "poem-recitation") {
