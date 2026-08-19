@@ -1,6 +1,19 @@
 @import "../../parent-admin/src/styles.css";
 
 :root { background: #f3f5f8; }
+.super-admin-framework.ant-layout { display: flex; min-height: 100vh; grid-template-columns: none; background: #f3f5f8; }
+.super-admin-framework .admin-sidebar { padding: 0; }
+.super-admin-framework .admin-sidebar .ant-layout-sider-children { display: flex; height: 100%; padding: 22px 13px 18px; flex-direction: column; }
+.super-admin-framework .admin-sidebar__nav.ant-menu { min-height: 0; flex: 1; overflow-y: auto; border-inline-end: 0; background: transparent; }
+.super-admin-framework .admin-sidebar__nav .ant-menu-sub { background: transparent; }
+.super-admin-framework .admin-sidebar__nav .ant-menu-submenu-title,
+.super-admin-framework .admin-sidebar__nav .ant-menu-item { margin-inline: 0; width: 100%; border-radius: 7px; }
+.super-admin-framework .admin-sidebar__nav .ant-menu-submenu-title { color: #c7d2e5; font-weight: 800; }
+.super-admin-framework .admin-sidebar__nav .ant-menu-item { color: #aebbd1; }
+.super-admin-framework .admin-sidebar__nav .ant-menu-item-selected { color: #fff; background: #3f6f9f; font-weight: 800; }
+.super-admin-framework .admin-main { min-width: 0; background: #f3f5f8; }
+.super-admin-framework .admin-topbar { height: auto; line-height: normal; background: rgb(255 255 255 / 92%); }
+.super-admin-framework .admin-content { width: min(1560px, 100%); }
 .super-app .admin-sidebar { background: #202d47; color: #eef3ff; border-right: 0; }
 .super-app .admin-brand small,
 .super-app .admin-sidebar__account small { color: #9eabc2; }
@@ -56,6 +69,7 @@
 .super-create-result code { padding: 5px 8px; border-radius: 7px; color: #233653; background: white; font-size: 18px; font-weight: 700; letter-spacing: .12em; }
 .super-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
 .super-toolbar input { max-width: 360px; }
+.super-create-family-form { padding-top: 8px; }
 .resource-tabs { justify-content: flex-start; flex-wrap: wrap; }
 .mascot-dialogue-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
 .mascot-dialogue-card { display: grid; gap: 12px; padding: 16px; border: 1px solid #dce1e8; border-radius: 14px; background: #fffdfa; }

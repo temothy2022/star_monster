@@ -82,6 +82,7 @@ const ParentPoemLearning = lazy(() => import("./LearningLibraries").then((module
 
 type Section =
   | "overview"
+  | "children"
   | "pet"
   | "history"
   | "tasks"
@@ -101,6 +102,7 @@ type Section =
 
 const SECTION_LABELS: Record<Section, string> = {
   overview: "成长总览",
+  children: "孩子管理",
   pet: "星宠管理",
   history: "任务记录",
   tasks: "任务配置",
@@ -126,7 +128,7 @@ type NavItem = {
 };
 
 const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
-  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "pet", label: "星宠管理", icon: <HomeOutlined /> }] },
+  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "children", label: "孩子管理", icon: <UserOutlined /> }] },
   {
     label: "任务中心",
     items: [
@@ -135,7 +137,7 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     ],
   },
   {
-    label: "学习内容",
+    label: "学习管理",
     items: [
       { key: "hanzi", label: "汉字学习", icon: <ReadOutlined /> },
       { key: "clock", label: "时钟学习", icon: <ClockCircleOutlined /> },
@@ -145,21 +147,20 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
     ],
   },
   {
-    label: "奖励中心",
+    label: "激励与奖励",
     items: [
       { key: "wishes", label: "星愿管理", icon: <GiftOutlined /> },
       { key: "redemptions", label: "兑换处理", icon: <ControlOutlined /> },
       { key: "stars", label: "星星流水", icon: <StarOutlined /> },
+      { key: "leaderboard", label: "排行榜设置", icon: <TeamOutlined /> },
       { key: "planets", label: "航图规则", icon: <AppstoreOutlined /> },
     ],
   },
   {
-    label: "智能与设置",
+    label: "星宠与智能",
     items: [
-      { key: "ai", label: "AI 助手", icon: <ControlOutlined /> },
-      { key: "leaderboard", label: "排行榜设置", icon: <TeamOutlined /> },
-      { key: "profile", label: "孩子档案", icon: <UserOutlined /> },
-      { key: "settings", label: "登录设备", icon: <SettingOutlined /> },
+      { key: "pet", label: "星宠管理", icon: <HomeOutlined /> },
+      { key: "ai", label: "智能建议", icon: <ControlOutlined /> },
     ],
   },
 ];
@@ -167,16 +168,17 @@ const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
 const PRIMARY_MOBILE_NAV: NavItem[] = [
   { key: "overview", label: "总览", icon: <BarChartOutlined /> },
   { key: "tasks", label: "任务", icon: <CalendarOutlined /> },
+  { key: "children", label: "孩子", icon: <UserOutlined /> },
   { key: "wishes", label: "奖励", icon: <GiftOutlined /> },
-  { key: "ai", label: "AI 助手", icon: <ControlOutlined /> },
 ];
 
-const REWARD_SECTIONS: Section[] = ["wishes", "redemptions", "stars", "planets"];
+const REWARD_SECTIONS: Section[] = ["wishes", "redemptions", "stars", "leaderboard", "planets"];
 
 function sectionFromLocation(): Section {
   // The packing list is served by its standalone app at /packing; if this
   // bundle is ever loaded there, fall back to a valid parent-admin section.
   const candidate = window.location.hash.replace(/^#/, "") as Section;
+  if (candidate === "profile" || candidate === "settings") return "children";
   return (Object.keys(SECTION_LABELS) as Section[]).includes(candidate) ? candidate : "overview";
 }
 
@@ -2563,6 +2565,72 @@ function Settings({ child }: { child: Child }) {
   );
 }
 
+function ChildrenManagement({
+  children,
+  selectedChild,
+  onSelect,
+  onCreate,
+  onShowCode,
+  onChanged,
+}: {
+  children: Child[];
+  selectedChild: Child;
+  onSelect: (childId: string) => void;
+  onCreate: () => void;
+  onShowCode: (child: Child) => void;
+  onChanged: () => void;
+}) {
+  return (
+    <div className="admin-stack children-management">
+      <Panel
+        title={`孩子档案（${children.length}）`}
+        actions={<Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>新建孩子</Button>}
+      >
+        <div className="children-directory" role="list" aria-label="孩子档案列表">
+          {children.map((child) => (
+            <button
+              type="button"
+              role="listitem"
+              className={child.id === selectedChild.id ? "is-active" : ""}
+              key={child.id}
+              onClick={() => onSelect(child.id)}
+            >
+              <span className="children-directory__avatar">
+                {child.avatarUrl ? <img src={child.avatarUrl} alt="" /> : (child.nickname ?? "星").slice(0, 1)}
+              </span>
+              <span><strong>{child.nickname ?? "未设置昵称"}</strong><small>探险代码尾号 {child.loginCodeLastFour}</small></span>
+              <b>{child.id === selectedChild.id ? "当前管理" : "切换"}</b>
+            </button>
+          ))}
+        </div>
+      </Panel>
+      <Tabs
+        className="admin-workspace-tabs"
+        items={[
+          {
+            key: "profile",
+            label: "资料与目标",
+            children: <ChildProfileSettings child={selectedChild} onChanged={onChanged} />,
+          },
+          {
+            key: "access",
+            label: "登录与设备",
+            children: <div className="admin-stack">
+              <Panel title="孩子账号">
+                <div className="child-login-code-card">
+                  <div><span>探险代码</span><code>{selectedChild.loginCodeAvailable ? `•••• ${selectedChild.loginCodeLastFour}` : `旧代码尾号 ${selectedChild.loginCodeLastFour}`}</code><small>{selectedChild.loginCodeAvailable ? "可查看、复制完整代码" : "重置后即可随时查看完整代码"}</small></div>
+                  <button type="button" className="primary-button" onClick={() => onShowCode(selectedChild)}>{selectedChild.loginCodeAvailable ? "查看探险代码" : "重置并显示"}</button>
+                </div>
+              </Panel>
+              <Settings child={selectedChild} />
+            </div>,
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
 function LeaderboardSettings({ child }: { child: Child }) {
   const [settings, setSettings] = useState<LeaderboardSettingsValue>({
     competitorGrowthPercent: 100,
@@ -2664,7 +2732,7 @@ function RewardsHub({
   onSelect: (section: Section) => void;
   onChanged: () => void;
 }) {
-  const tabs: NavItem[] = NAV_GROUPS.find((group) => group.label === "奖励中心")?.items ?? [];
+  const tabs: NavItem[] = NAV_GROUPS.find((group) => group.label === "激励与奖励")?.items ?? [];
 
   return (
     <div className="admin-stack rewards-hub">
@@ -2698,6 +2766,7 @@ function RewardsHub({
       {activeSection === "wishes" && <Wishes child={child} />}
       {activeSection === "redemptions" && <Redemptions child={child} />}
       {activeSection === "stars" && <Stars child={child} onChanged={onChanged} />}
+      {activeSection === "leaderboard" && <LeaderboardSettings child={child} />}
       {activeSection === "planets" && <Planets child={child} onChanged={onChanged} />}
     </div>
   );
@@ -2904,14 +2973,15 @@ export function App() {
       {loginCodeResult ? <div className="parent-login-code-popover" role="status"><div><small>{loginCodeResult.nickname}的探险代码</small><code>{loginCodeResult.code}</code></div><button type="button" onClick={() => void navigator.clipboard.writeText(loginCodeResult.code)}>复制</button><button type="button" onClick={() => setLoginCodeResult(null)}>关闭</button></div> : null}
       <Layout.Sider className="admin-sidebar" width={268} breakpoint="lg" collapsedWidth={0} trigger={null}>
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
-        <div className="child-switcher"><label>当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label><div><button type="button" onClick={() => void createChild()}>＋ 新建孩子</button>{selectedChild ? <button type="button" onClick={() => void showLoginCode(selectedChild)}>查看探险代码</button> : null}</div></div>
+        <div className="child-switcher"><label>当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label><button type="button" onClick={() => selectSection("children")}>管理孩子档案</button></div>
         <Menu
           className="admin-sidebar__nav"
           mode="inline"
           selectedKeys={[section]}
+          defaultOpenKeys={NAV_GROUPS.map((_, index) => `nav-group-${index}`)}
           onClick={({ key }) => selectSection(key as Section)}
-          items={NAV_GROUPS.map((group) => ({
-            type: "group" as const,
+          items={NAV_GROUPS.map((group, index) => ({
+            key: `nav-group-${index}`,
             label: group.label,
             children: group.items.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
           }))}
@@ -2938,6 +3008,7 @@ export function App() {
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="还没有孩子档案"><p>创建孩子后，就可以为孩子设置任务和奖励。</p><button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button></Panel> : <Suspense fallback={<div className="admin-section-loading">正在打开管理模块…</div>}>
             {section === "overview" && <GrowthOverview child={selectedChild} />}
+            {section === "children" && <ChildrenManagement children={children} selectedChild={selectedChild} onSelect={setSelectedChildId} onCreate={createChild} onShowCode={(target) => void showLoginCode(target)} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "pet" && <PetManagement child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "tasks" && <Tasks child={selectedChild} />}
@@ -2948,9 +3019,7 @@ export function App() {
             {section === "poems" && <ParentPoemLearning child={selectedChild} />}
             {REWARD_SECTIONS.includes(section) && <RewardsHub child={selectedChild} activeSection={section} onSelect={selectSection} onChanged={() => void loadChildren(selectedChild.id).catch((reason) => setError(reason instanceof ApiError ? reason.message : "刷新失败"))} />}
             {section === "ai" && <AiAssistant child={selectedChild} />}
-            {section === "leaderboard" && <LeaderboardSettings child={selectedChild} />}
-            {section === "profile" && <div className="admin-stack"><Panel title="孩子账号" actions={<button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button>}><div className="child-login-code-card"><div><span>探险代码</span><code>{selectedChild.loginCodeAvailable ? `•••• ${selectedChild.loginCodeLastFour}` : `旧代码尾号 ${selectedChild.loginCodeLastFour}`}</code><small>{selectedChild.loginCodeAvailable ? "点击后可查看并复制完整代码" : "旧账号需要重置一次，之后即可随时查看"}</small></div><button type="button" className="ghost-button" onClick={() => void showLoginCode(selectedChild)}>{selectedChild.loginCodeAvailable ? "查看并复制" : "重置并显示"}</button></div></Panel><ChildProfileSettings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} /></div>}
-            {section === "settings" && <Settings child={selectedChild} />}
+            {(section === "profile" || section === "settings") && <ChildrenManagement children={children} selectedChild={selectedChild} onSelect={setSelectedChildId} onCreate={createChild} onShowCode={(target) => void showLoginCode(target)} onChanged={() => void loadChildren(selectedChild.id)} />}
           </Suspense>}
         </Layout.Content>
       </Layout>

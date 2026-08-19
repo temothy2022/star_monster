@@ -1077,6 +1077,10 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/school-targets/${characterId}`,
       { method: "POST" },
     ),
+  hanziSchoolTargets: (childId: string) =>
+    api<{ characters: HanziCharacterResource[] }>(
+      `/api/parent/children/${childId}/hanzi/school-targets`,
+    ),
   removeHanziSchoolTarget: (childId: string, characterId: string) =>
     api<{ ok: true }>(
       `/api/parent/children/${childId}/hanzi/school-targets/${characterId}`,
@@ -1137,6 +1141,10 @@ export const parentApi = {
     api<{ target: { id: string; sortOrder: number } }>(
       `/api/parent/children/${childId}/poems/school-targets/${poemId}`,
       { method: "POST" },
+    ),
+  poemSchoolTargets: (childId: string) =>
+    api<{ poems: PoemResource[] }>(
+      `/api/parent/children/${childId}/poems/school-targets`,
     ),
   removePoemSchoolTarget: (childId: string, poemId: string) =>
     api<{ ok: true }>(

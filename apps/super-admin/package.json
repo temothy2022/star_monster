@@ -9,6 +9,9 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@ant-design/icons": "^6.3.2",
+    "@refinedev/core": "^5.0.12",
+    "antd": "^5.29.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

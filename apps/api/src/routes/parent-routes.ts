@@ -1434,6 +1434,39 @@ export async function registerParentRoutes(
     };
   });
 
+  app.get(
+    "/api/parent/children/:childId/poems/school-targets",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const targets = await prisma.poemSchoolTarget.findMany({
+        where: { childId, poem: { isEnabled: true } },
+        include: {
+          poem: {
+            include: {
+              progress: {
+                where: { childId },
+                select: {
+                  status: true,
+                  reviewStage: true,
+                  nextReviewDate: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      });
+      return {
+        poems: targets.map(({ id, sortOrder, poem }) => ({
+          ...poem,
+          progress: poem.progress[0] ?? null,
+          schoolTarget: { id, sortOrder },
+        })),
+      };
+    },
+  );
+
   app.post(
     "/api/parent/children/:childId/poems/school-targets/batch",
     async (request, reply) => {
@@ -1772,6 +1805,25 @@ export async function registerParentRoutes(
         total,
         page,
         pageSize,
+      };
+    },
+  );
+
+  app.get(
+    "/api/parent/children/:childId/hanzi/school-targets",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const targets = await prisma.hanziSchoolTarget.findMany({
+        where: { childId, character: { isEnabled: true } },
+        include: { character: true },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      });
+      return {
+        characters: targets.map(({ id, sortOrder, character }) => ({
+          ...character,
+          schoolTarget: { id, sortOrder },
+        })),
       };
     },
   );

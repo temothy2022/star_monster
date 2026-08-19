@@ -54,6 +54,7 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [workspace, setWorkspace] = useState<"care" | "red-packets" | "themes">("care");
 
   async function load() {
     setLoading(true);
@@ -179,7 +180,12 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
 
   return (
     <div className="admin-stack pet-management">
-      <PetSection title="星宠管理" subtitle="统一管理星宠伙伴、照顾规则和小屋背景">
+      <div className="workspace-tabs" role="tablist" aria-label="星宠管理功能">
+        <button type="button" role="tab" aria-selected={workspace === "care"} className={workspace === "care" ? "active" : ""} onClick={() => setWorkspace("care")}>伙伴与照顾</button>
+        <button type="button" role="tab" aria-selected={workspace === "red-packets"} className={workspace === "red-packets" ? "active" : ""} onClick={() => setWorkspace("red-packets")}>升级红包</button>
+        <button type="button" role="tab" aria-selected={workspace === "themes"} className={workspace === "themes" ? "active" : ""} onClick={() => setWorkspace("themes")}>小屋背景</button>
+      </div>
+      {workspace !== "themes" ? <PetSection title={workspace === "care" ? "伙伴与照顾" : "升级红包"} subtitle={workspace === "care" ? "管理伙伴、消费限制与日常照顾规则" : "设置升级奖励，并在需要时补发红包"}>
         {data ? <>
           <div className="parent-pet-overview">
             <div className="parent-pet-overview__level"><span>Lv.{data.pet.level}</span><div><strong>{GROWTH_STAGE_LABELS[data.pet.growthStage]}</strong><small>{data.postcards.length} 张旅行明信片</small></div></div>
@@ -188,19 +194,21 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
             <div className="parent-pet-overview__trip"><span>{data.currentTrip ? data.currentTrip.status === "TRAVELING" ? "旅行中" : "旅行归来" : "当前在家"}</span><strong>{data.currentTrip?.destinationName ?? `待领取 ${data.redPackets.availableCount} 个红包`}</strong></div>
           </div>
           <form className="parent-pet-settings-form" onSubmit={savePetSettings}>
-            <label>当前星宠<select value={petType} onChange={(event) => setPetType(event.target.value)}>{Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label className="checkbox"><input type="checkbox" checked={travelEnabled} onChange={(event) => setTravelEnabled(event.target.checked)} />允许星宠旅行</label>
-            <label>每日星宠消费上限<NumberField type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
-            <label>饱食度<NumberField type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
-            <label>饮水状态<NumberField type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
-            <div className="parent-pet-care-rules">
+            {workspace === "care" ? <>
+              <label>当前星宠<select value={petType} onChange={(event) => setPetType(event.target.value)}>{Object.entries(PET_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label className="checkbox"><input type="checkbox" checked={travelEnabled} onChange={(event) => setTravelEnabled(event.target.checked)} />允许星宠旅行</label>
+              <label>每日星宠消费上限<NumberField type="number" min={0} max={10000} value={dailyLimit} onChange={(event) => setDailyLimit(event.target.value)} placeholder="不限制" /></label>
+              <label>饱食度<NumberField type="number" min={0} max={100} value={satiety} onChange={(event) => setSatiety(Number(event.target.value))} /></label>
+              <label>饮水状态<NumberField type="number" min={0} max={100} value={hydration} onChange={(event) => setHydration(Number(event.target.value))} /></label>
+              <div className="parent-pet-care-rules">
               <div><strong>日常照顾规则</strong><small>衰减数值表示每隔多少分钟下降 1 点，数值越小消耗越快。当天排泄计划生成后，次数调整从次日生效。</small></div>
               <label>饱食度衰减<NumberField type="number" min={10} max={10080} value={satietyDecayMinutes} onChange={(event) => setSatietyDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
               <label>饮水状态衰减<NumberField type="number" min={10} max={10080} value={hydrationDecayMinutes} onChange={(event) => setHydrationDecayMinutes(Number(event.target.value))} /><span>分钟 / 点</span></label>
               <label>每日出现粑粑<NumberField type="number" min={0} max={8} value={dailyWasteCount} onChange={(event) => setDailyWasteCount(Number(event.target.value))} /><span>次</span></label>
               <label>每次清理消耗<NumberField type="number" min={0} max={100} value={wasteCleanCostStars} onChange={(event) => setWasteCleanCostStars(Number(event.target.value))} /><span>星</span></label>
-            </div>
-            <div className="parent-pet-red-packet-settings">
+              </div>
+            </> : null}
+            {workspace === "red-packets" ? <div className="parent-pet-red-packet-settings">
               <div><strong>星宠升级红包</strong><small>配置只影响之后升级获得的新红包</small></div>
               <label>每次升级赠送<NumberField type="number" min={0} max={10} value={redPacketsPerLevel} onChange={(event) => setRedPacketsPerLevel(Number(event.target.value))} /><span>个</span></label>
               <label>最低奖励<NumberField type="number" min={1} max={100} value={redPacketMinStars} onChange={(event) => setRedPacketMinStars(Number(event.target.value))} /><span>星</span></label>
@@ -210,13 +218,13 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
                 <button className="primary-button" type="button" disabled={busy !== null} onClick={() => void grantRedPackets()}>{busy === "red-packet-grant" ? "补发中…" : "立即补发"}</button>
                 <small>按当前奖励范围生成，孩子打开后才获得星星</small>
               </div>
-            </div>
-            <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "settings" ? "保存中…" : "保存星宠设置"}</button>
+            </div> : null}
+            <button className="primary-button" type="submit" disabled={busy !== null}>{busy === "settings" ? "保存中…" : workspace === "care" ? "保存照顾设置" : "保存红包设置"}</button>
           </form>
         </> : <div className="empty-state">{message || "暂时没有星宠资料"}</div>}
-      </PetSection>
+      </PetSection> : null}
 
-      <PetSection title="小屋背景价格" subtitle="为平台提供的小屋背景设置解锁价格，价格为 0 时免费解锁。">
+      {workspace === "themes" ? <PetSection title="小屋背景价格" subtitle="设置当前家庭解锁各背景所需的星星；平台背景素材由超级后台维护。">
         {data?.roomThemes.length ? <div className="pet-room-theme-admin-grid">
           {data.roomThemes.map((theme) => (
             <article className="pet-room-theme-admin-card" key={theme.key}>
@@ -229,7 +237,7 @@ export function PetManagement({ child, onChanged }: { child: Child; onChanged: (
           ))}
         </div> : <div className="empty-state">暂无可配置的小屋背景</div>}
         {data?.roomThemes.length ? <div className="form-actions pet-room-theme-admin-actions"><button className="primary-button" type="button" disabled={busy !== null} onClick={() => void saveThemePrices()}>{busy === "themes" ? "保存中…" : "保存全部背景价格"}</button></div> : null}
-      </PetSection>
+      </PetSection> : null}
       {message ? <div className="admin-notice">{message}</div> : null}
     </div>
   );
