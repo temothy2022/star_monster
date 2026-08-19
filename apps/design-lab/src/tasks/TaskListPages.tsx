@@ -1236,6 +1236,7 @@ function TaskListPanel({
   fullPage = false,
   startingTaskId,
   onStart,
+  onProfile,
 }: {
   tasks: TaskItem[];
   streakDays?: number;
@@ -1243,6 +1244,7 @@ function TaskListPanel({
   fullPage?: boolean;
   startingTaskId: string | null;
   onStart?: (task: TaskItem) => void;
+  onProfile?: () => void;
 }) {
   const [categoryFilter, setCategoryFilter] = useState<TaskCategoryFilter>("ALL");
   const availableFilters = useMemo(() => {
@@ -1268,14 +1270,17 @@ function TaskListPanel({
           {fullPage && <small>今天的安排</small>}
           <h2 id="my-tasks-title">我的任务</h2>
         </div>
-        {dashboard ? (
-          <span className="task-list-panel__count">{pendingTasks.length} 项待完成</span>
-        ) : (streakDays ?? 0) > 2 ? (
-          <div className="task-streak">
-            <img src={streakFlame} alt="" />
-            <span>连续 {streakDays} 天</span>
-          </div>
-        ) : null}
+        <div className="task-list-panel__header-actions">
+          {dashboard ? (
+            <span className="task-list-panel__count">{pendingTasks.length} 项待完成</span>
+          ) : (streakDays ?? 0) > 2 ? (
+            <div className="task-streak">
+              <img src={streakFlame} alt="" />
+              <span>连续 {streakDays} 天</span>
+            </div>
+          ) : null}
+          {!dashboard ? <button type="button" className="task-profile-entry" onClick={onProfile}>我的</button> : null}
+        </div>
         {fullPage && (
           <div className="task-category-filter" role="tablist" aria-label="任务分类">
             {availableFilters.map((filter) => (
@@ -1812,6 +1817,7 @@ export function TaskExperience({
             dashboard
             startingTaskId={startingTaskId}
             onStart={start}
+            onProfile={() => onNavigate?.("profile")}
           />
         );
       case "DAILY_PROGRESS":
@@ -1902,6 +1908,7 @@ export function TaskExperience({
           layout={experience.taskDashboardLayout}
           onSave={saveDashboardLayout}
           renderWidget={renderDashboardWidget}
+          onOpenProfile={() => onNavigate?.("profile")}
         />
       ) : effectiveView === "complete" && !listOnly ? (
         <CompleteTaskPanel
@@ -1929,6 +1936,7 @@ export function TaskExperience({
               fullPage={listOnly}
               startingTaskId={startingTaskId}
               onStart={start}
+              onProfile={() => onNavigate?.("profile")}
             />
           )}
         </main>

@@ -11,7 +11,8 @@ export type ChildRoute =
   | "map"
   | "pet-growth"
   | "wishes-requested"
-  | "footprints";
+  | "footprints"
+  | "profile";
 export type ChildNavItem = "home" | "tasks" | "pet" | "footprints";
 
 function prefetchRoute(route: ChildRoute) {
@@ -21,6 +22,8 @@ function prefetchRoute(route: ChildRoute) {
     void import("../progress/WishesAndFootprints");
   } else if (route === "map") {
     void import("../planets/PlanetMap");
+  } else if (route === "profile") {
+    void import("../profile/ChildProfilePage");
   } else {
     void import("../tasks/TaskListPages");
   }

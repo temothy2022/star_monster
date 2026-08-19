@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
 import {
@@ -13,6 +14,9 @@ import {
   requireStaff,
 } from "../services/auth-service.js";
 import { enforceRateLimit } from "../lib/rate-limit.js";
+import { prisma } from "../lib/prisma.js";
+import { HttpError } from "../lib/http-error.js";
+import { createFamilyWithParent } from "../services/account-service.js";
 
 const childLoginSchema = z.object({
   code: z.string().min(8).max(16),
@@ -22,6 +26,19 @@ const childLoginSchema = z.object({
 const staffLoginSchema = z.object({
   username: z.string().trim().min(2).max(80),
   password: z.string().min(8).max(256),
+});
+
+const parentRegistrationSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(160),
+  password: z
+    .string()
+    .min(8)
+    .max(256)
+    .refine((value) => /[A-Za-z]/.test(value) && /\d/.test(value), {
+      message: "密码需要同时包含字母和数字",
+    }),
+  displayName: z.string().trim().min(2).max(40),
+  familyName: z.string().trim().min(2).max(80),
 });
 
 export async function registerAuthRoutes(
@@ -46,6 +63,7 @@ export async function registerAuthRoutes(
       child: {
         id: child.id,
         nickname: child.nickname,
+        avatarUrl: child.avatarUrl,
         petType: child.petType,
         onboardingCompleted: Boolean(child.onboardingCompletedAt),
       },
@@ -63,6 +81,7 @@ export async function registerAuthRoutes(
       child: {
         id: child.id,
         nickname: child.nickname,
+        avatarUrl: child.avatarUrl,
         petType: child.petType,
         onboardingCompletedAt: child.onboardingCompletedAt,
         dailyStarGoal: child.dailyStarGoal,
@@ -107,6 +126,51 @@ export async function registerAuthRoutes(
     const input = staffLoginSchema.parse(request.body);
     const user = await loginStaff(input.username, input.password, request, reply, config, "parent");
     return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
+  });
+
+  app.post("/api/parent/auth/register", async (request, reply) => {
+    enforceRateLimit({
+      key: `parent-register:${request.ip}`,
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    const input = parentRegistrationSchema.parse(request.body);
+    try {
+      await prisma.$transaction((tx) =>
+        createFamilyWithParent(tx, {
+          familyName: input.familyName,
+          parentUsername: input.email,
+          parentDisplayName: input.displayName,
+          parentPassword: input.password,
+          childNicknames: [],
+          loginCodePepper: config.LOGIN_CODE_PEPPER,
+          loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
+        }),
+      );
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new HttpError(409, "USERNAME_TAKEN", "这个邮箱已经注册过家长账号");
+      }
+      throw error;
+    }
+    const user = await loginStaff(
+      input.email,
+      input.password,
+      request,
+      reply,
+      config,
+      "parent",
+    );
+    return reply.status(201).send({
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        role: user.role,
+        familyId: user.familyId,
+      },
+      needsChildSetup: true,
+    });
   });
 
   app.post("/api/admin/auth/login", async (request, reply) => {

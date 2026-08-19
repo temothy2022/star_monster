@@ -1,1 +1,0 @@
-{"root":["./src/aiassistant.tsx","./src/app.tsx","./src/growthoverview.tsx","./src/learninglibraries.tsx","./src/petmanagement.tsx","./src/travelpackinglist.tsx","./src/api.ts","./src/idempotency.ts","./src/main.tsx","./src/math-practice-settings.ts","./src/version-refresh.ts","./vite.config.ts"],"version":"5.9.3"}

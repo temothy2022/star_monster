@@ -7,6 +7,7 @@ import { recordApiPerformance } from "./performance-telemetry";
 export type ChildProfile = {
   id: string;
   nickname: string | null;
+  avatarUrl: string | null;
   petType: PetType | null;
   onboardingCompletedAt: string | null;
   dailyStarGoal: number;
@@ -15,6 +16,11 @@ export type ChildProfile = {
   starBalance: number;
   lifetimeStarsEarned: number;
 };
+
+export type ChildProfileUpdate = Pick<
+  ChildProfile,
+  "id" | "nickname" | "avatarUrl" | "petType"
+>;
 
 type ApiErrorBody = {
   error?: { code?: string; message?: string };
@@ -438,6 +444,26 @@ export async function saveOnboarding(input: {
     {
       method: "PATCH",
       body: JSON.stringify(input),
+    },
+  );
+  return result.child;
+}
+
+export async function updateChildProfile(nickname: string) {
+  const result = await request<{ child: ChildProfileUpdate }>("/api/child/profile", {
+    method: "PATCH",
+    body: JSON.stringify({ nickname }),
+  });
+  return result.child;
+}
+
+export async function uploadChildProfileAvatar(file: File) {
+  const result = await request<{ child: ChildProfileUpdate }>(
+    "/api/child/profile/avatar",
+    {
+      method: "PUT",
+      headers: { "Content-Type": file.type || "image/jpeg" },
+      body: file,
     },
   );
   return result.child;

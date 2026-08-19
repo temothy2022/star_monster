@@ -172,10 +172,12 @@ export function TaskDashboard({
   layout,
   onSave,
   renderWidget,
+  onOpenProfile,
 }: {
   layout: TaskDashboardLayout;
   onSave: (layout: TaskDashboardLayout) => Promise<void>;
   renderWidget: (key: TaskDashboardWidgetKey) => ReactNode;
+  onOpenProfile?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -839,7 +841,11 @@ export function TaskDashboard({
                 {saving ? "保存中" : "完成"}
               </button>
             </div>
-          ) : null}
+          ) : (
+            <button className="task-dashboard-profile" type="button" onClick={onOpenProfile}>
+              我的
+            </button>
+          )}
         </div>
         <div className="task-dashboard-grid" ref={gridRef}>
           {draftWidgets.map((key) => {

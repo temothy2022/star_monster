@@ -130,6 +130,11 @@ const PetGrowthPage = lazy(() =>
     default: module.PetGrowthPage,
   })),
 );
+const ChildProfilePage = lazy(() =>
+  import("./profile/ChildProfilePage").then((module) => ({
+    default: module.ChildProfilePage,
+  })),
+);
 const PlanetJourneyPage = lazy(() =>
   import("./planets/PlanetMap").then((module) => ({
     default: module.PlanetJourneyPage,
@@ -261,7 +266,8 @@ type AppRoute =
   | "math-preview"
   | "math-print"
   | "bundle-practice"
-  | "poem-recitation";
+  | "poem-recitation"
+  | "profile";
 
 const DEFAULT_TASK_ROUTE: AppRoute = "home";
 
@@ -335,6 +341,7 @@ function readRouteFromHash(): AppRoute {
     "math-print",
     "bundle-practice",
     "poem-recitation",
+    "profile",
   ];
 
   return routes.includes(route) ? route : "login";
@@ -381,6 +388,7 @@ function childPageTitle(route: AppRoute) {
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
   if (route === "pet-growth") return "星宠小屋";
+  if (route === "profile") return "个人中心";
 
   const titles: Partial<Record<AppRoute, string>> = {
     login: "孩子登录",
@@ -991,6 +999,20 @@ export function App() {
 
   if (route === "pet-growth") {
     return <PetGrowthPage onNavigate={navigate} />;
+  }
+
+  if (route === "profile") {
+    return (
+      <ChildProfilePage
+        onBack={() => navigate(DEFAULT_TASK_ROUTE)}
+        onSignedOut={() => {
+          setTaskExperienceCache(null);
+          setActiveAttempt(null);
+          setNickname("");
+          navigate("login");
+        }}
+      />
+    );
   }
 
   if (route === "hanzi-home") {

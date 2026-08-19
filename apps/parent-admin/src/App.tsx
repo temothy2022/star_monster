@@ -1,4 +1,6 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useMemo,
   useRef,
@@ -8,6 +10,26 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import {
+  AppstoreOutlined,
+  BarChartOutlined,
+  BookOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
+  ControlOutlined,
+  GiftOutlined,
+  HistoryOutlined,
+  HomeOutlined,
+  MenuOutlined,
+  PlusOutlined,
+  ProfileOutlined,
+  ReadOutlined,
+  SettingOutlined,
+  StarOutlined,
+  TeamOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
+import { Button, Input, Layout, Menu, Modal, Tabs } from "antd";
 import {
   ApiError,
   PARENT_FEEDBACK_EVENT,
@@ -33,11 +55,9 @@ import {
   type TaskTemplate,
   type Wish,
 } from "./api";
-import { AiAssistant } from "./AiAssistant";
-import { GrowthOverview } from "./GrowthOverview";
-import { PetManagement } from "./PetManagement";
 import { NumberField } from "./NumberField";
-import { ParentClockLearning, ParentHanziLearning, ParentMakeTenLearning, ParentMathPractice, ParentPoemLearning } from "./LearningLibraries";
+import { TaskWeekCalendar } from "./TaskWeekCalendar";
+import { moveTaskWeekday } from "./task-week-schedule";
 import sportsReward from "@star-monsters/assets/images/reward-categories/sports.webp";
 import gamesReward from "@star-monsters/assets/images/reward-categories/games.webp";
 import televisionReward from "@star-monsters/assets/images/reward-categories/television.webp";
@@ -50,6 +70,15 @@ import neptunePlanet from "@star-monsters/assets/images/planets/neptune.webp";
 import saturnPlanet from "@star-monsters/assets/images/planets/saturn.webp";
 import uranusPlanet from "@star-monsters/assets/images/planets/uranus.webp";
 import venusPlanet from "@star-monsters/assets/images/planets/venus.webp";
+
+const AiAssistant = lazy(() => import("./AiAssistant").then((module) => ({ default: module.AiAssistant })));
+const GrowthOverview = lazy(() => import("./GrowthOverview").then((module) => ({ default: module.GrowthOverview })));
+const PetManagement = lazy(() => import("./PetManagement").then((module) => ({ default: module.PetManagement })));
+const ParentHanziLearning = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentHanziLearning })));
+const ParentClockLearning = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentClockLearning })));
+const ParentMakeTenLearning = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentMakeTenLearning })));
+const ParentMathPractice = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentMathPractice })));
+const ParentPoemLearning = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentPoemLearning })));
 
 type Section =
   | "overview"
@@ -93,53 +122,53 @@ const SECTION_LABELS: Record<Section, string> = {
 type NavItem = {
   key: Section;
   label: string;
-  icon: string;
+  icon: ReactNode;
 };
 
 const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
-  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: "⌂" }, { key: "pet", label: "星宠管理", icon: "✦" }] },
+  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "pet", label: "星宠管理", icon: <HomeOutlined /> }] },
   {
     label: "任务中心",
     items: [
-      { key: "tasks", label: "任务配置", icon: "✓" },
-      { key: "history", label: "任务记录", icon: "≡" },
+      { key: "tasks", label: "任务配置", icon: <CalendarOutlined /> },
+      { key: "history", label: "任务记录", icon: <HistoryOutlined /> },
     ],
   },
   {
     label: "学习内容",
     items: [
-      { key: "hanzi", label: "汉字学习", icon: "字" },
-      { key: "clock", label: "时钟学习", icon: "时" },
-      { key: "make-ten", label: "凑十训练", icon: "十" },
-      { key: "math", label: "数学练习", icon: "数" },
-      { key: "poems", label: "古诗学习", icon: "诗" },
+      { key: "hanzi", label: "汉字学习", icon: <ReadOutlined /> },
+      { key: "clock", label: "时钟学习", icon: <ClockCircleOutlined /> },
+      { key: "make-ten", label: "凑十训练", icon: <AppstoreOutlined /> },
+      { key: "math", label: "数学练习", icon: <ProfileOutlined /> },
+      { key: "poems", label: "古诗学习", icon: <BookOutlined /> },
     ],
   },
   {
     label: "奖励中心",
     items: [
-      { key: "wishes", label: "星愿管理", icon: "☆" },
-      { key: "redemptions", label: "兑换处理", icon: "↔" },
-      { key: "stars", label: "星星流水", icon: "★" },
-      { key: "planets", label: "航图规则", icon: "◎" },
+      { key: "wishes", label: "星愿管理", icon: <GiftOutlined /> },
+      { key: "redemptions", label: "兑换处理", icon: <ControlOutlined /> },
+      { key: "stars", label: "星星流水", icon: <StarOutlined /> },
+      { key: "planets", label: "航图规则", icon: <AppstoreOutlined /> },
     ],
   },
   {
     label: "智能与设置",
     items: [
-      { key: "ai", label: "AI 助手", icon: "✦" },
-      { key: "leaderboard", label: "排行榜设置", icon: "榜" },
-      { key: "profile", label: "孩子档案", icon: "档" },
-      { key: "settings", label: "登录设备", icon: "⚙" },
+      { key: "ai", label: "AI 助手", icon: <ControlOutlined /> },
+      { key: "leaderboard", label: "排行榜设置", icon: <TeamOutlined /> },
+      { key: "profile", label: "孩子档案", icon: <UserOutlined /> },
+      { key: "settings", label: "登录设备", icon: <SettingOutlined /> },
     ],
   },
 ];
 
 const PRIMARY_MOBILE_NAV: NavItem[] = [
-  { key: "overview", label: "总览", icon: "⌂" },
-  { key: "tasks", label: "任务", icon: "✓" },
-  { key: "wishes", label: "奖励", icon: "☆" },
-  { key: "ai", label: "AI 助手", icon: "✦" },
+  { key: "overview", label: "总览", icon: <BarChartOutlined /> },
+  { key: "tasks", label: "任务", icon: <CalendarOutlined /> },
+  { key: "wishes", label: "奖励", icon: <GiftOutlined /> },
+  { key: "ai", label: "AI 助手", icon: <ControlOutlined /> },
 ];
 
 const REWARD_SECTIONS: Section[] = ["wishes", "redemptions", "stars", "planets"];
@@ -291,8 +320,12 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
   const [username, setUsername] = useState(remembered?.username ?? "");
   const [password, setPassword] = useState(remembered?.password ?? "");
   const [remember, setRemember] = useState(Boolean(remembered));
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [familyName, setFamilyName] = useState("");
+  const [registrationPassword, setRegistrationPassword] = useState("");
   const [error, setError] = useState("");
-  const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent) {
@@ -321,31 +354,77 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
     }
   }
 
+  async function register(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const result = await staffApi.register({
+        email,
+        displayName,
+        familyName,
+        password: registrationPassword,
+      });
+      onLogin(result.user);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "注册失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="admin-login">
       <section className="admin-login__card">
         <div className="admin-login__brand"><span>★</span> 星宠成长基地</div>
-        <h1>家长管理平台</h1>
-        <p>管理孩子的任务、星愿和成长数据</p>
-        <form onSubmit={submit}>
-          <label>用户名<input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
-          <label>密码<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
-          <label className="admin-login__remember">
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(event) => {
-                setRemember(event.target.checked);
-                if (!event.target.checked) {
-                  localStorage.removeItem("star-monsters:parent-login");
-                }
-              }}
-            />
-            <span>在这台设备上记住用户名和密码</span>
-          </label>
-          {error && <Notice kind="error">{error}</Notice>}
-          <button className="primary-button" disabled={busy}>{busy ? "登录中…" : "登录"}</button>
-        </form>
+        <h1>{mode === "login" ? "家长管理平台" : "创建家庭账号"}</h1>
+        <p>{mode === "login" ? "管理孩子的任务、星愿和成长数据" : "注册后先创建孩子，再获得孩子端探险代码"}</p>
+        <Tabs
+          activeKey={mode}
+          onChange={(key) => {
+            setMode(key as "login" | "register");
+            setError("");
+          }}
+          items={[
+            {
+              key: "login",
+              label: "登录",
+              children: (
+                <form onSubmit={submit}>
+                  <label>邮箱或用户名<Input size="large" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
+                  <label>密码<Input.Password size="large" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
+                  <label className="admin-login__remember">
+                    <input
+                      type="checkbox"
+                      checked={remember}
+                      onChange={(event) => {
+                        setRemember(event.target.checked);
+                        if (!event.target.checked) localStorage.removeItem("star-monsters:parent-login");
+                      }}
+                    />
+                    <span>在这台设备上记住用户名和密码</span>
+                  </label>
+                  {error && <Notice kind="error">{error}</Notice>}
+                  <Button type="primary" htmlType="submit" size="large" block loading={busy}>登录</Button>
+                </form>
+              ),
+            },
+            {
+              key: "register",
+              label: "注册",
+              children: (
+                <form onSubmit={register}>
+                  <label>家长称呼<Input size="large" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="例如：了了妈妈" autoComplete="name" /></label>
+                  <label>家庭名称<Input size="large" value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="例如：了了的家庭" /></label>
+                  <label>登录邮箱<Input size="large" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
+                  <label>设置密码<Input.Password size="large" value={registrationPassword} onChange={(event) => setRegistrationPassword(event.target.value)} placeholder="至少 8 位，同时包含字母和数字" autoComplete="new-password" /></label>
+                  {error && <Notice kind="error">{error}</Notice>}
+                  <Button type="primary" htmlType="submit" size="large" block loading={busy}>注册并进入</Button>
+                </form>
+              ),
+            },
+          ]}
+        />
       </section>
     </main>
   );
@@ -583,6 +662,8 @@ function Tasks({ child }: { child: Child }) {
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [categoryBusy, setCategoryBusy] = useState(false);
   const [categoryError, setCategoryError] = useState("");
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [editorMode, setEditorMode] = useState<"task" | "categories" | null>(null);
   const systemTemplates = templates.filter((template) => template.systemManaged);
   const editableTemplates = templates.filter((template) => !template.systemManaged);
 
@@ -611,6 +692,7 @@ function Tasks({ child }: { child: Child }) {
       }
       setForm(EMPTY_TASK);
       setEditingId(null);
+      setEditorMode(null);
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存失败");
@@ -656,6 +738,22 @@ function Tasks({ child }: { child: Child }) {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "任务排序保存失败");
       await load();
+    }
+  }
+
+  async function moveTaskToDay(template: TaskTemplate, sourceDay: number, targetDay: number) {
+    const weekdays = moveTaskWeekday(template, sourceDay, targetDay);
+    setError("");
+    try {
+      await parentApi.updateTemplate(child.id, template.id, {
+        scheduleKind: "SELECTED_WEEKDAYS",
+        weekdays,
+        oneTimeDate: null,
+      });
+      await load();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "任务日期没有保存成功");
+      throw reason;
     }
   }
 
@@ -736,8 +834,30 @@ function Tasks({ child }: { child: Child }) {
   }
 
   return (
-    <div className="admin-two-column">
-      <Panel title={editingId ? "编辑任务" : "添加任务"}>
+    <div className="admin-stack task-management">
+      <div className="task-management__toolbar">
+        <Tabs
+          activeKey={viewMode}
+          onChange={(key) => setViewMode(key as "calendar" | "list")}
+          items={[{ key: "calendar", label: "周历安排" }, { key: "list", label: "任务列表" }]}
+        />
+        <div>
+          <Button icon={<SettingOutlined />} onClick={() => setEditorMode("categories")}>管理分类</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingId(null); setForm(EMPTY_TASK); setEditorMode("task"); }}>新增任务</Button>
+        </div>
+      </div>
+      {error ? <Notice kind="error">{error}</Notice> : null}
+      {viewMode === "calendar" ? <TaskWeekCalendar templates={templates.filter((template) => template.isEnabled)} onMove={moveTaskToDay} /> : null}
+      <Modal
+        title={editorMode === "categories" ? "任务分类" : editingId ? "编辑任务" : "新增任务"}
+        open={editorMode !== null}
+        footer={null}
+        width={editorMode === "categories" ? 680 : 760}
+        destroyOnHidden
+        onCancel={() => { setEditorMode(null); setEditingId(null); setForm(EMPTY_TASK); }}
+      >
+      <Panel title={editorMode === "categories" ? "家庭任务分类" : editingId ? "编辑任务" : "添加任务"}>
+        {editorMode === "task" ? (
         <form className="admin-form" onSubmit={submit}>
           <label className="field-span">任务名称<input required maxLength={80} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label>
           <label className="field-span">任务内容<select value={form.experienceKind} onChange={(event) => {
@@ -787,8 +907,10 @@ function Tasks({ child }: { child: Child }) {
           </>}
           <label className="checkbox field-span"><input type="checkbox" checked={form.isEnabled} onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} />立即启用</label>
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
-          <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_TASK); }}>取消编辑</button>}<button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
+          <div className="form-actions field-span"><button type="button" className="ghost-button" onClick={() => { setEditorMode(null); setEditingId(null); setForm(EMPTY_TASK); }}>取消</button><button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加任务"}</button></div>
         </form>
+        ) : null}
+        {editorMode === "categories" ? (
         <section className="task-category-manager">
           <div className="task-category-manager__heading"><strong>任务分类</strong><span>内置分类和家庭自定义分类</span></div>
           <form className="task-category-manager__form" onSubmit={saveCategory}>
@@ -810,8 +932,10 @@ function Tasks({ child }: { child: Child }) {
             </div>)}
           </div>
         </section>
+        ) : null}
       </Panel>
-      <Panel title={`任务模板（${templates.length}）`}>
+      </Modal>
+      {viewMode === "list" ? <Panel title={`任务模板（${templates.length}）`}>
         <div className="admin-list">
           {systemTemplates.map((template) => (
             <article className="list-card" key={template.id}>
@@ -870,7 +994,7 @@ function Tasks({ child }: { child: Child }) {
               <div className="list-card__actions">
                 <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
                 <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>
-                <button onClick={() => { setEditingId(template.id); setForm(taskFormFrom(template)); }}>编辑</button>
+                <button onClick={() => { setEditingId(template.id); setForm(taskFormFrom(template)); setEditorMode("task"); }}>编辑</button>
                 <button onClick={() => void parentApi.updateTemplate(child.id, template.id, { isEnabled: !template.isEnabled }).then(load)}>{template.isEnabled ? "停用" : "启用"}</button>
                 <button className="danger-text" onClick={() => window.confirm("归档这个任务模板？历史任务不会删除。") && void parentApi.archiveTemplate(child.id, template.id).then(load)}>归档</button>
               </div>
@@ -878,7 +1002,7 @@ function Tasks({ child }: { child: Child }) {
           ))}
           {!templates.length && <div className="empty-state">还没有任务模板</div>}
         </div>
-      </Panel>
+      </Panel> : null}
     </div>
   );
 }
@@ -1952,6 +2076,7 @@ function Wishes({ child }: { child: Child }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   async function load() { setWishes((await parentApi.wishes(child.id)).wishes); }
   useEffect(() => { void load(); }, [child.id]);
   async function submit(event: FormEvent) {
@@ -1962,12 +2087,13 @@ function Wishes({ child }: { child: Child }) {
     try {
       if (editingId) await parentApi.updateWish(child.id, editingId, form);
       else await parentApi.createWish(child.id, { ...form, sortOrder: wishes.length * 10 });
-      setForm(EMPTY_WISH); setEditingId(null); await load();
+      setForm(EMPTY_WISH); setEditingId(null); setEditorOpen(false); await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "保存失败"); }
     finally { setBusy(false); }
   }
   return (
-    <div className="admin-two-column">
+    <div className="admin-stack">
+      <Modal title={editingId ? "编辑星愿" : "新增星愿"} open={editorOpen} footer={null} width={680} destroyOnHidden onCancel={() => { setEditorOpen(false); setEditingId(null); setForm(EMPTY_WISH); }}>
       <Panel title={editingId ? "编辑星愿" : "添加星愿"}>
         <form className="admin-form" onSubmit={submit}>
           <label>分类<select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as Wish["category"] })}><option value="SPORTS">活动体验</option><option value="TELEVISION">娱乐时间</option><option value="TOYS">物品消费</option></select></label>
@@ -2039,12 +2165,13 @@ function Wishes({ child }: { child: Child }) {
           <p className="field-span wish-rule-help">{wishRuleHelp(form)}</p>
           <label className="checkbox"><input type="checkbox" checked={form.isEnabled} onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} />启用</label>
           {error && <div className="field-span"><Notice kind="error">{error}</Notice></div>}
-          <div className="form-actions field-span">{editingId && <button type="button" className="ghost-button" onClick={() => { setEditingId(null); setForm(EMPTY_WISH); }}>取消</button>}<button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加星愿"}</button></div>
+          <div className="form-actions field-span"><button type="button" className="ghost-button" onClick={() => { setEditorOpen(false); setEditingId(null); setForm(EMPTY_WISH); }}>取消</button><button className="primary-button" disabled={busy}>{busy ? "保存中…" : editingId ? "保存修改" : "添加星愿"}</button></div>
         </form>
       </Panel>
-      <Panel title={`星愿列表（${wishes.length}）`}>
+      </Modal>
+      <Panel title={`星愿列表（${wishes.length}）`} actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingId(null); setForm(EMPTY_WISH); setEditorOpen(true); }}>新增星愿</Button>}>
         <div className="wish-admin-grid">
-          {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" loading="lazy" decoding="async" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
+          {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" loading="lazy" decoding="async" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); setEditorOpen(true); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
         </div>
       </Panel>
     </div>
@@ -2585,6 +2712,28 @@ export function App() {
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginCodeResult, setLoginCodeResult] = useState<{ childId: string; nickname: string; code: string } | null>(null);
+  const [childrenLoaded, setChildrenLoaded] = useState(false);
+  const [createChildOpen, setCreateChildOpen] = useState(false);
+  const [newChildNickname, setNewChildNickname] = useState("");
+  const [creatingChild, setCreatingChild] = useState(false);
+
+  function clearAuthenticatedState() {
+    setUser(null);
+    setChildren([]);
+    setChildrenLoaded(false);
+    setSelectedChildId("");
+    setCreateChildOpen(false);
+    setLoginCodeResult(null);
+    setError("");
+  }
+
+  async function signOutParent() {
+    try {
+      await staffApi.logout();
+    } finally {
+      clearAuthenticatedState();
+    }
+  }
 
   useEffect(() => {
     const token = legacyPackingShareTokenFromLocation();
@@ -2602,6 +2751,7 @@ export function App() {
   async function loadChildren(preferredId?: string) {
     const result = await parentApi.children();
     setChildren(result.children);
+    setChildrenLoaded(true);
     setSelectedChildId((current) =>
       preferredId ||
       (current && result.children.some((child) => child.id === current)
@@ -2646,10 +2796,7 @@ export function App() {
 
   useEffect(() => {
     const handleExpired = () => {
-      setUser(null);
-      setChildren([]);
-      setSelectedChildId("");
-      setError("");
+      clearAuthenticatedState();
     };
     window.addEventListener(PARENT_SESSION_EXPIRED_EVENT, handleExpired);
     return () => window.removeEventListener(PARENT_SESSION_EXPIRED_EVENT, handleExpired);
@@ -2673,6 +2820,10 @@ export function App() {
     [children, selectedChildId],
   );
 
+  useEffect(() => {
+    if (user && childrenLoaded && children.length === 0) setCreateChildOpen(true);
+  }, [children.length, childrenLoaded, user]);
+
   const selectSection = (nextSection: Section) => {
     setSection(nextSection);
     setMobileMenuOpen(false);
@@ -2680,21 +2831,29 @@ export function App() {
     if (window.location.hash !== nextHash) window.location.hash = nextHash;
   };
 
-  async function createChild() {
-    const answer = window.prompt("请输入孩子昵称（2–9 个字符，留空可稍后设置）");
-    if (answer === null) return;
-    const nickname = answer.trim();
-    if (nickname && (nickname.length < 2 || nickname.length > 9)) {
+  function createChild() {
+    setNewChildNickname("");
+    setCreateChildOpen(true);
+    setError("");
+  }
+
+  async function submitCreateChild() {
+    const nickname = newChildNickname.trim();
+    if (nickname.length < 2 || nickname.length > 9) {
       setError("昵称需要 2–9 个字符");
       return;
     }
+    setCreatingChild(true);
     try {
-      const result = await parentApi.createChild(nickname || undefined);
+      const result = await parentApi.createChild(nickname);
       await loadChildren(result.childId);
-      setLoginCodeResult({ childId: result.childId, nickname: nickname || "新孩子", code: result.loginCode });
+      setLoginCodeResult({ childId: result.childId, nickname, code: result.loginCode });
+      setCreateChildOpen(false);
       setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "新建孩子失败");
+    } finally {
+      setCreatingChild(false);
     }
   }
 
@@ -2722,32 +2881,46 @@ export function App() {
   const mobilePrimarySection = REWARD_SECTIONS.includes(section) ? "wishes" : section;
 
   if (user === undefined) return <main className="admin-loading">正在进入家长端…</main>;
-  if (!user) return <LoginPage onLogin={(loggedIn) => { setUser(loggedIn); void loadChildren(); }} />;
+  if (!user) return <LoginPage onLogin={(loggedIn) => { setChildrenLoaded(false); setUser(loggedIn); void loadChildren(); }} />;
 
   return (
-    <div className="admin-app">
+    <Layout className="admin-app parent-admin-framework">
+      <Modal
+        title="创建孩子档案"
+        open={createChildOpen}
+        okText="创建并生成探险代码"
+        cancelText={children.length ? "取消" : "稍后再说"}
+        confirmLoading={creatingChild}
+        onOk={() => void submitCreateChild()}
+        onCancel={() => setCreateChildOpen(false)}
+        okButtonProps={{ disabled: newChildNickname.trim().length < 2 }}
+      >
+        <div className="parent-child-create-modal">
+          <p>孩子将使用独立的 8 位探险代码登录。创建后可以随时在“孩子档案”中查看或重置。</p>
+          <label>孩子昵称<Input size="large" maxLength={9} value={newChildNickname} onChange={(event) => setNewChildNickname(event.target.value)} placeholder="请输入 2 到 9 个字" autoFocus /></label>
+        </div>
+      </Modal>
       {feedback ? <div className={`admin-feedback-toast admin-feedback-toast--${feedback.kind}`} role="status">{feedback.text}</div> : null}
       {loginCodeResult ? <div className="parent-login-code-popover" role="status"><div><small>{loginCodeResult.nickname}的探险代码</small><code>{loginCodeResult.code}</code></div><button type="button" onClick={() => void navigator.clipboard.writeText(loginCodeResult.code)}>复制</button><button type="button" onClick={() => setLoginCodeResult(null)}>关闭</button></div> : null}
-      <aside className="admin-sidebar">
+      <Layout.Sider className="admin-sidebar" width={268} breakpoint="lg" collapsedWidth={0} trigger={null}>
         <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
         <div className="child-switcher"><label>当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label><div><button type="button" onClick={() => void createChild()}>＋ 新建孩子</button>{selectedChild ? <button type="button" onClick={() => void showLoginCode(selectedChild)}>查看探险代码</button> : null}</div></div>
-        <nav className="admin-sidebar__nav">
-          {NAV_GROUPS.map((group) => (
-            <div className="admin-nav-group" key={group.label}>
-              <span className="admin-nav-group__label">{group.label}</span>
-              {group.items.map((item) => (
-                <button key={item.key} className={section === item.key ? "active" : ""} onClick={() => selectSection(item.key)}>
-                  <span aria-hidden="true">{item.icon}</span>{item.label}
-                </button>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void staffApi.logout().then(() => setUser(null))}>退出</button></div>
-      </aside>
-      <main className="admin-main">
-        <header className="admin-topbar">
-          <button className="mobile-menu-button" type="button" aria-label="打开管理菜单" onClick={() => setMobileMenuOpen(true)}>☰</button>
+        <Menu
+          className="admin-sidebar__nav"
+          mode="inline"
+          selectedKeys={[section]}
+          onClick={({ key }) => selectSection(key as Section)}
+          items={NAV_GROUPS.map((group) => ({
+            type: "group" as const,
+            label: group.label,
+            children: group.items.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
+          }))}
+        />
+        <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void signOutParent()}>退出</button></div>
+      </Layout.Sider>
+      <Layout className="admin-main">
+        <Layout.Header className="admin-topbar">
+          <button className="mobile-menu-button" type="button" aria-label="打开管理菜单" onClick={() => setMobileMenuOpen(true)}><MenuOutlined /></button>
           <div className="admin-topbar__title">
             <p>{activeGroup?.label ?? "家长管理平台"} / {SECTION_LABELS[section]}</p>
             <h1>{selectedChild?.nickname ?? "孩子档案"}</h1>
@@ -2756,14 +2929,14 @@ export function App() {
               <select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>
                 {children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}
               </select>
-              <button type="button" onClick={() => void createChild()}>＋</button>
+              <button type="button" aria-label="新建孩子" onClick={createChild}><PlusOutlined /></button>
             </label>
           </div>
           {selectedChild && <div className="topbar-balance"><span>当前星星</span><strong>★ {selectedChild.starBalance}</strong></div>}
-        </header>
-        <div className="admin-content">
+        </Layout.Header>
+        <Layout.Content className="admin-content">
           {error && <Notice kind="error">{error}</Notice>}
-          {!selectedChild ? <Panel title="还没有孩子档案"><p>创建孩子后，就可以为孩子设置任务和奖励。</p><button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button></Panel> : <>
+          {!selectedChild ? <Panel title="还没有孩子档案"><p>创建孩子后，就可以为孩子设置任务和奖励。</p><button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button></Panel> : <Suspense fallback={<div className="admin-section-loading">正在打开管理模块…</div>}>
             {section === "overview" && <GrowthOverview child={selectedChild} />}
             {section === "pet" && <PetManagement child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
@@ -2778,9 +2951,9 @@ export function App() {
             {section === "leaderboard" && <LeaderboardSettings child={selectedChild} />}
             {section === "profile" && <div className="admin-stack"><Panel title="孩子账号" actions={<button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button>}><div className="child-login-code-card"><div><span>探险代码</span><code>{selectedChild.loginCodeAvailable ? `•••• ${selectedChild.loginCodeLastFour}` : `旧代码尾号 ${selectedChild.loginCodeLastFour}`}</code><small>{selectedChild.loginCodeAvailable ? "点击后可查看并复制完整代码" : "旧账号需要重置一次，之后即可随时查看"}</small></div><button type="button" className="ghost-button" onClick={() => void showLoginCode(selectedChild)}>{selectedChild.loginCodeAvailable ? "查看并复制" : "重置并显示"}</button></div></Panel><ChildProfileSettings child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} /></div>}
             {section === "settings" && <Settings child={selectedChild} />}
-          </>}
-        </div>
-      </main>
+          </Suspense>}
+        </Layout.Content>
+      </Layout>
       <nav className="admin-mobile-nav" aria-label="主要管理入口">
         {PRIMARY_MOBILE_NAV.map((item) => (
           <button key={item.key} type="button" className={mobilePrimarySection === item.key ? "active" : ""} onClick={() => selectSection(item.key)}>
@@ -2788,7 +2961,7 @@ export function App() {
           </button>
         ))}
         <button type="button" className={mobileMenuOpen ? "active" : ""} onClick={() => setMobileMenuOpen((open) => !open)}>
-          <span aria-hidden="true">☰</span>更多
+          <span aria-hidden="true"><MenuOutlined /></span>更多
         </button>
       </nav>
       {mobileMenuOpen && (
@@ -2810,10 +2983,10 @@ export function App() {
                 </div>
               </div>
             ))}
-            <button type="button" className="mobile-menu-logout" onClick={() => void staffApi.logout().then(() => setUser(null))}>退出家长账号</button>
+            <button type="button" className="mobile-menu-logout" onClick={() => void signOutParent()}>退出家长账号</button>
           </section>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

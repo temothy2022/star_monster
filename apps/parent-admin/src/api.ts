@@ -780,6 +780,16 @@ export const staffApi = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+  register: (input: {
+    email: string;
+    password: string;
+    displayName: string;
+    familyName: string;
+  }) =>
+    api<{ user: StaffUser; needsChildSetup: boolean }>(
+      "/api/parent/auth/register",
+      { method: "POST", body: JSON.stringify(input) },
+    ),
   logout: () => api<{ ok: true }>("/api/parent/auth/logout", { method: "POST" }),
 };
 
