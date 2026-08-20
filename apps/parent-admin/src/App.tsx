@@ -110,7 +110,7 @@ type Section =
 
 const SECTION_LABELS: Record<Section, string> = {
   overview: "成长总览",
-  "growth-records": "成长档案",
+  "growth-records": "健康数据",
   children: "孩子管理",
   pet: "星宠管理",
   history: "任务记录",
@@ -137,7 +137,7 @@ type NavItem = {
 };
 
 const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
-  { label: "孩子成长", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "growth-records", label: "成长档案", icon: <HeartOutlined /> }, { key: "children", label: "孩子管理", icon: <UserOutlined /> }] },
+  { label: "孩子成长", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "growth-records", label: "健康数据", icon: <HeartOutlined /> }, { key: "children", label: "孩子管理", icon: <UserOutlined /> }] },
   {
     label: "任务中心",
     items: [

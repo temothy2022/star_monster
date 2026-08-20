@@ -6,14 +6,11 @@ import {
   EditOutlined,
   HeartOutlined,
   PlusOutlined,
-  RiseOutlined,
 } from "@ant-design/icons";
 import {
   parentApi,
   type Child,
   type GrowthDashboard,
-  type GrowthMilestone,
-  type GrowthMilestoneCategory,
   type GrowthRecord,
 } from "./api";
 import { FeverRecords } from "./FeverRecords";
@@ -34,18 +31,6 @@ type RecordDraft = {
   energyScore: string;
   appetiteScore: string;
   note: string;
-};
-
-const MILESTONE_LABELS: Record<GrowthMilestoneCategory, string> = {
-  SELF_CARE: "自理能力",
-  LEARNING: "学习成长",
-  LANGUAGE: "语言表达",
-  PHYSICAL: "运动发展",
-  SOCIAL: "社会交往",
-  EMOTIONAL: "情绪成长",
-  CREATIVE: "创造力",
-  FAMILY: "家庭时光",
-  OTHER: "其他",
 };
 
 function todayKey() {
@@ -204,9 +189,6 @@ export function GrowthRecords({ child }: { child: Child }) {
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [recordsTotal, setRecordsTotal] = useState(0);
   const [recordsPage, setRecordsPage] = useState(1);
-  const [milestones, setMilestones] = useState<GrowthMilestone[]>([]);
-  const [milestonesTotal, setMilestonesTotal] = useState(0);
-  const [milestonesPage, setMilestonesPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recordOpen, setRecordOpen] = useState(false);
@@ -215,8 +197,6 @@ export function GrowthRecords({ child }: { child: Child }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [birthDate, setBirthDate] = useState(child.birthDate ?? "");
   const [biologicalSex, setBiologicalSex] = useState<Child["biologicalSex"]>(child.biologicalSex);
-  const [milestoneOpen, setMilestoneOpen] = useState(false);
-  const [milestoneDraft, setMilestoneDraft] = useState({ happenedOn: todayKey(), category: "SELF_CARE" as GrowthMilestoneCategory, title: "", description: "", visibleToChild: true });
   const [busy, setBusy] = useState(false);
 
   const loadDashboard = useCallback(async () => {
@@ -232,19 +212,13 @@ export function GrowthRecords({ child }: { child: Child }) {
     setRecordsTotal(response.total);
   }, [child.id, recordsPage]);
 
-  const loadMilestones = useCallback(async () => {
-    const response = await parentApi.growthMilestones(child.id, milestonesPage, 12);
-    setMilestones(response.milestones);
-    setMilestonesTotal(response.total);
-  }, [child.id, milestonesPage]);
-
   useEffect(() => {
     setLoading(true);
     setError("");
-    Promise.all([loadDashboard(), loadRecords(), loadMilestones()])
-      .catch((reason) => setError(reason instanceof Error ? reason.message : "成长档案暂时无法读取"))
+    Promise.all([loadDashboard(), loadRecords()])
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "健康数据暂时无法读取"))
       .finally(() => setLoading(false));
-  }, [loadDashboard, loadRecords, loadMilestones]);
+  }, [loadDashboard, loadRecords]);
 
   const latest = dashboard?.latest;
   const rangeLabel = days === 365 ? "近一年" : `近 ${days} 天`;
@@ -293,24 +267,6 @@ export function GrowthRecords({ child }: { child: Child }) {
     }
   }
 
-  async function createMilestone() {
-    if (!milestoneDraft.title.trim()) return;
-    setBusy(true);
-    try {
-      await parentApi.createGrowthMilestone(child.id, { ...milestoneDraft, title: milestoneDraft.title.trim(), description: milestoneDraft.description.trim() || null });
-      setMilestoneOpen(false);
-      setMilestoneDraft({ happenedOn: todayKey(), category: "SELF_CARE", title: "", description: "", visibleToChild: true });
-      setMilestonesPage(1);
-      const response = await parentApi.growthMilestones(child.id, 1, 12);
-      setMilestones(response.milestones);
-      setMilestonesTotal(response.total);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "里程碑保存失败");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const trendTab = useMemo(() => (
     <div className="growth-record-stack">
       <div className="growth-record-metrics">
@@ -333,10 +289,6 @@ export function GrowthRecords({ child }: { child: Child }) {
     </div>
   );
 
-  const milestoneTab = (
-    <section className="admin-panel growth-record-section"><header><div><h2>成长里程碑</h2><p>记录第一次做到、持续进步和值得记住的家庭时刻；可选择是否展示给孩子。</p></div><Button type="primary" icon={<PlusOutlined />} onClick={() => setMilestoneOpen(true)}>新增里程碑</Button></header>{milestones.length ? <div className="growth-milestone-list">{milestones.map((item) => <article key={item.id}><span className="growth-milestone-list__date">{item.happenedOn}</span><div><b>{MILESTONE_LABELS[item.category]}</b><h3>{item.title}</h3>{item.description ? <p>{item.description}</p> : null}<small>{item.visibleToChild ? "孩子可见" : "仅家长可见"}</small></div><Button danger type="text" icon={<DeleteOutlined />} aria-label="删除里程碑" onClick={() => { if (window.confirm("确定删除这条里程碑吗？")) void parentApi.deleteGrowthMilestone(child.id, item.id).then(loadMilestones); }} /></article>)}</div> : <div className="growth-record-empty">还没有里程碑。可以从“第一次自己整理书包”或“坚持阅读一周”开始记录。</div>}<Pagination className="admin-pagination" current={milestonesPage} pageSize={12} total={milestonesTotal} showSizeChanger={false} onChange={setMilestonesPage} /></section>
-  );
-
   const recordsTab = (
     <section className="admin-panel growth-record-section"><header><div><h2>记录管理</h2><p>每个日期保留一条记录，再次保存同一天会更新原记录。</p></div><Button type="primary" icon={<PlusOutlined />} onClick={() => { setRecordState(blankRecord()); setRecordOpen(true); }}>记录今天</Button></header>{records.length ? <div className="responsive-table-wrap"><table className="responsive-card-table growth-record-table"><thead><tr><th>日期</th><th>身高 / 体重</th><th>睡眠</th><th>活动</th><th>状态</th><th>操作</th></tr></thead><tbody>{records.map((record) => <tr key={record.id}><td data-label="日期">{record.recordDate}</td><td data-label="身高 / 体重">{record.heightCm ?? "—"} cm / {record.weightKg ?? "—"} kg</td><td data-label="睡眠">{minutesLabel(record.sleepMinutes)}</td><td data-label="活动">运动 {record.exerciseMinutes ?? "—"} · 户外 {record.outdoorMinutes ?? "—"}</td><td data-label="状态">情绪 {record.moodScore ?? "—"} · 精力 {record.energyScore ?? "—"}</td><td data-label="操作"><Button type="text" icon={<EditOutlined />} onClick={() => { setRecordState(recordDraft(record)); setRecordOpen(true); }}>编辑</Button><Button danger type="text" icon={<DeleteOutlined />} onClick={() => { if (window.confirm(`确定删除 ${record.recordDate} 的记录吗？`)) void parentApi.deleteGrowthRecord(child.id, record.recordDate).then(() => Promise.all([loadDashboard(), loadRecords()])); }}>删除</Button></td></tr>)}</tbody></table></div> : <div className="growth-record-empty">还没有日常记录。点击“记录今天”开始建立成长时间线。</div>}<Pagination className="admin-pagination" current={recordsPage} pageSize={20} total={recordsTotal} showSizeChanger={false} onChange={setRecordsPage} /></section>
   );
@@ -344,15 +296,14 @@ export function GrowthRecords({ child }: { child: Child }) {
   return (
     <div className="growth-record-page">
       <section className="growth-record-header">
-        <div><span><RiseOutlined /> 全方位成长记录</span><h2>成长档案</h2><p>把身体变化、睡眠作息、活动状态和重要时刻放在同一条成长时间线上。</p></div>
+        <div><h2>健康数据</h2></div>
         <div className="growth-record-header__actions"><label>观察范围<select value={days} onChange={(event) => setDays(Number(event.target.value) as RangeDays)}><option value={30}>近 30 天</option><option value={90}>近 90 天</option><option value={365}>近一年</option></select></label><Button icon={<CalendarOutlined />} onClick={() => setProfileOpen(true)}>基础资料</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => { setRecordState(blankRecord()); setRecordOpen(true); }}>记录今天</Button></div>
       </section>
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
-      {loading && !dashboard ? <div className="admin-section-loading">正在整理成长时间线…</div> : <Tabs className="admin-workspace-tabs growth-record-tabs" items={[{ key: "trend", label: "成长曲线", children: trendTab }, { key: "routine", label: "每日作息", children: routineTab }, { key: "fever", label: "发热记录", children: <FeverRecords child={child} /> }, { key: "milestones", label: "成长里程碑", children: milestoneTab }, { key: "records", label: "记录管理", children: recordsTab }]} />}
+      {loading && !dashboard ? <div className="admin-section-loading">正在整理健康数据…</div> : <Tabs className="admin-workspace-tabs growth-record-tabs" items={[{ key: "trend", label: "身体趋势", children: trendTab }, { key: "routine", label: "生活习惯", children: routineTab }, { key: "records", label: "数据记录", children: recordsTab }, { key: "fever", label: "发热记录", children: <FeverRecords child={child} /> }]} />}
 
       <RecordModal open={recordOpen} draft={recordState} busy={recordBusy} onChange={setRecordState} onCancel={() => setRecordOpen(false)} onSave={() => void saveRecord()} />
       <Modal title="成长参考基础资料" open={profileOpen} onCancel={() => setProfileOpen(false)} onOk={() => void saveProfile()} confirmLoading={busy} okText="保存" cancelText="取消"><div className="growth-profile-form"><p>出生日期只用于选择年龄相关参考范围；生理性别用于后续匹配儿童生长参考曲线，不会展示给孩子。</p><label>出生日期<input type="date" value={birthDate} max={todayKey()} onChange={(event) => setBirthDate(event.target.value)} /></label><label>生理性别<select value={biologicalSex ?? ""} onChange={(event) => setBiologicalSex((event.target.value || null) as Child["biologicalSex"])}><option value="">暂不设置</option><option value="MALE">男</option><option value="FEMALE">女</option><option value="UNSPECIFIED">不指定</option></select></label></div></Modal>
-      <Modal title="新增成长里程碑" open={milestoneOpen} onCancel={() => setMilestoneOpen(false)} onOk={() => void createMilestone()} confirmLoading={busy} okText="保存里程碑" cancelText="取消"><div className="growth-profile-form"><label>发生日期<input type="date" value={milestoneDraft.happenedOn} max={todayKey()} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, happenedOn: event.target.value })} /></label><label>类型<select value={milestoneDraft.category} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, category: event.target.value as GrowthMilestoneCategory })}>{Object.entries(MILESTONE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>标题<input value={milestoneDraft.title} maxLength={80} placeholder="例如：第一次自己整理好书包" onChange={(event) => setMilestoneDraft({ ...milestoneDraft, title: event.target.value })} /></label><label>补充说明<textarea rows={4} maxLength={1000} value={milestoneDraft.description} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, description: event.target.value })} /></label><label className="checkbox"><input type="checkbox" checked={milestoneDraft.visibleToChild} onChange={(event) => setMilestoneDraft({ ...milestoneDraft, visibleToChild: event.target.checked })} /> 在孩子端“我的成长”中展示</label></div></Modal>
     </div>
   );
 }

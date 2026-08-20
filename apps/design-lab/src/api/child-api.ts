@@ -37,16 +37,6 @@ export type ChildGrowthSummary = {
   recommendedSleepMinutes: { min: number; max: number; source: "AASM" } | null;
   averageExerciseMinutes: number | null;
   averageOutdoorMinutes: number | null;
-  milestones: Array<{
-    id: string;
-    happenedOn: string;
-    category: "SELF_CARE" | "LEARNING" | "LANGUAGE" | "PHYSICAL" | "SOCIAL" | "EMOTIONAL" | "CREATIVE" | "FAMILY" | "OTHER";
-    title: string;
-    description: string | null;
-    visibleToChild: boolean;
-    createdAt: string;
-    updatedAt: string;
-  }>;
 };
 
 type ApiErrorBody = {

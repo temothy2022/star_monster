@@ -7,25 +7,12 @@ import {
 } from "../api/child-api";
 import { ChildControlIcon } from "../components/ChildControlIcon";
 import { ChildDataState } from "../components/ChildDataState";
-import growthJourney from "@star-monsters/assets/images/growth/growth-journey.webp";
 import healthThermometer from "@star-monsters/assets/images/task-dashboard/health-thermometer.webp";
 import bodyRecordIcon from "@star-monsters/assets/icons/growth-record/body.svg";
 import sleepRecordIcon from "@star-monsters/assets/icons/growth-record/sleep.svg";
 import exerciseRecordIcon from "@star-monsters/assets/icons/growth-record/exercise.svg";
 import outdoorRecordIcon from "@star-monsters/assets/icons/growth-record/outdoor.svg";
 import otherRecordIcon from "@star-monsters/assets/icons/growth-record/other.svg";
-
-const CATEGORY_LABELS: Record<ChildGrowthSummary["milestones"][number]["category"], string> = {
-  SELF_CARE: "我会自己做",
-  LEARNING: "学习进步",
-  LANGUAGE: "表达成长",
-  PHYSICAL: "运动成长",
-  SOCIAL: "交到朋友",
-  EMOTIONAL: "认识情绪",
-  CREATIVE: "创意时刻",
-  FAMILY: "家庭记忆",
-  OTHER: "成长记忆",
-};
 
 function duration(value: number | null) {
   if (value === null) return "还没记录";
@@ -59,10 +46,10 @@ const RECORD_CATEGORIES: ReadonlyArray<{
   icon: string;
 }> = [
   { key: "BODY", label: "身高体重", description: "记录身体的变化", icon: bodyRecordIcon },
-  { key: "SLEEP", label: "睡眠", description: "记录入睡、起床和午睡", icon: sleepRecordIcon },
+  { key: "SLEEP", label: "睡眠作息", description: "记录入睡、起床和午睡", icon: sleepRecordIcon },
   { key: "EXERCISE", label: "运动", description: "记录今天运动了多久", icon: exerciseRecordIcon },
   { key: "OUTDOOR", label: "户外", description: "记录阳光下的活动", icon: outdoorRecordIcon },
-  { key: "OTHER", label: "其他", description: "记录状态、屏幕和小事", icon: otherRecordIcon },
+  { key: "OTHER", label: "每日状态", description: "记录心情、精神和食欲", icon: otherRecordIcon },
 ];
 
 const RECORD_CATEGORY_TITLES: Record<GrowthRecordCategory, string> = {
@@ -253,6 +240,18 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
     return `参考 ${duration(growth.recommendedSleepMinutes.min)}-${duration(growth.recommendedSleepMinutes.max)}`;
   }, [growth]);
 
+  const openRecorder = (category: GrowthRecordCategory) => {
+    setMessage("");
+    setDraft(growth ? draftFromSummary(growth) : EMPTY_DRAFT);
+    setRecordCategory(category);
+    setEditing(true);
+  };
+
+  const todayActivityMinutes = growth?.todayRecord
+    && (growth.todayRecord.exerciseMinutes !== null || growth.todayRecord.outdoorMinutes !== null)
+    ? (growth.todayRecord.exerciseMinutes ?? 0) + (growth.todayRecord.outdoorMinutes ?? 0)
+    : null;
+
   if (!growth) {
     return <main className="child-growth-page"><ChildDataState error={Boolean(message)} message={message || "正在打开我的成长…"} /></main>;
   }
@@ -262,39 +261,33 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
       <header className="child-growth-page__header">
         <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回"><ChildControlIcon kind="back" /></button>
         <div><h1>我的成长</h1></div>
-        <button
-          type="button"
-          className="child-growth-page__record"
-          onClick={() => {
-            if (editing) {
-              setDraft(draftFromSummary(growth));
-              setRecordCategory(null);
-              setEditing(false);
-              return;
-            }
-            setMessage("");
-            setRecordCategory(null);
-            setEditing(true);
-          }}
-        >{editing ? "收起记录" : growth.todayRecord ? "修改今天" : "记录今天"}</button>
       </header>
 
       {message ? <div className={`child-growth-message${message.includes("失败") || message.includes("请填写") || message.includes("至少") ? " is-error" : ""}`} role="status">{message}</div> : null}
 
-      {editing && !recordCategory ? (
-        <section className="child-growth-record-picker" aria-label="选择今天要记录的内容">
-          <header><h2>今天想记录什么？</h2><p>选择一项，只填写现在需要记录的内容。</p></header>
-          <div className="child-growth-record-picker__grid">
-            {RECORD_CATEGORIES.map((category) => (
-              <button key={category.key} type="button" onClick={() => { setMessage(""); setRecordCategory(category.key); }}>
-                <img src={category.icon} alt="" />
-                <span><strong>{category.label}</strong><small>{category.description}</small></span>
-                <ChildControlIcon kind="next" />
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <section className="child-growth-overview" aria-label="健康概览">
+        <header><h2>健康概览</h2><span className={growth.todayRecord ? "is-recorded" : ""}>{growth.todayRecord ? "今天已记录" : "今天待记录"}</span></header>
+        <div className="child-growth-summary">
+          <article><span>身高体重</span><strong>{growth.todayRecord?.heightCm ? `${growth.todayRecord.heightCm} cm` : "还没记录"}</strong><small>{growth.todayRecord?.weightKg ? `体重 ${growth.todayRecord.weightKg} kg` : "记录身体变化"}</small></article>
+          <article><span>睡眠作息</span><strong>{duration(growth.todayRecord?.sleepMinutes ?? growth.averageSleepMinutes)}</strong><small>{sleepHint}</small></article>
+          <article><span>今日活动</span><strong>{duration(todayActivityMinutes)}</strong><small>运动和户外活动合计</small></article>
+          <article><span>记录情况</span><strong>{growth.recentDaysRecorded} 天</strong><small>近 30 天有健康记录</small></article>
+        </div>
+      </section>
+
+      <section className="child-growth-record-menu" aria-label="记录健康数据">
+        <header><h2>记录健康数据</h2><time>{todayKey().slice(5).replace("-", "月")}日</time></header>
+        <div className="child-growth-record-menu__grid">
+          {RECORD_CATEGORIES.map((category) => (
+            <button key={category.key} type="button" className={categoryHasValue(category.key, draft) ? "is-recorded" : ""} onClick={() => openRecorder(category.key)}>
+              <img src={category.icon} alt="" />
+              <span><strong>{category.label}</strong><small>{category.description}</small></span>
+              <b>{categoryHasValue(category.key, draft) ? "已记录" : "去记录"}</b>
+              <ChildControlIcon kind="next" />
+            </button>
+          ))}
+        </div>
+      </section>
 
       {editing && recordCategory ? (
         <section className="child-growth-recorder" aria-label="记录今天的成长情况">
@@ -358,34 +351,17 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
           ) : null}
 
           <footer>
-            <button type="button" className="child-growth-recorder__cancel" onClick={() => { setMessage(""); setRecordCategory(null); }}>返回选择</button>
+            <button type="button" className="child-growth-recorder__cancel" onClick={() => { setMessage(""); setRecordCategory(null); setEditing(false); }}>取消</button>
             <button type="button" className="child-growth-recorder__save" disabled={saving} onClick={() => void saveToday()}>{saving ? "正在保存" : "保存记录"}</button>
           </footer>
         </section>
       ) : null}
 
-      <section className="child-growth-summary" aria-label="最近的生活习惯记录">
-        <article><span>睡眠</span><strong>{duration(growth.averageSleepMinutes)}</strong><small>{sleepHint}</small></article>
-        <article><span>运动</span><strong>{duration(growth.averageExerciseMinutes)}</strong><small>近 7 次记录的平均值</small></article>
-        <article><span>户外</span><strong>{duration(growth.averageOutdoorMinutes)}</strong><small>去阳光下活动一下吧</small></article>
-        <article><span>记录</span><strong>{growth.recentDaysRecorded} 天</strong><small>家长最近记录的成长日记</small></article>
-      </section>
-
       <button type="button" className="child-growth-health-entry" onClick={onFever}>
         <img className="child-growth-health-entry__mark" src={healthThermometer} alt="" />
-        <span><small>健康记录</small><strong>记录体温和发热病程</strong><b>出现发热时，连续记录变化和用药情况</b></span>
+        <span><strong>发热记录</strong><b>需要时记录体温、症状和用药</b></span>
         <ChildControlIcon kind="next" />
       </button>
-
-      <section className="child-growth-milestones">
-        <header><div><span>我的成长记忆</span><h2>我又学会了什么</h2></div><b>{growth.milestones.length}</b></header>
-        {growth.milestones.length ? <div className="child-growth-milestones__list">{growth.milestones.map((item) => (
-          <article key={item.id}>
-            <time>{item.happenedOn.slice(5).replace("-", "月")}日</time>
-            <div><span>{CATEGORY_LABELS[item.category]}</span><h3>{item.title}</h3>{item.description ? <p>{item.description}</p> : null}</div>
-          </article>
-        ))}</div> : <div className="child-growth-milestones__empty"><img src={growthJourney} alt="" /><span>你的成长故事正在开始。家长记录新的里程碑后，会在这里出现。</span></div>}
-      </section>
     </main>
   );
 }

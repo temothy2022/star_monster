@@ -215,10 +215,7 @@ export async function registerGrowthRecordRoutes(app: FastifyInstance, config: A
   app.get("/api/child/growth-records/summary", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
-    const [records, milestones] = await Promise.all([
-      prisma.childGrowthRecord.findMany({ where: { childId: child.id, recordDate: { gte: addBusinessDays(today, -29), lte: today } }, orderBy: { recordDate: "asc" } }),
-      prisma.childGrowthMilestone.findMany({ where: { childId: child.id, visibleToChild: true }, orderBy: [{ happenedOn: "desc" }, { createdAt: "desc" }], take: 8 }),
-    ]);
+    const records = await prisma.childGrowthRecord.findMany({ where: { childId: child.id, recordDate: { gte: addBusinessDays(today, -29), lte: today } }, orderBy: { recordDate: "asc" } });
     const dashboard = buildGrowthDashboard({ child, records });
     const todayKey = today.toISOString().slice(0, 10);
     return {
@@ -230,7 +227,6 @@ export async function registerGrowthRecordRoutes(app: FastifyInstance, config: A
         recommendedSleepMinutes: dashboard.summary.recommendedSleepMinutes,
         averageExerciseMinutes: dashboard.summary.averageExerciseMinutes,
         averageOutdoorMinutes: dashboard.summary.averageOutdoorMinutes,
-        milestones: milestones.map(serializeMilestone),
       },
     };
   });

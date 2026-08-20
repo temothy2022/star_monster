@@ -2574,11 +2574,9 @@ td { font-size: 13px; }
 }
 
 .growth-record-page { display: grid; gap: 18px; }
-.growth-record-header { display: flex; min-width: 0; padding: 22px 24px; align-items: flex-end; justify-content: space-between; gap: 24px; border: 1px solid #dfe6ed; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px rgb(36 54 84 / 5%); }
+.growth-record-header { display: flex; min-width: 0; padding: 18px 22px; align-items: center; justify-content: space-between; gap: 24px; border: 1px solid #dfe6ed; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px rgb(36 54 84 / 5%); }
 .growth-record-header > div:first-child { min-width: 0; }
-.growth-record-header span { display: inline-flex; align-items: center; gap: 7px; color: #be5b38; font-size: 12px; font-weight: 800; }
-.growth-record-header h2 { margin: 7px 0 4px; color: #243654; font-size: 28px; letter-spacing: 0; }
-.growth-record-header p { max-width: 680px; margin: 0; color: #6f7d90; line-height: 1.65; }
+.growth-record-header h2 { margin: 0; color: #243654; font-size: 26px; letter-spacing: 0; }
 .growth-record-header__actions { display: flex; flex: 0 0 auto; align-items: flex-end; gap: 10px; }
 .growth-record-header__actions label { display: grid; gap: 5px; color: #6f7d90; font-size: 11px; font-weight: 700; }
 .growth-record-header__actions select,
@@ -2635,14 +2633,6 @@ td { font-size: 13px; }
 .growth-routine-list time { color: #30445e; font-weight: 800; }
 .growth-routine-list span { color: #7a8797; font-size: 12px; }
 .growth-routine-list b { display: block; margin-top: 2px; color: #3f536b; }
-.growth-milestone-list { display: grid; gap: 10px; }
-.growth-milestone-list article { display: grid; padding: 14px; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: start; gap: 14px; border: 1px solid #e0e6ed; border-radius: 8px; background: #fff; }
-.growth-milestone-list__date { display: inline-flex; min-height: 32px; padding: 0 9px; align-items: center; justify-content: center; border-radius: 7px; color: #956045; background: #fff2e9; font-size: 12px; font-weight: 800; }
-.growth-milestone-list article > div { min-width: 0; }
-.growth-milestone-list article b { color: #4e8d7b; font-size: 11px; }
-.growth-milestone-list h3 { margin: 4px 0; color: #2f425d; font-size: 17px; }
-.growth-milestone-list p { margin: 6px 0; color: #66768a; line-height: 1.6; }
-.growth-milestone-list small { color: #8a95a4; }
 .growth-record-table td:last-child { min-width: 150px; white-space: nowrap; }
 .growth-record-form { display: grid; gap: 18px; }
 .growth-record-form section { display: grid; gap: 10px; }
@@ -2680,9 +2670,6 @@ td { font-size: 13px; }
   .growth-attention-list { grid-template-columns: 1fr; }
   .growth-routine-list article { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .growth-routine-list time { grid-column: 1 / -1; }
-  .growth-milestone-list article { grid-template-columns: 1fr auto; gap: 8px; }
-  .growth-milestone-list__date { width: fit-content; }
-  .growth-milestone-list article > div { grid-column: 1 / -1; grid-row: 2; }
   .growth-record-form__grid { grid-template-columns: 1fr 1fr; }
 }
 
