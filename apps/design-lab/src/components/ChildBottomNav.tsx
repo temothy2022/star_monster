@@ -12,7 +12,9 @@ export type ChildRoute =
   | "pet-growth"
   | "wishes-requested"
   | "footprints"
-  | "profile";
+  | "profile"
+  | "growth-record"
+  | "fever-record";
 export type ChildNavItem = "home" | "tasks" | "pet" | "footprints";
 
 function prefetchRoute(route: ChildRoute) {
@@ -24,6 +26,10 @@ function prefetchRoute(route: ChildRoute) {
     void import("../planets/PlanetMap");
   } else if (route === "profile") {
     void import("../profile/ChildProfilePage");
+  } else if (route === "growth-record") {
+    void import("../profile/ChildGrowthPage");
+  } else if (route === "fever-record") {
+    void import("../profile/ChildFeverPage");
   } else {
     void import("../tasks/TaskListPages");
   }

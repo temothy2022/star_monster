@@ -35,6 +35,24 @@ enum GrowthMilestoneCategory {
   OTHER
 }
 
+enum FeverThermometerType {
+  EAR
+  FOREHEAD
+  MERCURY
+}
+
+enum FeverAntipyreticKind {
+  IBUPROFEN
+  ACETAMINOPHEN
+  OTHER
+}
+
+enum FeverObservationLevel {
+  GOOD
+  FAIR
+  POOR
+}
+
 enum PetType {
   DOUYA
   PAOPAO
@@ -476,6 +494,9 @@ model ChildProfile {
   directMessages          DirectChildMessage[]
   growthRecords           ChildGrowthRecord[]
   growthMilestones        ChildGrowthMilestone[]
+  feverEpisodes           ChildFeverEpisode[]
+  feverReadings           ChildFeverReading[]
+  activeFeverEpisode      ChildFeverActiveSlot?
 
   @@index([familyId, status])
 }
@@ -523,6 +544,61 @@ model ChildGrowthMilestone {
 
   @@index([childId, happenedOn])
   @@index([childId, category, happenedOn])
+}
+
+model ChildFeverEpisode {
+  id          String    @id @default(cuid())
+  childId     String
+  startedAt   DateTime
+  endedAt     DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  child      ChildProfile          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  readings   ChildFeverReading[]
+  activeSlot ChildFeverActiveSlot?
+
+  @@index([childId, startedAt])
+  @@index([childId, endedAt, startedAt])
+}
+
+model ChildFeverActiveSlot {
+  childId   String   @id
+  episodeId String   @unique
+  createdAt DateTime @default(now())
+
+  child   ChildProfile      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  episode ChildFeverEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+}
+
+model ChildFeverReading {
+  id                  String                  @id @default(cuid())
+  clientRequestId     String                  @unique
+  childId             String
+  episodeId           String
+  recordedAt          DateTime
+  temperatureCelsius  Decimal                 @db.Decimal(3, 1)
+  thermometerType     FeverThermometerType?
+  medicationUsed      Boolean                 @default(false)
+  antipyreticUsed     Boolean                 @default(false)
+  antipyreticKind     FeverAntipyreticKind?
+  medicationNote      String?
+  respiratoryRate    Int?
+  mentalState         FeverObservationLevel?
+  sleepState          FeverObservationLevel?
+  appetiteState       FeverObservationLevel?
+  hydrationState      FeverObservationLevel?
+  note                String?
+  createdById         String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  child   ChildProfile      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  episode ChildFeverEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, recordedAt])
+  @@index([childId, recordedAt])
 }
 
 model PetGrowthProfile {

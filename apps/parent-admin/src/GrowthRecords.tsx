@@ -16,6 +16,7 @@ import {
   type GrowthMilestoneCategory,
   type GrowthRecord,
 } from "./api";
+import { FeverRecords } from "./FeverRecords";
 
 type RangeDays = 30 | 90 | 365;
 type RecordDraft = {
@@ -347,7 +348,7 @@ export function GrowthRecords({ child }: { child: Child }) {
         <div className="growth-record-header__actions"><label>观察范围<select value={days} onChange={(event) => setDays(Number(event.target.value) as RangeDays)}><option value={30}>近 30 天</option><option value={90}>近 90 天</option><option value={365}>近一年</option></select></label><Button icon={<CalendarOutlined />} onClick={() => setProfileOpen(true)}>基础资料</Button><Button type="primary" icon={<PlusOutlined />} onClick={() => { setRecordState(blankRecord()); setRecordOpen(true); }}>记录今天</Button></div>
       </section>
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
-      {loading && !dashboard ? <div className="admin-section-loading">正在整理成长时间线…</div> : <Tabs className="admin-workspace-tabs growth-record-tabs" items={[{ key: "trend", label: "成长曲线", children: trendTab }, { key: "routine", label: "每日作息", children: routineTab }, { key: "milestones", label: "成长里程碑", children: milestoneTab }, { key: "records", label: "记录管理", children: recordsTab }]} />}
+      {loading && !dashboard ? <div className="admin-section-loading">正在整理成长时间线…</div> : <Tabs className="admin-workspace-tabs growth-record-tabs" items={[{ key: "trend", label: "成长曲线", children: trendTab }, { key: "routine", label: "每日作息", children: routineTab }, { key: "fever", label: "发热记录", children: <FeverRecords child={child} /> }, { key: "milestones", label: "成长里程碑", children: milestoneTab }, { key: "records", label: "记录管理", children: recordsTab }]} />}
 
       <RecordModal open={recordOpen} draft={recordState} busy={recordBusy} onChange={setRecordState} onCancel={() => setRecordOpen(false)} onSave={() => void saveRecord()} />
       <Modal title="成长参考基础资料" open={profileOpen} onCancel={() => setProfileOpen(false)} onOk={() => void saveProfile()} confirmLoading={busy} okText="保存" cancelText="取消"><div className="growth-profile-form"><p>出生日期只用于选择年龄相关参考范围；生理性别用于后续匹配儿童生长参考曲线，不会展示给孩子。</p><label>出生日期<input type="date" value={birthDate} max={todayKey()} onChange={(event) => setBirthDate(event.target.value)} /></label><label>生理性别<select value={biologicalSex ?? ""} onChange={(event) => setBiologicalSex((event.target.value || null) as Child["biologicalSex"])}><option value="">暂不设置</option><option value="MALE">男</option><option value="FEMALE">女</option><option value="UNSPECIFIED">不指定</option></select></label></div></Modal>
@@ -355,4 +356,3 @@ export function GrowthRecords({ child }: { child: Child }) {
     </div>
   );
 }
-

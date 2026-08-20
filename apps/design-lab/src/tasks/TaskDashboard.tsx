@@ -43,6 +43,7 @@ export const TASK_DASHBOARD_WIDGETS: ReadonlyArray<{
   { key: "POEM_REVIEW", label: "复习古诗", description: "每天听一首需要复习的古诗", size: "medium", tone: "poem", defaultRows: 15, minRows: 12, maxRows: 24 },
   { key: "POSTCARDS", label: "旅行明信片", description: "滚动看看星宠带回来的旅行收藏", size: "wide", tone: "postcard", defaultRows: 16, minRows: 13, maxRows: 26 },
   { key: "COUNTDOWN_TIMER", label: "倒计时钟", description: "设置最长 60 分钟的可视化提醒", size: "small", tone: "timer", defaultRows: 16, minRows: 12, maxRows: 22 },
+  { key: "HEALTH_RECORD", label: "成长记录", description: "记录身高、作息、运动和发热病程", size: "small", tone: "health", defaultRows: 12, minRows: 10, maxRows: 20 },
 ];
 
 const WIDGET_BY_KEY = new Map(TASK_DASHBOARD_WIDGETS.map((widget) => [widget.key, widget]));

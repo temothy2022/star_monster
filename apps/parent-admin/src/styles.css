@@ -2691,3 +2691,201 @@ td { font-size: 13px; }
   .growth-record-header__actions label { grid-column: auto; }
   .growth-record-form__grid { grid-template-columns: 1fr; }
 }
+/* Fever course records */
+.fever-admin-stack {
+  display: grid;
+  gap: 20px;
+}
+
+.fever-admin-overview > header,
+.fever-admin-stack .growth-record-section > header {
+  align-items: flex-start;
+}
+
+.fever-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fever-admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.fever-admin-metrics article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e4e8ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.fever-admin-metrics span,
+.fever-admin-metrics strong {
+  display: block;
+}
+
+.fever-admin-metrics span {
+  color: #667085;
+  font-size: 13px;
+}
+
+.fever-admin-metrics strong {
+  margin-top: 6px;
+  color: #243754;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.fever-admin-chart-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.fever-admin-chart-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.fever-admin-chart {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  color: #77839a;
+  font-size: 11px;
+}
+
+.fever-admin-chart line {
+  stroke: #e1e7ee;
+  stroke-dasharray: 5 5;
+}
+
+.fever-admin-chart path {
+  fill: none;
+  stroke: #ee7455;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fever-admin-chart circle {
+  fill: #fff;
+  stroke: #ee7455;
+  stroke-width: 3;
+}
+
+.fever-admin-chart .is-medicine {
+  fill: #9a5b1f;
+  font-weight: 700;
+}
+
+.fever-admin-history {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.fever-admin-history button {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid #dfe5ed;
+  border-radius: 8px;
+  background: #fff;
+  color: #273b5b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fever-admin-history button:hover,
+.fever-admin-history button.is-active {
+  border-color: #ee7455;
+  background: #fff8f5;
+}
+
+.fever-admin-history span,
+.fever-admin-history small {
+  overflow: hidden;
+  color: #77839a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fever-admin-form,
+.fever-admin-form details {
+  display: grid;
+  gap: 16px;
+}
+
+.fever-admin-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.fever-admin-form label {
+  display: grid;
+  gap: 7px;
+  color: #354766;
+  font-weight: 600;
+}
+
+.fever-admin-form input,
+.fever-admin-form select,
+.fever-admin-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cfd7e3;
+  border-radius: 6px;
+  background: #fff;
+  color: #243754;
+  font: inherit;
+  font-weight: 400;
+}
+
+.fever-admin-form details {
+  padding-top: 4px;
+  border-top: 1px solid #edf0f4;
+}
+
+.fever-admin-form summary {
+  color: #315d85;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fever-admin-table strong {
+  color: #c84f35;
+}
+
+@media (max-width: 900px) {
+  .fever-admin-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fever-admin-history {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .fever-admin-actions,
+  .fever-admin-actions .ant-btn {
+    width: 100%;
+  }
+
+  .fever-admin-metrics,
+  .fever-admin-history,
+  .fever-admin-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fever-admin-metrics strong {
+    font-size: 21px;
+  }
+}

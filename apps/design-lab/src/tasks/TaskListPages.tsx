@@ -24,6 +24,7 @@ import completeStar from "@star-monsters/assets/images/task-list/semantic/comple
 import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import reviewAudioPlay from "@star-monsters/assets/images/task-dashboard/review-audio-play.webp";
 import taskListScrollHandle from "@star-monsters/assets/images/task-dashboard/task-list-scroll-handle.webp";
+import healthThermometer from "@star-monsters/assets/images/task-dashboard/health-thermometer.webp";
 import { ChildControlIcon } from "../components/ChildControlIcon";
 import { MASCOTS, useMascot } from "../mascots";
 import {
@@ -39,6 +40,7 @@ import { ChildDataState } from "../components/ChildDataState";
 import {
   ApiError,
   getChildLeaderboards,
+  getChildFeverRecords,
   getChildPlanets,
   getPetNotifications,
   getPetPostcards,
@@ -50,6 +52,7 @@ import {
   type ChildLeaderboard,
   type ChildLeaderboardEntry,
   type DailyTask,
+  type FeverEpisode,
   type DashboardHanziReview,
   type DashboardPoemReview,
   type MascotAsset,
@@ -1047,6 +1050,28 @@ function NotificationWidget({
   );
 }
 
+function HealthRecordWidget({
+  episode,
+  loading,
+  onNavigate,
+}: {
+  episode: FeverEpisode | null;
+  loading: boolean;
+  onNavigate?: (route: ChildRoute) => void;
+}) {
+  return (
+    <button type="button" className="task-widget-health" onClick={() => onNavigate?.("growth-record")}>
+      <img className="task-widget-health__thermometer" src={healthThermometer} alt="" />
+      <span>
+        <small>{episode ? "发热记录中" : "成长记录"}</small>
+        <strong>{loading ? "正在查看记录" : episode?.latestTemperatureCelsius != null ? `${episode.latestTemperatureCelsius.toFixed(1)}°C` : "记录今天"}</strong>
+        <b>{episode ? `已记录 ${episode.readingCount} 次 · 最高 ${episode.maximumTemperatureCelsius?.toFixed(1) ?? "—"}°C` : "身高、作息、运动与健康"}</b>
+      </span>
+      <ChildControlIcon kind="next" />
+    </button>
+  );
+}
+
 function PendingTaskCard({
   task,
   starting,
@@ -1477,6 +1502,7 @@ export function TaskExperience({
   const [petNotifications, setPetNotifications] = useState<PetNotificationSummary | null | undefined>(undefined);
   const [dashboardPostcards, setDashboardPostcards] = useState<PetTrip[] | null | undefined>(undefined);
   const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
+  const [dashboardFeverEpisode, setDashboardFeverEpisode] = useState<FeverEpisode | null | undefined>(undefined);
   const [phoneLayout, setPhoneLayout] = useState(() => window.matchMedia(
     "(max-width: 600px), (pointer: coarse) and (max-height: 600px)",
   ).matches);
@@ -1736,6 +1762,39 @@ export function TaskExperience({
     { enabled: dashboardReviewsEnabled, intervalMs: 300_000 },
   );
 
+  const feverWidgetEnabled = dashboardActive && Boolean(
+    experience?.taskDashboardLayout.widgets.includes("HEALTH_RECORD"),
+  );
+
+  useEffect(() => {
+    if (!feverWidgetEnabled) {
+      setDashboardFeverEpisode(undefined);
+      return;
+    }
+    const controller = new AbortController();
+    void getChildFeverRecords(1, 5, controller.signal)
+      .then((result) => setDashboardFeverEpisode(result.activeEpisode))
+      .catch((reason: unknown) => {
+        if (reason instanceof ApiError && reason.status === 401) window.location.hash = "login";
+        else if (!controller.signal.aborted) setDashboardFeverEpisode(null);
+      });
+    return () => controller.abort();
+  }, [feverWidgetEnabled]);
+
+  useLiveRefresh(
+    async (signal) => {
+      try {
+        const result = await getChildFeverRecords(1, 5, signal);
+        setDashboardFeverEpisode(result.activeEpisode);
+      } catch (reason) {
+        if (reason instanceof ApiError && reason.status === 401) {
+          window.location.hash = "login";
+        }
+      }
+    },
+    { enabled: feverWidgetEnabled, intervalMs: 60_000 },
+  );
+
   useEffect(() => {
     if (experience) {
       reportChildPageReady(
@@ -1877,6 +1936,8 @@ export function TaskExperience({
         return <PostcardCarouselWidget postcards={dashboardPostcards} onNavigate={onNavigate} />;
       case "COUNTDOWN_TIMER":
         return <CountdownTimerWidget />;
+      case "HEALTH_RECORD":
+        return <HealthRecordWidget episode={dashboardFeverEpisode ?? null} loading={dashboardFeverEpisode === undefined} onNavigate={onNavigate} />;
     }
   }
 

@@ -24,6 +24,14 @@ export type ChildProfileUpdate = Pick<
 
 export type ChildGrowthSummary = {
   nickname: string | null;
+  todayRecord: (ChildGrowthRecordInput & {
+    id: string;
+    recordDate: string;
+    bmi: number | null;
+    sleepMinutes: number | null;
+    createdAt: string;
+    updatedAt: string;
+  }) | null;
   recentDaysRecorded: number;
   averageSleepMinutes: number | null;
   recommendedSleepMinutes: { min: number; max: number; source: "AASM" } | null;
@@ -202,6 +210,102 @@ export async function getChildProfile() {
 export async function getChildGrowthSummary() {
   const result = await request<{ growth: ChildGrowthSummary }>("/api/child/growth-records/summary");
   return result.growth;
+}
+
+export type ChildGrowthRecordInput = {
+  heightCm: number | null;
+  weightKg: number | null;
+  sleepStartMinute: number | null;
+  wakeMinute: number | null;
+  napMinutes: number | null;
+  sleepQuality: number | null;
+  outdoorMinutes: number | null;
+  exerciseMinutes: number | null;
+  screenMinutes: number | null;
+  moodScore: number | null;
+  energyScore: number | null;
+  appetiteScore: number | null;
+  note: string | null;
+};
+
+export async function saveChildGrowthRecord(date: string, input: ChildGrowthRecordInput) {
+  return request<{ record: { id: string; recordDate: string } }>(`/api/child/growth-records/${date}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export type FeverThermometerType = "EAR" | "FOREHEAD" | "MERCURY";
+export type FeverAntipyreticKind = "IBUPROFEN" | "ACETAMINOPHEN" | "OTHER";
+export type FeverObservationLevel = "GOOD" | "FAIR" | "POOR";
+
+export type FeverReading = {
+  id: string;
+  recordedAt: string;
+  temperatureCelsius: number;
+  thermometerType: FeverThermometerType | null;
+  medicationUsed: boolean;
+  antipyreticUsed: boolean;
+  antipyreticKind: FeverAntipyreticKind | null;
+  medicationNote: string | null;
+  respiratoryRate: number | null;
+  mentalState: FeverObservationLevel | null;
+  sleepState: FeverObservationLevel | null;
+  appetiteState: FeverObservationLevel | null;
+  hydrationState: FeverObservationLevel | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type FeverEpisode = {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationMinutes: number;
+  maximumTemperatureCelsius: number | null;
+  latestTemperatureCelsius: number | null;
+  readingCount: number;
+  readings: FeverReading[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FeverReadingInput = {
+  clientRequestId: string;
+  recordedAt: string;
+  temperatureCelsius: number;
+  thermometerType: FeverThermometerType | null;
+  medicationUsed: boolean;
+  antipyreticUsed: boolean;
+  antipyreticKind: FeverAntipyreticKind | null;
+  medicationNote: string | null;
+  respiratoryRate: number | null;
+  mentalState: FeverObservationLevel | null;
+  sleepState: FeverObservationLevel | null;
+  appetiteState: FeverObservationLevel | null;
+  hydrationState: FeverObservationLevel | null;
+  note: string | null;
+};
+
+export async function getChildFeverRecords(page = 1, pageSize = 10, signal?: AbortSignal) {
+  return request<{ activeEpisode: FeverEpisode | null; history: FeverEpisode[]; total: number; page: number; pageSize: number }>(
+    `/api/child/fever-records?page=${page}&pageSize=${pageSize}`,
+    { cache: "no-store", signal },
+  );
+}
+
+export async function saveChildFeverReading(input: Omit<FeverReadingInput, "clientRequestId">) {
+  return request<{ reading: FeverReading }>("/api/child/fever-records", {
+    method: "POST",
+    body: JSON.stringify({ ...input, clientRequestId: createIdempotencyKey("fever-reading") }),
+  });
+}
+
+export async function endChildFeverEpisode() {
+  return request<{ episode: FeverEpisode }>("/api/child/fever-records/end", {
+    method: "POST",
+    body: JSON.stringify({ endedAt: new Date().toISOString() }),
+  });
 }
 
 export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";
@@ -591,7 +695,8 @@ export type TaskDashboardWidgetKey =
   | "HANZI_REVIEW"
   | "POEM_REVIEW"
   | "POSTCARDS"
-  | "COUNTDOWN_TIMER";
+  | "COUNTDOWN_TIMER"
+  | "HEALTH_RECORD";
 
 export type TaskDashboardLayout = {
   version: 1;

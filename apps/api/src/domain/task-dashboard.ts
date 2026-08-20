@@ -16,6 +16,7 @@ export const TASK_DASHBOARD_WIDGET_KEYS = [
   "POEM_REVIEW",
   "POSTCARDS",
   "COUNTDOWN_TIMER",
+  "HEALTH_RECORD",
 ] as const;
 
 export type TaskDashboardWidgetKey = typeof TASK_DASHBOARD_WIDGET_KEYS[number];
@@ -50,6 +51,7 @@ export const TASK_DASHBOARD_WIDGET_ROW_LIMITS: Record<
   POEM_REVIEW: { min: 12, max: 24 },
   POSTCARDS: { min: 13, max: 26 },
   COUNTDOWN_TIMER: { min: 12, max: 22 },
+  HEALTH_RECORD: { min: 10, max: 20 },
 };
 
 export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
@@ -61,6 +63,7 @@ export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
     "CATEGORY_PROGRESS",
     "COUNTDOWN_TIMER",
     "NOTIFICATIONS",
+    "HEALTH_RECORD",
     "HANZI_REVIEW",
     "LEADERBOARD",
     "MASCOT",
@@ -74,6 +77,7 @@ export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
     CATEGORY_PROGRESS: 8,
     COUNTDOWN_TIMER: 8,
     NOTIFICATIONS: 8,
+    HEALTH_RECORD: 8,
     HANZI_REVIEW: 0,
     LEADERBOARD: 0,
     MASCOT: 0,
@@ -88,6 +92,7 @@ export const DEFAULT_TASK_DASHBOARD_LAYOUT: TaskDashboardLayout = {
     POEM_REVIEW: 13,
     HANZI_REVIEW: 13,
     NOTIFICATIONS: 10,
+    HEALTH_RECORD: 12,
     CATEGORY_PROGRESS: 18,
   },
   clockEnabled: true,

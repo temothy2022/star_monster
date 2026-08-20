@@ -17,6 +17,7 @@ describe("task dashboard layout", () => {
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POEM_REVIEW");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("POSTCARDS");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("COUNTDOWN_TIMER");
+    expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toContain("HEALTH_RECORD");
     expect(DEFAULT_TASK_DASHBOARD_LAYOUT.widgets).toEqual([
       "CLOCK",
       "BALANCE",
@@ -24,6 +25,7 @@ describe("task dashboard layout", () => {
       "CATEGORY_PROGRESS",
       "COUNTDOWN_TIMER",
       "NOTIFICATIONS",
+      "HEALTH_RECORD",
       "HANZI_REVIEW",
       "LEADERBOARD",
       "MASCOT",
@@ -34,6 +36,7 @@ describe("task dashboard layout", () => {
       HANZI_REVIEW: 0,
       CLOCK: 4,
       CATEGORY_PROGRESS: 8,
+      HEALTH_RECORD: 8,
       POSTCARDS: 0,
       STREAK: 8,
     });

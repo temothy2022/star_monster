@@ -140,6 +140,11 @@ const ChildGrowthPage = lazy(() =>
     default: module.ChildGrowthPage,
   })),
 );
+const ChildFeverPage = lazy(() =>
+  import("./profile/ChildFeverPage").then((module) => ({
+    default: module.ChildFeverPage,
+  })),
+);
 const PlanetJourneyPage = lazy(() =>
   import("./planets/PlanetMap").then((module) => ({
     default: module.PlanetJourneyPage,
@@ -273,7 +278,8 @@ type AppRoute =
   | "bundle-practice"
   | "poem-recitation"
   | "profile"
-  | "growth-record";
+  | "growth-record"
+  | "fever-record";
 
 const DEFAULT_TASK_ROUTE: AppRoute = "home";
 
@@ -349,6 +355,7 @@ function readRouteFromHash(): AppRoute {
     "poem-recitation",
     "profile",
     "growth-record",
+    "fever-record",
   ];
 
   return routes.includes(route) ? route : "login";
@@ -397,6 +404,7 @@ function childPageTitle(route: AppRoute) {
   if (route === "pet-growth") return "星宠小屋";
   if (route === "profile") return "个人中心";
   if (route === "growth-record") return "我的成长";
+  if (route === "fever-record") return "发热记录";
 
   const titles: Partial<Record<AppRoute, string>> = {
     login: "孩子登录",
@@ -1025,7 +1033,11 @@ export function App() {
   }
 
   if (route === "growth-record") {
-    return <ChildGrowthPage onBack={() => navigate("profile")} />;
+    return <ChildGrowthPage onBack={() => navigate("profile")} onFever={() => navigate("fever-record")} />;
+  }
+
+  if (route === "fever-record") {
+    return <ChildFeverPage onBack={() => navigate("growth-record")} />;
   }
 
   if (route === "hanzi-home") {

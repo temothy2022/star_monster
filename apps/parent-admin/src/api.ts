@@ -170,6 +170,55 @@ export type GrowthMilestone = {
   updatedAt: string;
 };
 
+export type FeverThermometerType = "EAR" | "FOREHEAD" | "MERCURY";
+export type FeverAntipyreticKind = "IBUPROFEN" | "ACETAMINOPHEN" | "OTHER";
+export type FeverObservationLevel = "GOOD" | "FAIR" | "POOR";
+export type FeverReading = {
+  id: string;
+  recordedAt: string;
+  temperatureCelsius: number;
+  thermometerType: FeverThermometerType | null;
+  medicationUsed: boolean;
+  antipyreticUsed: boolean;
+  antipyreticKind: FeverAntipyreticKind | null;
+  medicationNote: string | null;
+  respiratoryRate: number | null;
+  mentalState: FeverObservationLevel | null;
+  sleepState: FeverObservationLevel | null;
+  appetiteState: FeverObservationLevel | null;
+  hydrationState: FeverObservationLevel | null;
+  note: string | null;
+  createdAt: string;
+};
+export type FeverEpisode = {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationMinutes: number;
+  maximumTemperatureCelsius: number | null;
+  latestTemperatureCelsius: number | null;
+  readingCount: number;
+  readings: FeverReading[];
+  createdAt: string;
+  updatedAt: string;
+};
+export type FeverReadingInput = {
+  clientRequestId: string;
+  recordedAt: string;
+  temperatureCelsius: number;
+  thermometerType: FeverThermometerType | null;
+  medicationUsed: boolean;
+  antipyreticUsed: boolean;
+  antipyreticKind: FeverAntipyreticKind | null;
+  medicationNote: string | null;
+  respiratoryRate: number | null;
+  mentalState: FeverObservationLevel | null;
+  sleepState: FeverObservationLevel | null;
+  appetiteState: FeverObservationLevel | null;
+  hydrationState: FeverObservationLevel | null;
+  note: string | null;
+};
+
 export type LeaderboardSettings = {
   competitorGrowthPercent: number;
   dailyCompetitorStarDelta: number;
@@ -1460,6 +1509,20 @@ export const parentApi = {
   ),
   deleteGrowthMilestone: (childId: string, milestoneId: string) =>
     api<{ ok: true }>(`/api/parent/children/${childId}/growth-milestones/${milestoneId}`, { method: "DELETE" }),
+  feverRecords: (childId: string, page = 1, pageSize = 10) =>
+    api<{ activeEpisode: FeverEpisode | null; history: FeverEpisode[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/fever-records?page=${page}&pageSize=${pageSize}`,
+    ),
+  saveFeverReading: (childId: string, data: Omit<FeverReadingInput, "clientRequestId">) =>
+    api<{ reading: FeverReading }>(`/api/parent/children/${childId}/fever-records`, {
+      method: "POST",
+      body: JSON.stringify({ ...data, clientRequestId: createIdempotencyKey("fever-reading") }),
+    }),
+  endFeverEpisode: (childId: string) =>
+    api<{ episode: FeverEpisode }>(`/api/parent/children/${childId}/fever-records/end`, {
+      method: "POST",
+      body: JSON.stringify({ endedAt: new Date().toISOString() }),
+    }),
   mathMastery: (childId: string, days: 7 | 30 | 90) =>
     api<MathMasteryResponse>(
       `/api/parent/children/${childId}/math-mastery?days=${days}`,

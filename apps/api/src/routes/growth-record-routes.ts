@@ -220,9 +220,11 @@ export async function registerGrowthRecordRoutes(app: FastifyInstance, config: A
       prisma.childGrowthMilestone.findMany({ where: { childId: child.id, visibleToChild: true }, orderBy: [{ happenedOn: "desc" }, { createdAt: "desc" }], take: 8 }),
     ]);
     const dashboard = buildGrowthDashboard({ child, records });
+    const todayKey = today.toISOString().slice(0, 10);
     return {
       growth: {
         nickname: child.nickname,
+        todayRecord: dashboard.records.find((record) => record.recordDate === todayKey) ?? null,
         recentDaysRecorded: dashboard.summary.recentDaysRecorded,
         averageSleepMinutes: dashboard.summary.averageSleepMinutes,
         recommendedSleepMinutes: dashboard.summary.recommendedSleepMinutes,
@@ -231,6 +233,25 @@ export async function registerGrowthRecordRoutes(app: FastifyInstance, config: A
         milestones: milestones.map(serializeMilestone),
       },
     };
+  });
+
+  app.put("/api/child/growth-records/:date", async (request, reply) => {
+    const { date } = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(request.params);
+    const input = growthRecordSchema.parse(request.body);
+    const { child } = await requireChild(request, reply, config);
+    const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+    const targetDate = dateValue(date);
+    if (targetDate > today) throw new HttpError(400, "FUTURE_GROWTH_RECORD", "不能记录未来日期");
+    const record = await prisma.$transaction(async (tx) => {
+      const saved = await tx.childGrowthRecord.upsert({
+        where: { childId_recordDate: { childId: child.id, recordDate: targetDate } },
+        create: { childId: child.id, recordDate: targetDate, createdById: child.id, ...recordData(input) },
+        update: recordData(input),
+      });
+      await writeAudit(tx, { actorType: "CHILD", actorId: child.id, familyId: child.familyId, action: "CHILD_GROWTH_RECORD_SAVED", resourceType: "ChildGrowthRecord", resourceId: saved.id, metadata: { recordDate: date }, ipAddress: request.ip });
+      return saved;
+    });
+    return { record: serializeGrowthRecord(record) };
   });
 
   app.get("/api/admin/growth-records/overview", async (request, reply) => {
