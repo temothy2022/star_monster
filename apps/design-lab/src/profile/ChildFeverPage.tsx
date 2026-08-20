@@ -3,6 +3,7 @@ import {
   endChildFeverEpisode,
   getChildFeverRecords,
   saveChildFeverReading,
+  updateChildFeverReading,
   type FeverAntipyreticKind,
   type FeverEpisode,
   type FeverObservationLevel,
@@ -60,6 +61,24 @@ function freshDraft(): Draft {
     appetiteState: "",
     hydrationState: "",
     note: "",
+  };
+}
+
+function draftFromReading(reading: FeverEpisode["readings"][number]): Draft {
+  return {
+    temperature: reading.temperatureCelsius.toFixed(1),
+    recordedAt: localDateTimeValue(new Date(reading.recordedAt)),
+    thermometerType: reading.thermometerType ?? "",
+    medicationUsed: reading.medicationUsed,
+    antipyreticUsed: reading.antipyreticUsed,
+    antipyreticKind: reading.antipyreticKind ?? "",
+    medicationNote: reading.medicationNote ?? "",
+    respiratoryRate: reading.respiratoryRate?.toString() ?? "",
+    mentalState: reading.mentalState ?? "",
+    sleepState: reading.sleepState ?? "",
+    appetiteState: reading.appetiteState ?? "",
+    hydrationState: reading.hydrationState ?? "",
+    note: reading.note ?? "",
   };
 }
 
@@ -127,6 +146,7 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [editingReadingId, setEditingReadingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -176,7 +196,7 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
     setSaving(true);
     setError("");
     try {
-      await saveChildFeverReading({
+      const input = {
         recordedAt: recordedAt.toISOString(),
         temperatureCelsius: Math.round(temperature * 10) / 10,
         thermometerType: draft.thermometerType || null,
@@ -190,17 +210,32 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
         appetiteState: draft.appetiteState || null,
         hydrationState: draft.hydrationState || null,
         note: draft.note || null,
-      });
-      setSelectedHistoryId(null);
+      };
+      const wasEditing = Boolean(editingReadingId);
+      if (editingReadingId) {
+        await updateChildFeverReading(editingReadingId, input);
+      } else {
+        await saveChildFeverReading(input);
+      }
+      setEditingReadingId(null);
+      if (!wasEditing) setSelectedHistoryId(null);
       setDraft((current) => ({ ...freshDraft(), thermometerType: current.thermometerType }));
-      setMessage("体温记录已保存");
-      await load(1);
+      setMessage(wasEditing ? "体温记录已更新" : "体温记录已保存");
+      await load(wasEditing ? historyPage : 1);
       window.setTimeout(() => setMessage(""), 2_000);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "保存没有完成，请稍后再试");
     } finally {
       setSaving(false);
     }
+  }
+
+  function editReading(reading: FeverEpisode["readings"][number]) {
+    setEditingReadingId(reading.id);
+    setDraft(draftFromReading(reading));
+    setExpanded(true);
+    setError("");
+    document.querySelector(".child-fever-entry")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function endEpisode() {
@@ -235,7 +270,7 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
 
       <div className="child-fever-layout">
         <section className="child-fever-entry" aria-labelledby="fever-entry-title">
-          <header><div><span>{activeEpisode ? "继续本次病程" : "新的病程"}</span><h2 id="fever-entry-title">记录体温</h2></div>{activeEpisode ? <b>记录中</b> : null}</header>
+          <header><div><span>{editingReadingId ? "修改历史记录" : activeEpisode ? "继续本次病程" : "新的病程"}</span><h2 id="fever-entry-title">记录体温</h2></div>{activeEpisode && !editingReadingId ? <b>记录中</b> : null}</header>
           <div className="child-fever-required">
             <label className="child-fever-temperature">体温<div><input required type="number" inputMode="decimal" min="34" max="43" step="0.1" value={draft.temperature} placeholder="38.5" onChange={(event) => update("temperature", event.target.value)} /><span>°C</span></div></label>
             <label>记录时间<input required type="datetime-local" max={localDateTimeValue()} value={draft.recordedAt} onChange={(event) => update("recordedAt", event.target.value)} /></label>
@@ -251,7 +286,7 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
             </div>
             <label>备注<textarea rows={3} maxLength={1000} value={draft.note} placeholder="记录咳嗽、皮疹、呕吐或其他需要告诉医生的变化" onChange={(event) => update("note", event.target.value)} /></label>
           </div> : null}
-          <button type="button" className="child-fever-save" disabled={saving} onClick={() => void save()}>{saving ? "保存中" : "保存这次记录"}</button>
+          <button type="button" className="child-fever-save" disabled={saving} onClick={() => void save()}>{saving ? "保存中" : editingReadingId ? "保存修改" : "保存这次记录"}</button>
         </section>
 
         <section className="child-fever-course" aria-labelledby="fever-course-title">
@@ -259,14 +294,14 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
           {selectedEpisode ? <>
             <div className="child-fever-metrics"><article><span>已持续</span><strong>{durationLabel(selectedEpisode.durationMinutes)}</strong></article><article><span>最高体温</span><strong>{selectedEpisode.maximumTemperatureCelsius?.toFixed(1) ?? "—"}°C</strong></article><article><span>{selectedEpisode.endedAt ? "最后体温" : "最近体温"}</span><strong>{selectedEpisode.latestTemperatureCelsius?.toFixed(1) ?? "—"}°C</strong></article><article><span>测量次数</span><strong>{selectedEpisode.readingCount} 次</strong></article></div>
             <FeverChart episode={selectedEpisode} />
-            <div className="child-fever-details"><h3>明细记录</h3>{[...selectedEpisode.readings].reverse().map((reading) => <article key={reading.id}><time>{dateTimeLabel(reading.recordedAt)}</time><strong>{reading.temperatureCelsius.toFixed(1)}°C</strong><span>{reading.thermometerType ? THERMOMETER_LABELS[reading.thermometerType] : "未记录温度计"}</span>{reading.antipyreticUsed && reading.antipyreticKind ? <b>{MEDICINE_LABELS[reading.antipyreticKind]}</b> : null}{reading.respiratoryRate ? <span>呼吸 {reading.respiratoryRate} 次/分</span> : null}{reading.mentalState ? <span>精神 {OBSERVATION_LABELS[reading.mentalState]}</span> : null}{reading.note ? <p>{reading.note}</p> : null}</article>)}</div>
+            <div className="child-fever-details"><h3>明细记录</h3>{[...selectedEpisode.readings].reverse().map((reading) => <article key={reading.id}><div className="child-fever-detail-row"><time>{dateTimeLabel(reading.recordedAt)}</time><strong>{reading.temperatureCelsius.toFixed(1)}°C</strong><button type="button" onClick={() => editReading(reading)}>编辑</button></div><span>{reading.thermometerType ? THERMOMETER_LABELS[reading.thermometerType] : "未记录温度计"}</span>{reading.antipyreticUsed && reading.antipyreticKind ? <b>{MEDICINE_LABELS[reading.antipyreticKind]}</b> : null}{reading.respiratoryRate ? <span>呼吸 {reading.respiratoryRate} 次/分</span> : null}{reading.mentalState ? <span>精神 {OBSERVATION_LABELS[reading.mentalState]}</span> : null}{reading.note ? <p>{reading.note}</p> : null}</article>)}</div>
           </> : <div className="child-fever-empty">输入第一次体温并保存，就会自动开始本次病程。</div>}
         </section>
       </div>
 
       <section className="child-fever-history">
         <header><div><span>过去的记录</span><h2>历史病程</h2></div><small>结束当前病程后，会自动保存在这里。</small></header>
-        {history.length ? <div className="child-fever-history__list">{history.map((episode) => <button key={episode.id} type="button" className={selectedHistoryId === episode.id ? "is-active" : ""} onClick={() => { setSelectedHistoryId(episode.id); document.querySelector(".child-fever-course")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><span>{dateTimeLabel(episode.startedAt)} 至 {episode.endedAt ? dateTimeLabel(episode.endedAt) : "进行中"}</span><strong>最高 {episode.maximumTemperatureCelsius?.toFixed(1) ?? "—"}°C</strong><small>{durationLabel(episode.durationMinutes)} · {episode.readingCount} 次记录</small></button>)}</div> : <div className="child-fever-empty">还没有已结束的病程。</div>}
+        {history.length ? <div className="child-fever-history__list">{history.map((episode) => <button key={episode.id} type="button" className={selectedHistoryId === episode.id ? "is-active" : ""} onClick={() => { setEditingReadingId(null); setSelectedHistoryId(episode.id); document.querySelector(".child-fever-course")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><span>{dateTimeLabel(episode.startedAt)} 至 {episode.endedAt ? dateTimeLabel(episode.endedAt) : "进行中"}</span><strong>最高 {episode.maximumTemperatureCelsius?.toFixed(1) ?? "—"}°C</strong><small>{durationLabel(episode.durationMinutes)} · {episode.readingCount} 次记录</small></button>)}</div> : <div className="child-fever-empty">还没有已结束的病程。</div>}
         {historyPages > 1 ? <footer><button type="button" disabled={historyPage <= 1} onClick={() => { const page = historyPage - 1; setHistoryPage(page); void load(page); }}>上一页</button><span>{historyPage} / {historyPages}</span><button type="button" disabled={historyPage >= historyPages} onClick={() => { const page = historyPage + 1; setHistoryPage(page); void load(page); }}>下一页</button></footer> : null}
       </section>
 

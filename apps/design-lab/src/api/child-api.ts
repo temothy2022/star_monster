@@ -22,16 +22,18 @@ export type ChildProfileUpdate = Pick<
   "id" | "nickname" | "avatarUrl" | "petType"
 >;
 
+export type ChildGrowthRecord = ChildGrowthRecordInput & {
+  id: string;
+  recordDate: string;
+  bmi: number | null;
+  sleepMinutes: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ChildGrowthSummary = {
   nickname: string | null;
-  todayRecord: (ChildGrowthRecordInput & {
-    id: string;
-    recordDate: string;
-    bmi: number | null;
-    sleepMinutes: number | null;
-    createdAt: string;
-    updatedAt: string;
-  }) | null;
+  todayRecord: ChildGrowthRecord | null;
   recentDaysRecorded: number;
   averageSleepMinutes: number | null;
   recommendedSleepMinutes: { min: number; max: number; source: "AASM" } | null;
@@ -219,10 +221,17 @@ export type ChildGrowthRecordInput = {
 };
 
 export async function saveChildGrowthRecord(date: string, input: ChildGrowthRecordInput) {
-  return request<{ record: { id: string; recordDate: string } }>(`/api/child/growth-records/${date}`, {
+  return request<{ record: ChildGrowthRecord }>(`/api/child/growth-records/${date}`, {
     method: "PUT",
     body: JSON.stringify(input),
   });
+}
+
+export async function getChildGrowthRecords(page = 1, pageSize = 10) {
+  return request<{ records: ChildGrowthRecord[]; total: number; page: number; pageSize: number }>(
+    `/api/child/growth-records?page=${page}&pageSize=${pageSize}`,
+    { cache: "no-store" },
+  );
 }
 
 export type FeverThermometerType = "EAR" | "FOREHEAD" | "MERCURY";
@@ -288,6 +297,13 @@ export async function saveChildFeverReading(input: Omit<FeverReadingInput, "clie
   return request<{ reading: FeverReading }>("/api/child/fever-records", {
     method: "POST",
     body: JSON.stringify({ ...input, clientRequestId: createIdempotencyKey("fever-reading") }),
+  });
+}
+
+export async function updateChildFeverReading(readingId: string, input: Omit<FeverReadingInput, "clientRequestId">) {
+  return request<{ reading: FeverReading }>(`/api/child/fever-records/readings/${readingId}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
   });
 }
 

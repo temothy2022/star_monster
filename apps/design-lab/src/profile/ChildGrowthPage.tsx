@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  getChildGrowthRecords,
   getChildGrowthSummary,
   saveChildGrowthRecord,
+  type ChildGrowthRecord,
   type ChildGrowthRecordInput,
   type ChildGrowthSummary,
 } from "../api/child-api";
@@ -95,8 +97,7 @@ function timeToMinute(value: string) {
   return hours * 60 + minutes;
 }
 
-function draftFromSummary(growth: ChildGrowthSummary): GrowthDraft {
-  const record = growth.todayRecord;
+function draftFromRecord(record: ChildGrowthRecord | null): GrowthDraft {
   if (!record) return EMPTY_DRAFT;
   return {
     heightCm: record.heightCm?.toString() ?? "",
@@ -113,6 +114,10 @@ function draftFromSummary(growth: ChildGrowthSummary): GrowthDraft {
     appetiteScore: record.appetiteScore?.toString() ?? "",
     note: record.note ?? "",
   };
+}
+
+function draftFromSummary(growth: ChildGrowthSummary): GrowthDraft {
+  return draftFromRecord(growth.todayRecord);
 }
 
 function optionalNumber(value: string) {
@@ -135,6 +140,31 @@ function todayKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+function dateLabel(value: string) {
+  const [, month, day] = value.split("-");
+  return `${Number(month)}月${Number(day)}日`;
+}
+
+function recordDetails(record: ChildGrowthRecord) {
+  const details: string[] = [];
+  if (record.heightCm !== null || record.weightKg !== null) details.push(`身高 ${record.heightCm ?? "—"} cm · 体重 ${record.weightKg ?? "—"} kg`);
+  if (record.sleepMinutes !== null) details.push(`睡眠 ${duration(record.sleepMinutes)}`);
+  if (record.exerciseMinutes !== null) details.push(`运动 ${record.exerciseMinutes} 分钟`);
+  if (record.outdoorMinutes !== null) details.push(`户外 ${record.outdoorMinutes} 分钟`);
+  if (record.screenMinutes !== null) details.push(`屏幕 ${record.screenMinutes} 分钟`);
+  if (record.note) details.push(record.note);
+  if (!details.length && (record.moodScore !== null || record.energyScore !== null || record.appetiteScore !== null)) details.push("已记录今天的状态");
+  return details.length ? details.join(" · ") : "这一天有记录，但没有填写具体数值";
+}
+
+function firstRecordCategory(record: ChildGrowthRecord): GrowthRecordCategory {
+  if (record.heightCm !== null || record.weightKg !== null) return "BODY";
+  if (record.sleepStartMinute !== null || record.wakeMinute !== null || record.napMinutes !== null || record.sleepQuality !== null) return "SLEEP";
+  if (record.exerciseMinutes !== null) return "EXERCISE";
+  if (record.outdoorMinutes !== null) return "OUTDOOR";
+  return "OTHER";
+}
+
 function ScoreChoice({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <fieldset className="child-growth-recorder__score">
@@ -150,21 +180,30 @@ function ScoreChoice({ label, value, onChange }: { label: string; value: string;
 
 export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFever: () => void }) {
   const [growth, setGrowth] = useState<ChildGrowthSummary | null>(null);
+  const [history, setHistory] = useState<ChildGrowthRecord[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState(false);
   const [recordCategory, setRecordCategory] = useState<GrowthRecordCategory | null>(null);
+  const [editingDate, setEditingDate] = useState(todayKey());
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<GrowthDraft>(EMPTY_DRAFT);
 
-  const loadGrowth = () => getChildGrowthSummary()
-    .then((nextGrowth) => {
-      setGrowth(nextGrowth);
-      setDraft(draftFromSummary(nextGrowth));
-      return nextGrowth;
-    });
+  const loadAll = async (page = historyPage, preserveDraft = editing) => {
+    const [nextGrowth, nextHistory] = await Promise.all([
+      getChildGrowthSummary(),
+      getChildGrowthRecords(page, 8),
+    ]);
+    setGrowth(nextGrowth);
+    setDraft((current) => (preserveDraft ? current : draftFromSummary(nextGrowth)));
+    setHistory(nextHistory.records);
+    setHistoryPage(nextHistory.page);
+    setHistoryTotal(nextHistory.total);
+  };
 
   useEffect(() => {
-    void loadGrowth()
+    void loadAll(1)
       .catch((reason) => setMessage(reason instanceof Error ? reason.message : "成长档案暂时无法读取"));
   }, []);
 
@@ -172,7 +211,7 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  const saveToday = async () => {
+  const saveRecord = async () => {
     if (!recordCategory || !categoryHasValue(recordCategory, draft)) {
       setMessage("请先填写当前记录中的一项内容");
       return;
@@ -223,11 +262,11 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
     setSaving(true);
     setMessage("");
     try {
-      await saveChildGrowthRecord(todayKey(), input);
-      await loadGrowth();
+      await saveChildGrowthRecord(editingDate, input);
       setEditing(false);
       setRecordCategory(null);
-      setMessage("今天的成长记录保存好了");
+      await loadAll(historyPage, false);
+      setMessage(editingDate === todayKey() ? "今天的成长记录保存好了" : "历史成长记录更新好了");
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "保存失败，请再试一次");
     } finally {
@@ -240,9 +279,10 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
     return `参考 ${duration(growth.recommendedSleepMinutes.min)}-${duration(growth.recommendedSleepMinutes.max)}`;
   }, [growth]);
 
-  const openRecorder = (category: GrowthRecordCategory) => {
+  const openRecorder = (category: GrowthRecordCategory, record: ChildGrowthRecord | null = null) => {
     setMessage("");
-    setDraft(growth ? draftFromSummary(growth) : EMPTY_DRAFT);
+    setDraft(record ? draftFromRecord(record) : growth ? draftFromSummary(growth) : EMPTY_DRAFT);
+    setEditingDate(record?.recordDate ?? todayKey());
     setRecordCategory(category);
     setEditing(true);
   };
@@ -291,7 +331,11 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
 
       {editing && recordCategory ? (
         <section className="child-growth-recorder" aria-label="记录今天的成长情况">
-          <header><div><span>今天的成长记录</span><h2>{RECORD_CATEGORY_TITLES[recordCategory]}</h2></div><time>{todayKey().slice(5).replace("-", "月")}日</time></header>
+          <header><div><span>{editingDate === todayKey() ? "今天的成长记录" : "历史成长记录"}</span><h2>{RECORD_CATEGORY_TITLES[recordCategory]}</h2></div><time>{dateLabel(editingDate)}</time></header>
+
+          <nav className="child-growth-recorder__tabs" aria-label="选择要编辑的记录类型">
+            {RECORD_CATEGORIES.map((category) => <button key={category.key} type="button" className={recordCategory === category.key ? "is-active" : ""} onClick={() => setRecordCategory(category.key)}>{category.label}</button>)}
+          </nav>
 
           {recordCategory === "BODY" ? (
             <div className="child-growth-recorder__section">
@@ -352,10 +396,26 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
 
           <footer>
             <button type="button" className="child-growth-recorder__cancel" onClick={() => { setMessage(""); setRecordCategory(null); setEditing(false); }}>取消</button>
-            <button type="button" className="child-growth-recorder__save" disabled={saving} onClick={() => void saveToday()}>{saving ? "正在保存" : "保存记录"}</button>
+            <button type="button" className="child-growth-recorder__save" disabled={saving} onClick={() => void saveRecord()}>{saving ? "正在保存" : "保存记录"}</button>
           </footer>
         </section>
       ) : null}
+
+      <section className="child-growth-history" aria-labelledby="child-growth-history-title">
+        <header>
+          <div><span>按日期查看</span><h2 id="child-growth-history-title">历史成长记录</h2></div>
+          <small>可以打开任意一天继续修改</small>
+        </header>
+        {history.length ? <div className="child-growth-history__list">{history.map((record) => <article key={record.id}>
+          <div><time>{dateLabel(record.recordDate)}</time><p>{recordDetails(record)}</p></div>
+          <button type="button" onClick={() => openRecorder(firstRecordCategory(record), record)}>编辑</button>
+        </article>)}</div> : <div className="child-growth-history__empty">还没有历史记录，今天记录后会显示在这里。</div>}
+        {Math.ceil(historyTotal / 8) > 1 ? <footer className="child-growth-history__pagination">
+          <button type="button" disabled={historyPage <= 1} onClick={() => { const page = historyPage - 1; void loadAll(page); }}>上一页</button>
+          <span>{historyPage} / {Math.ceil(historyTotal / 8)}</span>
+          <button type="button" disabled={historyPage >= Math.ceil(historyTotal / 8)} onClick={() => { const page = historyPage + 1; void loadAll(page); }}>下一页</button>
+        </footer> : null}
+      </section>
 
       <button type="button" className="child-growth-health-entry" onClick={onFever}>
         <img className="child-growth-health-entry__mark" src={healthThermometer} alt="" />

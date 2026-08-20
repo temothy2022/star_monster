@@ -16,11 +16,13 @@ import {
   getFeverOverview,
   saveFeverReading,
   serializeFeverReading,
+  updateFeverReading,
 } from "../services/fever-record-service.js";
 
 const childParams = z.object({ id: z.string().min(1) });
 const episodeParams = z.object({ episodeId: z.string().min(1) });
 const parentEpisodeParams = childParams.extend({ episodeId: z.string().min(1) });
+const parentReadingParams = childParams.extend({ readingId: z.string().min(1) });
 const pageQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(5).max(50).default(10),
@@ -28,6 +30,28 @@ const pageQuery = z.object({
 const endSchema = z.object({ endedAt: z.string().datetime({ offset: true }).optional() });
 const readingSchema = z.object({
   clientRequestId: z.string().min(8).max(120),
+  recordedAt: z.string().datetime({ offset: true }),
+  temperatureCelsius: z.number().min(34).max(43),
+  thermometerType: z.nativeEnum(FeverThermometerType).nullable().optional(),
+  medicationUsed: z.boolean().default(false),
+  antipyreticUsed: z.boolean().default(false),
+  antipyreticKind: z.nativeEnum(FeverAntipyreticKind).nullable().optional(),
+  medicationNote: z.string().trim().max(200).nullable().optional(),
+  respiratoryRate: z.number().int().min(5).max(120).nullable().optional(),
+  mentalState: z.nativeEnum(FeverObservationLevel).nullable().optional(),
+  sleepState: z.nativeEnum(FeverObservationLevel).nullable().optional(),
+  appetiteState: z.nativeEnum(FeverObservationLevel).nullable().optional(),
+  hydrationState: z.nativeEnum(FeverObservationLevel).nullable().optional(),
+  note: z.string().trim().max(1000).nullable().optional(),
+}).superRefine((input, context) => {
+  if (input.antipyreticUsed && !input.antipyreticKind) {
+    context.addIssue({ code: "custom", path: ["antipyreticKind"], message: "请选择退烧药类型" });
+  }
+  if (input.antipyreticUsed && !input.medicationUsed) {
+    context.addIssue({ code: "custom", path: ["medicationUsed"], message: "使用退烧药时，用药情况应选择已用药" });
+  }
+});
+const readingUpdateSchema = z.object({
   recordedAt: z.string().datetime({ offset: true }),
   temperatureCelsius: z.number().min(34).max(43),
   thermometerType: z.nativeEnum(FeverThermometerType).nullable().optional(),
@@ -89,6 +113,19 @@ export async function registerFeverRecordRoutes(app: FastifyInstance, config: Ap
     return { reading: serializeFeverReading(reading) };
   });
 
+  app.patch("/api/child/fever-records/readings/:readingId", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { readingId } = z.object({ readingId: z.string().min(1) }).parse(request.params);
+    const input = readingUpdateSchema.parse(request.body);
+    const reading = await updateFeverReading({
+      childId: child.id,
+      readingId,
+      input: { ...input, recordedAt: parsedTime(input.recordedAt, "记录时间") },
+    });
+    await writeAudit(prisma, { actorType: "CHILD", actorId: child.id, familyId: child.familyId, action: "CHILD_FEVER_READING_UPDATED", resourceType: "ChildFeverReading", resourceId: reading.id, metadata: { episodeId: reading.episodeId }, ipAddress: request.ip });
+    return { reading: serializeFeverReading(reading) };
+  });
+
   app.post("/api/child/fever-records/end", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     const input = endSchema.parse(request.body ?? {});
@@ -117,6 +154,19 @@ export async function registerFeverRecordRoutes(app: FastifyInstance, config: Ap
     const reading = await saveFeverReading({ childId: id, createdById: user.id, input: { ...input, recordedAt: parsedTime(input.recordedAt, "记录时间") } });
     await writeAudit(prisma, { actorType: "USER", actorId: user.id, familyId: child.familyId, action: "CHILD_FEVER_READING_SAVED", resourceType: "ChildFeverReading", resourceId: reading.id, metadata: { episodeId: reading.episodeId }, ipAddress: request.ip });
     reply.status(201);
+    return { reading: serializeFeverReading(reading) };
+  });
+
+  app.patch("/api/parent/children/:id/fever-records/readings/:readingId", async (request, reply) => {
+    const { id, readingId } = parentReadingParams.parse(request.params);
+    const { user, child } = await requireOwnedChild(request, reply, config, id);
+    const input = readingUpdateSchema.parse(request.body);
+    const reading = await updateFeverReading({
+      childId: id,
+      readingId,
+      input: { ...input, recordedAt: parsedTime(input.recordedAt, "记录时间") },
+    });
+    await writeAudit(prisma, { actorType: "USER", actorId: user.id, familyId: child.familyId, action: "CHILD_FEVER_READING_UPDATED", resourceType: "ChildFeverReading", resourceId: reading.id, metadata: { episodeId: reading.episodeId }, ipAddress: request.ip });
     return { reading: serializeFeverReading(reading) };
   });
 

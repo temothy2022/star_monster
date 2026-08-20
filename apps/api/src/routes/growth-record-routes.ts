@@ -231,6 +231,21 @@ export async function registerGrowthRecordRoutes(app: FastifyInstance, config: A
     };
   });
 
+  app.get("/api/child/growth-records", async (request, reply) => {
+    const { child } = await requireChild(request, reply, config);
+    const { page, pageSize } = pagedQuery.parse(request.query);
+    const [records, total] = await prisma.$transaction([
+      prisma.childGrowthRecord.findMany({
+        where: { childId: child.id },
+        orderBy: { recordDate: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.childGrowthRecord.count({ where: { childId: child.id } }),
+    ]);
+    return { records: records.map(serializeGrowthRecord), total, page, pageSize };
+  });
+
   app.put("/api/child/growth-records/:date", async (request, reply) => {
     const { date } = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).parse(request.params);
     const input = growthRecordSchema.parse(request.body);

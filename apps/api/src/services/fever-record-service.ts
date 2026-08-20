@@ -24,6 +24,8 @@ export type FeverReadingInput = {
   note?: string | null;
 };
 
+export type FeverReadingUpdateInput = Omit<FeverReadingInput, "clientRequestId">;
+
 type ReadingLike = {
   id: string;
   recordedAt: Date;
@@ -177,6 +179,60 @@ export async function saveFeverReading(args: {
     }
     throw error;
   }
+}
+
+export async function updateFeverReading(args: {
+  childId: string;
+  readingId: string;
+  input: FeverReadingUpdateInput;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.childFeverReading.findFirst({
+      where: { id: args.readingId, childId: args.childId },
+      select: { id: true, episodeId: true },
+    });
+    if (!existing) throw new HttpError(404, "FEVER_READING_NOT_FOUND", "没有找到这条体温记录");
+
+    const reading = await tx.childFeverReading.update({
+      where: { id: existing.id },
+      data: {
+        recordedAt: args.input.recordedAt,
+        temperatureCelsius: new Prisma.Decimal(args.input.temperatureCelsius),
+        thermometerType: args.input.thermometerType ?? null,
+        medicationUsed: args.input.medicationUsed,
+        antipyreticUsed: args.input.antipyreticUsed,
+        antipyreticKind: args.input.antipyreticUsed ? args.input.antipyreticKind ?? null : null,
+        medicationNote: nullableText(args.input.medicationNote),
+        respiratoryRate: args.input.respiratoryRate ?? null,
+        mentalState: args.input.mentalState ?? null,
+        sleepState: args.input.sleepState ?? null,
+        appetiteState: args.input.appetiteState ?? null,
+        hydrationState: args.input.hydrationState ?? null,
+        note: nullableText(args.input.note),
+      },
+    });
+
+    const episode = await tx.childFeverEpisode.findUnique({
+      where: { id: existing.episodeId },
+      select: { startedAt: true, endedAt: true },
+    });
+    const readings = await tx.childFeverReading.findMany({
+      where: { episodeId: existing.episodeId },
+      select: { recordedAt: true },
+      orderBy: { recordedAt: "asc" },
+    });
+    const firstReadingAt = readings[0]?.recordedAt;
+    const lastReadingAt = readings.at(-1)?.recordedAt;
+    if (episode && firstReadingAt && lastReadingAt) {
+      const data: { startedAt?: Date; endedAt?: Date | null } = {};
+      if (firstReadingAt.getTime() !== episode.startedAt.getTime()) data.startedAt = firstReadingAt;
+      if (episode.endedAt && lastReadingAt > episode.endedAt) data.endedAt = lastReadingAt;
+      if (Object.keys(data).length) {
+        await tx.childFeverEpisode.update({ where: { id: existing.episodeId }, data });
+      }
+    }
+    return reading;
+  });
 }
 
 export async function endActiveFeverEpisode(childId: string, endedAt: Date) {
