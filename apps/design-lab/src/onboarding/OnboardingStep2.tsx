@@ -1,4 +1,3 @@
-import backButton from "@star-monsters/assets/images/onboarding/step2-back-button.webp";
 import changeIcon from "@star-monsters/assets/icons/onboarding/step2-change.svg";
 import gradeIcon from "@star-monsters/assets/icons/onboarding/step2-grade.svg";
 import headerIcon from "@star-monsters/assets/icons/onboarding/step2-header.svg";
@@ -6,6 +5,7 @@ import launchIcon from "@star-monsters/assets/icons/onboarding/step2-launch.svg"
 import spaceship from "@star-monsters/assets/images/onboarding/step2-spaceship.webp";
 import sparkIcon from "@star-monsters/assets/icons/onboarding/step2-spark.svg";
 import userIcon from "@star-monsters/assets/icons/onboarding/step2-user.svg";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { OnboardingViewport } from "./OnboardingViewport";
 
 interface OnboardingStep2Props {
@@ -85,7 +85,7 @@ export function OnboardingStep2({
       </div>
 
       <button className="step2-back" type="button" onClick={onBack} aria-label="返回选择星宠">
-        <img src={backButton} alt="" />
+        <ChildControlIcon kind="back" />
       </button>
     </OnboardingViewport>
   );

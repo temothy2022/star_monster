@@ -116,6 +116,83 @@ export type Metrics = {
   redemptions: Record<string, number>;
 };
 
+export type GrowthDataOverview = {
+  summary: {
+    days: number;
+    recordCount: number;
+    milestoneCount: number;
+    participatingChildren: number;
+    totalChildren: number;
+    participationRate: number;
+  };
+  families: Array<{
+    id: string;
+    name: string;
+    children: Array<{
+      id: string;
+      nickname: string | null;
+      birthDateConfigured: boolean;
+      recordCount: number;
+      milestoneCount: number;
+    }>;
+  }>;
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export type SystemOperationKey =
+  | "RECONCILE_DAILY_TASKS"
+  | "CLEAN_EXPIRED_DATA"
+  | "GENERATE_WEEKLY_REPORTS";
+
+export type SystemDashboard = {
+  checkedAt: string;
+  service: {
+    status: "ready" | "error";
+    environment: string;
+    nodeVersion: string;
+    processId: number;
+    startedAt: string;
+    uptimeSeconds: number;
+    releaseVersion: string | null;
+    memory: { rssBytes: number; heapUsedBytes: number; heapTotalBytes: number; rssDisplay: string | null; heapDisplay: string };
+  };
+  database: { status: "ready" | "error"; serverTime: string | null; message: string | null };
+  migrations: {
+    status: "ready" | "attention" | "error";
+    appliedCount: number;
+    localCount: number;
+    pending: string[];
+    failed: Array<{ name: string; startedAt: string; message: string | null }>;
+    migrationDirectory: string | null;
+    message?: string;
+  };
+  storages: Array<{
+    label: string;
+    path: string;
+    status: "ready" | "error";
+    writable: boolean;
+    fileCount: number;
+    usedBytes: number;
+    usedDisplay: string | null;
+    availableBytes: number | null;
+    availableDisplay: string | null;
+    message: string | null;
+  }>;
+  counts: { families: number; children: number; userSessions: number; childSessions: number; performanceMetrics: number };
+  backup: { available: boolean; executable: string | null };
+  activeOperation: { id: string; operation: SystemOperationKey; startedAt: string } | null;
+  operations: Array<{
+    key: SystemOperationKey;
+    label: string;
+    description: string;
+    confirmation: string;
+    risk: "medium" | "high";
+  }>;
+  recentRuns: AuditLog[];
+};
+
 export type AiModelUsageDashboard = {
   days: number;
   collectedFrom: string | null;
@@ -274,6 +351,9 @@ export type PerformanceDashboard = {
     createdAt: string;
     diagnosis: PerformanceDiagnosis;
   }>;
+  recentSlowEventsTotal: number;
+  recentSlowEventsPage: number;
+  recentSlowEventsPageSize: number;
 };
 
 export type AuditLog = {
@@ -454,6 +534,21 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json();
 }
 
+async function download(path: string, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+  if (init?.body != null && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const response = await fetch(path, { ...init, credentials: "include", headers });
+  if (!response.ok) {
+    const body = response.headers.get("content-type")?.includes("application/json")
+      ? await response.json().catch(() => ({}))
+      : {};
+    throw new Error(body.error?.message ?? "下载失败");
+  }
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const fileName = disposition.match(/filename="([^"]+)"/)?.[1] ?? "star-monsters.dump";
+  return { blob: await response.blob(), fileName };
+}
+
 function uploadContentType(file: File) {
   if (file.type) return file.type;
   const extension = file.name.split(".").pop()?.toLowerCase();
@@ -484,6 +579,18 @@ export const staffApi = {
 };
 
 export const adminApi = {
+  systemDashboard: () => api<SystemDashboard>("/api/admin/system/dashboard"),
+  runSystemOperation: (operation: SystemOperationKey, confirmation: string) => api<{
+    runId: string;
+    operation: SystemOperationKey;
+    status: "SUCCEEDED";
+    durationMs: number;
+    result: Record<string, string | number | boolean | null>;
+  }>("/api/admin/system/operations", { method: "POST", body: JSON.stringify({ operation, confirmation }) }),
+  downloadDatabaseBackup: () => download("/api/admin/system/database-backup", {
+    method: "POST",
+    body: JSON.stringify({ confirmation: "下载数据库备份" }),
+  }),
   platformFeatures: () => api<{ settings: PlatformFeatureSettings }>("/api/admin/platform-features"),
   savePlatformFeatures: (data: { realChildCompetitionEnabled: boolean }) =>
     api<{ settings: PlatformFeatureSettings }>("/api/admin/platform-features", {
@@ -521,7 +628,7 @@ export const adminApi = {
   deletePetRoomThemeMascotAnimation: (themeId: string, petType: PetType) => api<{ ok: true }>(`/api/admin/pet-growth/themes/${encodeURIComponent(themeId)}/mascot-animations/${petType}`, { method: "DELETE" }),
   createPetDestination: (data: Omit<PetDestination, "id" | "createdAt" | "updatedAt">) => api<{ destination: PetDestination }>("/api/admin/pet-growth/destinations", { method: "POST", body: JSON.stringify(data) }),
   updatePetDestination: (id: string, data: Partial<Omit<PetDestination, "id" | "createdAt" | "updatedAt">>) => api<{ destination: PetDestination }>(`/api/admin/pet-growth/destinations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-  mascotDialogues: () => api<{ dialogues: MascotDialogue[] }>("/api/admin/mascot-dialogues"),
+  mascotDialogues: (page = 1, pageSize = 20) => api<{ dialogues: MascotDialogue[]; total: number; page: number; pageSize: number }>(`/api/admin/mascot-dialogues?page=${page}&pageSize=${pageSize}`),
   updateMascotDialogue: (id: string, data: Partial<Pick<MascotDialogue, "text" | "context" | "isEnabled" | "sortOrder">>) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   generateMascotDialogueAudio: (id: string) => api<{ dialogue: MascotDialogue }>(`/api/admin/mascot-dialogues/${id}/generate-audio`, { method: "POST" }),
   mascotAssets: () => api<{ assets: MascotAsset[] }>("/api/admin/mascot-assets"),
@@ -568,7 +675,26 @@ export const adminApi = {
   minimaxConfig: () => api<{ config: MinimaxConfig }>("/api/admin/minimax/config"),
   saveMinimaxConfig: (data: { apiKey?: string; enabled: boolean }) => api<{ config: MinimaxConfig }>("/api/admin/minimax/config", { method: "PUT", body: JSON.stringify(data) }),
   testMinimaxConfig: () => api<{ ok: true; message: string }>("/api/admin/minimax/config/test", { method: "POST" }),
-  families: () => api<{ families: Family[] }>("/api/admin/families"),
+  families: (query: { q?: string; page?: number; pageSize?: number } = {}) => {
+    const search = new URLSearchParams();
+    if (query.q) search.set("q", query.q);
+    if (query.page) search.set("page", String(query.page));
+    if (query.pageSize) search.set("pageSize", String(query.pageSize));
+    return api<{ families: Family[]; total: number; page: number; pageSize: number }>(`/api/admin/families?${search}`);
+  },
+  familyOptions: () => api<{ families: Array<{ id: string; name: string }> }>("/api/admin/family-options"),
+  children: (query: { q?: string; page?: number; pageSize?: number } = {}) => {
+    const search = new URLSearchParams();
+    if (query.q) search.set("q", query.q);
+    if (query.page) search.set("page", String(query.page));
+    if (query.pageSize) search.set("pageSize", String(query.pageSize));
+    return api<{
+      children: Array<{ family: { id: string; name: string }; child: AdminChild }>;
+      total: number;
+      page: number;
+      pageSize: number;
+    }>(`/api/admin/children?${search}`);
+  },
   familyOverview: (id: string) => api<FamilyDataOverview>(`/api/admin/families/${id}/overview`),
   createFamily: (data: {
     name: string;
@@ -636,18 +762,22 @@ export const adminApi = {
       { method: "POST" },
     ),
   metrics: () => api<Metrics>("/api/admin/metrics"),
+  growthDataOverview: (days = 30, page = 1, pageSize = 20) =>
+    api<GrowthDataOverview>(`/api/admin/growth-records/overview?days=${days}&page=${page}&pageSize=${pageSize}`),
   aiUsage: (days = 30) => api<AiModelUsageDashboard>(`/api/admin/ai-usage?days=${days}`),
   performance: (
     days: number,
-    filters: { familyId?: string; childId?: string } = {},
+    filters: { familyId?: string; childId?: string; page?: number; pageSize?: number } = {},
   ) => {
     const query = new URLSearchParams({ days: String(days) });
     if (filters.familyId) query.set("familyId", filters.familyId);
     if (filters.childId) query.set("childId", filters.childId);
+    if (filters.page) query.set("page", String(filters.page));
+    if (filters.pageSize) query.set("pageSize", String(filters.pageSize));
     return api<PerformanceDashboard>(`/api/admin/performance?${query}`);
   },
-  auditLogs: (cursor?: string) =>
-    api<{ logs: AuditLog[]; nextCursor: string | null }>(
-      `/api/admin/audit-logs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+  auditLogs: (page = 1, pageSize = 20) =>
+    api<{ logs: AuditLog[]; total: number; page: number; pageSize: number }>(
+      `/api/admin/audit-logs?page=${page}&pageSize=${pageSize}`,
     ),
 };

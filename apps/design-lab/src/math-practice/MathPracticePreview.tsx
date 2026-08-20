@@ -12,6 +12,7 @@ import { MathAnswerEditor } from "./MathAnswerEditor";
 import { MathTeachingHint } from "./MathTeachingHint";
 import { MathVisual } from "./MathVisual";
 import { useMascot } from "../mascots";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import "./math-practice.css";
 
 type Feedback = "IDLE" | "WRONG" | "REVEAL" | "CORRECT";
@@ -139,7 +140,7 @@ export function MathPracticePreview() {
   return (
     <main className="math-preview" data-math-type={selectedTypeId}>
       <aside className="math-preview__catalog">
-        <a className="math-preview__back" href="#pages">← 返回页面清单</a>
+        <a className="math-preview__back" href="#pages"><ChildControlIcon kind="back" />返回页面清单</a>
         <div className="math-preview__catalog-title">
           <img src={mascot.images.neutral} alt={`${mascot.name}数学向导`} />
           <div><strong>数学练习设计室</strong><small>{MATH_QUESTION_TYPES.length} 种题型逐一检查</small></div>
@@ -156,7 +157,7 @@ export function MathPracticePreview() {
                     onClick={() => selectQuestion(item.id)}
                     key={item.id}
                   >
-                    <b>{item.id}</b><span>{item.name}</span><i>›</i>
+                    <b>{item.id}</b><span>{item.name}</span><i><ChildControlIcon kind="next" /></i>
                   </button>
                 ))}
               </div>
@@ -168,7 +169,7 @@ export function MathPracticePreview() {
       <section className="math-preview__stage">
         <header className="math-practice-header">
           <div>
-            <button type="button" onClick={() => move(-1)} aria-label="上一种题型">‹</button>
+            <button type="button" onClick={() => move(-1)} aria-label="上一种题型"><ChildControlIcon kind="back" /></button>
             <span className="math-type-chip">{definition.id}</span>
             <div><strong>{definition.name}</strong><small>{definition.description}</small></div>
           </div>
@@ -176,7 +177,7 @@ export function MathPracticePreview() {
             <span>{currentIndex + 1} / {MATH_QUESTION_TYPES.length}</span>
             <div><i style={{ width: `${((currentIndex + 1) / MATH_QUESTION_TYPES.length) * 100}%` }} /></div>
           </div>
-          <button type="button" onClick={() => move(1)} aria-label="下一种题型">›</button>
+          <button type="button" onClick={() => move(1)} aria-label="下一种题型"><ChildControlIcon kind="next" /></button>
         </header>
 
         <div className={`math-question-layout${isDirectVisualAnswer || isInlineVisualSlots ? " math-question-layout--logic" : ""}${isInlineSort ? " math-question-layout--sort" : ""}${isTextOnlyQuestion ? " math-question-layout--text-only" : ""}`}>

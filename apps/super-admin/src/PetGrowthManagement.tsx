@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Pagination } from "antd";
 import { adminApi, type PetDestination, type PetGrowthConfig, type PetRoomMascotMotion, type PetRoomTheme, type PetRoomThemeMascotAnimation, type PetTravelTier, type PetType } from "./api";
 import { NumberField as EditableNumberField } from "./NumberField";
 
@@ -35,6 +36,8 @@ export function PetGrowthManagement() {
   const [config, setConfig] = useState<PetGrowthConfig | null>(null);
   const [destinations, setDestinations] = useState<PetDestination[]>([]);
   const [roomThemes, setRoomThemes] = useState<PetRoomTheme[]>([]);
+  const [themePage, setThemePage] = useState(1);
+  const [destinationPage, setDestinationPage] = useState(1);
   const [draft, setDraft] = useState(EMPTY_DESTINATION);
   const [themeName, setThemeName] = useState("");
   const [themeDescription, setThemeDescription] = useState("");
@@ -47,6 +50,10 @@ export function PetGrowthManagement() {
   const themeFileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const themePageSize = 6;
+  const destinationPageSize = 8;
+  const visibleThemes = roomThemes.slice((themePage - 1) * themePageSize, themePage * themePageSize);
+  const visibleDestinations = destinations.slice((destinationPage - 1) * destinationPageSize, destinationPage * destinationPageSize);
 
   async function load() {
     setBusy(true); setMessage("");
@@ -215,7 +222,7 @@ export function PetGrowthManagement() {
         </div> : null}
         <div className="form-actions field-span"><button className="primary-button" disabled={busy || !themeImage || !themeName.trim() || !themeDescription.trim()}>{busy ? "正在处理…" : "新增平台小屋背景"}</button></div>
       </form>
-      {roomThemes.length ? <div className="super-room-theme-list">{roomThemes.map((theme) => {
+      {roomThemes.length ? <div className="super-room-theme-list">{visibleThemes.map((theme) => {
         const isExpanded = expandedAnimationThemeId === theme.id;
         return <article className={isExpanded ? "is-animation-expanded" : ""} key={theme.id}>
           <img className="super-room-theme-list__background" src={theme.previewUrl} alt="" loading="lazy" />
@@ -236,15 +243,17 @@ export function PetGrowthManagement() {
           </div> : null}
         </article>;
       })}</div> : null}
+      <Pagination className="admin-pagination" current={themePage} pageSize={themePageSize} total={roomThemes.length} showSizeChanger={false} showTotal={(value) => `共 ${value} 个小屋背景`} onChange={setThemePage} />
     </section>
 
     <section className="admin-panel">
       <header className="admin-panel__header"><div><h2>旅行景点（{destinations.length}）</h2><p>已有 MiniMax 朗读 {destinations.filter((item) => item.audioUrl).length}/{destinations.length} · 孩子选择旅费档位后优先抽取未去过的地方</p></div></header>
-      <div className="pet-destination-grid">{destinations.map((item) => <article key={item.id} className="pet-destination-card">
+      <div className="pet-destination-grid">{visibleDestinations.map((item) => <article key={item.id} className="pet-destination-card">
         <img src={item.imageUrl} alt={item.name} loading="lazy" />
         <div className="pet-destination-card__fields"><label>景点<input value={item.name} onChange={(event) => patchDestination(item.id, { name: event.target.value })} /></label><label>路线<select value={item.tier} onChange={(event) => patchDestination(item.id, { tier: event.target.value as PetTravelTier })}>{Object.entries(TIER_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>城市<input value={item.city} onChange={(event) => patchDestination(item.id, { city: event.target.value })} /></label><label>国家<input value={item.country} onChange={(event) => patchDestination(item.id, { country: event.target.value })} /></label><label className="field-span">介绍<textarea value={item.introduction} onChange={(event) => patchDestination(item.id, { introduction: event.target.value })} /></label><label className="field-span">小知识<textarea value={item.funFact} onChange={(event) => patchDestination(item.id, { funFact: event.target.value })} /></label><label className="field-span">图片地址<input value={item.imageUrl} onChange={(event) => patchDestination(item.id, { imageUrl: event.target.value })} /></label><label className="field-span">预录音频地址<input value={item.audioUrl ?? ""} onChange={(event) => patchDestination(item.id, { audioUrl: event.target.value || null })} /></label>{item.audioUrl ? <audio className="field-span pet-destination-audio" controls preload="none" src={item.audioUrl}>浏览器不支持音频播放</audio> : <div className="field-span pet-destination-audio--missing">等待部署时由 MiniMax 自动生成朗读</div>}<label>权重<EditableNumberField type="number" min={1} value={item.weight} onChange={(event) => patchDestination(item.id, { weight: Number(event.target.value) })} /></label><label className="checkbox"><input type="checkbox" checked={item.isEnabled} onChange={(event) => patchDestination(item.id, { isEnabled: event.target.checked })} />启用</label></div>
         <button className="primary-button" disabled={busy} onClick={() => void saveDestination(item)}>保存景点</button>
       </article>)}</div>
+      <Pagination className="admin-pagination" current={destinationPage} pageSize={destinationPageSize} total={destinations.length} showSizeChanger={false} showTotal={(value) => `共 ${value} 个旅行景点`} onChange={setDestinationPage} />
     </section>
 
     <section className="admin-panel">

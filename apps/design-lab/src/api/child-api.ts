@@ -22,6 +22,25 @@ export type ChildProfileUpdate = Pick<
   "id" | "nickname" | "avatarUrl" | "petType"
 >;
 
+export type ChildGrowthSummary = {
+  nickname: string | null;
+  recentDaysRecorded: number;
+  averageSleepMinutes: number | null;
+  recommendedSleepMinutes: { min: number; max: number; source: "AASM" } | null;
+  averageExerciseMinutes: number | null;
+  averageOutdoorMinutes: number | null;
+  milestones: Array<{
+    id: string;
+    happenedOn: string;
+    category: "SELF_CARE" | "LEARNING" | "LANGUAGE" | "PHYSICAL" | "SOCIAL" | "EMOTIONAL" | "CREATIVE" | "FAMILY" | "OTHER";
+    title: string;
+    description: string | null;
+    visibleToChild: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+};
+
 type ApiErrorBody = {
   error?: { code?: string; message?: string };
 };
@@ -178,6 +197,11 @@ export async function loginChild(code: string) {
 export async function getChildProfile() {
   const result = await request<{ child: ChildProfile }>("/api/child/me");
   return result.child;
+}
+
+export async function getChildGrowthSummary() {
+  const result = await request<{ growth: ChildGrowthSummary }>("/api/child/growth-records/summary");
+  return result.growth;
 }
 
 export type PetTravelTier = "NEARBY" | "CHINA" | "WORLD";

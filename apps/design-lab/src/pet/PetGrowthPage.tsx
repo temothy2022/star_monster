@@ -32,6 +32,7 @@ import {
   ChildBottomNav,
   type ChildRoute,
 } from "../components/ChildBottomNav";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { useMascot } from "../mascots";
 import { PLANET_BY_KEY } from "../planets/planet-data";
 import returnEnvelope from "@star-monsters/assets/images/pet/pet-return-envelope.webp";
@@ -348,7 +349,7 @@ function Postcard({ trip, mascotImage, mascotName, soundEnabled, onClose }: { tr
     <div className="pet-modal" role="dialog" aria-modal="true" aria-label={`${trip.destinationName}旅行明信片`}>
       <button className="pet-modal__backdrop" type="button" aria-label="关闭" onClick={onClose} />
       <article className="pet-postcard">
-        <button className="pet-postcard__close" type="button" onClick={onClose} aria-label="关闭明信片">×</button>
+        <button className="pet-postcard__close" type="button" onClick={onClose} aria-label="关闭明信片"><ChildControlIcon kind="close" /></button>
         <div className="pet-postcard__image-wrap">
           <img className="pet-postcard__image-backdrop" src={trip.imageUrl} alt="" aria-hidden="true" decoding="async" />
           <div className="pet-postcard__paper">
@@ -1373,7 +1374,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <strong><span className="pet-map-entry__desktop-label">星际航图</span><span className="pet-map-entry__mobile-label">航图</span></strong>
             <em>看看点亮了哪些星球</em>
           </span>
-          <span className="pet-map-entry__arrow" aria-hidden="true">›</span>
+          <span className="pet-map-entry__arrow" aria-hidden="true"><ChildControlIcon kind="next" /></span>
         </button>
 
         {visibleWaste && !trip && (
@@ -1523,7 +1524,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             ))}
           </div>
           {redPacketStage !== "opening" && (
-            <button className="pet-red-packet-modal__close" type="button" aria-label="关闭红包" onClick={closeRedPacket}>×</button>
+            <button className="pet-red-packet-modal__close" type="button" aria-label="关闭红包" onClick={closeRedPacket}><ChildControlIcon kind="close" /></button>
           )}
           <section className="pet-red-packet-stage" aria-live="polite">
             {redPacketStage === "rain" && (
@@ -1610,7 +1611,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
         <div className="pet-modal" role="dialog" aria-modal="true" aria-label="选择旅行">
           <button className="pet-modal__backdrop" type="button" aria-label="关闭" onClick={() => setTravelOpen(false)} />
           <section className="pet-travel-sheet">
-            <header><div><small>给星宠准备旅费</small><h2>这次去哪里，会是一个惊喜</h2></div><button type="button" onClick={() => setTravelOpen(false)} aria-label="关闭">×</button></header>
+            <header><div><small>给星宠准备旅费</small><h2>这次去哪里，会是一个惊喜</h2></div><button type="button" onClick={() => setTravelOpen(false)} aria-label="关闭"><ChildControlIcon kind="close" /></button></header>
             {error && <div className="pet-inline-error" onClick={() => setError("")}>{error}</div>}
             <div className="pet-travel-options">
               {state.travelOptions.map((option) => {
@@ -1626,7 +1627,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
         <div className="pet-modal" role="dialog" aria-modal="true" aria-label="明信片册">
           <button className="pet-modal__backdrop" type="button" aria-label="关闭" onClick={() => setAlbumOpen(false)} />
           <section className="pet-album">
-            <header><div><small>{mascot.name}的旅行足迹</small><h2>明信片册</h2></div><button type="button" onClick={() => setAlbumOpen(false)} aria-label="关闭">×</button></header>
+            <header><div><small>{mascot.name}的旅行足迹</small><h2>明信片册</h2></div><button type="button" onClick={() => setAlbumOpen(false)} aria-label="关闭"><ChildControlIcon kind="close" /></button></header>
             {state.postcards.length ? <div className="pet-album__grid">{state.postcards.map((item) => <button type="button" key={item.id} onClick={() => setPostcard(item)}><img src={item.imageUrl} alt={item.destinationName} loading="lazy" decoding="async" /><span>{item.destinationName}</span><small>{item.city} · {item.country}</small></button>)}</div> : <div className="pet-album__empty"><span>✉</span><strong>还没有明信片</strong><p>准备一次旅行，星宠回来时会带来第一张收藏。</p></div>}
           </section>
         </div>
@@ -1638,7 +1639,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <header className="pet-theme-shop__header">
               <div><small>用星星装点自己的空间</small><h2>布置小屋</h2></div>
               <div className="pet-theme-shop__balance"><span>★</span>{state.wallet.starBalance}</div>
-              <button type="button" onClick={() => { setThemeShopOpen(false); setThemePreviewKey(null); }} aria-label="关闭">×</button>
+              <button type="button" onClick={() => { setThemeShopOpen(false); setThemePreviewKey(null); }} aria-label="关闭"><ChildControlIcon kind="close" /></button>
             </header>
             <div className="pet-theme-shop__preview">
               <picture>

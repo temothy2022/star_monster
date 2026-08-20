@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   parentApi,
   type Child,
+  type GrowthAdvisorAnswer,
   type GrowthAnalytics,
   type MathMasteryResponse,
   type WeeklyGrowthAnalysis,
@@ -9,7 +10,8 @@ import {
 } from "./api";
 
 type RangeDays = 7 | 30 | 90;
-type GrowthTab = "learning" | "tasks" | "spending";
+type GrowthTab = "learning" | "tasks" | "spending" | "ai";
+type AdvisorView = "insight" | "plan" | "ask";
 type LearningOverviewData = {
   hanzi: Awaited<ReturnType<typeof parentApi.hanziSettings>>;
   clock: Awaited<ReturnType<typeof parentApi.clockSettings>>;
@@ -397,11 +399,31 @@ function LearningMastery({ learning }: { learning: LearningOverviewData }) {
   );
 }
 
+const DIMENSION_TREND_LABELS = {
+  IMPROVING: "正在提升",
+  STABLE: "保持稳定",
+  DECLINING: "近期回落",
+  INSUFFICIENT: "样本有限",
+} as const;
+
+const ADVISOR_DECISION_LABELS = {
+  KEEP: "保持",
+  REDUCE: "减少",
+  INCREASE: "增加",
+  RESCHEDULE: "调整日期",
+  SPLIT: "拆短",
+  OBSERVE: "继续观察",
+} as const;
+
 function WeeklyReportPanel({ childId }: { childId: string }) {
   const [configured, setConfigured] = useState(false);
   const [report, setReport] = useState<WeeklyGrowthReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [advisorView, setAdvisorView] = useState<AdvisorView>("insight");
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState<GrowthAdvisorAnswer | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -427,6 +449,8 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
     try {
       const result = await parentApi.generateWeeklyGrowth(childId);
       setReport(result.report);
+      setAnswer(null);
+      setAdvisorView("insight");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "成长周报生成失败");
     } finally {
@@ -434,43 +458,74 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
     }
   }
 
+  async function askAdvisor(nextQuestion: string) {
+    const normalized = nextQuestion.trim();
+    if (!report || normalized.length < 2 || asking) return;
+    setAsking(true);
+    setError("");
+    setQuestion(normalized);
+    setAdvisorView("ask");
+    try {
+      const result = await parentApi.askGrowthAdvisor(
+        childId,
+        report.id,
+        normalized,
+      );
+      setAnswer(result.answer);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "AI 顾问暂时无法回答");
+    } finally {
+      setAsking(false);
+    }
+  }
+
   const analysis = report?.analysis;
   return (
     <DashboardSection
-      title="AI 任务诊断与排布"
-      subtitle="由小学教育视角分析最近四个完整周，给出可直接执行的任务调整方案"
-      className="weekly-growth-report"
+      title="AI 成长顾问"
+      subtitle="综合学习掌握、任务习惯、学科平衡和家庭执行负担，形成可持续的培养方案"
+      className="weekly-growth-report growth-advisor"
       actions={configured ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void generate()}>{busy ? "分析中…" : report ? "重新分析" : "立即生成"}</button> : null}
     >
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
-      {loading ? <div className="empty-state">正在读取任务诊断…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>平台 AI 暂未启用</strong><p>请联系超级管理员配置并启用 DeepSeek，之后系统会每周自动分析任务安排。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>系统会分析最近四个完整周，也可以现在生成第一份任务诊断。</p></div> : <>
+      {loading ? <div className="empty-state">正在读取成长分析…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>平台 AI 暂未启用</strong><p>请联系超级管理员配置并启用 DeepSeek，之后系统会每周自动形成成长分析。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>AI 会分析最近四个完整周，也可以现在生成第一份成长分析。</p></div> : <>
         <div className="weekly-growth-report__summary">
-          <div><span>{fullDate(report.analysisStart)} – {fullDate(report.analysisEnd)}</span><h3>{analysis.summary}</h3></div>
+          <div><span>{fullDate(report.analysisStart)} – {fullDate(report.analysisEnd)}</span><h3>{analysis.developmentProfile?.headline ?? analysis.summary}</h3><p>{analysis.developmentProfile?.rationale ?? analysis.summary}</p></div>
           <div className="weekly-growth-report__meta"><em className={analysis.dataQuality === "SUFFICIENT" ? "is-ready" : "is-limited"}>{analysis.dataQuality === "SUFFICIENT" ? "数据充分" : "样本较少"}</em><small>{report.generatedAt ? `${fullDate(report.generatedAt)}生成` : ""}</small></div>
         </div>
 
-        <div className="weekly-growth-report__diagnosis">
-          <section className="weekly-growth-report__finding weekly-growth-report__finding--strong">
-            <header><span>坚持得好</span><small>{analysis.doingWell.length} 项</small></header>
-            {analysis.doingWell.length ? analysis.doingWell.map((item) => <article key={item.templateId}><strong>{item.title}</strong><p>{item.evidence}</p><small>{item.nextStep}</small></article>) : <p className="weekly-growth-report__placeholder">暂时没有样本足够、表现稳定的任务。</p>}
-          </section>
-          <section className="weekly-growth-report__finding weekly-growth-report__finding--focus">
-            <header><span>需要调整</span><small>{analysis.needsAdjustment.length} 项</small></header>
-            {analysis.needsAdjustment.length ? analysis.needsAdjustment.map((item) => <article key={item.templateId}><strong>{item.title}</strong><p>{item.evidence}</p><small>{item.nextStep}</small></article>) : <p className="weekly-growth-report__placeholder">当前没有明显需要优先调整的任务。</p>}
-          </section>
-        </div>
+        {analysis.developmentProfile ? <section className="growth-advisor__priority"><span>未来两周首要目标</span><strong>{analysis.developmentProfile.primaryGoal}</strong></section> : null}
 
-        {analysis.cadenceChanges.length ? <section className="weekly-growth-report__cadence">
-          <header><div><span>建议调整任务频率</span><small>综合实际时间负担、完成情况和学习掌握度</small></div></header>
-          <div>{analysis.cadenceChanges.map((item) => <article key={item.templateId}><strong>{item.title}</strong><div><del>{item.currentCadence}</del><i>→</i><b>{item.recommendedCadence}</b></div><p>{item.reason}</p></article>)}</div>
-        </section> : null}
+        {analysis.suggestedQuestions.length ? <section className="growth-advisor__question-strip"><span>你可能还想问</span><div>{analysis.suggestedQuestions.slice(0, 4).map((item) => <button type="button" key={item.id} disabled={asking} onClick={() => void askAdvisor(item.question)}>{item.question}</button>)}</div></section> : null}
 
-        {analysis.recommendedSchedule.length ? <section className="weekly-growth-report__schedule">
-          <header><span>推荐任务排布</span><small>可按此方案到任务管理中调整</small></header>
-          <div>{analysis.recommendedSchedule.map((item) => <article key={item.templateId}><div><strong>{item.title}</strong><b>{recommendedCadence(item)}</b></div><p>{item.reason}</p></article>)}</div>
-        </section> : null}
+        <nav className="growth-advisor__tabs" aria-label="AI 成长顾问内容">
+          {([['insight', '成长诊断'], ['plan', '两周行动方案'], ['ask', '继续问 AI']] as const).map(([key, label]) => <button type="button" key={key} className={advisorView === key ? "active" : ""} onClick={() => setAdvisorView(key)}>{label}</button>)}
+        </nav>
 
-        <section className="weekly-growth-report__actions"><span>建议先做</span><ol>{analysis.parentActions.map((item) => <li key={item}>{item}</li>)}</ol></section>
+        {advisorView === "insight" ? <div className="growth-advisor__view">
+          {analysis.dimensions.length ? <section className="growth-advisor__dimensions">{analysis.dimensions.map((item) => <article key={item.key} className={`is-${item.status.toLowerCase()}`}><header><strong>{item.label}</strong><b>{item.score}</b></header><div><span style={{ width: `${item.score}%` }} /></div><small>{DIMENSION_TREND_LABELS[item.trend]}</small><p>{item.evidence}</p><em>{item.nextStep}</em></article>)}</section> : null}
+          {analysis.balanceInsight ? <section className="growth-advisor__balance"><div><span>学科与能力平衡</span><strong>{analysis.balanceInsight.summary}</strong></div><p>{analysis.balanceInsight.recommendation}</p><dl><div><dt>保持投入</dt><dd>{analysis.balanceInsight.wellRepresented.join("、") || "继续观察"}</dd></div><div><dt>优先关注</dt><dd>{analysis.balanceInsight.needsMoreAttention.join("、") || "暂无明显缺位"}</dd></div></dl></section> : null}
+          <div className="weekly-growth-report__diagnosis">
+            <section className="weekly-growth-report__finding weekly-growth-report__finding--strong"><header><span>坚持得好</span><small>{analysis.doingWell.length} 项</small></header>{analysis.doingWell.length ? analysis.doingWell.map((item) => <article key={item.templateId}><strong>{item.title}</strong><p>{item.evidence}</p><small>{item.nextStep}</small></article>) : <p className="weekly-growth-report__placeholder">暂时没有样本足够、表现稳定的任务。</p>}</section>
+            <section className="weekly-growth-report__finding weekly-growth-report__finding--focus"><header><span>需要调整</span><small>{analysis.needsAdjustment.length} 项</small></header>{analysis.needsAdjustment.length ? analysis.needsAdjustment.map((item) => <article key={item.templateId}><strong>{item.title}</strong><p>{item.evidence}</p><small>{item.nextStep}</small></article>) : <p className="weekly-growth-report__placeholder">当前没有明显需要优先调整的任务。</p>}</section>
+          </div>
+          {analysis.riskSignals.length ? <section className="growth-advisor__signals"><header><span>接下来要留意</span><small>仅是记录信号，不是对孩子的诊断</small></header><div>{analysis.riskSignals.map((item) => <article key={`${item.title}-${item.observation}`}><b>{item.level === "ATTENTION" ? "优先" : "观察"}</b><div><strong>{item.title}</strong><p>{item.observation}</p><small>{item.action}</small></div></article>)}</div></section> : null}
+        </div> : null}
+
+        {advisorView === "plan" ? <div className="growth-advisor__view">
+          {analysis.weeklyPlan ? <section className="growth-advisor__weekly-plan"><header><span>两周试行主题</span><strong>{analysis.weeklyPlan.theme}</strong></header><p>{analysis.weeklyPlan.loadGuidance}</p><div><section><span>重点</span>{analysis.weeklyPlan.focusAreas.map((item) => <b key={item}>{item}</b>)}</section><section><span>轻松日</span>{analysis.weeklyPlan.lightDays.map((item) => <b key={item}>{item}</b>)}</section></div></section> : null}
+          {analysis.habitPlan ? <section className="growth-advisor__habit"><header><span>本期习惯目标</span><strong>{analysis.habitPlan.focus}</strong></header><ol><li><b>触发</b><span>{analysis.habitPlan.cue}</span></li><li><b>行动</b><span>{analysis.habitPlan.routine}</span></li><li><b>反馈</b><span>{analysis.habitPlan.reinforcement}</span></li><li><b>判断有效</b><span>{analysis.habitPlan.successSignal}</span></li></ol></section> : null}
+          {analysis.cadenceChanges.length ? <section className="weekly-growth-report__cadence"><header><div><span>建议调整任务频率</span><small>综合实际负担、完成情况和掌握度</small></div></header><div>{analysis.cadenceChanges.map((item) => <article key={item.templateId}><strong>{item.title}</strong><div><del>{item.currentCadence}</del><i>→</i><b>{item.recommendedCadence}</b></div><p>{item.reason}</p></article>)}</div></section> : null}
+          {analysis.recommendedSchedule.length ? <section className="weekly-growth-report__schedule"><header><span>推荐任务排布</span><small>家长确认后再到任务管理中调整</small></header><div>{analysis.recommendedSchedule.map((item) => <article key={item.templateId}><div><strong>{item.title}</strong><b>{recommendedCadence(item)}</b></div><p>{item.reason}</p></article>)}</div></section> : null}
+          <section className="weekly-growth-report__actions"><span>先做这三件事</span><ol>{analysis.parentActions.map((item) => <li key={item}>{item}</li>)}</ol></section>
+        </div> : null}
+
+        {advisorView === "ask" ? <div className="growth-advisor__view growth-advisor__ask">
+          <form onSubmit={(event) => { event.preventDefault(); void askAdvisor(question); }}><label htmlFor="growth-advisor-question">结合这份报告继续提问</label><div><input id="growth-advisor-question" value={question} maxLength={300} onChange={(event) => setQuestion(event.target.value)} placeholder="例如：英语任务应该怎样调整，才更容易坚持？" /><button type="submit" disabled={asking || question.trim().length < 2}>{asking ? "分析中…" : "提问"}</button></div></form>
+          {!answer && !asking ? <section className="growth-advisor__suggestions">{analysis.suggestedQuestions.map((item) => <button type="button" key={item.id} onClick={() => void askAdvisor(item.question)}><strong>{item.question}</strong><small>{item.reason}</small></button>)}</section> : null}
+          {asking ? <div className="growth-advisor__thinking"><strong>正在结合任务、掌握度和负担分析</strong><span>通常需要几秒，请不要重复提交。</span></div> : null}
+          {answer && !asking ? <article className="growth-advisor__answer"><header><span>AI 顾问回答</span><h3>{answer.title}</h3><p>{answer.directAnswer}</p></header>{answer.evidence.length ? <section><h4>判断依据</h4><ul>{answer.evidence.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}<section><h4>可以这样做</h4><ol>{answer.actionPlan.slice().sort((left, right) => left.order - right.order).map((item) => <li key={`${item.order}-${item.title}`}><b>{item.order}</b><div><strong>{item.title}</strong><p>{item.action}</p><small>{item.frequency} · 判断标准：{item.successSignal}</small></div></li>)}</ol></section>{answer.taskAdjustments.length ? <section><h4>任务调整建议</h4><div className="growth-advisor__adjustments">{answer.taskAdjustments.map((item) => <article key={`${item.templateId ?? 'system'}-${item.title}`}><span>{ADVISOR_DECISION_LABELS[item.decision]}</span><strong>{item.title}</strong><p>{item.suggestion}</p><small>{item.reason}</small></article>)}</div></section> : null}<footer><p>{answer.boundaryNote}</p>{answer.followUpQuestions.map((item) => <button type="button" key={item} onClick={() => void askAdvisor(item)}>{item}</button>)}</footer></article> : null}
+        </div> : null}
       </>}
     </DashboardSection>
   );
@@ -533,7 +588,7 @@ export function GrowthOverview({ child }: { child: Child }) {
     <div className="admin-stack growth-dashboard">
       <div className="growth-toolbar">
         <div><h2>成长数据</h2><p>从任务完成、学习表现与星愿兑换了解孩子近期状态</p></div>
-        <div className="range-switch" aria-label="统计范围">{([7, 30, 90] as const).map((range) => <button type="button" key={range} className={days === range ? "active" : ""} onClick={() => setDays(range)}>近 {range} 天</button>)}</div>
+        {activeTab !== "ai" ? <div className="range-switch" aria-label="统计范围">{([7, 30, 90] as const).map((range) => <button type="button" key={range} className={days === range ? "active" : ""} onClick={() => setDays(range)}>近 {range} 天</button>)}</div> : null}
       </div>
       {analyticsError ? <div className="admin-notice admin-notice--error">{analyticsError}</div> : null}
 
@@ -542,6 +597,7 @@ export function GrowthOverview({ child }: { child: Child }) {
           ["learning", "学习掌握"],
           ["tasks", "任务完成"],
           ["spending", "消费与收入"],
+          ["ai", "AI 成长顾问"],
         ] as const).map(([key, label]) => (
           <button key={key} type="button" className={activeTab === key ? "active" : ""} onClick={() => setActiveTab(key)} aria-selected={activeTab === key}>{label}</button>
         ))}
@@ -574,7 +630,7 @@ export function GrowthOverview({ child }: { child: Child }) {
         </> : <div className="admin-panel empty-state">正在整理消费与收入数据…</div>}
       </GrowthDomainGroup> : null}
 
-      <WeeklyReportPanel childId={child.id} />
+      {activeTab === "ai" ? <WeeklyReportPanel childId={child.id} /> : null}
     </div>
   );
 }

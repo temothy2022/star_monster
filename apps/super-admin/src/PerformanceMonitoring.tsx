@@ -5,6 +5,7 @@ import {
   type PerformanceDiagnosis,
   type PerformanceOperation,
 } from "./api";
+import { Pagination } from "antd";
 
 const PERFORMANCE_OPERATION_LABELS: Record<string, string> = {
   "open_tasks-partial": "打开任务页",
@@ -123,9 +124,15 @@ export function PerformanceMonitoring() {
   const [familyId, setFamilyId] = useState("");
   const [childId, setChildId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  const [page, setPage] = useState(1);
   const [data, setData] = useState<PerformanceDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const pageSize = 20;
+
+  useEffect(() => {
+    setPage(1);
+  }, [days, familyId, childId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -134,6 +141,8 @@ export function PerformanceMonitoring() {
     void adminApi.performance(days, {
       familyId: familyId || undefined,
       childId: childId || undefined,
+      page,
+      pageSize,
     })
       .then(setData)
       .catch((reason) => {
@@ -145,7 +154,7 @@ export function PerformanceMonitoring() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [days, familyId, childId, refreshKey]);
+  }, [days, familyId, childId, page, refreshKey]);
 
   const visibleChildren = useMemo(
     () => data?.filters.children.filter(
@@ -289,6 +298,15 @@ export function PerformanceMonitoring() {
             <div className="table-wrap"><table><thead><tr><th>时间</th><th>家庭</th><th>孩子</th><th>操作</th><th>耗时</th><th>状态</th><th>主要原因</th><th>错误详情</th><th>版本</th><th>服务端</th><th>网络</th><th>前端</th><th>请求编号</th></tr></thead><tbody>{data.recentSlowEvents.map((item) => (
               <tr key={item.id}><td>{formatDate(item.createdAt)}</td><td>{item.familyName ?? "—"}</td><td>{item.childNickname ?? item.childId?.slice(-6) ?? "—"}</td><td>{performanceOperationLabel(item.operation)}</td><td><strong>{formatPerformanceMs(item.totalMs)}</strong></td><td>{item.status ?? "—"}</td><td><span className={`performance-cause performance-cause--${item.diagnosis}`}>{PERFORMANCE_DIAGNOSIS[item.diagnosis].label}</span></td><td className="performance-request-id" title={item.errorMessage ?? ""}>{item.errorMessage ?? item.errorName ?? "—"}</td><td className="performance-request-id" title={item.appVersion ?? ""}>{item.appVersion?.slice(0, 10) ?? "—"}</td><td>{formatPerformanceMs(item.serverMs)}</td><td>{formatPerformanceMs(item.clientOverheadMs)}</td><td>{formatPerformanceMs(item.nonApiMs)}</td><td className="performance-request-id" title={item.requestId ?? ""}>{item.requestId?.slice(0, 10) ?? "—"}</td></tr>
             ))}</tbody></table>{!data.recentSlowEvents.length && <div className="empty-state">当前范围没有超过 1 秒的真实等待或失败</div>}</div>
+            <Pagination
+              className="admin-pagination"
+              current={data.recentSlowEventsPage}
+              pageSize={data.recentSlowEventsPageSize}
+              total={data.recentSlowEventsTotal}
+              showSizeChanger={false}
+              showTotal={(value) => `共 ${value} 条慢事件`}
+              onChange={setPage}
+            />
             <p className="performance-collected">最早记录 {formatDate(data.collectedFrom)} · 最新记录 {formatDate(data.collectedTo)} · 忽略认证噪音和旧版异常样本 {data.dataQuality.ignoredNoiseCount} 条</p>
           </Panel>
         </>

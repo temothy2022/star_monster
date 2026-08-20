@@ -8,12 +8,15 @@ import {
   uploadChildProfileAvatar,
   type ChildProfile,
 } from "../api/child-api";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 export function ChildProfilePage({
   onBack,
+  onGrowth,
   onSignedOut,
 }: {
   onBack: () => void;
+  onGrowth: () => void;
   onSignedOut: () => void;
 }) {
   const [profile, setProfile] = useState<ChildProfile | null>(null);
@@ -109,7 +112,7 @@ export function ChildProfilePage({
   return (
     <main className="child-profile-page">
       <header className="child-profile-page__header">
-        <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回首页">‹</button>
+        <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回首页"><ChildControlIcon kind="back" /></button>
         <div><span>我的探险档案</span><h1>个人中心</h1></div>
       </header>
 
@@ -133,6 +136,7 @@ export function ChildProfilePage({
       </section>
 
       <section className="child-profile-actions">
+        <button type="button" onClick={onGrowth}>查看我的成长</button>
         <button type="button" onClick={onBack}>回到首页</button>
         <button type="button" className="child-profile-actions__secondary" disabled={busy} onClick={() => void signOut()}>切换账号</button>
         <button type="button" className="child-profile-actions__danger" disabled={busy} onClick={() => void signOut()}>退出登录</button>

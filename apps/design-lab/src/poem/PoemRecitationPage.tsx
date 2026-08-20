@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
-import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
 import poemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
 import {
   createSpeechPlayback,
   SinglePendingPlaybackQueue,
 } from "../audio/queued-playback";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 type Navigate = (route: "pages") => void;
 
@@ -44,7 +44,7 @@ export function PoemRecitationPage({ onNavigate }: { onNavigate: Navigate }) {
           aria-label="返回页面索引"
           onClick={() => onNavigate("pages")}
         >
-          <img src={backIcon} alt="" aria-hidden="true" />
+          <ChildControlIcon kind="back" />
         </button>
         <h1>古诗学习</h1>
       </header>

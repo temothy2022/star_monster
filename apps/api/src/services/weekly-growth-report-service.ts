@@ -184,12 +184,21 @@ function normalizeWeeklyGrowthResponse(
       reason: "保持当前安排，继续观察完成情况",
     });
   }
+  const dimensions = Array.from(
+    new Map(analysis.dimensions.map((item) => [item.key, item])).values(),
+  );
+  const suggestedQuestions = analysis.suggestedQuestions.filter(
+    (item, index, items) =>
+      items.findIndex((candidate) => candidate.question === item.question) === index,
+  );
   return {
     ...analysis,
     doingWell,
     needsAdjustment,
     cadenceChanges,
     recommendedSchedule: Array.from(scheduleById.values()),
+    dimensions,
+    suggestedQuestions,
   };
 }
 
@@ -248,7 +257,17 @@ export async function generateWeeklyGrowthReport(
     now,
     config.APP_TIME_ZONE,
   );
-  const [analytics, templates, mathMastery] = await Promise.all([
+  const analysisEndExclusive = addBusinessDays(analysisWindow.to, 1);
+  const [
+    analytics,
+    templates,
+    mathMastery,
+    hanziProgress,
+    poemProgress,
+    clockPractice,
+    makeTenPractice,
+    makeTenResponseTimes,
+  ] = await Promise.all([
     getGrowthAnalyticsForRange(
       childId,
       analysisWindow,
@@ -279,7 +298,40 @@ export async function generateWeeklyGrowthReport(
     }),
     getMathMasteryForRange(childId, {
       from: analysisWindow.from,
-      to: new Date(analysisWindow.to.getTime() + 24 * 60 * 60 * 1_000 - 1),
+      to: new Date(analysisEndExclusive.getTime() - 1),
+    }),
+    prisma.hanziLearningProgress.groupBy({
+      by: ["status"],
+      where: { childId },
+      _count: { _all: true },
+    }),
+    prisma.poemLearningProgress.groupBy({
+      by: ["status"],
+      where: { childId },
+      _count: { _all: true },
+    }),
+    prisma.clockLearningSession.aggregate({
+      where: {
+        childId,
+        completedAt: { gte: analysisWindow.from, lt: analysisEndExclusive },
+      },
+      _count: { _all: true },
+      _sum: { correctCount: true, totalQuestions: true },
+    }),
+    prisma.makeTenLearningSession.aggregate({
+      where: {
+        childId,
+        completedAt: { gte: analysisWindow.from, lt: analysisEndExclusive },
+      },
+      _count: { _all: true },
+      _sum: { correctCount: true, totalQuestions: true },
+    }),
+    prisma.makeTenQuestionAttempt.aggregate({
+      where: {
+        childId,
+        answeredAt: { gte: analysisWindow.from, lt: analysisEndExclusive },
+      },
+      _avg: { responseMs: true },
     }),
   ]);
   const performanceById = new Map(
@@ -288,6 +340,14 @@ export async function generateWeeklyGrowthReport(
   const mathMasteryByTemplate = new Map(
     mathMastery.templates.map((item) => [item.templateId, item]),
   );
+  const hanziProgressByStatus = Object.fromEntries(
+    hanziProgress.map((item) => [item.status, item._count._all]),
+  );
+  const poemProgressByStatus = Object.fromEntries(
+    poemProgress.map((item) => [item.status, item._count._all]),
+  );
+  const clockQuestions = clockPractice._sum.totalQuestions ?? 0;
+  const makeTenQuestions = makeTenPractice._sum.totalQuestions ?? 0;
   const metricsPayload = {
     period: analytics.range,
     privacy: "匿名聚合数据，不包含姓名、登录码、设备、IP、地址或学校",
@@ -296,6 +356,56 @@ export async function generateWeeklyGrowthReport(
       completedTaskDays: analytics.summary.completedTasks,
       completionRate: analytics.summary.completionRate,
       activeDays: analytics.summary.activeDays,
+    },
+    categoryBalance: analytics.categories.map((category) => {
+      const categoryTasks = analytics.tasks.filter(
+        (task) => task.category === category.category,
+      );
+      const observedMinutes = categoryTasks.reduce(
+        (sum, task) =>
+          sum + (task.averageMinutes ?? 0) * task.completedAttempts,
+        0,
+      );
+      return {
+        category: category.category,
+        label: category.label,
+        scheduledDays: category.scheduledTasks,
+        completedDays: category.completedTasks,
+        completionRate: category.completionRate,
+        completedAttempts: category.completedAttempts,
+        observedMinutes: Math.round(observedMinutes * 10) / 10,
+      };
+    }),
+    learningSnapshot: {
+      hanzi: {
+        learning: hanziProgressByStatus.LEARNING ?? 0,
+        mastered: hanziProgressByStatus.MASTERED ?? 0,
+      },
+      poems: {
+        learning: poemProgressByStatus.LEARNING ?? 0,
+        mastered: poemProgressByStatus.MASTERED ?? 0,
+      },
+      clock: {
+        completedSessions: clockPractice._count._all,
+        totalQuestions: clockQuestions,
+        accuracy:
+          clockQuestions > 0
+            ? (clockPractice._sum.correctCount ?? 0) / clockQuestions
+            : null,
+      },
+      makeTen: {
+        completedSessions: makeTenPractice._count._all,
+        totalQuestions: makeTenQuestions,
+        accuracy:
+          makeTenQuestions > 0
+            ? (makeTenPractice._sum.correctCount ?? 0) / makeTenQuestions
+            : null,
+        averageResponseSeconds:
+          makeTenResponseTimes._avg.responseMs === null
+            ? null
+            : Math.round((makeTenResponseTimes._avg.responseMs / 1_000) * 10) / 10,
+      },
+      math: mathMastery.summary,
     },
     taskObservations: templates.map((template) => {
       const performance = performanceById.get(template.id);
@@ -414,7 +524,7 @@ export async function generateWeeklyGrowthReport(
       systemPrompt: weeklyGrowthSystemPrompt,
       userPayload: metricsPayload,
       outputSchema: weeklyGrowthResponseSchema,
-      maxTokens: 3_200,
+      maxTokens: 4_800,
     });
     const normalized = normalizeWeeklyGrowthResponse(result.data, templates);
     return await prisma.weeklyGrowthReport.update({
@@ -461,14 +571,19 @@ export async function generateDueWeeklyGrowthReports(
     },
     select: { id: true, familyId: true },
   });
+  let succeeded = 0;
+  let failed = 0;
   for (const child of children) {
     try {
       await generateWeeklyGrowthReport(child.id, config, { now });
+      succeeded += 1;
     } catch (error) {
+      failed += 1;
       logger.error(
         { error, childId: child.id, familyId: child.familyId },
         "孩子成长周报生成失败",
       );
     }
   }
+  return { processed: children.length, succeeded, failed };
 }

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
 import cancelIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
 import checkIcon from "@star-monsters/assets/icons/icon-check.svg";
 import { AbandonDialog } from "../tasks/TaskOverlays";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 export function HanziTaskControls({
   onAbandon,
@@ -25,7 +25,7 @@ export function HanziTaskControls({
         aria-label="更多"
         onClick={() => setOverlay("menu")}
       >
-        <img src={moreIcon} alt="" />
+        <ChildControlIcon kind="menu" />
       </button>
       {overlay === "menu" ? (
         <div

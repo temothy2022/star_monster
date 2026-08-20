@@ -10,6 +10,7 @@ import energyIcon from "@star-monsters/assets/icons/onboarding/step4-energy.svg"
 import starIcon from "@star-monsters/assets/icons/onboarding/step4-star.svg";
 import lockIcon from "@star-monsters/assets/icons/planets/lock.svg";
 import { ChildDataState } from "../components/ChildDataState";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { PlanetJourneyScreen } from "../onboarding/OnboardingStep4";
 import { PLANET_BY_KEY, type PlanetKey } from "./planet-data";
 import { useLiveRefresh } from "../hooks/useLiveRefresh";
@@ -76,7 +77,7 @@ export function PlanetMap({
         <section className="planet-map-content" aria-label="星际航图">
           <header className="planet-map-summary">
             <button className="planet-map-back" type="button" onClick={onBack}>
-              <span aria-hidden="true">‹</span>
+              <ChildControlIcon kind="back" />
               返回小屋
             </button>
             {data && (
@@ -214,7 +215,7 @@ export function PlanetJourneyPage({
       <main className="planet-journey-loading">
         <ChildDataState error message="这颗星球还没有点亮，继续积攒航行能量吧！" />
         <button className="planet-journey-back" type="button" onClick={onBack}>
-          返回航图
+          <ChildControlIcon kind="back" />返回航图
         </button>
       </main>
     );

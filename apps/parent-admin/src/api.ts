@@ -86,6 +86,8 @@ export type Child = {
   id: string;
   nickname: string | null;
   avatarUrl: string | null;
+  birthDate: string | null;
+  biologicalSex: "MALE" | "FEMALE" | "UNSPECIFIED" | null;
   petType: string | null;
   status: "ACTIVE" | "DISABLED";
   onboardingCompletedAt: string | null;
@@ -98,6 +100,74 @@ export type Child = {
   loginCode: string | null;
   loginCodeAvailable: boolean;
   lastLoginAt: string | null;
+};
+
+export type GrowthRecord = {
+  id: string;
+  recordDate: string;
+  heightCm: number | null;
+  weightKg: number | null;
+  bmi: number | null;
+  sleepStartMinute: number | null;
+  wakeMinute: number | null;
+  napMinutes: number | null;
+  sleepQuality: number | null;
+  outdoorMinutes: number | null;
+  exerciseMinutes: number | null;
+  screenMinutes: number | null;
+  moodScore: number | null;
+  energyScore: number | null;
+  appetiteScore: number | null;
+  note: string | null;
+  sleepMinutes: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GrowthDashboard = {
+  profile: {
+    childId: string;
+    nickname: string | null;
+    birthDate: string | null;
+    biologicalSex: Child["biologicalSex"];
+    ageYears: number | null;
+  };
+  latest: GrowthRecord | null;
+  summary: {
+    recordCount: number;
+    recentDaysRecorded: number;
+    averageSleepMinutes: number | null;
+    recommendedSleepMinutes: { min: number; max: number; source: "AASM" } | null;
+    averageExerciseMinutes: number | null;
+    averageOutdoorMinutes: number | null;
+    heightDeltaCm: number | null;
+    weightDeltaKg: number | null;
+  };
+  attention: Array<{ level: "info" | "watch"; title: string; detail: string }>;
+  records: GrowthRecord[];
+  methodology: { bmi: string; growth: string; sleep: string; activity: string; disclaimer: string };
+};
+
+export type GrowthMilestoneCategory =
+  | "SELF_CARE"
+  | "LEARNING"
+  | "LANGUAGE"
+  | "PHYSICAL"
+  | "SOCIAL"
+  | "EMOTIONAL"
+  | "CREATIVE"
+  | "FAMILY"
+  | "OTHER";
+
+export type GrowthMilestone = {
+  id: string;
+  happenedOn: string;
+  category: GrowthMilestoneCategory;
+  title: string;
+  description: string | null;
+  visibleToChild: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type LeaderboardSettings = {
@@ -593,6 +663,27 @@ export type WeeklyGrowthTaskFinding = {
 export type WeeklyGrowthAnalysis = {
   summary: string;
   dataQuality: "SUFFICIENT" | "LIMITED";
+  developmentProfile?: {
+    headline: string;
+    stage: "STABLE" | "BUILDING" | "REBALANCE";
+    primaryGoal: string;
+    rationale: string;
+  };
+  dimensions: Array<{
+    key: "HABIT" | "CHINESE" | "MATH" | "ENGLISH" | "PHYSICAL" | "LIFE" | "BALANCE";
+    label: string;
+    score: number;
+    trend: "IMPROVING" | "STABLE" | "DECLINING" | "INSUFFICIENT";
+    status: "STRONG" | "HEALTHY" | "WATCH" | "PRIORITY";
+    evidence: string;
+    nextStep: string;
+  }>;
+  balanceInsight?: {
+    summary: string;
+    wellRepresented: string[];
+    needsMoreAttention: string[];
+    recommendation: string;
+  };
   doingWell: WeeklyGrowthTaskFinding[];
   needsAdjustment: WeeklyGrowthTaskFinding[];
   cadenceChanges: Array<{
@@ -610,6 +701,54 @@ export type WeeklyGrowthAnalysis = {
     reason: string;
   }>;
   parentActions: string[];
+  habitPlan?: {
+    focus: string;
+    cue: string;
+    routine: string;
+    reinforcement: string;
+    successSignal: string;
+  };
+  weeklyPlan?: {
+    theme: string;
+    loadGuidance: string;
+    focusAreas: string[];
+    lightDays: string[];
+    principles: string[];
+  };
+  riskSignals: Array<{
+    level: "WATCH" | "ATTENTION";
+    title: string;
+    observation: string;
+    action: string;
+  }>;
+  suggestedQuestions: Array<{
+    id: string;
+    question: string;
+    reason: string;
+  }>;
+};
+
+export type GrowthAdvisorAnswer = {
+  title: string;
+  directAnswer: string;
+  evidence: string[];
+  actionPlan: Array<{
+    order: number;
+    title: string;
+    action: string;
+    frequency: string;
+    successSignal: string;
+  }>;
+  taskAdjustments: Array<{
+    templateId: string | null;
+    title: string;
+    decision: "KEEP" | "REDUCE" | "INCREASE" | "RESCHEDULE" | "SPLIT" | "OBSERVE";
+    suggestion: string;
+    reason: string;
+  }>;
+  watchFor: string[];
+  followUpQuestions: string[];
+  boundaryNote: string;
 };
 
 export type WeeklyGrowthReport = {
@@ -928,8 +1067,8 @@ export const parentApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  devices: (id: string) =>
-    api<{ devices: Device[] }>(`/api/parent/children/${id}/devices`),
+  devices: (id: string, page = 1, pageSize = 20) =>
+    api<{ devices: Device[]; total: number; page: number; pageSize: number }>(`/api/parent/children/${id}/devices?page=${page}&pageSize=${pageSize}`),
   logoutAll: (id: string) =>
     api<{ ok: true; sessionsRemoved: number }>(
       `/api/parent/children/${id}/logout-all`,
@@ -1077,9 +1216,9 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/school-targets/${characterId}`,
       { method: "POST" },
     ),
-  hanziSchoolTargets: (childId: string) =>
-    api<{ characters: HanziCharacterResource[] }>(
-      `/api/parent/children/${childId}/hanzi/school-targets`,
+  hanziSchoolTargets: (childId: string, page = 1, pageSize = 20) =>
+    api<{ characters: HanziCharacterResource[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/hanzi/school-targets?page=${page}&pageSize=${pageSize}`,
     ),
   removeHanziSchoolTarget: (childId: string, characterId: string) =>
     api<{ ok: true }>(
@@ -1119,12 +1258,14 @@ export const parentApi = {
     ),
   poems: (
     childId: string,
-    query: { q?: string; grade?: number } = {},
+    query: { q?: string; grade?: number; page?: number; pageSize?: number } = {},
   ) => {
     const search = new URLSearchParams();
     if (query.q) search.set("q", query.q);
     if (query.grade) search.set("grade", String(query.grade));
-    return api<{ poems: PoemResource[] }>(
+    search.set("page", String(query.page ?? 1));
+    search.set("pageSize", String(query.pageSize ?? 20));
+    return api<{ poems: PoemResource[]; total: number; page: number; pageSize: number }>(
       `/api/parent/children/${childId}/poems?${search.toString()}`,
     );
   },
@@ -1142,9 +1283,9 @@ export const parentApi = {
       `/api/parent/children/${childId}/poems/school-targets/${poemId}`,
       { method: "POST" },
     ),
-  poemSchoolTargets: (childId: string) =>
-    api<{ poems: PoemResource[] }>(
-      `/api/parent/children/${childId}/poems/school-targets`,
+  poemSchoolTargets: (childId: string, page = 1, pageSize = 20) =>
+    api<{ poems: PoemResource[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/poems/school-targets?page=${page}&pageSize=${pageSize}`,
     ),
   removePoemSchoolTarget: (childId: string, poemId: string) =>
     api<{ ok: true }>(
@@ -1188,8 +1329,10 @@ export const parentApi = {
       method: "PUT",
       body: JSON.stringify({ items }),
     }),
-  wishes: (childId: string) =>
-    api<{ wishes: Wish[] }>(`/api/parent/children/${childId}/wishes`),
+  wishes: (childId: string, page = 1, pageSize = 20) =>
+    api<{ wishes: Wish[]; total: number; page: number; pageSize: number }>(`/api/parent/children/${childId}/wishes?page=${page}&pageSize=${pageSize}`),
+  wishOptions: (childId: string) =>
+    api<{ wishes: Array<Pick<Wish, "id" | "title">> }>(`/api/parent/children/${childId}/wish-options`),
   createWish: (childId: string, data: Record<string, unknown>) =>
     api<{ wish: Wish }>(`/api/parent/children/${childId}/wishes`, {
       method: "POST",
@@ -1204,9 +1347,9 @@ export const parentApi = {
     api<{ ok: true }>(`/api/parent/children/${childId}/wishes/${id}`, {
       method: "DELETE",
     }),
-  redemptions: (childId: string) =>
-    api<{ redemptions: Redemption[] }>(
-      `/api/parent/children/${childId}/redemptions`,
+  redemptions: (childId: string, page = 1, pageSize = 20) =>
+    api<{ redemptions: Redemption[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/redemptions?page=${page}&pageSize=${pageSize}`,
     ),
   updateRedemption: (
     childId: string,
@@ -1221,9 +1364,9 @@ export const parentApi = {
         body: JSON.stringify({ status, cancelReason }),
       },
     ),
-  ledger: (childId: string) =>
-    api<{ entries: LedgerEntry[] }>(
-      `/api/parent/children/${childId}/star-ledger`,
+  ledger: (childId: string, page = 1, pageSize = 20) =>
+    api<{ entries: LedgerEntry[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/star-ledger?page=${page}&pageSize=${pageSize}`,
     ),
   adjustStars: (
     childId: string,
@@ -1258,13 +1401,59 @@ export const parentApi = {
     api<GrowthAnalytics>(
       `/api/parent/children/${childId}/growth-analytics?days=${days}`,
     ),
+  growthRecordDashboard: (childId: string, days: 30 | 90 | 365) =>
+    api<{ dashboard: GrowthDashboard; days: number }>(
+      `/api/parent/children/${childId}/growth-records/dashboard?days=${days}`,
+    ),
+  growthRecords: (childId: string, page = 1, pageSize = 20) =>
+    api<{ records: GrowthRecord[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/growth-records?page=${page}&pageSize=${pageSize}`,
+    ),
+  saveGrowthRecord: (
+    childId: string,
+    date: string,
+    data: Omit<GrowthRecord, "id" | "recordDate" | "bmi" | "sleepMinutes" | "createdAt" | "updatedAt">,
+  ) => api<{ record: GrowthRecord }>(
+    `/api/parent/children/${childId}/growth-records/${date}`,
+    { method: "PUT", body: JSON.stringify(data) },
+  ),
+  deleteGrowthRecord: (childId: string, date: string) =>
+    api<{ ok: true }>(`/api/parent/children/${childId}/growth-records/${date}`, { method: "DELETE" }),
+  saveGrowthProfile: (
+    childId: string,
+    data: { birthDate: string | null; biologicalSex: Child["biologicalSex"] },
+  ) => api<{ profile: { childId: string; birthDate: string | null; biologicalSex: Child["biologicalSex"] } }>(
+    `/api/parent/children/${childId}/growth-profile`,
+    { method: "PATCH", body: JSON.stringify(data) },
+  ),
+  growthMilestones: (childId: string, page = 1, pageSize = 20) =>
+    api<{ milestones: GrowthMilestone[]; total: number; page: number; pageSize: number }>(
+      `/api/parent/children/${childId}/growth-milestones?page=${page}&pageSize=${pageSize}`,
+    ),
+  createGrowthMilestone: (
+    childId: string,
+    data: Omit<GrowthMilestone, "id" | "createdAt" | "updatedAt">,
+  ) => api<{ milestone: GrowthMilestone }>(
+    `/api/parent/children/${childId}/growth-milestones`,
+    { method: "POST", body: JSON.stringify(data) },
+  ),
+  updateGrowthMilestone: (
+    childId: string,
+    milestoneId: string,
+    data: Partial<Omit<GrowthMilestone, "id" | "createdAt" | "updatedAt">>,
+  ) => api<{ milestone: GrowthMilestone }>(
+    `/api/parent/children/${childId}/growth-milestones/${milestoneId}`,
+    { method: "PATCH", body: JSON.stringify(data) },
+  ),
+  deleteGrowthMilestone: (childId: string, milestoneId: string) =>
+    api<{ ok: true }>(`/api/parent/children/${childId}/growth-milestones/${milestoneId}`, { method: "DELETE" }),
   mathMastery: (childId: string, days: 7 | 30 | 90) =>
     api<MathMasteryResponse>(
       `/api/parent/children/${childId}/math-mastery?days=${days}`,
     ),
-  taskHistory: (childId: string, days: number) =>
-    api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[] }>(
-      `/api/parent/children/${childId}/task-history?days=${days}`,
+  taskHistory: (childId: string, days: number, page = 1, pageSize = 20) =>
+    api<{ from: string; to: string; days: number; tasks: TaskHistoryItem[]; total: number; page: number; pageSize: number; summary: Array<{ status: string; count: number; elapsedSeconds: number; stars: number }> }>(
+      `/api/parent/children/${childId}/task-history?days=${days}&page=${page}&pageSize=${pageSize}`,
     ),
   refundTask: (childId: string, taskId: string) =>
     api<{
@@ -1303,6 +1492,14 @@ export const parentApi = {
     api<{ report: WeeklyGrowthReport | null }>(
       `/api/parent/children/${childId}/ai/weekly-growth/generate`,
       { method: "POST" },
+    ),
+  askGrowthAdvisor: (childId: string, reportId: string, question: string) =>
+    api<{ answer: GrowthAdvisorAnswer; model: string }>(
+      `/api/parent/children/${childId}/ai/weekly-growth/ask`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reportId, question }),
+      },
     ),
   aiModels: () =>
     api<{ models: Array<{ id: string; ownedBy: string }> }>("/api/parent/ai/models"),

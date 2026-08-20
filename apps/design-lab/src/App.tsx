@@ -135,6 +135,11 @@ const ChildProfilePage = lazy(() =>
     default: module.ChildProfilePage,
   })),
 );
+const ChildGrowthPage = lazy(() =>
+  import("./profile/ChildGrowthPage").then((module) => ({
+    default: module.ChildGrowthPage,
+  })),
+);
 const PlanetJourneyPage = lazy(() =>
   import("./planets/PlanetMap").then((module) => ({
     default: module.PlanetJourneyPage,
@@ -267,7 +272,8 @@ type AppRoute =
   | "math-print"
   | "bundle-practice"
   | "poem-recitation"
-  | "profile";
+  | "profile"
+  | "growth-record";
 
 const DEFAULT_TASK_ROUTE: AppRoute = "home";
 
@@ -342,6 +348,7 @@ function readRouteFromHash(): AppRoute {
     "bundle-practice",
     "poem-recitation",
     "profile",
+    "growth-record",
   ];
 
   return routes.includes(route) ? route : "login";
@@ -389,6 +396,7 @@ function childPageTitle(route: AppRoute) {
   if (route === "poem-recitation") return "古诗朗读";
   if (route === "pet-growth") return "星宠小屋";
   if (route === "profile") return "个人中心";
+  if (route === "growth-record") return "我的成长";
 
   const titles: Partial<Record<AppRoute, string>> = {
     login: "孩子登录",
@@ -1005,6 +1013,7 @@ export function App() {
     return (
       <ChildProfilePage
         onBack={() => navigate(DEFAULT_TASK_ROUTE)}
+        onGrowth={() => navigate("growth-record")}
         onSignedOut={() => {
           setTaskExperienceCache(null);
           setActiveAttempt(null);
@@ -1013,6 +1022,10 @@ export function App() {
         }}
       />
     );
+  }
+
+  if (route === "growth-record") {
+    return <ChildGrowthPage onBack={() => navigate("profile")} />;
   }
 
   if (route === "hanzi-home") {

@@ -103,6 +103,25 @@ describe("performance metrics", () => {
     ]);
   });
 
+  it("paginates slow events without changing the aggregate total", () => {
+    const result = buildPerformanceDashboard(
+      [
+        metric({ id: "slow-1", createdAt: new Date("2026-07-29T01:00:00.000Z") }),
+        metric({ id: "slow-2", createdAt: new Date("2026-07-29T02:00:00.000Z") }),
+        metric({ id: "slow-3", createdAt: new Date("2026-07-29T03:00:00.000Z") }),
+      ],
+      7,
+      "Asia/Shanghai",
+      2,
+      2,
+    );
+
+    expect(result.recentSlowEvents.map((event) => event.id)).toEqual(["slow-1"]);
+    expect(result.recentSlowEventsTotal).toBe(3);
+    expect(result.recentSlowEventsPage).toBe(2);
+    expect(result.recentSlowEventsPageSize).toBe(2);
+  });
+
   it("ignores legacy absolute startup readiness durations", () => {
     const result = buildPerformanceDashboard(
       [

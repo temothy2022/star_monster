@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import stickBundleUrl from "@star-monsters/assets/images/math-practice/stick-bundle.webp";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import "./bundle-compose-practice.css";
 
 type PracticeQuestion = {
@@ -113,7 +114,7 @@ export function BundleComposePracticePage() {
           <h1>捆和根凑整</h1>
           <p className="bundle-practice-subtitle">先说出答案，再把数量摆到 5 捆或 10 捆</p>
         </div>
-        <a className="bundle-practice-back" href="#pages">返回页面清单</a>
+        <a className="bundle-practice-back" href="#pages"><ChildControlIcon kind="back" />返回页面清单</a>
       </header>
 
       <section className="bundle-practice-progress" aria-label="练习进度">

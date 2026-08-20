@@ -24,6 +24,7 @@ import completeStar from "@star-monsters/assets/images/task-list/semantic/comple
 import compassIcon from "@star-monsters/assets/images/task-list/semantic/compass.png";
 import reviewAudioPlay from "@star-monsters/assets/images/task-dashboard/review-audio-play.webp";
 import taskListScrollHandle from "@star-monsters/assets/images/task-dashboard/task-list-scroll-handle.webp";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { MASCOTS, useMascot } from "../mascots";
 import {
   createAudioWithSpeechFallback,
@@ -1021,14 +1022,14 @@ function NotificationWidget({
           <button type="button" onClick={openPetHome}>
             <i className="task-widget-notifications__icon is-postcard" aria-hidden="true"><b /></i>
             <span><strong>明信片到了</strong><small>来自{returnedPostcard.destinationName}</small></span>
-            <b aria-hidden="true">›</b>
+            <b aria-hidden="true"><ChildControlIcon kind="next" /></b>
           </button>
         )}
         {redPacketCount > 0 && (
           <button type="button" onClick={openPetHome}>
             <i className="task-widget-notifications__icon is-packet" aria-hidden="true"><b /></i>
             <span><strong>{redPacketCount} 个升级红包</strong><small>去拆开惊喜</small></span>
-            <b aria-hidden="true">›</b>
+            <b aria-hidden="true"><ChildControlIcon kind="next" /></b>
           </button>
         )}
         {challengeLetter && (
@@ -1038,7 +1039,7 @@ function NotificationWidget({
               {challengeLetter.unread && <i aria-label="新来信" />}
             </span>
             <span><strong>{challengeLetter.partnerName} 来信</strong><small>{challengeLetter.preview}</small></span>
-            <b aria-hidden="true">›</b>
+            <b aria-hidden="true"><ChildControlIcon kind="next" /></b>
           </button>
         )}
       </div>

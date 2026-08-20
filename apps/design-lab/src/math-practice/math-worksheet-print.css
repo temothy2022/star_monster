@@ -31,6 +31,9 @@
 }
 
 .math-worksheet-builder__topbar > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: #56718d;
   font-size: 14px;
   font-weight: 850;

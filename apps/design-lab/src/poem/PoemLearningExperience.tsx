@@ -9,9 +9,9 @@ import {
   type PoemLearningSession,
 } from "../api/child-api";
 import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
-import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import defaultPoemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
 import { ChildDataState } from "../components/ChildDataState";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { LoadingDots } from "../components/LoadingDots";
 import { HanziTaskControls } from "../hanzi/HanziTaskControls";
 import {
@@ -233,7 +233,7 @@ export function PoemLearningExperience({
             aria-label="返回任务列表"
             onClick={onExit}
           >
-            <img src={backIcon} alt="" aria-hidden="true" />
+            <ChildControlIcon kind="back" />
           </button>
           <h1>古诗学习</h1>
         </header>
@@ -258,7 +258,7 @@ export function PoemLearningExperience({
           aria-label="返回任务列表"
           onClick={onExit}
         >
-          <img src={backIcon} alt="" aria-hidden="true" />
+          <ChildControlIcon kind="back" />
         </button>
         <div className="poem-page__progress">
           {isReview ? `第 ${session.currentIndex + 1} / ${session.poemIds.length} 首` : "本周新诗"}

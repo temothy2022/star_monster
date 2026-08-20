@@ -2,6 +2,8 @@ import { Prisma, type AiRecommendationKind } from "@prisma/client";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  growthAdvisorAnswerSchema,
+  growthAdvisorQuestionSchema,
   legacyCompactWeeklyGrowthResponseSchema,
   legacyWeeklyGrowthResponseSchema,
   rewardAuditResponseSchema,
@@ -12,6 +14,7 @@ import {
 import {
   AI_PROMPT_VERSION,
   connectionTestPrompt,
+  growthAdvisorSystemPrompt,
   rewardAuditSystemPrompt,
   scheduleSystemPrompt,
   taskAdviceSystemPrompt,
@@ -199,6 +202,9 @@ function weeklyReportResponse(
           cadenceChanges: [],
           recommendedSchedule: [],
           parentActions: compactLegacy.data.suggestions,
+          dimensions: [],
+          riskSignals: [],
+          suggestedQuestions: [],
         }
     : legacy?.success
       ? {
@@ -221,6 +227,9 @@ function weeklyReportResponse(
           parentActions: legacy.data.nextWeekSuggestions
             .slice(0, 3)
             .map((item) => item.action),
+          dimensions: [],
+          riskSignals: [],
+          suggestedQuestions: [],
         }
       : null;
   return {
@@ -329,6 +338,88 @@ export async function registerParentAiRoutes(
         ipAddress: request.ip,
       });
       return { report: weeklyReportResponse(report) };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:id/ai/weekly-growth/ask",
+    async (request, reply) => {
+      const { id: childId } = idParams.parse(request.params);
+      const input = growthAdvisorQuestionSchema.parse(request.body);
+      const { user, familyId } = await ownedChild(
+        request,
+        reply,
+        config,
+        childId,
+      );
+      enforceAiLimit(familyId, user.id, "growth-advisor-question");
+      const report = input.reportId
+        ? await prisma.weeklyGrowthReport.findFirst({
+            where: {
+              id: input.reportId,
+              childId,
+              familyId,
+              status: "COMPLETED",
+            },
+          })
+        : await latestWeeklyGrowthReport(childId);
+      const response = weeklyReportResponse(report);
+      if (!report || !response?.analysis) {
+        throw new HttpError(
+          409,
+          "GROWTH_REPORT_REQUIRED",
+          "请先生成一份 AI 成长分析",
+        );
+      }
+      const credentials = await aiCredentials(familyId, config);
+      const result = await callDeepSeekJson({
+        ...credentials,
+        config,
+        systemPrompt: growthAdvisorSystemPrompt,
+        userPayload: {
+          privacy: "匿名聚合数据，不包含姓名、登录码、设备、IP、地址或学校",
+          question: input.question,
+          report: response.analysis,
+          metrics: report.metricsPayload,
+        },
+        outputSchema: growthAdvisorAnswerSchema,
+        maxTokens: 2_800,
+      });
+      const templates = await prisma.taskTemplate.findMany({
+        where: { childId, archivedAt: null },
+        select: { id: true, title: true },
+      });
+      const templateById = new Map(
+        templates.map((template) => [template.id, template.title]),
+      );
+      const answer = {
+        ...result.data,
+        taskAdjustments: result.data.taskAdjustments.map((item) => ({
+          ...item,
+          templateId:
+            item.templateId && templateById.has(item.templateId)
+              ? item.templateId
+              : null,
+          title:
+            item.templateId && templateById.has(item.templateId)
+              ? templateById.get(item.templateId)!
+              : item.title,
+        })),
+      };
+      await writeAudit(prisma, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId,
+        action: "AI_GROWTH_ADVISOR_ASK",
+        resourceType: "WeeklyGrowthReport",
+        resourceId: report.id,
+        metadata: {
+          questionLength: input.question.length,
+          model: result.model,
+        },
+        ipAddress: request.ip,
+      });
+      return { answer, model: result.model };
     },
   );
 

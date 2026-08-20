@@ -8,6 +8,7 @@ import {
   type MathQuestionTypeId,
 } from "@star-monsters/math-practice";
 import { useMascot } from "../mascots";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { MathVisual } from "./MathVisual";
 import "./math-practice.css";
 import "./math-worksheet-print.css";
@@ -543,7 +544,7 @@ export function MathWorksheetPrintPage() {
   return (
     <main className="math-worksheet-builder">
       <header className="math-worksheet-builder__topbar">
-        <a href="#pages">← 返回</a>
+        <a href="#pages"><ChildControlIcon kind="back" />返回</a>
         <div><MathPaperMascot /><span><small>无需登录 · 打开即用</small><strong>A4 数学练习卷</strong></span></div>
         <b>{questions.length} 道题 · {totalPdfPages} 页 PDF</b>
       </header>

@@ -12,6 +12,7 @@ import { useMascot } from "../mascots";
 import { MathAnswerEditor } from "./MathAnswerEditor";
 import { MathTeachingHint } from "./MathTeachingHint";
 import { MathVisual } from "./MathVisual";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import "./math-practice.css";
 
 export function MathPracticeExperience({
@@ -158,7 +159,7 @@ export function MathPracticeExperience({
         {!session.completedAt ? (
           <header className="math-session__header">
             <button type="button" disabled={busy} onClick={onExit} aria-label="退出数学练习">
-              <span aria-hidden="true">‹</span>
+              <ChildControlIcon kind="back" />
             </button>
             <div>
               <span>数学探险</span>

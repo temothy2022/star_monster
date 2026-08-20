@@ -12,14 +12,19 @@ import {
 } from "react";
 import {
   AppstoreOutlined,
+  ArrowDownOutlined,
+  ArrowUpOutlined,
   BarChartOutlined,
   BookOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
+  CloseOutlined,
   ControlOutlined,
   GiftOutlined,
   HistoryOutlined,
+  HeartOutlined,
   HomeOutlined,
+  HolderOutlined,
   MenuOutlined,
   PlusOutlined,
   ProfileOutlined,
@@ -27,9 +32,10 @@ import {
   SettingOutlined,
   StarOutlined,
   TeamOutlined,
+  UploadOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Button, Input, Layout, Menu, Modal, Tabs } from "antd";
+import { Button, Input, Layout, Menu, Modal, Pagination, Tabs } from "antd";
 import {
   ApiError,
   PARENT_FEEDBACK_EVENT,
@@ -73,6 +79,7 @@ import venusPlanet from "@star-monsters/assets/images/planets/venus.webp";
 
 const AiAssistant = lazy(() => import("./AiAssistant").then((module) => ({ default: module.AiAssistant })));
 const GrowthOverview = lazy(() => import("./GrowthOverview").then((module) => ({ default: module.GrowthOverview })));
+const GrowthRecords = lazy(() => import("./GrowthRecords").then((module) => ({ default: module.GrowthRecords })));
 const PetManagement = lazy(() => import("./PetManagement").then((module) => ({ default: module.PetManagement })));
 const ParentHanziLearning = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentHanziLearning })));
 const ParentClockLearning = lazy(() => import("./LearningLibraries").then((module) => ({ default: module.ParentClockLearning })));
@@ -82,6 +89,7 @@ const ParentPoemLearning = lazy(() => import("./LearningLibraries").then((module
 
 type Section =
   | "overview"
+  | "growth-records"
   | "children"
   | "pet"
   | "history"
@@ -102,6 +110,7 @@ type Section =
 
 const SECTION_LABELS: Record<Section, string> = {
   overview: "成长总览",
+  "growth-records": "成长档案",
   children: "孩子管理",
   pet: "星宠管理",
   history: "任务记录",
@@ -128,7 +137,7 @@ type NavItem = {
 };
 
 const NAV_GROUPS: Array<{ label: string; items: NavItem[] }> = [
-  { label: "工作台", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "children", label: "孩子管理", icon: <UserOutlined /> }] },
+  { label: "孩子成长", items: [{ key: "overview", label: "成长总览", icon: <BarChartOutlined /> }, { key: "growth-records", label: "成长档案", icon: <HeartOutlined /> }, { key: "children", label: "孩子管理", icon: <UserOutlined /> }] },
   {
     label: "任务中心",
     items: [
@@ -435,6 +444,10 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
 function History({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [days, setDays] = useState(30);
   const [tasks, setTasks] = useState<TaskHistoryItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<Array<{ status: string; count: number; elapsedSeconds: number; stars: number }>>([]);
+  const pageSize = 20;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
@@ -443,9 +456,13 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
     let cancelled = false;
     setLoading(true);
     setError("");
-    void parentApi.taskHistory(child.id, days)
+    void parentApi.taskHistory(child.id, days, page, pageSize)
       .then((result) => {
-        if (!cancelled) setTasks(result.tasks);
+        if (!cancelled) {
+          setTasks(result.tasks);
+          setTotal(result.total);
+          setSummary(result.summary);
+        }
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "历史记录读取失败");
@@ -456,18 +473,15 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
     return () => {
       cancelled = true;
     };
-  }, [child.id, days]);
+  }, [child.id, days, page]);
 
-  const attempts = tasks.flatMap((task) => task.attempts);
-  const completed = attempts.filter((attempt) => attempt.status === "COMPLETED").length;
-  const failed = attempts.filter((attempt) => attempt.status === "FAILED").length;
-  const timedOut = attempts.filter((attempt) => attempt.status === "TIMED_OUT").length;
-  const abandoned = attempts.filter((attempt) => attempt.status === "ABANDONED").length;
-  const stars = attempts.reduce(
-    (sum, attempt) => sum + attempt.baseStarsAwarded + attempt.bonusStarsAwarded,
-    0,
-  );
-  const elapsed = attempts.reduce((sum, attempt) => sum + (attempt.elapsedSeconds ?? 0), 0);
+  const summaryValue = (status: string, key: "count" | "elapsedSeconds") => summary.find((item) => item.status === status)?.[key] ?? 0;
+  const completed = summaryValue("COMPLETED", "count");
+  const failed = summaryValue("FAILED", "count");
+  const timedOut = summaryValue("TIMED_OUT", "count");
+  const abandoned = summaryValue("ABANDONED", "count");
+  const stars = summary.reduce((sum, item) => sum + item.stars, 0);
+  const elapsed = summary.reduce((sum, item) => sum + item.elapsedSeconds, 0);
   const outcomeLabel = (task: TaskHistoryItem) => {
     const completedAttempts = task.attempts.filter(
       (attempt) => attempt.status === "COMPLETED",
@@ -495,10 +509,10 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
           <h2>任务历史与执行数据</h2>
           <p>包含完成、未达标、限时超时、放弃、执行时长和奖励明细</p>
         </div>
-        <div>{[7, 30, 90].map((range) => <button type="button" className={days === range ? "active" : ""} key={range} onClick={() => setDays(range)}>近 {range} 天</button>)}</div>
+        <div>{[7, 30, 90].map((range) => <button type="button" className={days === range ? "active" : ""} key={range} onClick={() => { setDays(range); setPage(1); }}>近 {range} 天</button>)}</div>
       </div>
       <div className="metric-grid">
-        <article><span>已完成</span><strong>{completed}</strong><small>共 {tasks.length} 个每日任务</small></article>
+        <article><span>已完成</span><strong>{completed}</strong><small>共 {total} 个每日任务</small></article>
         <article><span>未达标 / 超时 / 放弃</span><strong>{failed + timedOut + abandoned}</strong><small>{failed} 未达标 · {timedOut} 超时 · {abandoned} 放弃</small></article>
         <article><span>任务奖励</span><strong>{stars}</strong><small>基础与加成星星</small></article>
         <article><span>累计执行</span><strong>{Math.round(elapsed / 60)}</strong><small>分钟</small></article>
@@ -532,7 +546,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
                     <td data-label="尝试次数">{task.attempts.length}</td>
                     <td data-label="完成 / 总执行">{formatElapsed(task.completionDurationSeconds)} / {formatElapsed(taskElapsed)}</td>
                     <td data-label="奖励" className={taskStars > 0 ? "positive" : ""}>{taskStars > 0 ? `+${taskStars}` : "—"}</td>
-                    <td data-label="操作">{hasCompletion && taskStars > 0 ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定退款“${task.titleSnapshot}”吗？任务奖励和相关每日达标奖会从可用星星及历史累计星星中扣回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.refundTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days)).then((result) => { setTasks(result.tasks); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务退款失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "退款中…" : "退款"}</button> : "—"}</td>
+                    <td data-label="操作">{hasCompletion && taskStars > 0 ? <button type="button" className="danger-text" disabled={busyTaskId === task.id} onClick={() => { if (!window.confirm(`确定退款“${task.titleSnapshot}”吗？任务奖励和相关每日达标奖会从可用星星及历史累计星星中扣回，任务恢复为未完成。`)) return; setBusyTaskId(task.id); setError(""); void parentApi.refundTask(child.id, task.id).then(() => parentApi.taskHistory(child.id, days, page, pageSize)).then((result) => { setTasks(result.tasks); setTotal(result.total); setSummary(result.summary); onChanged(); }).catch((reason) => setError(reason instanceof Error ? reason.message : "任务退款失败")).finally(() => setBusyTaskId(null)); }}>{busyTaskId === task.id ? "退款中…" : "退款"}</button> : "—"}</td>
                   </tr>
                 );
               })}</tbody>
@@ -540,6 +554,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
           </div>
         )}
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 条任务记录`} onChange={setPage} />
       </Panel>
     </div>
   );
@@ -666,8 +681,16 @@ function Tasks({ child }: { child: Child }) {
   const [categoryError, setCategoryError] = useState("");
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [editorMode, setEditorMode] = useState<"task" | "categories" | null>(null);
+  const [taskPage, setTaskPage] = useState(1);
+  const taskPageSize = 12;
   const systemTemplates = templates.filter((template) => template.systemManaged);
   const editableTemplates = templates.filter((template) => !template.systemManaged);
+  const visibleEditableTemplates = editableTemplates
+    .slice((taskPage - 1) * taskPageSize, taskPage * taskPageSize)
+    .map((template, pageIndex) => ({
+      template,
+      index: (taskPage - 1) * taskPageSize + pageIndex,
+    }));
 
   async function load() {
     const [templateResult, categoryResult] = await Promise.all([
@@ -677,7 +700,7 @@ function Tasks({ child }: { child: Child }) {
     setTemplates(templateResult.templates);
     setCategories(categoryResult.categories);
   }
-  useEffect(() => { void load(); }, [child.id]);
+  useEffect(() => { setTaskPage(1); void load(); }, [child.id]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -965,7 +988,7 @@ function Tasks({ child }: { child: Child }) {
               </div>
             </article>
           ))}
-          {editableTemplates.map((template, index) => (
+          {visibleEditableTemplates.map(({ template, index }) => (
             <article
               className={`list-card list-card--draggable${draggingId === template.id ? " list-card--dragging" : ""}${dragOverId === template.id && draggingId !== template.id ? " list-card--drag-over" : ""}`}
               data-task-id={template.id}
@@ -992,10 +1015,10 @@ function Tasks({ child }: { child: Child }) {
                   setDragOverId(null);
                 }}
                 onClick={(event) => event.preventDefault()}
-              >⋮⋮</button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} style={template.customCategory ? { backgroundColor: template.customCategory.color } : undefined} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : template.experienceKind === "MATH_PRACTICE" ? `数学练习 ${template.mathPracticeConfig?.totalQuestions ?? 0} 道` : template.customCategory?.name ?? CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
+              ><HolderOutlined /></button><div className={`category-dot category-dot--${template.category.toLowerCase()}`} style={template.customCategory ? { backgroundColor: template.customCategory.color } : undefined} /><div><h3>{template.title}</h3><p>{template.experienceKind === "HANZI_LEARNING" ? "汉字学习" : template.experienceKind === "HANZI_REVIEW" ? "汉字复习（自动）" : template.experienceKind === "CLOCK_LEARNING" ? "时钟学习" : template.experienceKind === "MAKE_TEN" ? "凑十训练" : template.experienceKind === "MATH_PRACTICE" ? `数学练习 ${template.mathPracticeConfig?.totalQuestions ?? 0} 道` : template.customCategory?.name ?? CATEGORY_LABELS[template.category]} · {template.mode === "TIMED" ? `限时 ${(template.timeLimitSeconds ?? 0) / 60} 分钟` : `建议 ${(template.suggestedSeconds ?? 0) / 60} 分钟`} · +{template.baseStars}{template.earlyBonusEnabled ? ` + ${template.earlyBonusStars} 加奖` : ""}</p><small>{template.scheduleKind === "DAILY" ? "每天" : template.scheduleKind === "WORKDAYS" ? "工作日" : template.scheduleKind === "ONE_TIME" ? `一次性 ${template.oneTimeDate?.slice(0, 10)}` : `每周 ${template.weekdays.join("、")}`} · {template.repeatableDaily ? "当天可重复领取 · " : ""}{template.isEnabled ? "已启用" : "已停用"}{template.aiSchedulingEnabled ? " · AI 排班" : ""}</small></div></div>
               <div className="list-card__actions">
-                <button title="上移" disabled={index === 0} onClick={() => void move(index, -1)}>↑</button>
-                <button title="下移" disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}>↓</button>
+                <button title="上移" aria-label={`上移“${template.title}”`} disabled={index === 0} onClick={() => void move(index, -1)}><ArrowUpOutlined /></button>
+                <button title="下移" aria-label={`下移“${template.title}”`} disabled={index === editableTemplates.length - 1} onClick={() => void move(index, 1)}><ArrowDownOutlined /></button>
                 <button onClick={() => { setEditingId(template.id); setForm(taskFormFrom(template)); setEditorMode("task"); }}>编辑</button>
                 <button onClick={() => void parentApi.updateTemplate(child.id, template.id, { isEnabled: !template.isEnabled }).then(load)}>{template.isEnabled ? "停用" : "启用"}</button>
                 <button className="danger-text" onClick={() => window.confirm("归档这个任务模板？历史任务不会删除。") && void parentApi.archiveTemplate(child.id, template.id).then(load)}>归档</button>
@@ -1004,6 +1027,7 @@ function Tasks({ child }: { child: Child }) {
           ))}
           {!templates.length && <div className="empty-state">还没有任务模板</div>}
         </div>
+        <Pagination className="admin-pagination" current={taskPage} pageSize={taskPageSize} total={editableTemplates.length} showSizeChanger={false} showTotal={(value) => `共 ${value} 个任务模板`} onChange={setTaskPage} />
       </Panel> : null}
     </div>
   );
@@ -1140,7 +1164,7 @@ function HanziUploadControl({
     <label
       className={`hanzi-upload-button${disabled ? " hanzi-upload-button--disabled" : ""}`}
     >
-      <span aria-hidden="true">↑</span>
+      <UploadOutlined aria-hidden="true" />
       {label}
       <input
         type="file"
@@ -1683,13 +1707,16 @@ function HanziLearning({ child }: { child: Child }) {
             {!characters.length && !libraryBusy ? <div className="empty-state">没有找到符合条件的汉字</div> : null}
             {libraryBusy && !characters.length ? <div className="empty-state">正在读取基础字库…</div> : null}
           </div>
-          {totalCharacters > pageSize ? (
-            <div className="hanzi-library-pagination">
-              <button type="button" disabled={page <= 1 || libraryBusy} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button>
-              <span>第 {page} / {Math.ceil(totalCharacters / pageSize)} 页</span>
-              <button type="button" disabled={page >= Math.ceil(totalCharacters / pageSize) || libraryBusy} onClick={() => setPage((value) => value + 1)}>下一页</button>
-            </div>
-          ) : null}
+          <Pagination
+            className="admin-pagination"
+            current={page}
+            pageSize={pageSize}
+            total={totalCharacters}
+            showSizeChanger={false}
+            showTotal={(value) => `共 ${value} 个汉字`}
+            disabled={libraryBusy}
+            onChange={setPage}
+          />
         </Panel>
       </div>
       {error ? <Notice kind="error">{error}</Notice> : null}
@@ -2074,13 +2101,17 @@ function wishRuleHelp(form: WishForm) {
 
 function Wishes({ child }: { child: Child }) {
   const [wishes, setWishes] = useState<Wish[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [form, setForm] = useState<WishForm>(EMPTY_WISH);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  async function load() { setWishes((await parentApi.wishes(child.id)).wishes); }
-  useEffect(() => { void load(); }, [child.id]);
+  const pageSize = 12;
+  async function load() { const result = await parentApi.wishes(child.id, page, pageSize); setWishes(result.wishes); setTotal(result.total); }
+  useEffect(() => { void load(); }, [child.id, page]);
+  useEffect(() => { setPage(1); }, [child.id]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -2088,7 +2119,7 @@ function Wishes({ child }: { child: Child }) {
     setError("");
     try {
       if (editingId) await parentApi.updateWish(child.id, editingId, form);
-      else await parentApi.createWish(child.id, { ...form, sortOrder: wishes.length * 10 });
+      else await parentApi.createWish(child.id, { ...form, sortOrder: total * 10 });
       setForm(EMPTY_WISH); setEditingId(null); setEditorOpen(false); await load();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "保存失败"); }
     finally { setBusy(false); }
@@ -2171,10 +2202,11 @@ function Wishes({ child }: { child: Child }) {
         </form>
       </Panel>
       </Modal>
-      <Panel title={`星愿列表（${wishes.length}）`} actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingId(null); setForm(EMPTY_WISH); setEditorOpen(true); }}>新增星愿</Button>}>
+      <Panel title={`星愿列表（${total}）`} actions={<Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingId(null); setForm(EMPTY_WISH); setEditorOpen(true); }}>新增星愿</Button>}>
         <div className="wish-admin-grid">
           {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" loading="lazy" decoding="async" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); setEditorOpen(true); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
         </div>
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 个星愿`} onChange={setPage} />
       </Panel>
     </div>
   );
@@ -2183,25 +2215,31 @@ function Wishes({ child }: { child: Child }) {
 function Redemptions({ child }: { child: Child }) {
   const [items, setItems] = useState<Redemption[]>([]);
   const [error, setError] = useState("");
-  async function load() { setItems((await parentApi.redemptions(child.id)).redemptions); }
-  useEffect(() => { void load(); }, [child.id]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
+  async function load() { const result = await parentApi.redemptions(child.id, page, pageSize); setItems(result.redemptions); setTotal(result.total); }
+  useEffect(() => { void load(); }, [child.id, page]);
   async function refund(item: Redemption) {
     const reason = window.prompt("请输入退款原因，星星会自动退还") ?? undefined;
     if (!reason) return;
     try { await parentApi.updateRedemption(child.id, item.id, "CANCELLED", reason); await load(); }
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "处理失败"); }
   }
-  return <Panel title="兑换记录">{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap responsive-card-table"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td data-label="星愿"><strong>{item.titleSnapshot}</strong></td><td data-label="花费">★ {item.costStarsSnapshot}</td><td data-label="兑换时间">{formatDate(item.requestedAt)}</td><td data-label="状态"><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td data-label="操作" className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div></Panel>;
+  return <Panel title={`兑换记录（${total}）`}>{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap responsive-card-table"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td data-label="星愿"><strong>{item.titleSnapshot}</strong></td><td data-label="花费">★ {item.costStarsSnapshot}</td><td data-label="兑换时间">{formatDate(item.requestedAt)}</td><td data-label="状态"><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td data-label="操作" className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={setPage} /></Panel>;
 }
 
 function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
   const [amount, setAmount] = useState(1);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  async function load() { setEntries((await parentApi.ledger(child.id)).entries); }
-  useEffect(() => { void load(); }, [child.id]);
+  async function load() { const result = await parentApi.ledger(child.id, page, pageSize); setEntries(result.entries); setTotal(result.total); }
+  useEffect(() => { void load(); }, [child.id, page]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -2210,7 +2248,7 @@ function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "调整失败"); }
     finally { setBusy(false); }
   }
-  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<NumberField type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水 · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div></Panel></div>;
+  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<NumberField type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水（${total}） · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={setPage} /></Panel></div>;
 }
 
 function Planets({
@@ -2506,14 +2544,17 @@ function ChildProfileSettings({ child, onChanged }: { child: Child; onChanged: (
 
 function Settings({ child }: { child: Child }) {
   const [devices, setDevices] = useState<Device[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     setError("");
-    void parentApi.devices(child.id)
+    void parentApi.devices(child.id, page, pageSize)
       .then((result) => {
-        if (!cancelled) setDevices(result.devices);
+        if (!cancelled) { setDevices(result.devices); setTotal(result.total); }
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "登录设备读取失败");
@@ -2521,13 +2562,15 @@ function Settings({ child }: { child: Child }) {
     return () => {
       cancelled = true;
     };
-  }, [child.id]);
+  }, [child.id, page]);
 
   async function logoutAll() {
     if (!window.confirm("确定让这个孩子的所有设备退出登录？")) return;
     try {
       await parentApi.logoutAll(child.id);
       setDevices([]);
+      setTotal(0);
+      setPage(1);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "退出设备失败");
     }
@@ -2535,7 +2578,7 @@ function Settings({ child }: { child: Child }) {
 
   return (
     <div className="admin-stack">
-      <Panel title={`登录设备（${devices.length}）`} actions={<button className="danger-button" type="button" onClick={() => void logoutAll()}>全部退出</button>}>
+      <Panel title={`登录设备（${total}）`} actions={<button className="danger-button" type="button" onClick={() => void logoutAll()}>全部退出</button>}>
         {error && <Notice kind="error">{error}</Notice>}
         <div className="device-list">
           {devices.map((device) => {
@@ -2560,6 +2603,7 @@ function Settings({ child }: { child: Child }) {
           })}
           {!devices.length && <div className="empty-state">没有已登录设备</div>}
         </div>
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={setPage} />
       </Panel>
     </div>
   );
@@ -3008,6 +3052,7 @@ export function App() {
           {error && <Notice kind="error">{error}</Notice>}
           {!selectedChild ? <Panel title="还没有孩子档案"><p>创建孩子后，就可以为孩子设置任务和奖励。</p><button className="primary-button" type="button" onClick={() => void createChild()}>新建孩子</button></Panel> : <Suspense fallback={<div className="admin-section-loading">正在打开管理模块…</div>}>
             {section === "overview" && <GrowthOverview child={selectedChild} />}
+            {section === "growth-records" && <GrowthRecords child={selectedChild} />}
             {section === "children" && <ChildrenManagement children={children} selectedChild={selectedChild} onSelect={setSelectedChildId} onCreate={createChild} onShowCode={(target) => void showLoginCode(target)} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "pet" && <PetManagement child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
             {section === "history" && <History child={selectedChild} onChanged={() => void loadChildren(selectedChild.id)} />}
@@ -3038,7 +3083,7 @@ export function App() {
           <section className="mobile-menu-drawer" role="dialog" aria-modal="true" aria-label="全部管理功能" onClick={(event) => event.stopPropagation()}>
             <header>
               <div><strong>全部管理</strong><span>选择一个工作区</span></div>
-              <button type="button" aria-label="关闭菜单" onClick={() => setMobileMenuOpen(false)}>×</button>
+              <button type="button" aria-label="关闭菜单" onClick={() => setMobileMenuOpen(false)}><CloseOutlined /></button>
             </header>
             {NAV_GROUPS.slice(1).map((group) => (
               <div className="mobile-menu-group" key={group.label}>

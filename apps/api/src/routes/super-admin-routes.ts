@@ -27,6 +27,12 @@ import {
   updatePlatformFeatureSettings,
 } from "../services/platform-feature-service.js";
 import { systemAiCredentials } from "../services/system-ai-service.js";
+import {
+  createDatabaseBackup,
+  getSystemOperationsDashboard,
+  runSystemOperation,
+  SYSTEM_OPERATION_DEFINITIONS,
+} from "../services/system-operations-service.js";
 
 const familySchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -77,9 +83,16 @@ const performanceQuery = z.object({
   days: z.coerce.number().int().min(1).max(30).default(7),
   familyId: z.string().trim().min(1).optional(),
   childId: z.string().trim().min(1).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(10).max(100).default(20),
 });
 const aiUsageQuery = z.object({
   days: z.coerce.number().int().min(1).max(90).default(30),
+});
+const adminListQuery = z.object({
+  q: z.string().trim().max(100).default(""),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(20),
 });
 const aiConfigSchema = z.object({
   apiKey: z.string().trim().min(10).max(512).optional(),
@@ -90,11 +103,66 @@ const aiConnectionSchema = z.object({ ok: z.literal(true), message: z.string() }
 const platformFeatureSchema = z.object({
   realChildCompetitionEnabled: z.boolean(),
 });
+const systemOperationSchema = z.object({
+  operation: z.enum(Object.keys(SYSTEM_OPERATION_DEFINITIONS) as [keyof typeof SYSTEM_OPERATION_DEFINITIONS, ...(keyof typeof SYSTEM_OPERATION_DEFINITIONS)[]]),
+  confirmation: z.string().trim().min(1).max(80),
+});
+const databaseBackupSchema = z.object({
+  confirmation: z.literal("下载数据库备份"),
+});
 
 export async function registerSuperAdminRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ): Promise<void> {
+  app.get("/api/admin/system/dashboard", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    return getSystemOperationsDashboard(config);
+  });
+
+  app.post("/api/admin/system/operations", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    const input = systemOperationSchema.parse(request.body);
+    try {
+      return await runSystemOperation({
+        ...input,
+        actorId: user.id,
+        ipAddress: request.ip,
+        config,
+        logger: request.log,
+      });
+    } catch (error) {
+      throw new HttpError(
+        error instanceof Error && error.message.includes("正在执行") ? 409 : 400,
+        "SYSTEM_OPERATION_FAILED",
+        error instanceof Error ? error.message : "系统操作执行失败",
+      );
+    }
+  });
+
+  app.post("/api/admin/system/database-backup", async (request, reply) => {
+    const { user } = await requireAdmin(request, reply, config);
+    databaseBackupSchema.parse(request.body);
+    try {
+      const backup = await createDatabaseBackup({
+        databaseUrl: config.DATABASE_URL,
+        actorId: user.id,
+        ipAddress: request.ip,
+      });
+      return reply
+        .header("Content-Type", "application/octet-stream")
+        .header("Content-Disposition", `attachment; filename="${backup.fileName}"`)
+        .header("Cache-Control", "no-store")
+        .send(backup.data);
+    } catch (error) {
+      throw new HttpError(
+        500,
+        "DATABASE_BACKUP_FAILED",
+        error instanceof Error ? error.message : "数据库备份失败",
+      );
+    }
+  });
+
   app.get("/api/admin/platform-features", async (request, reply) => {
     await requireAdmin(request, reply, config);
     return { settings: await getPlatformFeatureSettings() };
@@ -253,7 +321,21 @@ export async function registerSuperAdminRoutes(
 
   app.get("/api/admin/families", async (request, reply) => {
     await requireAdmin(request, reply, config);
-    const families = await prisma.family.findMany({
+    const query = adminListQuery.parse(request.query);
+    const where: Prisma.FamilyWhereInput = query.q ? {
+      OR: [
+        { name: { contains: query.q, mode: "insensitive" } },
+        { users: { some: { OR: [
+          { username: { contains: query.q, mode: "insensitive" } },
+          { displayName: { contains: query.q, mode: "insensitive" } },
+        ] } } },
+        { children: { some: { nickname: { contains: query.q, mode: "insensitive" } } } },
+      ],
+    } : {};
+    const [families, total] = await Promise.all([prisma.family.findMany({
+        where,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
         orderBy: { createdAt: "desc" },
         include: {
           users: {
@@ -287,7 +369,7 @@ export async function registerSuperAdminRoutes(
             },
           },
         },
-      });
+      }), prisma.family.count({ where })]);
 
     return {
       families: families.map((family) => ({
@@ -302,6 +384,56 @@ export async function registerSuperAdminRoutes(
           lastActiveAt: sessions[0]?.lastSeenAt ?? lastLoginAt,
         })),
       })),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  });
+
+  app.get("/api/admin/family-options", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    return { families: await prisma.family.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }) };
+  });
+
+  app.get("/api/admin/children", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const query = adminListQuery.parse(request.query);
+    const where: Prisma.ChildProfileWhereInput = query.q ? {
+      OR: [
+        { nickname: { contains: query.q, mode: "insensitive" } },
+        { loginCodeLastFour: { contains: query.q } },
+        { family: { name: { contains: query.q, mode: "insensitive" } } },
+      ],
+    } : {};
+    const [children, total] = await Promise.all([
+      prisma.childProfile.findMany({
+        where,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        orderBy: { createdAt: "desc" },
+        include: {
+          family: { select: { id: true, name: true } },
+          sessions: { orderBy: { lastSeenAt: "desc" }, take: 1, select: { lastSeenAt: true } },
+        },
+      }),
+      prisma.childProfile.count({ where }),
+    ]);
+    return {
+      children: children.map(({ sessions, family, ...child }) => ({
+        family,
+        child: {
+          ...child,
+          loginCode: null,
+          lastActiveAt: sessions[0]?.lastSeenAt ?? child.lastLoginAt,
+        },
+      })),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
     };
   });
 
@@ -848,7 +980,7 @@ export async function registerSuperAdminRoutes(
 
   app.get("/api/admin/performance", async (request, reply) => {
     await requireAdmin(request, reply, config);
-    const { days, familyId, childId } = performanceQuery.parse(request.query);
+    const { days, familyId, childId, page, pageSize } = performanceQuery.parse(request.query);
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1_000);
     const metricWhere: Prisma.ChildPerformanceMetricWhereInput = {
       createdAt: { gte: from },
@@ -917,6 +1049,8 @@ export async function registerSuperAdminRoutes(
       })),
       days,
       config.APP_TIME_ZONE,
+      page,
+      pageSize,
     );
     return {
       ...dashboard,
@@ -944,20 +1078,18 @@ export async function registerSuperAdminRoutes(
     await requireAdmin(request, reply, config);
     const query = z
       .object({
-        cursor: z.string().optional(),
-        limit: z.coerce.number().int().min(1).max(200).default(100),
+        page: z.coerce.number().int().min(1).default(1),
+        pageSize: z.coerce.number().int().min(10).max(100).default(20),
       })
       .parse(request.query);
-    const logs = await prisma.auditLog.findMany({
-      take: query.limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    });
-    const hasMore = logs.length > query.limit;
-    if (hasMore) logs.pop();
-    return {
-      logs,
-      nextCursor: hasMore ? logs.at(-1)?.id ?? null : null,
-    };
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      prisma.auditLog.count(),
+    ]);
+    return { logs, total, page: query.page, pageSize: query.pageSize };
   });
 }

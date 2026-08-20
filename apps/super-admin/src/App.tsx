@@ -13,15 +13,17 @@ import {
   DashboardOutlined,
   FileTextOutlined,
   HomeOutlined,
+  HeartOutlined,
   MenuOutlined,
   PictureOutlined,
   ReadOutlined,
   RobotOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  ToolOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { Button, Drawer, Input, Layout, Menu, Modal } from "antd";
+import { Button, Drawer, Input, Layout, Menu, Modal, Pagination } from "antd";
 import {
   adminApi,
   staffApi,
@@ -43,6 +45,8 @@ import { PetGrowthManagement } from "./PetGrowthManagement";
 import { MascotAssetManagement } from "./MascotAssetManagement";
 import { AiPlatformSettings } from "./AiPlatformSettings";
 import { PlatformFeatureSettings } from "./PlatformFeatureSettings";
+import { SystemOperations } from "./SystemOperations";
+import { GrowthDataGovernance } from "./GrowthDataGovernance";
 
 type Section =
   | "metrics"
@@ -50,6 +54,7 @@ type Section =
   | "ai-usage"
   | "families"
   | "children"
+  | "growth-data"
   | "hanzi"
   | "poems"
   | "mascot-dialogues"
@@ -58,6 +63,7 @@ type Section =
   | "mascot-assets"
   | "ai-settings"
   | "platform-features"
+  | "system-operations"
   | "audit";
 
 const SECTION_LABELS: Record<Section, string> = {
@@ -66,6 +72,7 @@ const SECTION_LABELS: Record<Section, string> = {
   "ai-usage": "模型调用",
   families: "家庭与账号",
   children: "孩子账号",
+  "growth-data": "成长数据",
   hanzi: "汉字资源库",
   poems: "古诗资源库",
   "mascot-dialogues": "星宠话术",
@@ -74,6 +81,7 @@ const SECTION_LABELS: Record<Section, string> = {
   "mascot-assets": "星宠素材",
   "ai-settings": "AI 平台配置",
   "platform-features": "平台功能开关",
+  "system-operations": "运维中心",
   audit: "审计日志",
 };
 
@@ -90,6 +98,7 @@ const NAV_GROUPS = [
         label: "孩子账号",
         icon: <SafetyCertificateOutlined />,
       },
+      { key: "growth-data", label: "成长数据", icon: <HeartOutlined /> },
     ],
   },
   {
@@ -130,6 +139,7 @@ const NAV_GROUPS = [
     label: "系统运维",
     icon: <SettingOutlined />,
     children: [
+      { key: "system-operations", label: "运维中心", icon: <ToolOutlined /> },
       { key: "performance", label: "性能诊断", icon: <DashboardOutlined /> },
       {
         key: "platform-features",
@@ -784,6 +794,18 @@ function FamilyOverview({
   overview: FamilyDataOverview;
   onBack: () => void;
 }) {
+  const [sectionPages, setSectionPages] = useState<Record<string, number>>({});
+  const sectionPageSize = 8;
+  function sectionPage(key: string) {
+    return sectionPages[key] ?? 1;
+  }
+  function pageItems<T>(key: string, items: T[]) {
+    const start = (sectionPage(key) - 1) * sectionPageSize;
+    return items.slice(start, start + sectionPageSize);
+  }
+  function changeSectionPage(key: string, page: number) {
+    setSectionPages((current) => ({ ...current, [key]: page }));
+  }
   const totalTasks = overview.children.reduce(
     (sum, child) => sum + child.taskStats.periodTotal,
     0,
@@ -904,7 +926,7 @@ function FamilyOverview({
                     </tr>
                   </thead>
                   <tbody>
-                    {child.taskTemplates.map((task) => (
+                    {pageItems(`${child.id}-tasks`, child.taskTemplates).map((task) => (
                       <tr key={task.id}>
                         <td>{task.title}</td>
                         <td>
@@ -929,6 +951,7 @@ function FamilyOverview({
                 {!child.taskTemplates.length && (
                   <div className="empty-state">暂无任务配置</div>
                 )}
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-tasks`)} pageSize={sectionPageSize} total={child.taskTemplates.length} showSizeChanger={false} onChange={(page) => changeSectionPage(`${child.id}-tasks`, page)} />
               </div>
             </div>
             <div>
@@ -945,7 +968,7 @@ function FamilyOverview({
                     </tr>
                   </thead>
                   <tbody>
-                    {child.wishes.map((wish) => (
+                    {pageItems(`${child.id}-wishes`, child.wishes).map((wish) => (
                       <tr key={wish.id}>
                         <td>{wish.title}</td>
                         <td>
@@ -962,6 +985,7 @@ function FamilyOverview({
                 {!child.wishes.length && (
                   <div className="empty-state">暂无星愿配置</div>
                 )}
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-wishes`)} pageSize={sectionPageSize} total={child.wishes.length} showSizeChanger={false} onChange={(page) => changeSectionPage(`${child.id}-wishes`, page)} />
               </div>
             </div>
           </div>
@@ -979,7 +1003,7 @@ function FamilyOverview({
                     </tr>
                   </thead>
                   <tbody>
-                    {child.redemptions.map((item) => (
+                    {pageItems(`${child.id}-redemptions`, child.redemptions).map((item) => (
                       <tr key={item.id}>
                         <td>{item.titleSnapshot}</td>
                         <td>★ {item.costStarsSnapshot}</td>
@@ -994,6 +1018,7 @@ function FamilyOverview({
                 {!child.redemptions.length && (
                   <div className="empty-state">暂无兑换记录</div>
                 )}
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-redemptions`)} pageSize={sectionPageSize} total={child.redemptions.length} showSizeChanger={false} onChange={(page) => changeSectionPage(`${child.id}-redemptions`, page)} />
               </div>
             </div>
             <div>
@@ -1009,7 +1034,7 @@ function FamilyOverview({
                     </tr>
                   </thead>
                   <tbody>
-                    {child.ledger.slice(0, 20).map((item) => (
+                    {pageItems(`${child.id}-ledger`, child.ledger).map((item) => (
                       <tr key={item.id}>
                         <td>{item.reason ?? item.type}</td>
                         <td
@@ -1027,6 +1052,7 @@ function FamilyOverview({
                 {!child.ledger.length && (
                   <div className="empty-state">暂无星星流水</div>
                 )}
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-ledger`)} pageSize={sectionPageSize} total={child.ledger.length} showSizeChanger={false} onChange={(page) => changeSectionPage(`${child.id}-ledger`, page)} />
               </div>
             </div>
           </div>
@@ -1040,14 +1066,20 @@ function FamiliesView() {
   const [families, setFamilies] = useState<Family[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 12;
   const [overview, setOverview] = useState<FamilyDataOverview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   async function load() {
-    setFamilies((await adminApi.families()).families);
+    const result = await adminApi.families({ q: query, page, pageSize });
+    setFamilies(result.families);
+    setTotal(result.total);
   }
   useEffect(() => {
     void load();
-  }, []);
+  }, [page, query]);
   async function viewOverview(familyId: string) {
     setOverviewLoading(true);
     try {
@@ -1060,20 +1092,6 @@ function FamiliesView() {
       setOverviewLoading(false);
     }
   }
-  const filtered = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    if (!keyword) return families;
-    return families.filter(
-      (family) =>
-        family.name.toLowerCase().includes(keyword) ||
-        family.users.some((user) =>
-          `${user.username}${user.displayName}`.toLowerCase().includes(keyword),
-        ) ||
-        family.children.some((child) =>
-          (child.nickname ?? "").toLowerCase().includes(keyword),
-        ),
-    );
-  }, [families, search]);
   if (overviewLoading)
     return (
       <Panel title="家庭数据">
@@ -1092,7 +1110,7 @@ function FamiliesView() {
         onCreated={() => void load()}
       />
       <Panel
-        title={`家庭与账号（${families.length}）`}
+        title={`家庭与账号（${total}）`}
         actions={
           <Button type="primary" onClick={() => setCreateOpen(true)}>
             新增家庭
@@ -1100,18 +1118,20 @@ function FamiliesView() {
         }
       >
         <div className="super-toolbar">
-          <Input
+          <Input.Search
             allowClear
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            onSearch={(value) => { setPage(1); setQuery(value.trim()); }}
             placeholder="搜索家庭、家长或孩子"
+            enterButton="搜索"
           />
           <button className="ghost-button" onClick={() => void load()}>
             刷新
           </button>
         </div>
         <div className="super-family-grid">
-          {filtered.map((family) => (
+          {families.map((family) => (
             <FamilyCard
               key={family.id}
               family={family}
@@ -1119,18 +1139,24 @@ function FamiliesView() {
               onViewData={() => void viewOverview(family.id)}
             />
           ))}
-          {!filtered.length && (
+          {!families.length && (
             <div className="empty-state">没有匹配的家庭</div>
           )}
         </div>
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 个家庭`} onChange={setPage} />
       </Panel>
     </div>
   );
 }
 
 function ChildrenView() {
-  const [families, setFamilies] = useState<Family[]>([]);
+  const [families, setFamilies] = useState<Array<{ id: string; name: string }>>([]);
+  const [rows, setRows] = useState<Array<{ family: { id: string; name: string }; child: Family["children"][number] }>>([]);
   const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editor, setEditor] = useState<
     | { mode: "create"; familyId: string; nickname: string }
@@ -1143,28 +1169,17 @@ function ChildrenView() {
     code: string;
   } | null>(null);
   async function load() {
-    setFamilies((await adminApi.families()).families);
+    const [childrenResult, familyResult] = await Promise.all([
+      adminApi.children({ q: query, page, pageSize }),
+      adminApi.familyOptions(),
+    ]);
+    setRows(childrenResult.children);
+    setTotal(childrenResult.total);
+    setFamilies(familyResult.families);
   }
   useEffect(() => {
     void load();
-  }, []);
-  const rows = useMemo(
-    () =>
-      families
-        .flatMap((family) =>
-          family.children.map((child) => ({ family, child })),
-        )
-        .filter(({ family, child }) => {
-          const keyword = search.trim().toLocaleLowerCase("zh-CN");
-          return (
-            !keyword ||
-            `${family.name}${child.nickname ?? ""}${child.loginCodeLastFour}`
-              .toLocaleLowerCase("zh-CN")
-              .includes(keyword)
-          );
-        }),
-    [families, search],
-  );
+  }, [page, query]);
   async function showCode(child: Family["children"][number]) {
     setBusyId(child.id);
     try {
@@ -1307,7 +1322,7 @@ function ChildrenView() {
         ) : null}
       </Modal>
       <Panel
-        title={`孩子账号（${rows.length}）`}
+        title={`孩子账号（${total}）`}
         actions={
           <div className="form-actions">
             <Button onClick={() => void load()}>刷新</Button>
@@ -1328,11 +1343,13 @@ function ChildrenView() {
         }
       >
         <div className="super-toolbar">
-          <Input
+          <Input.Search
             allowClear
             value={search}
             onChange={(event) => setSearch(event.target.value)}
+            onSearch={(value) => { setPage(1); setQuery(value.trim()); }}
             placeholder="搜索家庭、昵称或代码尾号"
+            enterButton="搜索"
           />
         </div>
         {codeResult ? (
@@ -1457,6 +1474,7 @@ function ChildrenView() {
             <div className="empty-state">没有匹配的孩子账号</div>
           ) : null}
         </div>
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 个孩子`} onChange={setPage} />
       </Panel>
     </>
   );
@@ -1464,15 +1482,17 @@ function ChildrenView() {
 
 function AuditView() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  async function load(next?: string, append = false) {
-    const result = await adminApi.auditLogs(next);
-    setLogs((current) => (append ? [...current, ...result.logs] : result.logs));
-    setCursor(result.nextCursor);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 20;
+  async function load() {
+    const result = await adminApi.auditLogs(page, pageSize);
+    setLogs(result.logs);
+    setTotal(result.total);
   }
   useEffect(() => {
     void load();
-  }, []);
+  }, [page]);
   return (
     <Panel
       title="审计日志"
@@ -1518,16 +1538,7 @@ function AuditView() {
           </tbody>
         </table>
       </div>
-      {cursor && (
-        <div className="form-actions">
-          <button
-            className="ghost-button"
-            onClick={() => void load(cursor, true)}
-          >
-            加载更多
-          </button>
-        </div>
-      )}
+      <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 条记录`} onChange={setPage} />
     </Panel>
   );
 }
@@ -1603,6 +1614,7 @@ export function App() {
       {section === "ai-usage" && <AiUsageMonitoring />}
       {section === "families" && <FamiliesView />}
       {section === "children" && <ChildrenView />}
+      {section === "growth-data" && <GrowthDataGovernance />}
       {section === "hanzi" && <HanziLibrary />}
       {section === "poems" && <PoemLibrary />}
       {section === "mascot-dialogues" && <MascotDialogueLibrary />}
@@ -1611,6 +1623,7 @@ export function App() {
       {section === "mascot-assets" && <MascotAssetManagement />}
       {section === "ai-settings" && <AiPlatformSettings />}
       {section === "platform-features" && <PlatformFeatureSettings />}
+      {section === "system-operations" && <SystemOperations />}
       {section === "audit" && <AuditView />}
     </>
   );

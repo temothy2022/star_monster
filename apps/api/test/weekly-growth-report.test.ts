@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { weeklyGrowthResponseSchema } from "../src/ai/schemas.js";
+import {
+  growthAdvisorAnswerSchema,
+  weeklyGrowthResponseSchema,
+} from "../src/ai/schemas.js";
 import { growthAnalyticsRange } from "../src/services/growth-analytics-service.js";
 import {
   previousCompletedGrowthWeek,
@@ -75,5 +78,85 @@ describe("DeepSeek 成长周报结构", () => {
       parentActions: ["建议一", "建议二", "建议三", "建议四"],
     });
     expect(result.success).toBe(false);
+  });
+
+  it("接受包含学科平衡、习惯计划和建议追问的成长分析", () => {
+    const result = weeklyGrowthResponseSchema.safeParse({
+      summary: "习惯稳定，未来两周优先补足数学薄弱题型。",
+      dataQuality: "SUFFICIENT",
+      developmentProfile: {
+        headline: "正在建立稳定而均衡的学习节奏",
+        stage: "BUILDING",
+        primaryGoal: "先补足数学薄弱题型",
+        rationale: "生活任务稳定，数学应用题仍需短时专项练习。",
+      },
+      dimensions: [{
+        key: "MATH",
+        label: "数学",
+        score: 68,
+        trend: "IMPROVING",
+        status: "WATCH",
+        evidence: "近四周完成 46 题，近期正确率正在提升。",
+        nextStep: "保持短时专项，不增加总题量。",
+      }],
+      balanceInsight: {
+        summary: "语文稳定，数学需要更多针对性练习。",
+        wellRepresented: ["语文"],
+        needsMoreAttention: ["数学"],
+        recommendation: "把两次综合练习替换为应用题专项。",
+      },
+      doingWell: [],
+      needsAdjustment: [],
+      cadenceChanges: [],
+      recommendedSchedule: [],
+      parentActions: ["试行两周后复查"],
+      habitPlan: {
+        focus: "自主开始第一项任务",
+        cue: "看到今日任务列表时",
+        routine: "先选一项十分钟内的任务",
+        reinforcement: "完成后口头确认自己的选择",
+        successSignal: "一周四天无需催促即可开始",
+      },
+      weeklyPlan: {
+        theme: "稳定开始，专项补弱",
+        loadGuidance: "不增加总任务时长",
+        focusAreas: ["数学应用题"],
+        lightDays: ["周日"],
+        principles: ["高负担任务错开"],
+      },
+      riskSignals: [],
+      suggestedQuestions: [{
+        id: "math-cadence",
+        question: "数学应该每天练还是隔天练？",
+        reason: "当前已有四周频率和掌握度记录。",
+      }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("接受带执行步骤和任务调整的顾问追问回答", () => {
+    const result = growthAdvisorAnswerSchema.safeParse({
+      title: "数学改为短时隔天练",
+      directAnswer: "建议先试行隔天短练，而不是继续增加每天题量。",
+      evidence: ["应用题正确率低于其他题型，且单次用时更长。"],
+      actionPlan: [{
+        order: 1,
+        title: "拆短练习",
+        action: "每次只练一个薄弱题型。",
+        frequency: "未来两周，每周三次",
+        successSignal: "首次正确率提升且单次练习不超过十分钟",
+      }],
+      taskAdjustments: [{
+        templateId: "math-template",
+        title: "数学练习",
+        decision: "SPLIT",
+        suggestion: "拆成三次短时专项",
+        reason: "降低启动负担并保留提取练习",
+      }],
+      watchFor: ["孩子是否更容易自主开始"],
+      followUpQuestions: ["两周后应该看哪些数据？"],
+      boundaryNote: "本建议基于平台记录，不替代专业评估。",
+    });
+    expect(result.success).toBe(true);
   });
 });

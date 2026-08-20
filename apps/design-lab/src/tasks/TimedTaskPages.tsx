@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import startBackground from "@star-monsters/assets/images/timed-task/start-bg.jpeg";
 import bonusStarIcon from "@star-monsters/assets/icons/timed-task/start-icon-4.svg";
-import startCloseIcon from "@star-monsters/assets/icons/timed-task/start-icon-5.svg";
 import startArrowIcon from "@star-monsters/assets/icons/timed-task/start-icon-2.svg";
 import completeBackground from "@star-monsters/assets/images/timed-task/complete-bg.jpeg";
-import timeoutCloseIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-1.svg";
 import retryIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-2.svg";
 import raceIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-5.svg";
 import finishStarIcon from "@star-monsters/assets/icons/timed-task/timeout-icon-3.svg";
@@ -14,13 +12,13 @@ import racerDoudou from "@star-monsters/assets/images/timed-task/racer-2.jpeg";
 import racerYaya from "@star-monsters/assets/images/timed-task/racer-3.jpeg";
 import racerBobo from "@star-monsters/assets/images/timed-task/timeout-extra.jpeg";
 import { useMascot } from "../mascots";
-import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
 import { AbandonDialog, MoreMenu, type UntimedOverlay } from "./TaskOverlays";
 import {
   playCompletionSound,
   prepareCompletionSound,
 } from "../audio/completion-sound";
 import { LoadingDots } from "../components/LoadingDots";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import {
   TaskCompletionRewardModal,
   taskCompletionRewardHalo,
@@ -45,10 +43,8 @@ type TimedTaskActiveProps = TimedTaskProps & {
 
 function CloseButton({
   onClick,
-  icon,
 }: {
   onClick: () => void;
-  icon: string;
 }) {
   return (
     <button
@@ -57,7 +53,7 @@ function CloseButton({
       aria-label="返回任务列表"
       onClick={onClick}
     >
-      <img src={icon} alt="" />
+      <ChildControlIcon kind="back" />
     </button>
   );
 }
@@ -146,14 +142,14 @@ export function TimedTaskActive({
       className="timed-page timed-page--active"
       style={{ "--timed-start-bg": `url(${startBackground})` } as CSSProperties}
     >
-      <CloseButton onClick={() => setOverlay("abandon")} icon={startCloseIcon} />
+      <CloseButton onClick={() => setOverlay("abandon")} />
       <button
         className="timed-more-button"
         type="button"
         aria-label="更多"
         onClick={() => setOverlay("menu")}
       >
-        <img src={moreIcon} alt="" />
+        <ChildControlIcon kind="menu" />
       </button>
 
       <section className="timed-active-card" aria-labelledby="timed-active-title">
@@ -331,7 +327,7 @@ export function TimedTaskTimeout({ onBack }: TimedTaskProps) {
     <main className="timed-page timed-page--timeout">
       <div className="timed-timeout-layout">
         <section className="timed-timeout-panel timed-timeout-panel--summary" aria-labelledby="timed-timeout-title">
-          <CloseButton onClick={onBack} icon={timeoutCloseIcon} />
+          <CloseButton onClick={onBack} />
           <div className="timed-timeout-summary">
             <p className="timed-timeout-badge">挑战失败</p>
             <h1 id="timed-timeout-title">00:00</h1>

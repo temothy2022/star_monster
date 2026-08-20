@@ -7,7 +7,7 @@ import {
 } from "../api/child-api";
 import { playAnswerSound } from "../audio/feedback-sounds";
 import { reportChildPageReady } from "../api/performance-telemetry";
-import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 type Feedback = {
   selectedNumber: number | null;
@@ -157,7 +157,7 @@ export function MakeTenExperience({
   const accuracy = session.totalQuestions ? Math.round(session.correctCount / session.totalQuestions * 100) : 0;
 
   return <main className="make-ten-page" onContextMenu={(event) => event.preventDefault()}>
-    <button className="clock-back-button" type="button" disabled={busy} onClick={leave} aria-label="返回任务列表"><img src={backIcon} alt="" aria-hidden="true" /></button>
+    <button className="clock-back-button" type="button" disabled={busy} onClick={leave} aria-label="返回任务列表"><ChildControlIcon kind="back" /></button>
     <header className="make-ten-header">
       <div><span>数字好朋友</span><h1>{session.completedAt ? "今天的凑十训练完成啦" : `第 ${Math.min(session.currentIndex + 1, session.totalQuestions)} 题`}</h1></div>
       {!session.completedAt ? <div className="make-ten-total-progress"><span style={{ width: `${progress}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div> : null}

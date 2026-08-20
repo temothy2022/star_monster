@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { AdventureButton, StarPetCard } from "@star-monsters/ui";
-import arrowLeft from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import check from "@star-monsters/assets/icons/icon-check.svg";
 import rocket from "@star-monsters/assets/icons/icon-rocket.svg";
 import { MASCOTS, MASCOT_ORDER, type PetType } from "../mascots";
 import { OnboardingViewport } from "./OnboardingViewport";
 import { registerManagedAudioContext } from "../audio/queued-playback";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 type WebkitAudioWindow = Window & {
   webkitAudioContext?: typeof AudioContext;
@@ -129,7 +129,7 @@ export function OnboardingStep1({
             className="onboarding-action onboarding-action--back"
             aria-label="返回（当前为首次使用起点）"
           >
-            <img src={arrowLeft} alt="" />
+            <ChildControlIcon kind="back" />
             返回
           </AdventureButton>
           <AdventureButton

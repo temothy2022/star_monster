@@ -6,6 +6,7 @@ import {
   type MathHintVisual,
 } from "@star-monsters/math-practice";
 import { useMascot } from "../mascots";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 type HintQuestion = Pick<MathQuestion, "typeId" | "prompt" | "helper" | "response" | "visual">;
 
@@ -106,7 +107,7 @@ export function MathTeachingHint({
           <div className="math-teaching-hint__message">
             <img src={mascot.images.focus} alt="" />
             <span><small>提示 {currentLevel} / 2</small><strong>{currentHint}</strong></span>
-            <button type="button" aria-label="收起提示" onClick={() => onLevelChange(0)}>×</button>
+            <button type="button" aria-label="收起提示" onClick={() => onLevelChange(0)}><ChildControlIcon kind="close" /></button>
           </div>
           <HintScaffold kind={guide.visual} question={question} />
           <footer>

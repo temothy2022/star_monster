@@ -26,6 +26,7 @@ import { registerPoemMediaRoutes } from "./routes/poem-media-routes.js";
 import { registerMascotAssetRoutes } from "./routes/mascot-asset-routes.js";
 import { registerParentChildAvatarRoutes } from "./routes/parent-child-avatar-routes.js";
 import { registerParentTravelPackingRoutes } from "./routes/parent-travel-packing-routes.js";
+import { registerGrowthRecordRoutes } from "./routes/growth-record-routes.js";
 import { prisma } from "./lib/prisma.js";
 import { MASCOT_ASSET_BODY_LIMIT } from "./services/mascot-asset-service.js";
 import { PET_ROOM_THEME_IMAGE_BODY_LIMIT } from "./services/pet-room-theme-image-service.js";
@@ -137,6 +138,7 @@ export async function buildApp(config: AppConfig) {
   await registerMascotAssetRoutes(app, config);
   await registerParentChildAvatarRoutes(app, config);
   await registerParentTravelPackingRoutes(app, config);
+  await registerGrowthRecordRoutes(app, config);
 
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {

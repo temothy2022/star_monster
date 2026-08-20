@@ -13,6 +13,7 @@ import type {
 } from "../api/child-api";
 import postcardStack from "@star-monsters/assets/images/task-dashboard/postcard-stack.webp";
 import spaceTimer from "@star-monsters/assets/images/task-dashboard/space-timer.webp";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 const LONG_PRESS_MS = 520;
 const REORDER_ANIMATION_MS = 340;
@@ -895,7 +896,7 @@ export function TaskDashboard({
                         aria-label={`删除${definition.label}`}
                         disabled={draftWidgets.length <= 1}
                         onClick={() => removeWidget(key)}
-                      >×</button>
+                      ><ChildControlIcon kind="close" /></button>
                     </div>
                   </div>
                 )}
@@ -934,7 +935,7 @@ export function TaskDashboard({
           <section className="task-widget-library" role="dialog" aria-modal="true" aria-labelledby="task-widget-library-title">
             <header>
               <div><small>任务桌面</small><h2 id="task-widget-library-title">添加组件</h2></div>
-              <button type="button" aria-label="关闭组件库" onClick={() => setLibraryOpen(false)}>×</button>
+              <button type="button" aria-label="关闭组件库" onClick={() => setLibraryOpen(false)}><ChildControlIcon kind="close" /></button>
             </header>
             {availableWidgets.length > 0 ? (
               <div className="task-widget-library__grid">

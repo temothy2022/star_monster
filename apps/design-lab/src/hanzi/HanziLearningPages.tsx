@@ -1,5 +1,4 @@
 import { useState } from "react";
-import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import playIcon from "@star-monsters/assets/icons/untimed-task/play.svg";
 import testGeneratedHanziImage from "@star-monsters/assets/images/hanzi/test-generated-shui.jpeg";
 import meaningNextIcon from "@star-monsters/assets/icons/hanzi/meaning-next.svg";
@@ -11,6 +10,7 @@ import soundNextIcon from "@star-monsters/assets/icons/hanzi/sound-next.svg";
 import soundSpeakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
 import soundStepEarIcon from "@star-monsters/assets/icons/hanzi/sound-step-ear.svg";
 import { HanziTaskControls } from "./HanziTaskControls";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 type HanziRoute =
   | "hanzi-home"
@@ -39,7 +39,7 @@ const stepLabels = ["看字形", "听读音", "想意思"];
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button className="hanzi-back-button" type="button" onClick={onClick} aria-label="返回">
-      <img src={backIcon} alt="" aria-hidden="true" />
+      <ChildControlIcon kind="back" />
     </button>
   );
 }

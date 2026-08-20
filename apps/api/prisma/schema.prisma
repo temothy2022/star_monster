@@ -17,6 +17,24 @@ enum AccountStatus {
   DISABLED
 }
 
+enum ChildBiologicalSex {
+  MALE
+  FEMALE
+  UNSPECIFIED
+}
+
+enum GrowthMilestoneCategory {
+  SELF_CARE
+  LEARNING
+  LANGUAGE
+  PHYSICAL
+  SOCIAL
+  EMOTIONAL
+  CREATIVE
+  FAMILY
+  OTHER
+}
+
 enum PetType {
   DOUYA
   PAOPAO
@@ -254,7 +272,7 @@ model Family {
   petRoomThemeSettings FamilyPetRoomThemeSetting[]
   petRoomThemes        PetRoomTheme[]
   travelPackingLists   TravelPackingList[]
-  taskCategories      TaskCategoryDefinition[]
+  taskCategories       TaskCategoryDefinition[]
 
   @@index([status])
 }
@@ -269,7 +287,7 @@ model TaskCategoryDefinition {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  family        Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family        Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
   taskTemplates TaskTemplate[]
 
   @@unique([familyId, name])
@@ -356,22 +374,21 @@ model TravelPackingCategory {
 }
 
 model TravelPackingItem {
-  id         String   @id @default(cuid())
-  categoryId String
-  label      String
-  quantity   Int      @default(1)
-  packed     Boolean  @default(false)
-  location   String   @default("SUITCASE")
+  id             String   @id @default(cuid())
+  categoryId     String
+  label          String
+  quantity       Int      @default(1)
+  packed         Boolean  @default(false)
+  location       String   @default("SUITCASE")
   expirationDate String?
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   category TravelPackingCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@index([categoryId, sortOrder])
 }
-
 
 model UserSession {
   id         String   @id @default(cuid())
@@ -389,28 +406,30 @@ model UserSession {
 }
 
 model ChildProfile {
-  id                    String        @id @default(cuid())
-  familyId              String
-  loginCodeLookup       String        @unique
-  loginCodeHash         String
-  loginCodeLastFour     String
-  loginCodeCiphertext   String?
-  loginCodeEncryptionIv String?
+  id                     String              @id @default(cuid())
+  familyId               String
+  loginCodeLookup        String              @unique
+  loginCodeHash          String
+  loginCodeLastFour      String
+  loginCodeCiphertext    String?
+  loginCodeEncryptionIv  String?
   loginCodeEncryptionTag String?
-  status                AccountStatus @default(ACTIVE)
-  nickname              String?
-  avatarUrl             String?
-  petType               PetType?
-  taskDashboardLayout   Json?
-  onboardingCompletedAt DateTime?
-  dailyStarGoal         Int           @default(12)
-  dailyGoalBonusEnabled Boolean       @default(false)
-  dailyGoalBonusStars   Int           @default(0)
-  starBalance           Int           @default(0)
-  lifetimeStarsEarned   Int           @default(0)
-  lastLoginAt           DateTime?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  status                 AccountStatus       @default(ACTIVE)
+  nickname               String?
+  avatarUrl              String?
+  birthDate              DateTime?           @db.Date
+  biologicalSex          ChildBiologicalSex?
+  petType                PetType?
+  taskDashboardLayout    Json?
+  onboardingCompletedAt  DateTime?
+  dailyStarGoal          Int                 @default(12)
+  dailyGoalBonusEnabled  Boolean             @default(false)
+  dailyGoalBonusStars    Int                 @default(0)
+  starBalance            Int                 @default(0)
+  lifetimeStarsEarned    Int                 @default(0)
+  lastLoginAt            DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
   family                  Family                        @relation(fields: [familyId], references: [id], onDelete: Restrict)
   sessions                ChildSession[]
@@ -452,11 +471,58 @@ model ChildProfile {
   petRedPackets           PetRedPacket[]
   petWasteOccurrences     PetWasteOccurrence[]
   challengeConversations  ChallengeConversation[]
-  directConversationsA    DirectChildConversation[] @relation("DirectChildConversationA")
-  directConversationsB    DirectChildConversation[] @relation("DirectChildConversationB")
+  directConversationsA    DirectChildConversation[]     @relation("DirectChildConversationA")
+  directConversationsB    DirectChildConversation[]     @relation("DirectChildConversationB")
   directMessages          DirectChildMessage[]
+  growthRecords           ChildGrowthRecord[]
+  growthMilestones        ChildGrowthMilestone[]
 
   @@index([familyId, status])
+}
+
+model ChildGrowthRecord {
+  id               String   @id @default(cuid())
+  childId          String
+  recordDate       DateTime @db.Date
+  heightCm         Decimal? @db.Decimal(5, 1)
+  weightKg         Decimal? @db.Decimal(5, 2)
+  sleepStartMinute Int?
+  wakeMinute       Int?
+  napMinutes       Int?
+  sleepQuality     Int?
+  outdoorMinutes   Int?
+  exerciseMinutes  Int?
+  screenMinutes    Int?
+  moodScore        Int?
+  energyScore      Int?
+  appetiteScore    Int?
+  note             String?
+  createdById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, recordDate])
+  @@index([childId, recordDate])
+}
+
+model ChildGrowthMilestone {
+  id             String                  @id @default(cuid())
+  childId        String
+  happenedOn     DateTime                @db.Date
+  category       GrowthMilestoneCategory
+  title          String
+  description    String?
+  visibleToChild Boolean                 @default(true)
+  createdById    String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  child ChildProfile @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, happenedOn])
+  @@index([childId, category, happenedOn])
 }
 
 model PetGrowthProfile {
@@ -755,7 +821,7 @@ model TaskTemplate {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  child              ChildProfile        @relation(fields: [childId], references: [id], onDelete: Cascade)
+  child              ChildProfile            @relation(fields: [childId], references: [id], onDelete: Cascade)
   customCategoryId   String?
   customCategory     TaskCategoryDefinition? @relation(fields: [customCategoryId], references: [id], onDelete: SetNull)
   dailyTasks         DailyTask[]
@@ -820,7 +886,7 @@ model ChallengeConversation {
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
 
-  child    ChildProfile              @relation(fields: [childId], references: [id], onDelete: Cascade)
+  child    ChildProfile                   @relation(fields: [childId], references: [id], onDelete: Cascade)
   messages ChallengeConversationMessage[]
 
   @@unique([childId, businessDate, competitorId])
@@ -851,8 +917,8 @@ model DirectChildConversation {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  participantA ChildProfile        @relation("DirectChildConversationA", fields: [participantAId], references: [id], onDelete: Cascade)
-  participantB ChildProfile        @relation("DirectChildConversationB", fields: [participantBId], references: [id], onDelete: Cascade)
+  participantA ChildProfile         @relation("DirectChildConversationA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB ChildProfile         @relation("DirectChildConversationB", fields: [participantBId], references: [id], onDelete: Cascade)
   messages     DirectChildMessage[]
 
   @@unique([participantAId, participantBId])
@@ -861,15 +927,15 @@ model DirectChildConversation {
 }
 
 model DirectChildMessage {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   conversationId String
   senderChildId  String
   text           String
   readAt         DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   conversation DirectChildConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender       ChildProfile             @relation(fields: [senderChildId], references: [id], onDelete: Cascade)
+  sender       ChildProfile            @relation(fields: [senderChildId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
   @@index([senderChildId, createdAt])
@@ -906,11 +972,11 @@ model SystemMinimaxConfig {
 }
 
 model PlatformFeatureConfig {
-  id                         String   @id @default("default")
+  id                          String   @id @default("default")
   realChildCompetitionEnabled Boolean  @default(true)
-  updatedByUserId            String?
-  createdAt                  DateTime @default(now())
-  updatedAt                  DateTime @updatedAt
+  updatedByUserId             String?
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 }
 
 model AiModelCall {
@@ -1102,7 +1168,7 @@ model HanziCharacter {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  progress HanziLearningProgress[]
+  progress      HanziLearningProgress[]
   schoolTargets HanziSchoolTarget[]
 
   @@index([isEnabled, sortOrder])
@@ -1342,19 +1408,19 @@ model MathPracticeSession {
 }
 
 model MathPracticeQuestionAttempt {
-  id            String   @id @default(cuid())
-  childId       String
-  sessionId     String
-  questionIndex Int
-  attemptNumber Int
-  questionTypeId String?
-  difficulty    Int?
+  id                 String   @id @default(cuid())
+  childId            String
+  sessionId          String
+  questionIndex      Int
+  attemptNumber      Int
+  questionTypeId     String?
+  difficulty         Int?
   expectedResponseMs Int?
-  values        Json
-  correct       Boolean
-  responseMs    Int
-  answeredAt    DateTime @default(now())
-  createdAt     DateTime @default(now())
+  values             Json
+  correct            Boolean
+  responseMs         Int
+  answeredAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
 
   child   ChildProfile        @relation(fields: [childId], references: [id], onDelete: Cascade)
   session MathPracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -1379,7 +1445,7 @@ model Poem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  progress PoemLearningProgress[]
+  progress      PoemLearningProgress[]
   schoolTargets PoemSchoolTarget[]
 
   @@unique([title, dynasty, author, grade, semester])

@@ -16,7 +16,7 @@ import {
 } from "../api/child-api";
 import { playAnswerSound } from "../audio/feedback-sounds";
 import { reportChildPageReady } from "../api/performance-telemetry";
-import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 
 type ClockTime = { hour: number; minute: number; second: number };
 type HandKind = "hour" | "minute" | "second";
@@ -277,7 +277,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
     : Math.min(session.currentIndex + 1, session.totalQuestions);
   return <main className="clock-learning-page" onContextMenu={(event) => event.preventDefault()}>
     <button className="clock-back-button" type="button" onClick={onExit} aria-label="返回任务列表">
-      <img src={backIcon} alt="" aria-hidden="true" />
+      <ChildControlIcon kind="back" />
     </button>
     <header className="clock-learning-header">
       <div><span>时间小课堂</span><h1>{stage === "PRACTICE" ? "拨一拨，认识时间" : stage === "RESULT" ? "今天的练习完成啦" : `第 ${displayedQuestionNumber} 题`}</h1></div>

@@ -15,8 +15,8 @@ import {
   type HanziLearningSession,
 } from "../api/child-api";
 import { ChildDataState } from "../components/ChildDataState";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import { LoadingDots } from "../components/LoadingDots";
-import backIcon from "@star-monsters/assets/icons/icon-arrow-left.svg";
 import playIcon from "@star-monsters/assets/icons/untimed-task/play.svg";
 import defaultHanziImage from "@star-monsters/assets/images/hanzi/test-generated-shui.jpeg";
 import meaningSpeakerIcon from "@star-monsters/assets/icons/hanzi/meaning-speaker.svg";
@@ -381,7 +381,7 @@ function clearLocalDraft(sessionId: string) {
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button className="hanzi-back-button" type="button" onClick={onClick} aria-label="返回任务列表">
-      <img src={backIcon} alt="" aria-hidden="true" />
+      <ChildControlIcon kind="back" />
     </button>
   );
 }

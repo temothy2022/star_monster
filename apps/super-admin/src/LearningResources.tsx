@@ -12,7 +12,7 @@ import {
   type MinimaxConfig,
   type PoemResource,
 } from "./api";
-import { Modal } from "antd";
+import { Modal, Pagination } from "antd";
 import { NumberField } from "./NumberField";
 
 function Notice({
@@ -603,27 +603,7 @@ export function HanziLibrary() {
               <div className="empty-state">没有找到汉字</div>
             ) : null}
           </div>
-          {total > pageSize ? (
-            <div className="hanzi-library-pagination">
-              <button
-                type="button"
-                disabled={page <= 1 || busy}
-                onClick={() => void load(page - 1)}
-              >
-                上一页
-              </button>
-              <span>
-                第 {page} / {Math.ceil(total / pageSize)} 页
-              </span>
-              <button
-                type="button"
-                disabled={page >= Math.ceil(total / pageSize) || busy}
-                onClick={() => void load(page + 1)}
-              >
-                下一页
-              </button>
-            </div>
-          ) : null}
+          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 个汉字`} disabled={busy} onChange={(value) => void load(value)} />
         </section>
       </div>
     </div>
@@ -666,23 +646,28 @@ export function PoemLibrary() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState(0);
+  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  async function load(nextQuery = query, nextGrade = grade) {
+  const pageSize = 30;
+  async function load(nextQuery = query, nextGrade = grade, nextPage = page) {
     setBusy(true);
     setError("");
     try {
       const result = await adminApi.poems({
         q: nextQuery,
         grade: nextGrade || undefined,
+        page: nextPage,
+        pageSize,
         includeDisabled: true,
       });
       setItems(result.poems);
       setTotal(result.total);
+      setPage(result.page);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "古诗库读取失败");
     } finally {
@@ -690,7 +675,7 @@ export function PoemLibrary() {
     }
   }
   useEffect(() => {
-    void load("", 0);
+    void load("", 0, 1);
   }, []);
   function payload() {
     return {
@@ -990,7 +975,7 @@ export function PoemLibrary() {
             className="super-toolbar"
             onSubmit={(event) => {
               event.preventDefault();
-              void load(query, grade);
+              void load(query, grade, 1);
             }}
           >
             <input
@@ -1100,6 +1085,7 @@ export function PoemLibrary() {
               <div className="empty-state">没有找到古诗</div>
             ) : null}
           </div>
+          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 首古诗`} disabled={busy} onChange={(value) => void load(query, grade, value)} />
         </section>
       </div>
     </div>
@@ -1225,13 +1211,18 @@ const DIALOGUE_CONTEXT_LABELS: Record<MascotDialogue["context"], string> = {
 
 export function MascotDialogueLibrary() {
   const [items, setItems] = useState<MascotDialogue[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const pageSize = 20;
 
   async function load() {
     try {
-      setItems((await adminApi.mascotDialogues()).dialogues);
+      const result = await adminApi.mascotDialogues(page, pageSize);
+      setItems(result.dialogues);
+      setTotal(result.total);
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "星宠对话读取失败");
     }
@@ -1239,7 +1230,7 @@ export function MascotDialogueLibrary() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [page]);
 
   function replace(updated: MascotDialogue) {
     setItems((current) =>
@@ -1322,7 +1313,7 @@ export function MascotDialogueLibrary() {
             disabled={bulkBusy || Boolean(busyId)}
             onClick={() => void generateMissing()}
           >
-            {bulkBusy ? "批量生成中…" : "生成全部缺失语音"}
+            {bulkBusy ? "批量生成中…" : "生成本页缺失语音"}
           </button>
         </header>
         {message ? <Notice>{message}</Notice> : null}
@@ -1438,6 +1429,7 @@ export function MascotDialogueLibrary() {
             </article>
           ))}
         </div>
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 条对话`} onChange={setPage} />
       </section>
     </div>
   );

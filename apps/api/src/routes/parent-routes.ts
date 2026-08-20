@@ -194,6 +194,10 @@ const hanziLibraryQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(30),
 });
+const pagedListQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(20),
+});
 const poemSettingsSchema = z
   .object({
     enabled: z.boolean(),
@@ -215,6 +219,8 @@ const poemSettingsSchema = z
 const poemLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
   grade: z.coerce.number().int().min(1).max(6).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 const taskTemplateShape = {
@@ -761,6 +767,8 @@ export async function registerParentRoutes(
           id: true,
           nickname: true,
           avatarUrl: true,
+          birthDate: true,
+          biologicalSex: true,
           petType: true,
           status: true,
           onboardingCompletedAt: true,
@@ -775,6 +783,7 @@ export async function registerParentRoutes(
         },
       }).then((children) => children.map(({ loginCodeCiphertext, ...child }) => ({
         ...child,
+        birthDate: child.birthDate?.toISOString().slice(0, 10) ?? null,
         loginCode: null,
         loginCodeAvailable: Boolean(loginCodeCiphertext),
       }))),
@@ -952,9 +961,13 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/devices", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    return {
-      devices: await prisma.childSession.findMany({
-        where: { childId: id, expiresAt: { gt: new Date() } },
+    const query = pagedListQuery.parse(request.query);
+    const where = { childId: id, expiresAt: { gt: new Date() } };
+    const [devices, total] = await Promise.all([
+      prisma.childSession.findMany({
+        where,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
         orderBy: { lastSeenAt: "desc" },
         select: {
           id: true,
@@ -965,7 +978,9 @@ export async function registerParentRoutes(
           createdAt: true,
         },
       }),
-    };
+      prisma.childSession.count({ where }),
+    ]);
+    return { devices, total, page: query.page, pageSize: query.pageSize };
   });
 
   app.post("/api/parent/children/:id/logout-all", async (request, reply) => {
@@ -1390,9 +1405,8 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/poems", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    const { q, grade } = poemLibraryQuery.parse(request.query);
-    const poems = await prisma.poem.findMany({
-      where: {
+    const { q, grade, page, pageSize } = poemLibraryQuery.parse(request.query);
+    const where: Prisma.PoemWhereInput = {
         isEnabled: true,
         ...(grade ? { grade } : {}),
         ...(q
@@ -1404,7 +1418,10 @@ export async function registerParentRoutes(
               ],
             }
           : {}),
-      },
+      };
+    const [poems, total] = await Promise.all([
+      prisma.poem.findMany({
+      where,
       include: {
         progress: {
           where: { childId: id },
@@ -1423,7 +1440,11 @@ export async function registerParentRoutes(
         { grade: "asc" },
         { sortOrder: "asc" },
       ],
-    });
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+      prisma.poem.count({ where }),
+    ]);
 
     return {
       poems: poems.map(({ progress, schoolTargets, ...poem }) => ({
@@ -1431,6 +1452,9 @@ export async function registerParentRoutes(
         progress: progress[0] ?? null,
         schoolTarget: schoolTargets[0] ?? null,
       })),
+      total,
+      page,
+      pageSize,
     };
   });
 
@@ -1439,8 +1463,11 @@ export async function registerParentRoutes(
     async (request, reply) => {
       const { childId } = schoolTargetChildParams.parse(request.params);
       await requireOwnedChild(request, reply, config, childId);
-      const targets = await prisma.poemSchoolTarget.findMany({
-        where: { childId, poem: { isEnabled: true } },
+      const { page, pageSize } = pagedListQuery.parse(request.query);
+      const where: Prisma.PoemSchoolTargetWhereInput = { childId, poem: { isEnabled: true } };
+      const [targets, total] = await Promise.all([
+        prisma.poemSchoolTarget.findMany({
+        where,
         include: {
           poem: {
             include: {
@@ -1456,13 +1483,20 @@ export async function registerParentRoutes(
           },
         },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      });
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+        prisma.poemSchoolTarget.count({ where }),
+      ]);
       return {
         poems: targets.map(({ id, sortOrder, poem }) => ({
           ...poem,
           progress: poem.progress[0] ?? null,
           schoolTarget: { id, sortOrder },
         })),
+        total,
+        page,
+        pageSize,
       };
     },
   );
@@ -1814,16 +1848,26 @@ export async function registerParentRoutes(
     async (request, reply) => {
       const { childId } = schoolTargetChildParams.parse(request.params);
       await requireOwnedChild(request, reply, config, childId);
-      const targets = await prisma.hanziSchoolTarget.findMany({
-        where: { childId, character: { isEnabled: true } },
+      const { page, pageSize } = pagedListQuery.parse(request.query);
+      const where: Prisma.HanziSchoolTargetWhereInput = { childId, character: { isEnabled: true } };
+      const [targets, total] = await Promise.all([
+        prisma.hanziSchoolTarget.findMany({
+        where,
         include: { character: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      });
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+        prisma.hanziSchoolTarget.count({ where }),
+      ]);
       return {
         characters: targets.map(({ id, sortOrder, character }) => ({
           ...character,
           schoolTarget: { id, sortOrder },
         })),
+        total,
+        page,
+        pageSize,
       };
     },
   );
@@ -1971,9 +2015,32 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/wishes", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
+    const { page, pageSize } = pagedListQuery.parse(request.query);
+    const where: Prisma.WishRewardWhereInput = { childId: id, archivedAt: null };
+    const [wishes, total] = await Promise.all([
+      prisma.wishReward.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.wishReward.count({ where }),
+    ]);
+    return {
+      wishes,
+      total,
+      page,
+      pageSize,
+    };
+  });
+
+  app.get("/api/parent/children/:id/wish-options", async (request, reply) => {
+    const { id } = idParams.parse(request.params);
+    await requireOwnedChild(request, reply, config, id);
     return {
       wishes: await prisma.wishReward.findMany({
         where: { childId: id, archivedAt: null },
+        select: { id: true, title: true },
         orderBy: [{ category: "asc" }, { sortOrder: "asc" }],
       }),
     };
@@ -2047,12 +2114,18 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/redemptions", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    return {
-      redemptions: await prisma.wishRedemption.findMany({
-        where: { childId: id },
+    const query = pagedListQuery.parse(request.query);
+    const where = { childId: id };
+    const [redemptions, total] = await Promise.all([
+      prisma.wishRedemption.findMany({
+        where,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
         orderBy: { requestedAt: "desc" },
       }),
-    };
+      prisma.wishRedemption.count({ where }),
+    ]);
+    return { redemptions, total, page: query.page, pageSize: query.pageSize };
   });
 
   app.patch(
@@ -2143,13 +2216,18 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/star-ledger", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    return {
-      entries: await prisma.starLedger.findMany({
-        where: { childId: id },
+    const query = pagedListQuery.parse(request.query);
+    const where = { childId: id };
+    const [entries, total] = await Promise.all([
+      prisma.starLedger.findMany({
+        where,
         orderBy: { createdAt: "desc" },
-        take: 500,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
       }),
-    };
+      prisma.starLedger.count({ where }),
+    ]);
+    return { entries, total, page: query.page, pageSize: query.pageSize };
   });
 
   app.get("/api/parent/children/:id/stats", async (request, reply) => {
@@ -2249,12 +2327,15 @@ export async function registerParentRoutes(
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
     const { days } = historyQuery.parse(request.query);
+    const query = pagedListQuery.parse(request.query);
     const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
     const from = addBusinessDays(today, -(days - 1));
-    const tasks = await prisma.dailyTask.findMany({
-      where: { childId: id, taskDate: { gte: from, lte: today } },
+    const where = { childId: id, taskDate: { gte: from, lte: today } };
+    const [tasks, total, attemptSummary] = await Promise.all([prisma.dailyTask.findMany({
+      where,
       orderBy: [{ taskDate: "desc" }, { sortOrder: "asc" }],
-      take: 1000,
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
       select: {
         id: true,
         taskDate: true,
@@ -2280,8 +2361,27 @@ export async function registerParentRoutes(
           },
         },
       },
-    });
-    return { from, to: today, days, tasks };
+    }), prisma.dailyTask.count({ where }), prisma.taskAttempt.groupBy({
+      by: ["status"],
+      where: { dailyTask: where },
+      _count: { _all: true },
+      _sum: { elapsedSeconds: true, baseStarsAwarded: true, bonusStarsAwarded: true },
+    })]);
+    return {
+      from,
+      to: today,
+      days,
+      tasks,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      summary: attemptSummary.map((item) => ({
+        status: item.status,
+        count: item._count._all,
+        elapsedSeconds: item._sum.elapsedSeconds ?? 0,
+        stars: (item._sum.baseStarsAwarded ?? 0) + (item._sum.bonusStarsAwarded ?? 0),
+      })),
+    };
   });
 
   app.post(

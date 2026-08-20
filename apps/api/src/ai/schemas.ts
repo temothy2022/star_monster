@@ -379,9 +379,131 @@ export const weeklyGrowthResponseSchema = z.object({
   cadenceChanges: z.array(weeklyGrowthCadenceChangeSchema).max(6),
   recommendedSchedule: z.array(weeklyGrowthScheduleItemSchema).max(24),
   parentActions: z.array(z.string().min(1).max(100)).min(1).max(3),
+  developmentProfile: z
+    .object({
+      headline: z.string().min(1).max(60),
+      stage: z.enum(["STABLE", "BUILDING", "REBALANCE"]),
+      primaryGoal: z.string().min(1).max(100),
+      rationale: z.string().min(1).max(180),
+    })
+    .optional(),
+  dimensions: z
+    .array(
+      z.object({
+        key: z.enum([
+          "HABIT",
+          "CHINESE",
+          "MATH",
+          "ENGLISH",
+          "PHYSICAL",
+          "LIFE",
+          "BALANCE",
+        ]),
+        label: z.string().min(1).max(20),
+        score: z.number().int().min(0).max(100),
+        trend: z.enum(["IMPROVING", "STABLE", "DECLINING", "INSUFFICIENT"]),
+        status: z.enum(["STRONG", "HEALTHY", "WATCH", "PRIORITY"]),
+        evidence: z.string().min(1).max(180),
+        nextStep: z.string().min(1).max(120),
+      }),
+    )
+    .max(7)
+    .default([]),
+  balanceInsight: z
+    .object({
+      summary: z.string().min(1).max(180),
+      wellRepresented: z.array(z.string().min(1).max(20)).max(4),
+      needsMoreAttention: z.array(z.string().min(1).max(20)).max(4),
+      recommendation: z.string().min(1).max(160),
+    })
+    .optional(),
+  habitPlan: z
+    .object({
+      focus: z.string().min(1).max(60),
+      cue: z.string().min(1).max(100),
+      routine: z.string().min(1).max(120),
+      reinforcement: z.string().min(1).max(120),
+      successSignal: z.string().min(1).max(100),
+    })
+    .optional(),
+  weeklyPlan: z
+    .object({
+      theme: z.string().min(1).max(60),
+      loadGuidance: z.string().min(1).max(160),
+      focusAreas: z.array(z.string().min(1).max(60)).min(1).max(3),
+      lightDays: z.array(z.string().min(1).max(20)).max(3),
+      principles: z.array(z.string().min(1).max(100)).min(1).max(4),
+    })
+    .optional(),
+  riskSignals: z
+    .array(
+      z.object({
+        level: z.enum(["WATCH", "ATTENTION"]),
+        title: z.string().min(1).max(50),
+        observation: z.string().min(1).max(160),
+        action: z.string().min(1).max(120),
+      }),
+    )
+    .max(4)
+    .default([]),
+  suggestedQuestions: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(40),
+        question: z.string().min(2).max(120),
+        reason: z.string().min(1).max(100),
+      }),
+    )
+    .max(6)
+    .default([]),
+});
+
+export const growthAdvisorQuestionSchema = z.object({
+  reportId: z.string().min(1).optional(),
+  question: z.string().trim().min(2).max(300),
+});
+
+export const growthAdvisorAnswerSchema = z.object({
+  title: z.string().min(1).max(60),
+  directAnswer: z.string().min(1).max(360),
+  evidence: z.array(z.string().min(1).max(180)).max(5),
+  actionPlan: z
+    .array(
+      z.object({
+        order: z.number().int().min(1).max(6),
+        title: z.string().min(1).max(50),
+        action: z.string().min(1).max(180),
+        frequency: z.string().min(1).max(80),
+        successSignal: z.string().min(1).max(120),
+      }),
+    )
+    .min(1)
+    .max(5),
+  taskAdjustments: z
+    .array(
+      z.object({
+        templateId: z.string().min(1).nullable(),
+        title: z.string().min(1).max(60),
+        decision: z.enum([
+          "KEEP",
+          "REDUCE",
+          "INCREASE",
+          "RESCHEDULE",
+          "SPLIT",
+          "OBSERVE",
+        ]),
+        suggestion: z.string().min(1).max(140),
+        reason: z.string().min(1).max(180),
+      }),
+    )
+    .max(6),
+  watchFor: z.array(z.string().min(1).max(120)).max(4),
+  followUpQuestions: z.array(z.string().min(2).max(120)).max(4),
+  boundaryNote: z.string().min(1).max(160),
 });
 
 export type TaskAdviceResponse = z.infer<typeof taskAdviceResponseSchema>;
 export type RewardAuditResponse = z.infer<typeof rewardAuditResponseSchema>;
 export type ScheduleResponse = z.infer<typeof scheduleResponseSchema>;
 export type WeeklyGrowthResponse = z.infer<typeof weeklyGrowthResponseSchema>;
+export type GrowthAdvisorAnswer = z.infer<typeof growthAdvisorAnswerSchema>;

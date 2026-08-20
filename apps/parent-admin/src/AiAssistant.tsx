@@ -554,13 +554,13 @@ function TaskAdvisor({ child }: { child: Child }) {
 function RewardAuditor({ child }: { child: Child }) {
   const [audit, setAudit] = useState<RewardAudit | null>(null);
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
-  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [wishes, setWishes] = useState<Array<Pick<Wish, "id" | "title">>>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setAudit(null);
-    void Promise.all([parentApi.templates(child.id), parentApi.wishes(child.id)]).then(([taskResult, wishResult]) => {
+    void Promise.all([parentApi.templates(child.id), parentApi.wishOptions(child.id)]).then(([taskResult, wishResult]) => {
       setTemplates(taskResult.templates);
       setWishes(wishResult.wishes);
     });

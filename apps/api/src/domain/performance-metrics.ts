@@ -239,6 +239,8 @@ export function buildPerformanceDashboard(
   records: PerformanceMetricRecord[],
   days: number,
   timeZone: string,
+  slowEventsPage = 1,
+  slowEventsPageSize = 20,
 ) {
   const usableRecords = records.filter(
     (metric) =>
@@ -382,9 +384,14 @@ export function buildPerformanceDashboard(
       })
       .sort((left, right) => left.date.localeCompare(right.date)),
     recommendations: buildRecommendations({ navigation, api, media, runtime }),
-    recentSlowEvents: recentSlowEvents.slice(0, 50).map((metric) => ({
-      ...metric,
-      diagnosis: diagnosePerformanceMetric(metric),
-    })),
+    recentSlowEvents: recentSlowEvents
+      .slice((slowEventsPage - 1) * slowEventsPageSize, slowEventsPage * slowEventsPageSize)
+      .map((metric) => ({
+        ...metric,
+        diagnosis: diagnosePerformanceMetric(metric),
+      })),
+    recentSlowEventsTotal: recentSlowEvents.length,
+    recentSlowEventsPage: slowEventsPage,
+    recentSlowEventsPageSize: slowEventsPageSize,
   };
 }

@@ -40,6 +40,10 @@ const poemGenerateParams = z.object({
   kind: z.enum(["image", "audio"]),
 });
 const mascotDialogueParams = z.object({ id: z.string().min(1) });
+const mascotDialogueListQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(5).max(100).default(20),
+});
 const mascotDialoguePatchSchema = z.object({
   text: z.string().trim().min(2).max(40).optional(),
   context: z.enum([
@@ -133,10 +137,20 @@ export async function registerAdminMinimaxRoutes(
 ) {
   app.get("/api/admin/mascot-dialogues", async (request, reply) => {
     await adminUser(request, reply, config);
-    return {
-      dialogues: await prisma.mascotDialogue.findMany({
+    const { page, pageSize } = mascotDialogueListQuery.parse(request.query);
+    const [dialogues, total] = await Promise.all([
+      prisma.mascotDialogue.findMany({
         orderBy: [{ context: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
+      prisma.mascotDialogue.count(),
+    ]);
+    return {
+      dialogues,
+      total,
+      page,
+      pageSize,
     };
   });
 

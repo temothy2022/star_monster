@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import ongoingBackground from "@star-monsters/assets/images/untimed-task/ongoing-bg.webp";
 import ongoingStar from "@star-monsters/assets/icons/wishes/star.svg";
-import backIcon from "@star-monsters/assets/icons/untimed-task/back.svg";
-import moreIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
 import completeBackground from "@star-monsters/assets/icons/untimed-task/complete-bg.svg";
 import { useMascot } from "../mascots";
 import {
@@ -10,6 +8,7 @@ import {
   prepareCompletionSound,
 } from "../audio/completion-sound";
 import { LoadingDots } from "../components/LoadingDots";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import {
   AbandonDialog,
   MoreMenu,
@@ -76,10 +75,10 @@ export function UntimedTaskActive({
         <img className="untimed-scene__texture" src={ongoingBackground} alt="" />
         <div className="untimed-topbar">
           <button type="button" aria-label="放弃任务并返回" onClick={leaveTask}>
-            <img src={backIcon} alt="" />
+            <ChildControlIcon kind="back" />
           </button>
           <button type="button" aria-label="更多" onClick={() => setOverlay("menu")}>
-            <img src={moreIcon} alt="" />
+            <ChildControlIcon kind="menu" />
           </button>
         </div>
 
