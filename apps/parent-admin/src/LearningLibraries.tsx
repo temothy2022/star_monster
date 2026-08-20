@@ -109,7 +109,6 @@ export function ParentHanziLearning({ child }: { child: Child }) {
   const [schoolPage, setSchoolPage] = useState(1);
   const [schoolTargetText, setSchoolTargetText] = useState("");
   const [schoolTargetTextMessage, setSchoolTargetTextMessage] = useState("");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,10 +148,6 @@ export function ParentHanziLearning({ child }: { child: Child }) {
       .finally(() => setBusy(false));
   }, [child.id, page, searchQuery]);
 
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [child.id, page, searchQuery]);
-
   async function save(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -188,43 +183,6 @@ export function ParentHanziLearning({ child }: { child: Child }) {
           character.id === item.id ? { ...character, schoolTarget: result.target } : character,
         ));
       }
-      await loadSchoolTargets();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "学校学习清单更新失败");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function toggleSelected(id: string) {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
-  function togglePageSelection() {
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      const allSelected = characters.length > 0 && characters.every((item) => next.has(item.id));
-      characters.forEach((item) => { if (allSelected) next.delete(item.id); else next.add(item.id); });
-      return next;
-    });
-  }
-
-  async function batchUpdateSchoolTargets(action: "add" | "remove") {
-    const ids = characters.filter((item) => selectedIds.has(item.id) && (action === "add" ? !item.schoolTarget : Boolean(item.schoolTarget))).map((item) => item.id);
-    if (!ids.length) return;
-    setBusy(true);
-    setError("");
-    try {
-      const delta = action === "add"
-        ? (await parentApi.addHanziSchoolTargets(child.id, ids)).addedCount
-        : -(await parentApi.removeHanziSchoolTargets(child.id, ids)).removedCount;
-      setCharacters((current) => current.map((item) => ids.includes(item.id) ? { ...item, schoolTarget: action === "add" ? { id: item.id, sortOrder: 0 } : null } : item));
-      setSchoolTargetCount((count) => Math.max(0, count + delta));
-      setSelectedIds(new Set());
       await loadSchoolTargets();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "学校学习清单更新失败");
@@ -304,20 +262,23 @@ export function ParentHanziLearning({ child }: { child: Child }) {
     </Panel>;
 
   const libraryPanel = <Panel title={`基础汉字库（${total} 个）`}>
-      <p className="admin-help">汉字资源由超级后台统一维护。家长可以搜索、试听并加入当前孩子的学校优先清单，不能修改全平台资源。</p>
+      <p className="admin-help">汉字资源由超级后台统一维护。这里按孩子的学习进度优先展示，家长可以搜索和试听。</p>
       <form className="hanzi-library-search" onSubmit={search}><input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索汉字、拼音、含义或例句" /><button type="submit">搜索</button>{searchQuery ? <button type="button" onClick={() => { setSearchInput(""); setSearchQuery(""); setPage(1); }}>清除</button> : null}</form>
-      <div className="school-target-toolbar">
-        <label><input type="checkbox" checked={characters.length > 0 && characters.every((item) => selectedIds.has(item.id))} onChange={togglePageSelection} />全选本页（{characters.length} 个）</label>
-        <span>已选 {selectedIds.size} 个</span>
-        <button type="button" className="primary-button" disabled={busy || !characters.some((item) => selectedIds.has(item.id) && !item.schoolTarget)} onClick={() => void batchUpdateSchoolTargets("add")}>批量加入学校学习</button>
-        <button type="button" className="ghost-button" disabled={busy || !characters.some((item) => selectedIds.has(item.id) && item.schoolTarget)} onClick={() => void batchUpdateSchoolTargets("remove")}>批量移出学校清单</button>
-      </div>
       {error ? <Notice error>{error}</Notice> : null}
-      <div className="admin-list hanzi-library-list">
-        {characters.map((item) => <article className="list-card" key={item.id}>
-          <input type="checkbox" aria-label={`选择${item.character}`} checked={selectedIds.has(item.id)} onChange={() => toggleSelected(item.id)} />
-          <div className="list-card__main"><div className="hanzi-admin-media">{item.imageKey !== "default-hanzi" ? <img src={item.imageKey} alt={`${item.character}配图`} loading="lazy" /> : <div className="hanzi-admin-glyph">{item.character}</div>}</div><div><h3>{item.character}（{item.internalPinyin}）· {item.meaning} {item.schoolTarget ? <span className="status status--pending">学校优先</span> : null}</h3><p>{item.words.join("、")}</p><small>{item.sentence.replace("__", item.character)}</small></div></div>
-          <div className="hanzi-resource-actions"><AudioButton label="播放字音" url={item.characterAudioUrl} fallbackText={item.character} /><AudioButton label="播放例句" url={item.sentenceAudioUrl} fallbackText={item.sentence.replace("__", item.character)} /><button type="button" className={item.schoolTarget ? "ghost-button" : "primary-button"} disabled={busy} onClick={() => void toggleSchoolTarget(item)}>{item.schoolTarget ? "移出学校清单" : "加入学校学习"}</button></div>
+      <div className="school-priority-list school-priority-list--hanzi hanzi-library-list">
+        {characters.map((item) => <article key={item.id}>
+          <div className="school-priority-list__hanzi">{item.character}</div>
+          <div>
+            <strong>{item.character} · {item.internalPinyin}</strong>
+            <div className="hanzi-library-progress">
+              <span className={`status status--${item.progress?.status === "MASTERED" ? "completed" : item.progress ? "pending" : "cancelled"}`}>
+                {item.progress?.status === "MASTERED" ? "已掌握" : item.progress ? "正在学习" : "未学习"}
+              </span>
+              {item.progress ? <small>复习 {item.progress.reviewStage}/6{item.progress.nextReviewDate ? ` · 下次 ${item.progress.nextReviewDate.slice(0, 10)}` : ""}</small> : null}
+            </div>
+            <small>{item.words.join("、")} · {item.meaning}</small>
+          </div>
+          <AudioButton label="试听" url={item.characterAudioUrl} fallbackText={item.character} />
         </article>)}
         {!characters.length && !busy ? <div className="empty-state">没有找到符合条件的汉字</div> : null}
         {busy && !characters.length ? <div className="empty-state">正在读取基础字库…</div> : null}
@@ -328,6 +289,7 @@ export function ParentHanziLearning({ child }: { child: Child }) {
   return <div className="admin-stack learning-workspace">
     <Tabs
       className="admin-workspace-tabs"
+      defaultActiveKey="library"
       items={[
         { key: "school", label: `学校优先 ${schoolTargetCount ? `(${schoolTargetCount})` : ""}`, children: schoolPanel },
         { key: "settings", label: "学习参数", children: settingsPanel },
@@ -787,5 +749,5 @@ export function ParentPoemLearning({ child }: { child: Child }) {
 
   const libraryPanel = <Panel title={`古诗资源库（${total} 首）`}><p className="admin-help">资源由超级后台统一维护。家长可以查询、试听并加入学校优先清单。</p><form className="poem-library-toolbar" onSubmit={search}><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索标题、作者或诗句" /><select value={grade} onChange={(event) => setGrade(Number(event.target.value))}><option value={0}>全部年级</option>{[1, 2, 3, 4, 5, 6].map((value) => <option value={value} key={value}>{value} 年级</option>)}</select><button className="ghost-button" disabled={busy}>查询</button></form><div className="school-target-toolbar"><label><input type="checkbox" checked={poems.length > 0 && poems.every((poem) => selectedIds.has(poem.id))} onChange={toggleAllPoems} />全选本页（{poems.length} 首）</label><span>已选 {selectedIds.size} 首</span><button type="button" className="primary-button" disabled={busy || !poems.some((poem) => selectedIds.has(poem.id) && !poem.schoolTarget)} onClick={() => void batchUpdateSchoolTargets("add")}>批量加入学校学习</button><button type="button" className="ghost-button" disabled={busy || !poems.some((poem) => selectedIds.has(poem.id) && poem.schoolTarget)} onClick={() => void batchUpdateSchoolTargets("remove")}>批量移出学校清单</button></div>{error ? <Notice error>{error}</Notice> : null}<div className="table-wrap poem-library-table responsive-card-table"><table><thead><tr><th>选择</th><th>年级</th><th>古诗</th><th>作者</th><th>学习状态</th><th>媒体</th><th>学校学习</th></tr></thead><tbody>{poems.map((poem) => <tr key={poem.id}><td data-label="选择"><input type="checkbox" aria-label={`选择《${poem.title}》`} checked={selectedIds.has(poem.id)} onChange={() => toggleSelected(poem.id)} /></td><td data-label="年级">{poem.grade} 年级{poem.semester}</td><td data-label="古诗"><strong>《{poem.title}》</strong><small>{poem.content}</small></td><td data-label="作者">{poem.dynasty} · {poem.author}</td><td data-label="学习状态"><span className={`status status--${poem.progress?.status === "MASTERED" ? "completed" : poem.progress ? "pending" : "cancelled"}`}>{poem.progress?.status === "MASTERED" ? "已掌握" : poem.progress ? `复习 ${poem.progress.reviewStage}/6` : "未学习"}</span>{poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}</td><td data-label="媒体"><div className="poem-media-cell">{poem.imageUrl ? <img src={poem.imageUrl} alt={`《${poem.title}》配图`} loading="lazy" decoding="async" /> : <div className="poem-media-placeholder">暂无配图</div>}<div className="poem-media-actions"><button type="button" className="hanzi-audio-button" disabled={!poem.audioUrl} onClick={() => toggleAudio(poem)}>{playingId === poem.id ? "停止" : "试听朗读"}</button></div></div></td><td data-label="学校学习"><button type="button" className={poem.schoolTarget ? "ghost-button" : "primary-button"} disabled={busy} onClick={() => void toggleSchoolTarget(poem)}>{poem.schoolTarget ? "移出清单" : "加入学校学习"}</button></td></tr>)}</tbody></table>{!poems.length ? <div className="empty-state">没有找到符合条件的古诗</div> : null}</div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 首古诗`} onChange={setPage} /></Panel>;
 
-  return <div className="admin-stack learning-workspace"><Tabs className="admin-workspace-tabs" items={[{ key: "school", label: `学校优先 ${schoolTargetCount ? `(${schoolTargetCount})` : ""}`, children: schoolPanel }, { key: "settings", label: "学习参数", children: settingsPanel }, { key: "library", label: "古诗资源库", children: libraryPanel }]} /></div>;
+  return <div className="admin-stack learning-workspace"><Tabs className="admin-workspace-tabs" defaultActiveKey="library" items={[{ key: "school", label: `学校优先 ${schoolTargetCount ? `(${schoolTargetCount})` : ""}`, children: schoolPanel }, { key: "settings", label: "学习参数", children: settingsPanel }, { key: "library", label: "古诗资源库", children: libraryPanel }]} /></div>;
 }

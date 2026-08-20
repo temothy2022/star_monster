@@ -433,6 +433,11 @@ export type HanziCharacterResource = {
   sortOrder: number;
   isEnabled: boolean;
   schoolTarget: { id: string; sortOrder: number } | null;
+  progress: {
+    status: "LEARNING" | "MASTERED";
+    reviewStage: number;
+    nextReviewDate: string | null;
+  } | null;
 };
 
 export type HanziMediaKind =

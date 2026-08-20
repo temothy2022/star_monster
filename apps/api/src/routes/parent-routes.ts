@@ -1828,20 +1828,38 @@ export async function registerParentRoutes(
         prisma.hanziCharacter.findMany({
           where,
           include: {
+            progress: {
+              where: { childId: id },
+              select: {
+                status: true,
+                reviewStage: true,
+                nextReviewDate: true,
+              },
+            },
             schoolTargets: {
               where: { childId: id },
               select: { id: true, sortOrder: true },
             },
           },
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          skip: (page - 1) * pageSize,
-          take: pageSize,
         }),
         prisma.hanziCharacter.count({ where }),
       ]);
+      const progressRank = (character: (typeof characters)[number]) => {
+        const status = character.progress[0]?.status;
+        return status === "LEARNING" ? 0 : status === "MASTERED" ? 1 : 2;
+      };
+      const orderedCharacters = [...characters].sort((left, right) =>
+        progressRank(left) - progressRank(right),
+      );
+      const pagedCharacters = orderedCharacters.slice(
+        (page - 1) * pageSize,
+        page * pageSize,
+      );
       return {
-        characters: characters.map(({ schoolTargets, ...character }) => ({
+        characters: pagedCharacters.map(({ progress, schoolTargets, ...character }) => ({
           ...character,
+          progress: progress[0] ?? null,
           schoolTarget: schoolTargets[0] ?? null,
         })),
         total,

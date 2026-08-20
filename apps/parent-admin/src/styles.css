@@ -1488,8 +1488,15 @@ td { font-size: 13px; }
   overflow: auto;
 }
 
-.poem-library-table td:nth-child(2) {
-  min-width: 340px;
+.poem-library-table table { table-layout: auto; }
+.poem-library-table th,
+.poem-library-table td { width: 1%; }
+.poem-library-table.responsive-card-table th:nth-child(3),
+.poem-library-table.responsive-card-table td:nth-child(3),
+.poem-library-table:not(.responsive-card-table) th:nth-child(2),
+.poem-library-table:not(.responsive-card-table) td:nth-child(2) {
+  width: auto;
+  white-space: normal;
 }
 
 .poem-library-table td small {
@@ -2231,6 +2238,7 @@ td { font-size: 13px; }
     overflow-wrap: anywhere;
     white-space: normal;
   }
+  .responsive-card-table.poem-library-table td { width: 100%; }
   .responsive-card-table td:last-child { border-bottom: 0; }
   .responsive-card-table td::before {
     color: #7b8597;
@@ -2238,8 +2246,7 @@ td { font-size: 13px; }
     font-size: 12px;
     font-weight: 700;
   }
-  .responsive-card-table--history td:nth-child(3),
-  .poem-library-table td:nth-child(2) {
+  .responsive-card-table--history td:nth-child(3) {
     order: -1;
     background: #f8f8f5;
     font-size: 15px;
@@ -2251,10 +2258,6 @@ td { font-size: 13px; }
   .responsive-card-table .table-actions button,
   .responsive-card-table td > button { min-height: 40px; }
 
-  .poem-library-table td:nth-child(2) {
-    max-width: none;
-    white-space: normal;
-  }
   .poem-library-table td small {
     overflow: visible;
     white-space: normal;
@@ -2500,6 +2503,15 @@ td { font-size: 13px; }
 .school-priority-list__order { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 6px; color: #76513d; background: #fff0e5; font-size: 12px; font-weight: 900; }
 .school-priority-list article > div:not(.school-priority-list__placeholder):not(.school-priority-list__hanzi) { min-width: 0; display: grid; gap: 4px; }
 .school-priority-list article small { overflow: hidden; color: #758196; text-overflow: ellipsis; white-space: nowrap; }
+.hanzi-library-list { max-height: 720px; overflow-y: auto; padding-right: 3px; }
+.hanzi-library-list article {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 11px;
+  padding: 7px 12px;
+}
+.hanzi-library-list .school-priority-list__hanzi { width: 52px; height: 52px; font-size: 28px; }
+.hanzi-library-progress { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.hanzi-library-list .hanzi-library-progress small { overflow: visible; color: #7a8798; white-space: nowrap; }
 .children-directory { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
 .children-directory > button { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 72px; padding: 10px 12px; border: 1px solid #dfe5ec; border-radius: 9px; color: #34465f; background: #fff; text-align: left; cursor: pointer; }
 .children-directory > button.is-active { border-color: #ef8d6d; background: #fff8f4; box-shadow: inset 3px 0 #ef7149; }
@@ -2516,6 +2528,8 @@ td { font-size: 13px; }
   .school-priority-list__hanzi { width: 50px; height: 50px; }
   .school-priority-list article > .admin-audio-control,
   .school-priority-list article > button { grid-column: auto; }
+  .hanzi-library-list article { grid-template-columns: 50px minmax(0, 1fr) auto; }
+  .hanzi-library-list .school-priority-list__hanzi { width: 50px; height: 50px; }
   .children-directory { grid-template-columns: 1fr; }
 }
 
