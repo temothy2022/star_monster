@@ -243,6 +243,74 @@ function ChartLegend({ items }: { items: Array<{ label: string; tone: string }> 
   return <div className="growth-chart-legend">{items.map((item) => <span key={item.label}><i className={`growth-chart-legend__dot growth-chart-legend__dot--${item.tone}`} />{item.label}</span>)}</div>;
 }
 
+const CATEGORY_EFFORT_COLORS: Record<GrowthAnalytics["categories"][number]["baseCategory"], string> = {
+  CHINESE: "#e2675b",
+  MATH: "#706bd4",
+  ENGLISH: "#35a7b8",
+  HOMEWORK: "#e99a32",
+  EXERCISE: "#62a765",
+  CHORES: "#d487ad",
+  OTHER: "#7d8ca3",
+};
+
+function weeklyMinutes(value: number) {
+  if (value < 1) return "不足 1 分钟";
+  if (value < 60) return `${Math.round(value)} 分钟`;
+  const hours = Math.floor(value / 60);
+  const minutes = Math.round(value % 60);
+  return minutes ? `${hours} 小时 ${minutes} 分` : `${hours} 小时`;
+}
+
+function CategoryEffortOverview({ analytics }: { analytics: GrowthAnalytics | null }) {
+  if (!analytics) return <div className="growth-effort__empty">正在整理分类投入数据…</div>;
+  if (!analytics.categories.length) return <div className="growth-effort__empty">近 30 天还没有任务安排</div>;
+  const totalWeeklyMinutes = analytics.categories.reduce(
+    (sum, item) => sum + item.weeklyObservedMinutes,
+    0,
+  );
+  const totalClosedAttempts = analytics.categories.reduce(
+    (sum, item) => sum + item.closedAttempts,
+    0,
+  );
+  const totalTimedAttempts = analytics.categories.reduce(
+    (sum, item) => sum + item.timedAttempts,
+    0,
+  );
+  const overallCoverage = totalClosedAttempts > 0
+    ? totalTimedAttempts / totalClosedAttempts
+    : 0;
+  return (
+    <section className="growth-effort" aria-label="分类每周投入概览">
+      <header className="growth-effort__header">
+        <div><span>近 30 天折算</span><strong>每周投入约 {weeklyMinutes(totalWeeklyMinutes)}</strong></div>
+        <small>实际计时覆盖 {percent(overallCoverage)}</small>
+      </header>
+      {totalWeeklyMinutes > 0 ? <div className="growth-effort__stack" aria-label="各分类实际投入占比">
+        {analytics.categories.filter((item) => item.effortShare > 0).map((item) => (
+          <span
+            key={item.category}
+            title={`${item.label} ${percent(item.effortShare)}`}
+            style={{ width: `${item.effortShare * 100}%`, background: item.color || CATEGORY_EFFORT_COLORS[item.baseCategory] }}
+          />
+        ))}
+      </div> : <div className="growth-effort__notice">已有任务安排，但尚未形成可用的实际计时；先完成几次任务后即可看到投入占比。</div>}
+      <div className="growth-effort__list">
+        {analytics.categories.map((item) => {
+          const color = item.color || CATEGORY_EFFORT_COLORS[item.baseCategory];
+          return <article key={item.category}>
+            <i style={{ background: color }} />
+            <div className="growth-effort__name"><strong>{item.label}</strong><small>每周约 {item.weeklyObservedSessions} 次 · 完成率 {percent(item.completionRate)}</small></div>
+            <div className="growth-effort__value"><strong>{weeklyMinutes(item.weeklyObservedMinutes)}</strong><small>占实际投入 {percent(item.effortShare)}</small></div>
+            <div className="growth-effort__bar"><span style={{ width: `${item.effortShare * 100}%`, background: color }} /></div>
+            <p>计划约 {weeklyMinutes(item.weeklyPlannedMinutes)} / 周 · 计时覆盖 {percent(item.timeCoverageRate)}</p>
+          </article>;
+        })}
+      </div>
+      <footer>只统计平台内有计时记录的任务；线下学习和未计时活动不会被推测加入。</footer>
+    </section>
+  );
+}
+
 function TaskCompletionSummary({ analytics }: { analytics: GrowthAnalytics }) {
   const taskById = new Map(analytics.tasks.map((task) => [task.templateId, task]));
   const strong = analytics.insights.strongTaskIds
@@ -415,7 +483,7 @@ const ADVISOR_DECISION_LABELS = {
   OBSERVE: "继续观察",
 } as const;
 
-function WeeklyReportPanel({ childId }: { childId: string }) {
+function WeeklyReportPanel({ childId, analytics }: { childId: string; analytics: GrowthAnalytics | null }) {
   const [configured, setConfigured] = useState(false);
   const [report, setReport] = useState<WeeklyGrowthReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -483,11 +551,12 @@ function WeeklyReportPanel({ childId }: { childId: string }) {
   return (
     <DashboardSection
       title="AI 成长顾问"
-      subtitle="综合学习掌握、任务习惯、学科平衡和家庭执行负担，形成可持续的培养方案"
+      subtitle="先看各分类每周投入与占比，再结合具体任务、学习掌握和完成稳定性形成调整方案"
       className="weekly-growth-report growth-advisor"
       actions={configured ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void generate()}>{busy ? "分析中…" : report ? "重新分析" : "立即生成"}</button> : null}
     >
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
+      <CategoryEffortOverview analytics={analytics} />
       {loading ? <div className="empty-state">正在读取成长分析…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>平台 AI 暂未启用</strong><p>请联系超级管理员配置并启用 DeepSeek，之后系统会每周自动形成成长分析。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>AI 会分析最近四个完整周，也可以现在生成第一份成长分析。</p></div> : <>
         <div className="weekly-growth-report__summary">
           <div><span>{fullDate(report.analysisStart)} – {fullDate(report.analysisEnd)}</span><h3>{analysis.developmentProfile?.headline ?? analysis.summary}</h3><p>{analysis.developmentProfile?.rationale ?? analysis.summary}</p></div>
@@ -630,7 +699,7 @@ export function GrowthOverview({ child }: { child: Child }) {
         </> : <div className="admin-panel empty-state">正在整理消费与收入数据…</div>}
       </GrowthDomainGroup> : null}
 
-      {activeTab === "ai" ? <WeeklyReportPanel childId={child.id} /> : null}
+      {activeTab === "ai" ? <WeeklyReportPanel childId={child.id} analytics={analytics} /> : null}
     </div>
   );
 }

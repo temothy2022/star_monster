@@ -3,7 +3,10 @@ import {
   growthAdvisorAnswerSchema,
   weeklyGrowthResponseSchema,
 } from "../src/ai/schemas.js";
-import { growthAnalyticsRange } from "../src/services/growth-analytics-service.js";
+import {
+  growthAnalyticsRange,
+  summarizeAttemptEffort,
+} from "../src/services/growth-analytics-service.js";
 import {
   previousCompletedGrowthWeek,
   previousCompletedGrowthWindow,
@@ -37,6 +40,25 @@ describe("成长统计时间范围", () => {
     expect(period.from.toISOString().slice(0, 10)).toBe("2026-07-06");
     expect(period.to.toISOString().slice(0, 10)).toBe("2026-08-02");
     expect(period.days).toBe(28);
+  });
+});
+
+describe("分类投入统计口径", () => {
+  it("统计所有有计时的有效结束尝试，并排除退款回退记录", () => {
+    expect(summarizeAttemptEffort([
+      { status: "COMPLETED", elapsedSeconds: 600 },
+      { status: "FAILED", elapsedSeconds: 180 },
+      { status: "ABANDONED", elapsedSeconds: 90 },
+      { status: "ROLLED_BACK", elapsedSeconds: 500 },
+      { status: "RUNNING", elapsedSeconds: null },
+    ])).toEqual({ closedAttempts: 3, timedAttempts: 3, observedSeconds: 870 });
+  });
+
+  it("未记录时长的结束尝试只影响覆盖率，不猜测投入时间", () => {
+    expect(summarizeAttemptEffort([
+      { status: "COMPLETED", elapsedSeconds: null },
+      { status: "TIMED_OUT", elapsedSeconds: 300 },
+    ])).toEqual({ closedAttempts: 2, timedAttempts: 1, observedSeconds: 300 });
   });
 });
 

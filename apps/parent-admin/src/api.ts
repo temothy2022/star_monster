@@ -609,19 +609,32 @@ export type GrowthAnalytics = {
     starsRefunded: number;
   }>;
   categories: Array<{
-    category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "HOMEWORK" | "OTHER";
+    category: string;
+    baseCategory: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "HOMEWORK" | "OTHER";
     label: string;
+    color: string | null;
     scheduledTasks: number;
     completedTasks: number;
     completedAttempts: number;
     failedAttempts: number;
     starsEarned: number;
     completionRate: number;
+    plannedMinutes: number;
+    observedMinutes: number;
+    weeklyPlannedMinutes: number;
+    weeklyObservedMinutes: number;
+    weeklyObservedSessions: number;
+    effortShare: number;
+    observedAttempts: number;
+    closedAttempts: number;
+    timedAttempts: number;
+    timeCoverageRate: number;
   }>;
   tasks: Array<{
     templateId: string;
     title: string;
     category: "MATH" | "EXERCISE" | "CHORES" | "CHINESE" | "ENGLISH" | "HOMEWORK" | "OTHER";
+    categoryKey: string;
     categoryLabel: string;
     repeatableDaily: boolean;
     scheduledDays: number;

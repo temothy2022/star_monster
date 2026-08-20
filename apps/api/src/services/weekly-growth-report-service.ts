@@ -358,22 +358,23 @@ export async function generateWeeklyGrowthReport(
       activeDays: analytics.summary.activeDays,
     },
     categoryBalance: analytics.categories.map((category) => {
-      const categoryTasks = analytics.tasks.filter(
-        (task) => task.category === category.category,
-      );
-      const observedMinutes = categoryTasks.reduce(
-        (sum, task) =>
-          sum + (task.averageMinutes ?? 0) * task.completedAttempts,
-        0,
-      );
       return {
         category: category.category,
+        baseCategory: category.baseCategory,
         label: category.label,
+        color: category.color,
         scheduledDays: category.scheduledTasks,
         completedDays: category.completedTasks,
         completionRate: category.completionRate,
         completedAttempts: category.completedAttempts,
-        observedMinutes: Math.round(observedMinutes * 10) / 10,
+        observedAttempts: category.observedAttempts,
+        plannedMinutes: category.plannedMinutes,
+        observedMinutes: category.observedMinutes,
+        weeklyPlannedMinutes: category.weeklyPlannedMinutes,
+        weeklyObservedMinutes: category.weeklyObservedMinutes,
+        weeklyObservedSessions: category.weeklyObservedSessions,
+        effortShare: category.effortShare,
+        timeCoverageRate: category.timeCoverageRate,
       };
     }),
     learningSnapshot: {
