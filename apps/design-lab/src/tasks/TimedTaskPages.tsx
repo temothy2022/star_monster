@@ -236,9 +236,9 @@ export function TimedTaskActive({
 
 export function TimedTaskComplete({
   onBack,
-  baseStars = 2,
-  bonusStars = 1,
-}: TimedTaskProps & { baseStars?: number; bonusStars?: number }) {
+  baseStars,
+  bonusStars,
+}: TimedTaskProps & { baseStars: number; bonusStars: number }) {
   const { mascot } = useMascot();
 
   useEffect(() => {

@@ -499,6 +499,13 @@ export function App() {
 
   function navigate(nextRoute: AppRoute) {
     if (nextRoute === route) return;
+    if (
+      (route === "timed-complete" || route === "untimed-complete") &&
+      nextRoute !== "timed-complete" &&
+      nextRoute !== "untimed-complete"
+    ) {
+      setLastCompletion(null);
+    }
     const historyState: { route: AppRoute; growthReturnRoute?: "home" | "profile" } = {
       route: nextRoute,
     };
@@ -659,6 +666,24 @@ export function App() {
   useEffect(() => {
     setIsCompletingAttempt(false);
   }, [activeAttempt?.id]);
+
+  useEffect(() => {
+    if (
+      (route !== "timed-complete" && route !== "untimed-complete") ||
+      lastCompletion
+    ) {
+      return;
+    }
+
+    // Completion pages are intentionally ephemeral. A restored hash without
+    // the server-confirmed reward must never render a fabricated reward card.
+    window.history.replaceState(
+      { route: DEFAULT_TASK_ROUTE },
+      "",
+      `#${DEFAULT_TASK_ROUTE}`,
+    );
+    setRoute(DEFAULT_TASK_ROUTE);
+  }, [lastCompletion, route]);
 
   if (isActiveTaskRoute(route) && !activeAttempt) {
     return (
@@ -868,7 +893,7 @@ export function App() {
         onComplete={() => {
           if (isCompletingAttempt) return;
           if (!activeAttempt) {
-            navigate("untimed-complete");
+            navigate(DEFAULT_TASK_ROUTE);
             return;
           }
           setIsCompletingAttempt(true);
@@ -899,9 +924,16 @@ export function App() {
   }
 
   if (route === "untimed-complete") {
+    if (!lastCompletion) {
+      return (
+        <div className="task-page task-page--loading">
+          <ChildDataState message="正在确认任务结果…" />
+        </div>
+      );
+    }
     return (
       <UntimedTaskComplete
-        rewardStars={lastCompletion?.totalStars}
+        rewardStars={lastCompletion.totalStars}
         onContinue={() => navigate(DEFAULT_TASK_ROUTE)}
       />
     );
@@ -940,7 +972,7 @@ export function App() {
         onComplete={() => {
           if (isCompletingAttempt) return;
           if (!activeAttempt) {
-            navigate("timed-complete");
+            navigate(DEFAULT_TASK_ROUTE);
             return;
           }
           setIsCompletingAttempt(true);
@@ -976,7 +1008,7 @@ export function App() {
         }}
         onTimeout={() => {
           if (!activeAttempt) {
-            navigate("timed-timeout");
+            navigate(DEFAULT_TASK_ROUTE);
             return;
           }
           void completeAttempt(activeAttempt.id)
@@ -1002,10 +1034,17 @@ export function App() {
   }
 
   if (route === "timed-complete") {
+    if (!lastCompletion) {
+      return (
+        <div className="task-page task-page--loading">
+          <ChildDataState message="正在确认任务结果…" />
+        </div>
+      );
+    }
     return (
       <TimedTaskComplete
-        baseStars={lastCompletion?.baseStars}
-        bonusStars={lastCompletion?.bonusStars}
+        baseStars={lastCompletion.baseStars}
+        bonusStars={lastCompletion.bonusStars}
         onBack={() => navigate(DEFAULT_TASK_ROUTE)}
       />
     );

@@ -136,10 +136,10 @@ export function UntimedTaskActive({
 
 export function UntimedTaskComplete({
   onContinue,
-  rewardStars = 3,
+  rewardStars,
 }: {
   onContinue: () => void;
-  rewardStars?: number;
+  rewardStars: number;
 }) {
   const { mascot } = useMascot();
 
