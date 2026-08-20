@@ -11,6 +11,8 @@ import {
 } from "./api";
 import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
 import travelPackingTipsIcon from "./assets/travel-packing-tips-v2.png";
+import increaseControlIcon from "@star-monsters/assets/icons/child-controls/increase.svg";
+import decreaseControlIcon from "@star-monsters/assets/icons/child-controls/decrease.svg";
 import "./travel-packing-list.css";
 
 type Filter = "all" | "unpacked" | "packed";
@@ -1042,7 +1044,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
             <label>物品名称<input autoFocus value={itemName} maxLength={30} placeholder="例如：儿童退烧药" onChange={(event) => setItemName(event.target.value)} /></label>
             <LocationPicker value={itemLocation} onChange={setItemLocation} />
             {isMedicineCategory(list.categories.find((category) => category.id === itemSheetCategoryId)?.name) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
-            <label>现有库存<div className="packing-sheet__quantity"><button type="button" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}>−</button><strong>{itemQuantity}</strong><button type="button" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}>＋</button></div></label>
+            <label>现有库存<div className="packing-sheet__quantity"><button type="button" aria-label="库存减少一件" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}><img src={decreaseControlIcon} alt="" /></button><strong>{itemQuantity}</strong><button type="button" aria-label="库存增加一件" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}><img src={increaseControlIcon} alt="" /></button></div></label>
             <div className="packing-sheet__actions"><button type="button" onClick={() => setItemSheetCategoryId(null)}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>加入清单</button></div>
           </form>
         </div>
@@ -1065,7 +1067,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
             <label>物品名称<input value={itemName} maxLength={30} onChange={(event) => setItemName(event.target.value)} /></label>
             <LocationPicker value={itemLocation} onChange={setItemLocation} />
             {isMedicineCategory(list.categories.find((category) => category.id === editingItemCategoryId)?.name) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
-            <label>现有库存<div className="packing-sheet__quantity"><button type="button" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}>−</button><strong>{itemQuantity}</strong><button type="button" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}>＋</button></div></label>
+            <label>现有库存<div className="packing-sheet__quantity"><button type="button" aria-label="库存减少一件" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}><img src={decreaseControlIcon} alt="" /></button><strong>{itemQuantity}</strong><button type="button" aria-label="库存增加一件" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}><img src={increaseControlIcon} alt="" /></button></div></label>
             <button type="button" className="packing-sheet__danger" onClick={() => { setEditingItemId(null); setDeletingItemId(editingItem.id); }}>从清单中删除这件物品</button>
             <div className="packing-sheet__actions"><button type="button" onClick={() => { setEditingItemId(null); setEditingItemCategoryId(null); }}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>保存修改</button></div>
           </form>

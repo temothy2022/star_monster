@@ -30,6 +30,7 @@ import logicWatermelonUrl from "@star-monsters/assets/images/math-practice/water
 import logicCakeUrl from "@star-monsters/assets/images/math-practice/cake.webp";
 import logicPencilUrl from "@star-monsters/assets/images/math-practice/pencil.webp";
 import logicBackpackUrl from "@star-monsters/assets/images/math-practice/logic/backpack.webp";
+import { ChildControlIcon } from "../components/ChildControlIcon";
 import logicBookUrl from "@star-monsters/assets/images/math-practice/logic/book.webp";
 import logicCarUrl from "@star-monsters/assets/images/math-practice/logic/car.webp";
 import logicTrainUrl from "@star-monsters/assets/images/math-practice/logic/train.webp";
@@ -505,7 +506,7 @@ function CountAdjust({
               <Sprite asset={visual.asset} />
             </button>
           ))}
-          {count < visual.maximum ? <button className="math-count-adjust__add" type="button" disabled={disabled} aria-label="再画一个" onClick={() => setCount(count + 1)}>＋</button> : null}
+          {count < visual.maximum ? <button className="math-count-adjust__add" type="button" disabled={disabled} aria-label="再画一个" onClick={() => setCount(count + 1)}><ChildControlIcon kind="increase" /></button> : null}
         </div>
       </section>
     </div>

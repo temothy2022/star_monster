@@ -889,7 +889,7 @@ export function TaskDashboard({
               >
                 {editing && (
                   <div className="task-dashboard-widget__edit-controls">
-                    <span aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>
+                    <span aria-hidden="true"><ChildControlIcon kind="drag" /></span>
                     <div>
                       <button
                         className="task-dashboard-widget__remove"
@@ -914,14 +914,14 @@ export function TaskDashboard({
                     onPointerMove={resizeWidget}
                     onPointerUp={finishWidgetResize}
                     onPointerCancel={finishWidgetResize}
-                  ><i /><i /><i /></button>
+                  ><ChildControlIcon kind="resizeHeight" /></button>
                 )}
               </section>
             );
           })}
           {editing && availableWidgets.length > 0 && (
             <button className="task-dashboard-add-tile" type="button" onClick={() => setLibraryOpen(true)}>
-              <span aria-hidden="true">+</span><strong>添加组件</strong>
+              <ChildControlIcon kind="add" /><strong>添加组件</strong>
             </button>
           )}
         </div>
@@ -948,7 +948,7 @@ export function TaskDashboard({
                         : <><i /><i /><i /></>}
                     </span>
                     <span><strong>{widget.label}</strong><small>{widget.description}</small></span>
-                    <b aria-hidden="true">+</b>
+                    <b aria-hidden="true"><ChildControlIcon kind="add" /></b>
                   </button>
                 ))}
               </div>

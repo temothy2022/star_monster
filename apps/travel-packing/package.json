@@ -9,6 +9,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@star-monsters/assets": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Pagination, Tabs } from "antd";
+import increaseControlIcon from "@star-monsters/assets/icons/child-controls/increase.svg";
+import decreaseControlIcon from "@star-monsters/assets/icons/child-controls/decrease.svg";
 import {
   MATH_QUESTION_CATEGORIES,
   getMathQuestionFamiliesByCategory,
@@ -624,9 +626,9 @@ export function ParentMathPractice({ child }: { child: Child }) {
                     return <div className={`math-config__type${count > 0 ? " is-enabled" : ""}`} key={type.id}>
                       <span><b>{type.id}</b><span>{type.name}</span><small>{type.description} · 难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
                       <div>
-                        <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}>−</button>
+                        <button type="button" aria-label={`减少${type.name}`} disabled={count === 0} onClick={() => setTypeCount(type.id, count - 1)}><img src={decreaseControlIcon} alt="" /></button>
                         <NumberField aria-label={`${type.name}数量`} type="number" min={0} max={100 - allocatedQuestions + count} value={count} onChange={(event) => setTypeCount(type.id, Number(event.target.value))} />
-                        <button type="button" aria-label={`增加${type.name}`} disabled={allocatedQuestions >= 100} onClick={() => setTypeCount(type.id, count + 1)}>＋</button>
+                        <button type="button" aria-label={`增加${type.name}`} disabled={allocatedQuestions >= 100} onClick={() => setTypeCount(type.id, count + 1)}><img src={increaseControlIcon} alt="" /></button>
                         {arithmeticItems !== null ? <label className="math-config__items-per-question"><span>每题小题</span><NumberField aria-label={`${type.name}每题小题数`} type="number" min={1} max={20} value={arithmeticItems} onChange={(event) => setArithmeticItemsPerQuestion(type.id, Number(event.target.value))} /></label> : null}
                       </div>
                     </div>;

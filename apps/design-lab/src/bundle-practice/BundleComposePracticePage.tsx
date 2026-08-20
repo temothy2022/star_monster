@@ -64,9 +64,9 @@ function Stepper({
   return (
     <div className="bundle-practice-stepper">
       <span>{label}</span>
-      <button type="button" disabled={disabled || value <= min} onClick={() => onChange(value - 1)} aria-label={`少摆一${label}`}>−</button>
+      <button type="button" disabled={disabled || value <= min} onClick={() => onChange(value - 1)} aria-label={`少摆一${label}`}><ChildControlIcon kind="decrease" /></button>
       <strong>{value}</strong>
-      <button type="button" disabled={disabled || value >= max} onClick={() => onChange(value + 1)} aria-label={`多摆一${label}`}>＋</button>
+      <button type="button" disabled={disabled || value >= max} onClick={() => onChange(value + 1)} aria-label={`多摆一${label}`}><ChildControlIcon kind="increase" /></button>
     </div>
   );
 }

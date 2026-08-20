@@ -179,6 +179,9 @@ importers:
 
   apps/travel-packing:
     dependencies:
+      '@star-monsters/assets':
+        specifier: workspace:*
+        version: link:../../packages/assets
       react:
         specifier: ^19.2.0
         version: 19.2.7

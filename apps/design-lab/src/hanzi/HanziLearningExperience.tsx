@@ -1213,7 +1213,7 @@ export function HanziLearningExperience({
                 : isReviewOnly ? "开始复习" : "开始学习"
               : `正在准备 ${assetPercent}%`}
             {assetProgress.ready && flowTransition !== "start" ? (
-              <span aria-hidden="true">→</span>
+              <ChildControlIcon kind="next" />
             ) : null}
           </button>
         </footer>
@@ -1467,7 +1467,7 @@ export function HanziLearningExperience({
                 : "下一个字"
               : "下一步"}
             {flowTransition !== "new-next" ? (
-              <span aria-hidden="true">→</span>
+              <ChildControlIcon kind="next" />
             ) : null}
           </button>
         </footer>
@@ -1559,7 +1559,7 @@ export function HanziLearningExperience({
             {flowTransition === "question-continue" ? (
               <LoadingDots label="正在继续" />
             ) : (
-              <>继续 <span>→</span></>
+              <>继续 <ChildControlIcon kind="next" /></>
             )}
           </button>
         ) : null}

@@ -87,6 +87,7 @@ else
 fi
 
 echo "1/3 Building the shared math package, API and four web apps locally..."
+node scripts/check-icon-buttons.mjs
 pnpm --filter @star-monsters/api pet:generate-destination-images
 pnpm --filter @star-monsters/math-practice build
 pnpm --filter @star-monsters/api build

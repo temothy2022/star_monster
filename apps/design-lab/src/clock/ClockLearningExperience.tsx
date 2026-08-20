@@ -189,7 +189,7 @@ function TimeStepper({ label, value, min, max, step, onChange }: { label: string
     const next = ((value - min + delta) % range + range) % range + min;
     onChange(next);
   }
-  return <div className="clock-stepper"><span>{label}</span><div><button type="button" onClick={() => move(-step)} aria-label={`${label}减少`}>−</button><strong>{String(value).padStart(2, "0")}</strong><button type="button" onClick={() => move(step)} aria-label={`${label}增加`}>＋</button></div></div>;
+  return <div className="clock-stepper"><span>{label}</span><div><button type="button" onClick={() => move(-step)} aria-label={`${label}减少`}><ChildControlIcon kind="decrease" /></button><strong>{String(value).padStart(2, "0")}</strong><button type="button" onClick={() => move(step)} aria-label={`${label}增加`}><ChildControlIcon kind="increase" /></button></div></div>;
 }
 
 type Feedback = { answer: ClockAnswer; question: ClockQuestion };

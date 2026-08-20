@@ -133,7 +133,7 @@ export function PlanetMap({
                         </span>
                       ) : (
                         <span className="planet-card__bonus">
-                          <span>+</span>
+                          <span data-numeric-sign>+</span>
                           {progress.awardedBonusStars ?? progress.bonusStars}
                           <img src={starIcon} alt="颗星星" />
                         </span>

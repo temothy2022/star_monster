@@ -257,7 +257,8 @@
 .packing-location-picker button.is-selected { border-color: var(--packing-lavender); color: var(--packing-lavender-dark); background: var(--packing-lavender-soft); box-shadow: 0 0 0 2px rgba(119, 112, 215, .08); }
 .packing-sheet input[type="date"] { width: 100%; min-width: 0; max-width: 100%; color-scheme: light; }
 .packing-sheet__quantity { display: grid; grid-template-columns: 50px 1fr 50px; align-items: center; min-height: 51px; margin-top: 7px; overflow: hidden; border: 1px solid #e1e2e8; border-radius: 15px; background: #f8f8fa; }
-.packing-sheet__quantity button { height: 51px; border: 0; color: #595d73; background: transparent; font-size: 22px; }
+.packing-sheet__quantity button { display: grid; height: 51px; padding: 5px; place-items: center; border: 0; background: transparent; }
+.packing-sheet__quantity button img { display: block; width: 40px; height: 40px; object-fit: contain; pointer-events: none; }
 .packing-sheet__quantity strong { font-size: 18px; text-align: center; }
 .packing-sheet__actions { display: grid; grid-template-columns: 1fr 1.45fr; gap: 9px; margin-top: 22px; }
 .packing-sheet__actions button { min-height: 48px; border: 0; border-radius: 15px; color: #606477; background: #eeeef3; font-size: 14px; font-weight: 830; }

@@ -590,7 +590,7 @@ export function MathWorksheetPrintPage() {
                           <b>{type.id}</b>
                           <span><strong>{type.name}</strong><small>难度 {type.difficultyRange[0]}–{type.difficultyRange[1]}</small></span>
                           <div>
-                            <button type="button" disabled={count === 0} onClick={(event) => { event.preventDefault(); updateCount(type.id, count - 1); }}>−</button>
+                            <button type="button" aria-label={`${type.name}减少一题`} disabled={count === 0} onClick={(event) => { event.preventDefault(); updateCount(type.id, count - 1); }}><ChildControlIcon kind="decrease" /></button>
                             <input
                               aria-label={`${type.name}题目数量`}
                               type="number"
@@ -601,7 +601,7 @@ export function MathWorksheetPrintPage() {
                               onClick={(event) => event.stopPropagation()}
                               onChange={(event) => updateCount(type.id, Number(event.target.value))}
                             />
-                            <button type="button" disabled={count >= MAX_PER_TYPE || questions.length >= MAX_TOTAL} onClick={(event) => { event.preventDefault(); updateCount(type.id, count + 1); }}>＋</button>
+                            <button type="button" aria-label={`${type.name}增加一题`} disabled={count >= MAX_PER_TYPE || questions.length >= MAX_TOTAL} onClick={(event) => { event.preventDefault(); updateCount(type.id, count + 1); }}><ChildControlIcon kind="increase" /></button>
                           </div>
                         </label>
                       );

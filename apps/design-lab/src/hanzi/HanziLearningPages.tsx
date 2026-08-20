@@ -230,7 +230,7 @@ export function HanziLearningHome({ onNavigate }: { onNavigate: Navigate }) {
       <footer className="hanzi-bottom-action">
         <button type="button" onClick={() => onNavigate("hanzi-review-front")}>
           开始学习
-          <span aria-hidden="true">→</span>
+          <ChildControlIcon kind="next" />
         </button>
       </footer>
     </main>
@@ -505,7 +505,7 @@ export function HanziListenQuestion({
       </section>
       {isCorrect ? (
         <button className="hanzi-listen-next" type="button" onClick={() => onNavigate("hanzi-result")}>
-          继续 <span aria-hidden="true">→</span>
+          继续 <ChildControlIcon kind="next" />
         </button>
       ) : null}
     </main>
@@ -530,7 +530,7 @@ export function HanziListenWrong({ onNavigate }: { onNavigate: Navigate }) {
         </div>
       </section>
       <button className="hanzi-listen-next" type="button" onClick={() => onNavigate("hanzi-result")}>
-        继续 <span aria-hidden="true">→</span>
+        继续 <ChildControlIcon kind="next" />
       </button>
     </main>
   );

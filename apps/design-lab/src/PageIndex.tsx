@@ -1,3 +1,5 @@
+import { ChildControlIcon } from "./components/ChildControlIcon";
+
 export type PageIndexRoute =
   | "login"
   | "step-1"
@@ -182,7 +184,9 @@ export function PageIndex({ onNavigate }: { onNavigate: (route: PageIndexRoute) 
                     <strong>{page.name}</strong>
                     <small>{page.note}</small>
                   </span>
-                  <span className="page-index__arrow" aria-hidden="true">→</span>
+                  <span className="page-index__arrow" aria-hidden="true">
+                    <ChildControlIcon kind="next" />
+                  </span>
                 </button>
               ))}
             </div>
