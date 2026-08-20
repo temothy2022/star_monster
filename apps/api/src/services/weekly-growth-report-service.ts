@@ -23,6 +23,7 @@ import {
 import { callDeepSeekJson } from "./deepseek-service.js";
 import { getGrowthAnalyticsForRange } from "./growth-analytics-service.js";
 import { getMathMasteryForRange } from "./math-mastery-service.js";
+import { syncRecentTaskSuggestedSeconds } from "./task-duration-service.js";
 
 const GENERATING_STALE_MS = 15 * 60 * 1_000;
 const ANALYSIS_WEEKS = 4;
@@ -256,6 +257,8 @@ export async function generateWeeklyGrowthReport(
     existing?.generatedAt && existing.responsePayload,
   );
 
+  await syncRecentTaskSuggestedSeconds(childId);
+
   const credentials = await childAiCredentials(childId, config);
   const analysisWindow = previousCompletedGrowthWindow(
     now,
@@ -417,7 +420,7 @@ export async function generateWeeklyGrowthReport(
       const suggestedMinutes = Math.max(
         1,
         Math.round(
-          (template.timeLimitSeconds ?? template.suggestedSeconds ?? 600) / 60,
+          (template.suggestedSeconds ?? template.timeLimitSeconds ?? 600) / 60,
         ),
       );
       const sessionsPerWeek = plannedSessionsPerWeek(template);

@@ -38,6 +38,10 @@ import { requireFamilyAiAccess } from "../services/system-ai-service.js";
 import { getGrowthAnalytics } from "../services/growth-analytics-service.js";
 import { getMathMasteryForRange } from "../services/math-mastery-service.js";
 import {
+  invalidateTaskDurationCache,
+  syncRecentTaskSuggestedSeconds,
+} from "../services/task-duration-service.js";
+import {
   getChildLeaderboardSettings,
   getFootprints,
   leaderboardEffectiveMinute,
@@ -632,7 +636,6 @@ async function ensurePoemTaskTemplates(
     category: "CHINESE" as const,
     iconKey: "chinese",
     mode: "UNTIMED" as const,
-    suggestedSeconds: 600,
     timeLimitSeconds: null,
     earlyBonusEnabled: false,
     earlyThresholdSeconds: null,
@@ -651,6 +654,7 @@ async function ensurePoemTaskTemplates(
       where: { systemKey: `poem-learning:${childId}` },
       create: {
         ...common,
+        suggestedSeconds: 600,
         systemKey: `poem-learning:${childId}`,
         title: "学习新古诗",
         experienceKind: "POEM_LEARNING",
@@ -677,6 +681,7 @@ async function ensurePoemTaskTemplates(
       where: { systemKey: `poem-review:${childId}` },
       create: {
         ...common,
+        suggestedSeconds: 600,
         systemKey: `poem-review:${childId}`,
         title: "复习古诗",
         experienceKind: "POEM_REVIEW",
@@ -712,7 +717,6 @@ async function ensureHanziTaskTemplates(
     category: "CHINESE" as const,
     iconKey: "chinese",
     mode: "UNTIMED" as const,
-    suggestedSeconds: 600,
     timeLimitSeconds: null,
     earlyBonusEnabled: false,
     earlyThresholdSeconds: null,
@@ -730,6 +734,7 @@ async function ensureHanziTaskTemplates(
       where: { systemKey: `hanzi-review:${childId}` },
       create: {
         ...common,
+        suggestedSeconds: 600,
         systemKey: `hanzi-review:${childId}`,
         title: "复习汉字",
         experienceKind: "HANZI_REVIEW",
@@ -1006,6 +1011,7 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/task-templates", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
+    await syncRecentTaskSuggestedSeconds(id);
     return {
       templates: await prisma.taskTemplate.findMany({
         where: { childId: id, archivedAt: null },
@@ -1213,6 +1219,7 @@ export async function registerParentRoutes(
         },
         include: { mathPracticeConfig: true, customCategory: true },
       });
+      invalidateTaskDurationCache(childId);
       const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
       const remainsScheduledToday =
         template.isEnabled && isScheduledForDate(template, today);

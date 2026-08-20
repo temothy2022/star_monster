@@ -24,6 +24,10 @@ import {
 } from "../domain/task-dashboard.js";
 import { businessDateAt } from "../lib/time.js";
 import { petExperienceForNextLevel } from "./pet-growth-service.js";
+import {
+  invalidateTaskDurationCache,
+  syncRecentTaskSuggestedSeconds,
+} from "./task-duration-service.js";
 
 type AttemptWithTask = TaskAttempt & { dailyTask: DailyTask };
 type TaskTemplateWithMathConfig = TaskTemplate & {
@@ -116,7 +120,6 @@ async function ensureHanziReviewTemplate(childId: string): Promise<void> {
       iconKey: "chinese",
       mode: "UNTIMED",
       experienceKind: "HANZI_REVIEW",
-      suggestedSeconds: 600,
       timeLimitSeconds: null,
       baseStars: settings.reviewTaskStars,
       earlyBonusEnabled: false,
@@ -228,6 +231,7 @@ async function eligibleTaskTemplates(
   businessDate: Date,
 ): Promise<TaskTemplateWithMathConfig[]> {
   await ensureHanziReviewTemplate(childId);
+  await syncRecentTaskSuggestedSeconds(childId);
   const templates = await prisma.taskTemplate.findMany({
     where: {
       childId,
@@ -1257,6 +1261,7 @@ export async function completeTask(
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
   mark("transaction-total", stageStartedAt);
+  invalidateTaskDurationCache(childId);
 
   return {
     attempt: { ...completion.updatedAttempt, dailyTask: attempt.dailyTask },

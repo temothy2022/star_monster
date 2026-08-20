@@ -38,6 +38,7 @@ import {
   generateWeeklyGrowthReport,
   latestWeeklyGrowthReport,
 } from "../services/weekly-growth-report-service.js";
+import { syncRecentTaskSuggestedSeconds } from "../services/task-duration-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
 const recommendationParams = z.object({
@@ -146,9 +147,9 @@ function estimatedMinutes(template: {
   return Math.max(
     1,
     Math.round(
-      (template.mode === "TIMED"
-        ? (template.timeLimitSeconds ?? 600)
-        : (template.suggestedSeconds ?? 600)) / 60,
+      (template.suggestedSeconds ??
+        (template.mode === "TIMED" ? template.timeLimitSeconds : null) ??
+        600) / 60,
     ),
   );
 }
@@ -485,6 +486,7 @@ export async function registerParentAiRoutes(
       enforceAiLimit(familyId, user.id, "task-advice");
       const input = taskAdviceInputSchema.parse(request.body);
       const credentials = await aiCredentials(familyId, config);
+      await syncRecentTaskSuggestedSeconds(childId);
       const [templates, wishes] = await Promise.all([
         prisma.taskTemplate.findMany({
           where: { childId, archivedAt: null, isEnabled: true },
@@ -653,6 +655,7 @@ export async function registerParentAiRoutes(
       );
       enforceAiLimit(familyId, user.id, "reward-audit");
       const credentials = await aiCredentials(familyId, config);
+      await syncRecentTaskSuggestedSeconds(childId);
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const [templates, wishes, completed, attempted] = await Promise.all([
         prisma.taskTemplate.findMany({
@@ -812,6 +815,7 @@ export async function registerParentAiRoutes(
       );
       enforceAiLimit(familyId, user.id, "schedule");
       const credentials = await aiCredentials(familyId, config);
+      await syncRecentTaskSuggestedSeconds(childId);
       const [preference, slots, templates] = await Promise.all([
         prisma.childSchedulePreference.findUnique({ where: { childId } }),
         prisma.childAvailabilitySlot.findMany({
@@ -919,6 +923,7 @@ export async function registerParentAiRoutes(
         childId,
       );
       await requireFamilyAiAccess(familyId);
+      await syncRecentTaskSuggestedSeconds(childId);
       const [recommendation, preference, slots, templates] = await Promise.all([
         prisma.aiRecommendation.findFirst({
           where: {
