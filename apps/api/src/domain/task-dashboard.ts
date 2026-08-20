@@ -21,6 +21,10 @@ export const TASK_DASHBOARD_WIDGET_KEYS = [
 
 export type TaskDashboardWidgetKey = typeof TASK_DASHBOARD_WIDGET_KEYS[number];
 
+export const TASK_DASHBOARD_VIEWPORTS = ["mobile", "tablet", "desktop"] as const;
+export type TaskDashboardViewport = typeof TASK_DASHBOARD_VIEWPORTS[number];
+export const taskDashboardViewportSchema = z.enum(TASK_DASHBOARD_VIEWPORTS);
+
 export type TaskDashboardLayout = {
   version: 1;
   widgets: TaskDashboardWidgetKey[];
@@ -168,8 +172,50 @@ const storedTaskDashboardLayoutSchema = z.object({
   categoryProgressEnabled: z.boolean().optional(),
 }).superRefine(validateWidgetRows);
 
-export function normalizeTaskDashboardLayout(value: unknown): TaskDashboardLayout {
-  const parsed = storedTaskDashboardLayoutSchema.safeParse(value);
+const storedTaskDashboardLayoutsSchema = z.object({
+  default: storedTaskDashboardLayoutSchema.optional(),
+  mobile: storedTaskDashboardLayoutSchema.optional(),
+  tablet: storedTaskDashboardLayoutSchema.optional(),
+  desktop: storedTaskDashboardLayoutSchema.optional(),
+});
+
+export const taskDashboardLayoutUpdateSchema = z.object({
+  viewport: taskDashboardViewportSchema,
+  layout: taskDashboardLayoutSchema,
+});
+
+function selectStoredLayout(value: unknown, viewport: TaskDashboardViewport) {
+  const direct = storedTaskDashboardLayoutSchema.safeParse(value);
+  if (direct.success) return direct.data;
+
+  const grouped = storedTaskDashboardLayoutsSchema.safeParse(value);
+  if (!grouped.success) return null;
+  // Do not fall back to another device bucket. Missing buckets intentionally
+  // use the product default so a mobile edit can never leak into iPad/desktop.
+  return grouped.data[viewport] ?? grouped.data.default ?? null;
+}
+
+export function mergeTaskDashboardLayout(
+  value: unknown,
+  viewport: TaskDashboardViewport,
+  layout: TaskDashboardLayout,
+) {
+  const direct = storedTaskDashboardLayoutSchema.safeParse(value);
+  const grouped = storedTaskDashboardLayoutsSchema.safeParse(value);
+  const existing = direct.success
+    ? { default: direct.data }
+    : grouped.success
+      ? grouped.data
+      : {};
+  return { ...existing, [viewport]: layout };
+}
+
+export function normalizeTaskDashboardLayout(
+  value: unknown,
+  viewport: TaskDashboardViewport = "desktop",
+): TaskDashboardLayout {
+  const selected = selectStoredLayout(value, viewport);
+  const parsed = storedTaskDashboardLayoutSchema.safeParse(selected);
   if (!parsed.success) return { ...DEFAULT_TASK_DASHBOARD_LAYOUT, widgets: [...DEFAULT_TASK_DASHBOARD_LAYOUT.widgets] };
   const widgets = parsed.data.widgets.filter(
     (widget): widget is TaskDashboardWidgetKey => widget !== "QUICK_LINKS",

@@ -2,7 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import type { AppConfig } from "../config.js";
-import { taskDashboardLayoutSchema } from "../domain/task-dashboard.js";
+import {
+  mergeTaskDashboardLayout,
+  taskDashboardLayoutSchema,
+  taskDashboardLayoutUpdateSchema,
+  taskDashboardViewportSchema,
+} from "../domain/task-dashboard.js";
 import { prisma } from "../lib/prisma.js";
 import { requireChild } from "../services/auth-service.js";
 import {
@@ -23,18 +28,30 @@ export async function registerChildTaskRoutes(
 ): Promise<void> {
   app.get("/api/child/tasks/today", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    return getTodayTaskExperience(child.id, config);
+    const query = z.object({ viewport: taskDashboardViewportSchema.optional() }).parse(request.query);
+    return getTodayTaskExperience(child.id, config, new Date(), query.viewport ?? "desktop");
   });
 
   app.patch("/api/child/tasks/dashboard-layout", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
-    const layout = taskDashboardLayoutSchema.parse(request.body);
+    const parsed = z.union([
+      taskDashboardLayoutUpdateSchema,
+      taskDashboardLayoutSchema.transform((layout) => ({ viewport: "desktop" as const, layout })),
+    ]).parse(request.body);
+    const storedLayout = mergeTaskDashboardLayout(
+      (await prisma.childProfile.findUniqueOrThrow({
+        where: { id: child.id },
+        select: { taskDashboardLayout: true },
+      })).taskDashboardLayout,
+      parsed.viewport,
+      parsed.layout,
+    );
     await prisma.childProfile.update({
       where: { id: child.id },
-      data: { taskDashboardLayout: layout },
+      data: { taskDashboardLayout: storedLayout },
       select: { id: true },
     });
-    return { layout };
+    return { layout: parsed.layout };
   });
 
   app.get("/api/child/tasks/dashboard-reviews", async (request, reply) => {

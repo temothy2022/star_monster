@@ -851,10 +851,22 @@
   .task-dashboard-widget--medium { grid-row: span 19; }
   .task-dashboard-widget--small { grid-row: span 15; }
   .task-widget-timer { padding-inline: 7px; }
-  .task-widget-timer__face { width: min(148px, 100%); }
-  .task-widget-timer__progress-bar { width: min(148px, 100%); }
-  .task-widget-timer--idle .task-widget-timer__face { width: min(126px, 100%); }
-  .task-widget-timer--idle .task-widget-timer__progress-bar { width: min(126px, 100%); }
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 4px;
+    padding: 8px 8px 9px;
+  }
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__face,
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer--idle .task-widget-timer__face {
+    width: min(96px, 34vw);
+    max-width: 96px;
+  }
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__progress-bar,
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer--idle .task-widget-timer__progress-bar {
+    width: min(104px, 40vw);
+  }
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__remaining { font-size: 16px; }
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__presets { gap: 3px; }
   .task-widget-timer__presets { gap: 3px; }
   .task-widget-timer__presets button { min-height: 27px; font-size: 11px; }
   .task-widget-postcards > header { padding-inline: 12px; }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TASK_DASHBOARD_LAYOUT,
+  mergeTaskDashboardLayout,
   normalizeTaskDashboardLayout,
   taskDashboardLayoutSchema,
+  type TaskDashboardLayout,
 } from "../src/domain/task-dashboard.js";
 
 describe("task dashboard layout", () => {
@@ -148,5 +150,46 @@ describe("task dashboard layout", () => {
       version: 1,
       widgets: [],
     }).success).toBe(false);
+  });
+
+  it("keeps layout changes in independent device buckets", () => {
+    const mobile: TaskDashboardLayout = {
+      version: 1,
+      widgets: ["TASKS", "COUNTDOWN_TIMER"],
+      rows: { TASKS: 32, COUNTDOWN_TIMER: 12 },
+      clockEnabled: false,
+      categoryProgressEnabled: false,
+    };
+    const tablet: TaskDashboardLayout = {
+      version: 1,
+      widgets: ["BALANCE", "CLOCK"],
+      rows: { BALANCE: 14, CLOCK: 15 },
+      clockEnabled: false,
+      categoryProgressEnabled: false,
+    };
+    const stored = mergeTaskDashboardLayout(null, "mobile", mobile);
+    const next = mergeTaskDashboardLayout(stored, "tablet", tablet);
+
+    expect(normalizeTaskDashboardLayout(next, "mobile").widgets).toEqual(["TASKS", "COUNTDOWN_TIMER"]);
+    expect(normalizeTaskDashboardLayout(next, "tablet").widgets).toEqual(["BALANCE", "CLOCK"]);
+    expect(normalizeTaskDashboardLayout(next, "desktop")).toEqual(DEFAULT_TASK_DASHBOARD_LAYOUT);
+  });
+
+  it("treats a legacy single layout as the default bucket", () => {
+    const legacy = {
+      version: 1 as const,
+      widgets: ["BALANCE", "MASCOT"] as const,
+      clockEnabled: false,
+      categoryProgressEnabled: false,
+    };
+    const stored = mergeTaskDashboardLayout(legacy, "mobile", {
+      version: 1,
+      widgets: ["TASKS"],
+      clockEnabled: false,
+      categoryProgressEnabled: false,
+    });
+
+    expect(normalizeTaskDashboardLayout(stored, "mobile").widgets).toEqual(["TASKS"]);
+    expect(normalizeTaskDashboardLayout(stored, "tablet").widgets).toEqual(["BALANCE", "MASCOT"]);
   });
 });

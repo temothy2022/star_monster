@@ -709,6 +709,15 @@ export type TaskDashboardLayout = {
   categoryProgressEnabled?: boolean;
 };
 
+export type TaskDashboardViewport = "mobile" | "tablet" | "desktop";
+
+export function getTaskDashboardViewport(): TaskDashboardViewport {
+  if (typeof window === "undefined") return "desktop";
+  if (window.innerWidth <= 600) return "mobile";
+  const touchPoints = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints;
+  return touchPoints > 0 || window.innerWidth <= 1100 ? "tablet" : "desktop";
+}
+
 export type DashboardHanziReview = {
   id: string;
   character: string;
@@ -757,16 +766,20 @@ export type MascotDialogue = {
 };
 
 export async function getTodayTasks(signal?: AbortSignal) {
-  return request<TodayTaskExperience>("/api/child/tasks/today", {
+  const viewport = getTaskDashboardViewport();
+  return request<TodayTaskExperience>(`/api/child/tasks/today?viewport=${viewport}`, {
     cache: "no-store",
     signal,
   });
 }
 
-export async function updateTaskDashboardLayout(layout: TaskDashboardLayout) {
+export async function updateTaskDashboardLayout(
+  layout: TaskDashboardLayout,
+  viewport = getTaskDashboardViewport(),
+) {
   return request<{ layout: TaskDashboardLayout }>(
     "/api/child/tasks/dashboard-layout",
-    { method: "PATCH", body: JSON.stringify(layout) },
+    { method: "PATCH", body: JSON.stringify({ viewport, layout }) },
   );
 }
 

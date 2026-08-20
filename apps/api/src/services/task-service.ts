@@ -18,7 +18,10 @@ import {
 } from "../domain/task-rules.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
-import { normalizeTaskDashboardLayout } from "../domain/task-dashboard.js";
+import {
+  normalizeTaskDashboardLayout,
+  type TaskDashboardViewport,
+} from "../domain/task-dashboard.js";
 import { businessDateAt } from "../lib/time.js";
 import { petExperienceForNextLevel } from "./pet-growth-service.js";
 
@@ -504,6 +507,7 @@ export async function getTodayTaskExperience(
   childId: string,
   config: AppConfig,
   now = new Date(),
+  dashboardViewport: TaskDashboardViewport = "desktop",
 ) {
   const today = businessDateAt(now, config.APP_TIME_ZONE);
   const todayKey = today.toISOString().slice(0, 10);
@@ -687,7 +691,10 @@ export async function getTodayTaskExperience(
     ),
     dailyStarGoal: child.dailyStarGoal,
     starBalance: child.starBalance,
-    taskDashboardLayout: normalizeTaskDashboardLayout(child.taskDashboardLayout),
+    taskDashboardLayout: normalizeTaskDashboardLayout(
+      child.taskDashboardLayout,
+      dashboardViewport,
+    ),
     tasks: serializedTasks,
     mascotDialogues: mascotDialogues.filter(
       (dialogue) =>
