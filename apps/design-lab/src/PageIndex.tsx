@@ -1,4 +1,9 @@
 import { ChildControlIcon } from "./components/ChildControlIcon";
+import rocketIcon from "@star-monsters/assets/icons/icon-rocket.svg";
+import parentPortalIcon from "@star-monsters/assets/images/task-list/navigation/nav-home.webp";
+import adminPortalIcon from "@star-monsters/assets/icons/ui/nav-map.svg";
+import worksheetFeatureIcon from "@star-monsters/assets/images/math-practice/pencil.webp";
+import bundleFeatureIcon from "@star-monsters/assets/images/math-practice/stick-bundle.webp";
 
 export type PageIndexRoute =
   | "login"
@@ -36,6 +41,7 @@ export type PageIndexRoute =
   | "hanzi-result"
   | "math-preview"
   | "math-print"
+  | "bundle-practice"
   | "poem-recitation";
 
 type PageGroup = {
@@ -120,7 +126,6 @@ const groups: PageGroup[] = [
     title: "数学练习",
     pages: [
       { route: "math-preview", name: "数学题型设计室", note: "按8个能力大类逐题查看、换题与 iPad 触控作答" },
-      { route: "math-print", name: "A4 练习卷生成器", note: "公开访问，按题型和数量生成可打印 PDF" },
     ],
   },
   {
@@ -129,6 +134,17 @@ const groups: PageGroup[] = [
       { route: "poem-recitation", name: "古诗背诵", note: "《春晓》诗句与朗读" },
     ],
   },
+];
+
+const featureEntries: Array<{
+  route: PageIndexRoute;
+  name: string;
+  note: string;
+  icon: string;
+  tone: string;
+}> = [
+  { route: "math-print", name: "A4 数学练习卷", note: "选择题型、生成并打印练习卷", icon: worksheetFeatureIcon, tone: "orange" },
+  { route: "bundle-practice", name: "几捆几根", note: "用实物摆放练习数量组成", icon: bundleFeatureIcon, tone: "green" },
 ];
 
 const PARENT_APP_URL =
@@ -147,7 +163,7 @@ export function PageIndex({ onNavigate }: { onNavigate: (route: PageIndexRoute) 
 
       <section className="page-index__portals" aria-label="各端入口">
         <button type="button" onClick={() => onNavigate("login")}>
-          <span className="page-index__portal-icon" aria-hidden="true">🚀</span>
+          <span className="page-index__portal-icon" aria-hidden="true"><img src={rocketIcon} alt="" /></span>
           <span>
             <strong>孩子端</strong>
             <small>iPad 日常任务、航图、星愿与足迹</small>
@@ -155,7 +171,7 @@ export function PageIndex({ onNavigate }: { onNavigate: (route: PageIndexRoute) 
           <b>进入 →</b>
         </button>
         <a href={PARENT_APP_URL}>
-          <span className="page-index__portal-icon" aria-hidden="true">🏠</span>
+          <span className="page-index__portal-icon" aria-hidden="true"><img src={parentPortalIcon} alt="" /></span>
           <span>
             <strong>家长端</strong>
             <small>任务、奖励、星星与孩子设置</small>
@@ -163,7 +179,7 @@ export function PageIndex({ onNavigate }: { onNavigate: (route: PageIndexRoute) 
           <b>进入 →</b>
         </a>
         <a href={SUPER_ADMIN_URL}>
-          <span className="page-index__portal-icon" aria-hidden="true">🪐</span>
+          <span className="page-index__portal-icon" aria-hidden="true"><img src={adminPortalIcon} alt="" /></span>
           <span>
             <strong>超级后台</strong>
             <small>家庭、账号、孩子与运营统计</small>
@@ -172,27 +188,47 @@ export function PageIndex({ onNavigate }: { onNavigate: (route: PageIndexRoute) 
         </a>
       </section>
 
-      <div className="page-index__groups">
-        {groups.map((group) => (
-          <section className="page-index__group" key={group.title}>
-            <h2>{group.title}</h2>
-            <div className="page-index__grid">
-              {group.pages.map((page, index) => (
-                <button type="button" key={page.route} onClick={() => onNavigate(page.route)}>
-                  <span className="page-index__number">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="page-index__copy">
-                    <strong>{page.name}</strong>
-                    <small>{page.note}</small>
-                  </span>
-                  <span className="page-index__arrow" aria-hidden="true">
-                    <ChildControlIcon kind="next" />
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <section className="page-index__section page-index__section--pages" aria-labelledby="page-index-pages-title">
+        <header className="page-index__section-header">
+          <div><span>01</span><div><h2 id="page-index-pages-title">页面清单</h2><p>查看孩子端静态页面和各类交互状态</p></div></div>
+          <b>{groups.reduce((count, group) => count + group.pages.length, 0)} 个页面</b>
+        </header>
+        <div className="page-index__groups">
+          {groups.map((group) => (
+            <section className="page-index__group" key={group.title}>
+              <h3>{group.title}</h3>
+              <div className="page-index__grid">
+                {group.pages.map((page, index) => (
+                  <button type="button" key={page.route} onClick={() => onNavigate(page.route)}>
+                    <span className="page-index__number">{String(index + 1).padStart(2, "0")}</span>
+                    <span className="page-index__copy">
+                      <strong>{page.name}</strong>
+                      <small>{page.note}</small>
+                    </span>
+                    <span className="page-index__arrow" aria-hidden="true"><ChildControlIcon kind="next" /></span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </section>
+
+      <section className="page-index__section page-index__section--features" aria-labelledby="page-index-features-title">
+        <header className="page-index__section-header">
+          <div><span>02</span><div><h2 id="page-index-features-title">功能入口</h2><p>打开独立工具，直接开始使用</p></div></div>
+          <b>{featureEntries.length} 个功能</b>
+        </header>
+        <div className="page-index__feature-grid">
+          {featureEntries.map((feature) => (
+            <button className={`page-index__feature page-index__feature--${feature.tone}`} type="button" key={feature.route} onClick={() => onNavigate(feature.route)}>
+              <span className="page-index__feature-icon"><img src={feature.icon} alt="" /></span>
+              <span className="page-index__copy"><strong>{feature.name}</strong><small>{feature.note}</small></span>
+              <span className="page-index__arrow" aria-hidden="true"><ChildControlIcon kind="next" /></span>
+            </button>
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
