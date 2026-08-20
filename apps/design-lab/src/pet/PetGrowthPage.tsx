@@ -1340,7 +1340,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <div className="pet-star-balance" aria-label={`当前有 ${state.wallet.starBalance} 颗星`}><span>★</span><div><small>我的星星</small><strong>{state.wallet.starBalance}</strong></div></div>
         </header>
 
-        {state.redPackets.availableCount > 0 && !trip && !careAnimation && !layoutEditing && (
+        {state.redPackets.availableCount > 0 && (!trip || trip.status === "TRAVELING") && !careAnimation && !layoutEditing && (
           <button className="pet-red-packet-entry" type="button" disabled={Boolean(busy)} onClick={startRedPacketFlow} aria-label={`有 ${state.redPackets.availableCount} 个星宠红包可以打开`}>
             <span><img src={redPacketEntryImage} alt="" aria-hidden="true" /></span>
             <strong>升级红包</strong>
@@ -1451,7 +1451,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
           <button className="pet-action-button pet-action-button--album" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => setAlbumOpen(true)}>
             <span className="pet-action-icon pet-action-icon--album" aria-hidden="true"><img src={petActionAlbumIcon} alt="" /></span><div><strong>明信片册</strong><small>收藏 {state.postcards.length} 张</small></div>
           </button>
-          <button className="pet-action-button pet-action-button--wish" type="button" disabled={Boolean(trip) || Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => onNavigate("wishes-requested")}>
+          <button className="pet-action-button pet-action-button--wish" type="button" disabled={Boolean(busy) || Boolean(careAnimation) || Boolean(wasteCleaning)} onClick={() => onNavigate("wishes-requested")}>
             <span className="pet-action-icon pet-action-icon--wish" aria-hidden="true"><img src={petActionWishIcon} alt="" /></span><div><strong>星愿</strong><small>兑换小愿望</small></div>
           </button>
         </aside>
@@ -1475,6 +1475,12 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
             <h1>{mascot.name}出发旅行啦</h1>
             <p>回来时会带一张神秘明信片</p>
             <time>{formatCountdown(trip.returnsAt, now)}</time>
+            <div className="pet-travel-quick-actions">
+              <button className="pet-action-button pet-action-button--wish" type="button" onClick={() => onNavigate("wishes-requested")}>
+                <span className="pet-action-icon pet-action-icon--wish" aria-hidden="true"><img src={petActionWishIcon} alt="" /></span>
+                <div><strong>星愿</strong><small>兑换小愿望</small></div>
+              </button>
+            </div>
           </div>
         ) : trip?.status === "RETURNED" ? (
           <div className="pet-return-scene">

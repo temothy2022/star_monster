@@ -14391,12 +14391,29 @@ body:has(.footprints-page),
   backdrop-filter: blur(4px);
 }
 
+.pet-growth-page--travel .pet-action-rail {
+  display: none;
+}
+
 .pet-traveling-scene img { width: clamp(190px, 25vw, 320px); filter: drop-shadow(0 18px 16px rgba(72, 63, 49, .17)); animation: pet-travel-bob 2s ease-in-out infinite; }
 @keyframes pet-travel-bob { 50% { transform: translate(10px, -8px) rotate(2deg); } }
 .pet-traveling-scene h1,
 .pet-return-scene h1 { margin: 2px 0 4px; font-size: clamp(24px, 3vw, 38px); }
 .pet-traveling-scene p { margin: 0 0 14px; color: #76635c; font-weight: 700; }
 .pet-traveling-scene time { padding: 9px 18px; border-radius: 8px; color: #466d5a; background: white; box-shadow: 0 6px 16px rgba(45, 83, 66, .12); font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.pet-travel-quick-actions {
+  position: absolute;
+  z-index: 8;
+  right: clamp(18px, 4vw, 56px);
+  bottom: calc(112px + env(safe-area-inset-bottom));
+  width: clamp(170px, 18vw, 226px);
+}
+
+.pet-travel-quick-actions .pet-action-button {
+  width: 100%;
+  min-height: 68px;
+}
+
 .pet-suitcase { position: absolute; left: 57%; top: 54%; display: grid; place-items: center; width: 54px; height: 48px; border-radius: 8px; background: #e69b4d; color: white; font-size: 28px; transform: rotate(8deg); }
 .pet-traveling-orbit span { position: absolute; color: #f7bd39; font-size: 24px; }
 .pet-traveling-orbit span:nth-child(1) { left: 25%; top: 25%; }
@@ -15623,6 +15640,34 @@ body:has(.footprints-page),
 
   .pet-traveling-scene img {
     width: min(64vw, 250px);
+  }
+
+  .pet-travel-quick-actions {
+    right: 10px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    width: 132px;
+  }
+
+  .pet-travel-quick-actions .pet-action-button {
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 5px 4px;
+    text-align: center;
+  }
+
+  .pet-travel-quick-actions .pet-action-button strong {
+    font-size: 12px;
+  }
+
+  .pet-travel-quick-actions .pet-action-button small {
+    display: none;
+  }
+
+  .pet-travel-quick-actions .pet-action-icon {
+    width: 29px;
+    height: 29px;
   }
 
   .pet-modal {
