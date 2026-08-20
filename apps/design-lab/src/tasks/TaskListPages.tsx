@@ -29,6 +29,7 @@ import { ChildControlIcon } from "../components/ChildControlIcon";
 import { MASCOTS, useMascot } from "../mascots";
 import {
   createAudioWithSpeechFallback,
+  createManagedHtmlAudio,
   createHtmlAudioPlayback,
   createSequentialPlayback,
   createSpeechPlayback,
@@ -339,7 +340,7 @@ function TaskMascotWidget({
     const audioUrl = selectedDialogue.audioUrl;
     playbackQueueRef.current?.enqueue(() => {
       const cached = audioCacheRef.current.get(audioUrl);
-      const audio = cached ?? new Audio(audioUrl);
+      const audio = cached ?? createManagedHtmlAudio(audioUrl);
       if (!cached) {
         audio.preload = "auto";
         audioCacheRef.current.set(audioUrl, audio);
@@ -651,7 +652,7 @@ function useReviewAudioPlayback() {
           return createSpeechPlayback(segment.text, { rate: 0.76, pitch: 1.04 });
         }
         const cached = audioCacheRef.current.get(segment.audioUrl);
-        const audio = cached ?? new Audio(segment.audioUrl);
+        const audio = cached ?? createManagedHtmlAudio(segment.audioUrl);
         if (!cached) {
           audio.preload = "auto";
           audioCacheRef.current.set(segment.audioUrl, audio);

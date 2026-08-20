@@ -1,4 +1,5 @@
 import type { Poem } from "../api/child-api";
+import { createManagedHtmlAudio } from "../audio/queued-playback";
 
 const MAX_AUDIO_CACHE_ENTRIES = 16;
 type AudioCacheEntry = {
@@ -10,7 +11,7 @@ type AudioCacheEntry = {
 const audioCache = new Map<string, AudioCacheEntry>();
 
 function createCachedAudio(url: string) {
-  const audio = new Audio();
+  const audio = createManagedHtmlAudio();
   audio.preload = "auto";
   const entry: AudioCacheEntry = {
     audio,

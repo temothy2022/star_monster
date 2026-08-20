@@ -14,7 +14,10 @@ function getAlarmContext() {
   const AudioContextConstructor = window.AudioContext ?? (window as WebkitAudioWindow).webkitAudioContext;
   if (!AudioContextConstructor) return null;
   if (!alarmContext || alarmContext.state === "closed") {
-    alarmContext = registerManagedAudioContext(new AudioContextConstructor());
+    alarmContext = registerManagedAudioContext(
+      new AudioContextConstructor(),
+      stopDashboardAlarm,
+    );
   }
   return alarmContext;
 }

@@ -6,7 +6,8 @@ export type PlaybackHandle = {
 export type PlaybackFactory = () => PlaybackHandle;
 
 const managedHtmlAudios = new Map<HTMLAudioElement, () => void>();
-const managedAudioContexts = new Set<AudioContext>();
+const knownHtmlAudios = new Set<HTMLAudioElement>();
+const managedAudioContexts = new Map<AudioContext, (() => void) | undefined>();
 const detachedAudioSources = new WeakMap<HTMLAudioElement, string>();
 const mediaSessionActions = [
   "play",
@@ -30,9 +31,8 @@ export function clearWebMediaSession() {
   }
   try {
     mediaSession.playbackState = "none";
-    mediaSession.setPositionState();
   } catch {
-    // Older Safari versions do not expose the full Media Session API.
+    // Older Safari versions may expose Media Session but reject state cleanup.
   }
   for (const action of mediaSessionActions) {
     try {
@@ -41,6 +41,24 @@ export function clearWebMediaSession() {
       // Some Safari versions reject unsupported action names.
     }
   }
+}
+
+/**
+ * Keep preloaded audio in the same lifecycle as actively playing audio.
+ *
+ * iPad Safari can retain a lock-screen media item while a paused audio
+ * element still has a source. Caches therefore need to be detached too,
+ * not only the element that is currently playing.
+ */
+export function registerManagedHtmlAudio(audio: HTMLAudioElement) {
+  knownHtmlAudios.add(audio);
+  return audio;
+}
+
+export function createManagedHtmlAudio(source?: string) {
+  const audio = registerManagedHtmlAudio(new Audio());
+  if (source) audio.src = source;
+  return audio;
 }
 
 function detachHtmlAudio(audio: HTMLAudioElement) {
@@ -69,8 +87,11 @@ function restoreHtmlAudio(audio: HTMLAudioElement) {
 }
 
 /** Register short-lived Web Audio contexts so they are suspended on lock/background. */
-export function registerManagedAudioContext(context: AudioContext) {
-  managedAudioContexts.add(context);
+export function registerManagedAudioContext(
+  context: AudioContext,
+  cleanup?: () => void,
+) {
+  managedAudioContexts.set(context, cleanup);
   return context;
 }
 
@@ -80,14 +101,40 @@ export function stopManagedHtmlAudio() {
     stop();
   }
   managedHtmlAudios.clear();
+
+  // Also release cached/preloaded media and any native media element that a
+  // feature may have rendered without going through the playback helper.
+  const documentMedia = typeof document === "undefined"
+    ? []
+    : Array.from(document.querySelectorAll<HTMLMediaElement>("audio,video"));
+  const media = new Set<HTMLMediaElement>([
+    ...knownHtmlAudios,
+    ...documentMedia,
+  ]);
+  for (const element of media) {
+    element.pause();
+    if (element instanceof HTMLAudioElement) detachHtmlAudio(element);
+    else {
+      try {
+        element.removeAttribute("src");
+        element.load();
+      } catch {
+        // Releasing a media source is best-effort on older Safari versions.
+      }
+    }
+  }
+  knownHtmlAudios.clear();
+
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     window.speechSynthesis.cancel();
   }
-  for (const context of managedAudioContexts) {
-    if (context.state === "running") {
-      void context.suspend().catch(() => undefined);
+  for (const [context, cleanup] of managedAudioContexts) {
+    cleanup?.();
+    if (context.state !== "closed") {
+      void context.close().catch(() => undefined);
     }
   }
+  managedAudioContexts.clear();
   clearWebMediaSession();
 }
 
@@ -96,11 +143,16 @@ export function installWebMediaCleanup() {
   const stopWhenHidden = () => {
     if (document.visibilityState === "hidden") stopManagedHtmlAudio();
   };
+  const stopWhenFrozen = () => stopManagedHtmlAudio();
   window.addEventListener("pagehide", stopManagedHtmlAudio);
+  window.addEventListener("beforeunload", stopManagedHtmlAudio);
+  window.addEventListener("freeze", stopWhenFrozen);
   document.addEventListener("visibilitychange", stopWhenHidden);
 
   return () => {
     window.removeEventListener("pagehide", stopManagedHtmlAudio);
+    window.removeEventListener("beforeunload", stopManagedHtmlAudio);
+    window.removeEventListener("freeze", stopWhenFrozen);
     document.removeEventListener("visibilitychange", stopWhenHidden);
     stopManagedHtmlAudio();
   };
@@ -203,6 +255,7 @@ export function createHtmlAudioPlayback(audio: HTMLAudioElement): PlaybackHandle
   const handleEnded = () => settle();
   const handleError = () => settle(new Error("Audio playback failed"));
 
+  registerManagedHtmlAudio(audio);
   restoreHtmlAudio(audio);
   audio.pause();
   try {

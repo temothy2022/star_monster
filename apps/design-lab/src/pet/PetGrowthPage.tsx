@@ -60,6 +60,7 @@ import petTripWorldIcon from "@star-monsters/assets/images/pet/ui-icons/pet-trip
 import {
   clearWebMediaSession,
   createAudioWithSpeechFallback,
+  createManagedHtmlAudio,
   createHtmlAudioPlayback,
   createSpeechPlayback,
   SinglePendingPlaybackQueue,
@@ -324,7 +325,7 @@ function Postcard({ trip, mascotImage, mascotName, soundEnabled, onClose }: { tr
     const narration = `${trip.destinationName}。${trip.introduction}。你知道吗？${trip.funFact}`;
     if (trip.audioUrl) {
       playbackQueueRef.current?.enqueue(() => {
-        const audio = audioRef.current ?? new Audio(trip.audioUrl!);
+        const audio = audioRef.current ?? createManagedHtmlAudio(trip.audioUrl!);
         audio.preload = "auto";
         audioRef.current = audio;
         return createAudioWithSpeechFallback(audio, narration, {
@@ -546,7 +547,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const playRedPacketRainSound = useCallback(() => {
     if (!soundEnabledRef.current) return;
     stopRedPacketRainSound();
-    const audio = redPacketRainAudioRef.current ?? new Audio(redPacketRainSound);
+    const audio = redPacketRainAudioRef.current ?? createManagedHtmlAudio(redPacketRainSound);
     audio.preload = "auto";
     audio.loop = false;
     redPacketRainAudioRef.current = audio;
@@ -557,7 +558,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const playRedPacketOpenSound = useCallback(() => {
     if (!soundEnabledRef.current) return;
     stopRedPacketOpenSound();
-    const audio = redPacketOpenAudioRef.current ?? new Audio(redPacketOpenSound);
+    const audio = redPacketOpenAudioRef.current ?? createManagedHtmlAudio(redPacketOpenSound);
     audio.preload = "auto";
     redPacketOpenAudioRef.current = audio;
     const playback = createHtmlAudioPlayback(audio);
@@ -575,7 +576,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     const enqueue = () => {
       petSoundQueueRef.current?.enqueue(() => {
         const cached = petSoundCacheRef.current.get(url);
-        const audio = cached ?? new Audio(url);
+        const audio = cached ?? createManagedHtmlAudio(url);
         if (!cached) {
           audio.preload = "auto";
           petSoundCacheRef.current.set(url, audio);
@@ -623,7 +624,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     ) return;
 
     const cached = petSoundCacheRef.current.get(happyEntrySound);
-    const audio = cached ?? new Audio(happyEntrySound);
+    const audio = cached ?? createManagedHtmlAudio(happyEntrySound);
     if (!cached) {
       audio.preload = "auto";
       petSoundCacheRef.current.set(happyEntrySound, audio);
@@ -682,8 +683,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   useEffect(() => {
     if (!state?.redPackets.availableCount) return;
-    const rainAudio = redPacketRainAudioRef.current ?? new Audio(redPacketRainSound);
-    const openAudio = redPacketOpenAudioRef.current ?? new Audio(redPacketOpenSound);
+    const rainAudio = redPacketRainAudioRef.current ?? createManagedHtmlAudio(redPacketRainSound);
+    const openAudio = redPacketOpenAudioRef.current ?? createManagedHtmlAudio(redPacketOpenSound);
     rainAudio.preload = "auto";
     openAudio.preload = "auto";
     redPacketRainAudioRef.current = rainAudio;
@@ -736,7 +737,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
 
   useEffect(() => {
     if (!selectedDialogue?.audioUrl || dialogueAudioCacheRef.current.has(selectedDialogue.audioUrl)) return;
-    const audio = new Audio(selectedDialogue.audioUrl);
+    const audio = createManagedHtmlAudio(selectedDialogue.audioUrl);
     audio.preload = "auto";
     dialogueAudioCacheRef.current.set(selectedDialogue.audioUrl, audio);
   }, [selectedDialogue]);
@@ -781,7 +782,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     const text = selectedDialogue.text;
     dialogueQueueRef.current?.enqueue(() => {
       const cached = dialogueAudioCacheRef.current.get(audioUrl);
-      const audio = cached ?? new Audio(audioUrl);
+      const audio = cached ?? createManagedHtmlAudio(audioUrl);
       audio.preload = "auto";
       dialogueAudioCacheRef.current.set(audioUrl, audio);
       return createAudioWithSpeechFallback(audio, text, { rate: 0.9 });
@@ -1123,7 +1124,7 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
         const soundUrl = kind === "feed" ? eatingSound : drinkingSound;
         careSoundQueueRef.current?.enqueue(() => {
           const cached = petSoundCacheRef.current.get(soundUrl);
-          const audio = cached ?? new Audio(soundUrl);
+          const audio = cached ?? createManagedHtmlAudio(soundUrl);
           if (!cached) {
             audio.preload = "auto";
             petSoundCacheRef.current.set(soundUrl, audio);
