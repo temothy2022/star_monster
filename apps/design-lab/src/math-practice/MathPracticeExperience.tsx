@@ -162,7 +162,6 @@ export function MathPracticeExperience({
               <ChildControlIcon kind="back" />
             </button>
             <div>
-              <span>数学探险</span>
               <h1>{`第 ${session.currentIndex + 1} 题`}</h1>
             </div>
             <div className="math-session__progress">

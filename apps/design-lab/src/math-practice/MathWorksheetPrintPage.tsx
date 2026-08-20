@@ -545,14 +545,14 @@ export function MathWorksheetPrintPage() {
     <main className="math-worksheet-builder">
       <header className="math-worksheet-builder__topbar">
         <a href="#pages"><ChildControlIcon kind="back" />返回</a>
-        <div><MathPaperMascot /><span><small>无需登录 · 打开即用</small><strong>A4 数学练习卷</strong></span></div>
+        <div><MathPaperMascot /><span><strong>A4 数学练习卷</strong></span></div>
         <b>{questions.length} 道题 · {totalPdfPages} 页 PDF</b>
       </header>
 
       <section className="math-worksheet-builder__workspace">
         <aside className="math-worksheet-config">
           <div className="math-worksheet-config__heading">
-            <div><h1>选择题型和数量</h1><p>每种题型最多 {MAX_PER_TYPE} 道，单套最多 {MAX_TOTAL} 道，题目会自动按难度配比。</p></div>
+            <div><h1>选择题型和数量</h1></div>
             <div><button type="button" onClick={selectEveryType}>全部各 1 题</button><button type="button" onClick={() => setCounts({})}>清空</button></div>
           </div>
 

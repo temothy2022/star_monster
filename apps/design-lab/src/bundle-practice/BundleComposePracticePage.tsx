@@ -110,9 +110,7 @@ export function BundleComposePracticePage() {
     <main className="bundle-practice-page">
       <header className="bundle-practice-header">
         <div>
-          <p className="bundle-practice-eyebrow">动手摆一摆</p>
           <h1>捆和根凑整</h1>
-          <p className="bundle-practice-subtitle">先说出答案，再把数量摆到 5 捆或 10 捆</p>
         </div>
         <a className="bundle-practice-back" href="#pages"><ChildControlIcon kind="back" />返回页面清单</a>
       </header>

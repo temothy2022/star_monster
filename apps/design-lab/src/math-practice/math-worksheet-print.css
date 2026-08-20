@@ -105,13 +105,6 @@
   font-size: 24px;
 }
 
-.math-worksheet-config__heading p {
-  margin: 0;
-  color: #718296;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
 .math-worksheet-config__heading > div:last-child {
   display: flex;
   gap: 8px;

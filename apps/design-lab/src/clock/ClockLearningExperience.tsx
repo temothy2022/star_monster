@@ -280,7 +280,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
       <ChildControlIcon kind="back" />
     </button>
     <header className="clock-learning-header">
-      <div><span>时间小课堂</span><h1>{stage === "PRACTICE" ? "拨一拨，认识时间" : stage === "RESULT" ? "今天的练习完成啦" : `第 ${displayedQuestionNumber} 题`}</h1></div>
+      <div><h1>{stage === "PRACTICE" ? "拨一拨，认识时间" : stage === "RESULT" ? "今天的练习完成啦" : `第 ${displayedQuestionNumber} 题`}</h1></div>
       {stage !== "PRACTICE" && stage !== "RESULT" ? <div className="clock-learning-progress"><span style={{ width: `${session.currentIndex / session.totalQuestions * 100}%` }} /><strong>{session.currentIndex}/{session.totalQuestions}</strong></div> : null}
     </header>
 

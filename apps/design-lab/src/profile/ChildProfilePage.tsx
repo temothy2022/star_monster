@@ -113,7 +113,7 @@ export function ChildProfilePage({
     <main className="child-profile-page">
       <header className="child-profile-page__header">
         <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回首页"><ChildControlIcon kind="back" /></button>
-        <div><span>我的探险档案</span><h1>个人中心</h1></div>
+        <div><h1>个人中心</h1></div>
       </header>
 
       <section className="child-profile-card">

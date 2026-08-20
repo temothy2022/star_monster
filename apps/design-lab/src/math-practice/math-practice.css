@@ -1398,8 +1398,7 @@
 .math-session .math-preview__stage { width: 100%; }
 .math-session__header { min-height: 70px; margin-bottom: 15px; display: grid; grid-template-columns: 58px 1fr minmax(220px, .7fr); align-items: center; gap: 14px; }
 .math-session__header > button { width: 52px; height: 52px; padding: 0; border: 0; border-radius: 18px; color: #253b59; background: #fff; box-shadow: 0 8px 20px rgba(37,59,89,.08); font-size: 40px; line-height: 1; }
-.math-session__header > div:nth-child(2) span { color: #e76632; font-size: 13px; font-weight: 900; }
-.math-session__header h1 { margin: 2px 0 0; font-size: 25px; }
+.math-session__header h1 { margin: 0; font-size: 25px; }
 .math-session__progress { display: flex; align-items: center; gap: 10px; }
 .math-session__progress > div { height: 13px; flex: 1; overflow: hidden; border-radius: 999px; background: rgba(37,59,89,.1); }
 .math-session__progress > div span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#fec73c,#ff7a3d); }

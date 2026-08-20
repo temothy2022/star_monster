@@ -20,9 +20,7 @@
   gap: 24px;
 }
 
-.bundle-practice-eyebrow { margin: 0 0 6px; color: var(--bundle-orange); font-size: 17px; font-weight: 900; }
 .bundle-practice-header h1 { margin: 0; font-size: clamp(32px, 5vw, 58px); line-height: 1.08; letter-spacing: 0; }
-.bundle-practice-subtitle { margin: 12px 0 0; color: var(--bundle-muted); font-size: clamp(16px, 2vw, 21px); font-weight: 700; }
 .bundle-practice-back { display: inline-flex; flex: none; align-items: center; gap: 8px; padding: 12px 18px; border: 2px solid #c6d5e0; border-radius: 14px; color: var(--bundle-ink); background: #fff; font-size: 15px; font-weight: 850; text-decoration: none; }
 .bundle-practice-back:hover { border-color: var(--bundle-orange); }
 

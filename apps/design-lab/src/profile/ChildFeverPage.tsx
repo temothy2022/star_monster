@@ -227,7 +227,7 @@ export function ChildFeverPage({ onBack }: { onBack: () => void }) {
     <main className="child-fever-page">
       <header className="child-fever-header">
         <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回首页"><ChildControlIcon kind="back" /></button>
-        <div><span>健康记录</span><h1>发热记录</h1><p>把每次测量放在同一条时间线上，方便家长和医生了解变化。</p></div>
+        <div><h1>发热记录</h1></div>
       </header>
 
       {error ? <button type="button" className="child-fever-message child-fever-message--error" onClick={() => setError("")}>{error}</button> : null}
