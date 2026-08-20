@@ -11,7 +11,10 @@ import {
 import { callDeepSeekJson, callDeepSeekText } from "./deepseek-service.js";
 import { getChildLeaderboards } from "./footprint-service.js";
 import { getPlatformFeatureSettings } from "./platform-feature-service.js";
-import { systemAiCredentials } from "./system-ai-service.js";
+import {
+  requireFamilyAiAccess,
+  systemAiCredentials,
+} from "./system-ai-service.js";
 
 export const DAILY_CHILD_MESSAGE_LIMIT = 5;
 export const CHALLENGE_HISTORY_LIMIT = 50;
@@ -760,6 +763,13 @@ export async function sendChallengeReply(
   const conversations = await loadPartnerConversations(childId, competitorId);
   const conversation = conversations[0];
   if (!conversation) throw new HttpError(404, "CHALLENGE_CONVERSATION_NOT_FOUND", "还没有和这个挑战伙伴联系过");
+  const child = await prisma.childProfile.findUnique({
+    where: { id: childId },
+    select: { nickname: true, familyId: true },
+  });
+  if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
+  await requireFamilyAiAccess(child.familyId);
+  const credentials = await systemAiCredentials(config);
   const businessDate = businessDateAt(now, config.APP_TIME_ZONE);
   const todayStart = businessDateStartInstant(businessDate, config.APP_TIME_ZONE);
   const tomorrowStart = businessDateStartInstant(addBusinessDays(businessDate, 1), config.APP_TIME_ZONE);
@@ -775,12 +785,10 @@ export async function sendChallengeReply(
     return tx.challengeConversationMessage.create({ data: { conversationId: conversation.id, sender: "CHILD", text } });
   });
   await prunePartnerHistory(childId, competitorId);
-  const credentials = await systemAiCredentials(config);
   const recentMessages = [...visibleMessages(conversation, now), childMessage].slice(-8).map((message) => ({
     speaker: message.sender === "CHILD" ? "child" : "virtual_partner",
     text: message.text,
   }));
-  const child = await prisma.childProfile.findUnique({ where: { id: childId }, select: { nickname: true } });
   const result = await callDeepSeekText({
     ...credentials,
     config,

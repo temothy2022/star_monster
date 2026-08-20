@@ -836,8 +836,40 @@ function SmartScheduler({ child }: { child: Child }) {
 }
 
 export function AiAssistant({ child }: { child: Child }) {
+  const [accessEnabled, setAccessEnabled] = useState<boolean | null>(null);
   const [triggeringLetter, setTriggeringLetter] = useState(false);
   const [letterMessage, setLetterMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void parentApi
+      .aiConfig()
+      .then(({ config }) => {
+        if (!cancelled) setAccessEnabled(config.accessEnabled);
+      })
+      .catch(() => {
+        if (!cancelled) setAccessEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (accessEnabled === null) {
+    return <div className="empty-state">正在读取 AI 使用权限…</div>;
+  }
+
+  if (!accessEnabled) {
+    return (
+      <div className="admin-stack ai-assistant">
+        <Card title="AI 成长顾问">
+          <Message>
+            当前用户暂时没有 AI 成长顾问的访问权限，如需开放请联系管理员。
+          </Message>
+        </Card>
+      </div>
+    );
+  }
 
   async function triggerChallengeLetter() {
     setTriggeringLetter(true);
@@ -863,7 +895,7 @@ export function AiAssistant({ child }: { child: Child }) {
         <div className="ai-hero__mark">✦</div>
       </div>
       <Message>
-        DeepSeek 已由超级管理员统一配置并供所有家庭使用；家长端不会显示或保存平台密钥。
+        DeepSeek 已由超级管理员统一配置；家长端不会显示或保存平台密钥。
       </Message>
       <Card
         title="孩子来信"

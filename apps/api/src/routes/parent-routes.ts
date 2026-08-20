@@ -34,6 +34,7 @@ import {
 } from "../services/planet-service.js";
 import { updateRedemptionStatus } from "../services/wish-service.js";
 import { writeAudit } from "../services/audit-service.js";
+import { requireFamilyAiAccess } from "../services/system-ai-service.js";
 import { getGrowthAnalytics } from "../services/growth-analytics-service.js";
 import { getMathMasteryForRange } from "../services/math-mastery-service.js";
 import {
@@ -2412,7 +2413,8 @@ export async function registerParentRoutes(
 
   app.post("/api/parent/children/:id/challenge-letter", async (request, reply) => {
     const { id } = idParams.parse(request.params);
-    await requireOwnedChild(request, reply, config, id);
+    const { child } = await requireOwnedChild(request, reply, config, id);
+    await requireFamilyAiAccess(child.familyId);
     try {
       const conversation = await generateChallengeLetterIfEligible(id, config, new Date(), { force: true });
       if (!conversation) {

@@ -1,0 +1,2 @@
+ALTER TABLE "Family"
+ADD COLUMN "aiAccessEnabled" BOOLEAN NOT NULL DEFAULT false;

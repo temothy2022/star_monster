@@ -65,6 +65,7 @@
 .super-account__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .super-account__actions button { min-height: 30px; padding: 0 9px; border: 1px solid #d3d9e2; border-radius: 8px; background: white; font-size: 11px; cursor: pointer; }
 .super-account__actions .primary-button { color: white; border-color: #243654; background: #f47a3f; }
+.super-family-ai-access { display: inline-flex; min-height: 30px; padding: 0 9px; align-items: center; gap: 8px; border: 1px solid #d3d9e2; border-radius: 8px; color: #526176; background: #fff; font-size: 11px; font-weight: 700; }
 .super-create-result { display: grid; gap: 8px; margin-top: 18px; padding: 14px; border: 1px solid #f2c86c; border-radius: 12px; background: #fff5d7; }
 .super-create-result code { padding: 5px 8px; border-radius: 7px; color: #233653; background: white; font-size: 18px; font-weight: 700; letter-spacing: .12em; }
 .super-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; }

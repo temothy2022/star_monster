@@ -485,6 +485,7 @@ const ADVISOR_DECISION_LABELS = {
 
 function WeeklyReportPanel({ childId, analytics }: { childId: string; analytics: GrowthAnalytics | null }) {
   const [configured, setConfigured] = useState(false);
+  const [accessEnabled, setAccessEnabled] = useState(false);
   const [report, setReport] = useState<WeeklyGrowthReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -502,6 +503,7 @@ function WeeklyReportPanel({ childId, analytics }: { childId: string; analytics:
       .then((result) => {
         if (cancelled) return;
         setConfigured(result.configured);
+        setAccessEnabled(result.accessEnabled);
         setReport(result.report);
       })
       .catch((reason) => {
@@ -553,11 +555,10 @@ function WeeklyReportPanel({ childId, analytics }: { childId: string; analytics:
       title="AI 成长顾问"
       subtitle="先看各分类每周投入与占比，再结合具体任务、学习掌握和完成稳定性形成调整方案"
       className="weekly-growth-report growth-advisor"
-      actions={configured ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void generate()}>{busy ? "分析中…" : report ? "重新分析" : "立即生成"}</button> : null}
+      actions={accessEnabled && configured ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void generate()}>{busy ? "分析中…" : report ? "重新分析" : "立即生成"}</button> : null}
     >
       {error ? <div className="admin-notice admin-notice--error">{error}</div> : null}
-      <CategoryEffortOverview analytics={analytics} />
-      {loading ? <div className="empty-state">正在读取成长分析…</div> : !configured ? <div className="weekly-growth-report__empty"><strong>平台 AI 暂未启用</strong><p>请联系超级管理员配置并启用 DeepSeek，之后系统会每周自动形成成长分析。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>AI 会分析最近四个完整周，也可以现在生成第一份成长分析。</p></div> : <>
+      {loading ? <div className="empty-state">正在读取成长分析…</div> : !accessEnabled ? <div className="weekly-growth-report__empty"><p>当前用户暂时没有 AI 成长顾问的访问权限，如需开放请联系管理员。</p></div> : <><CategoryEffortOverview analytics={analytics} />{!configured ? <div className="weekly-growth-report__empty"><strong>平台 AI 暂未启用</strong><p>请联系超级管理员配置并启用 DeepSeek，之后系统会每周自动形成成长分析。</p></div> : !analysis ? <div className="weekly-growth-report__empty"><strong>还没有可展示的分析</strong><p>AI 会分析最近四个完整周，也可以现在生成第一份成长分析。</p></div> : <>
         <div className="weekly-growth-report__summary">
           <div><span>{fullDate(report.analysisStart)} – {fullDate(report.analysisEnd)}</span><h3>{analysis.developmentProfile?.headline ?? analysis.summary}</h3><p>{analysis.developmentProfile?.rationale ?? analysis.summary}</p></div>
           <div className="weekly-growth-report__meta"><em className={analysis.dataQuality === "SUFFICIENT" ? "is-ready" : "is-limited"}>{analysis.dataQuality === "SUFFICIENT" ? "数据充分" : "样本较少"}</em><small>{report.generatedAt ? `${fullDate(report.generatedAt)}生成` : ""}</small></div>
@@ -595,7 +596,7 @@ function WeeklyReportPanel({ childId, analytics }: { childId: string; analytics:
           {asking ? <div className="growth-advisor__thinking"><strong>正在结合任务、掌握度和负担分析</strong><span>通常需要几秒，请不要重复提交。</span></div> : null}
           {answer && !asking ? <article className="growth-advisor__answer"><header><span>AI 顾问回答</span><h3>{answer.title}</h3><p>{answer.directAnswer}</p></header>{answer.evidence.length ? <section><h4>判断依据</h4><ul>{answer.evidence.map((item) => <li key={item}>{item}</li>)}</ul></section> : null}<section><h4>可以这样做</h4><ol>{answer.actionPlan.slice().sort((left, right) => left.order - right.order).map((item) => <li key={`${item.order}-${item.title}`}><b>{item.order}</b><div><strong>{item.title}</strong><p>{item.action}</p><small>{item.frequency} · 判断标准：{item.successSignal}</small></div></li>)}</ol></section>{answer.taskAdjustments.length ? <section><h4>任务调整建议</h4><div className="growth-advisor__adjustments">{answer.taskAdjustments.map((item) => <article key={`${item.templateId ?? 'system'}-${item.title}`}><span>{ADVISOR_DECISION_LABELS[item.decision]}</span><strong>{item.title}</strong><p>{item.suggestion}</p><small>{item.reason}</small></article>)}</div></section> : null}<footer><p>{answer.boundaryNote}</p>{answer.followUpQuestions.map((item) => <button type="button" key={item} onClick={() => void askAdvisor(item)}>{item}</button>)}</footer></article> : null}
         </div> : null}
-      </>}
+      </>}</>}
     </DashboardSection>
   );
 }

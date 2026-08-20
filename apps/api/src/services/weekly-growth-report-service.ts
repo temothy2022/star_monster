@@ -11,7 +11,10 @@ import {
 import type { AppConfig } from "../config.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
-import { systemAiCredentials } from "./system-ai-service.js";
+import {
+  requireFamilyAiAccess,
+  systemAiCredentials,
+} from "./system-ai-service.js";
 import {
   addBusinessDays,
   businessDateAt,
@@ -212,6 +215,7 @@ async function childAiCredentials(childId: string, config: AppConfig) {
     select: { familyId: true },
   });
   if (!child) throw new HttpError(404, "CHILD_NOT_FOUND", "没有找到孩子");
+  await requireFamilyAiAccess(child.familyId);
   const credentials = await systemAiCredentials(config);
   return {
     familyId: child.familyId,
@@ -568,7 +572,7 @@ export async function generateDueWeeklyGrowthReports(
   const children = await prisma.childProfile.findMany({
     where: {
       status: "ACTIVE",
-      family: { status: "ACTIVE", aiConfig: { is: { enabled: true } } },
+      family: { status: "ACTIVE", aiAccessEnabled: true },
     },
     select: { id: true, familyId: true },
   });

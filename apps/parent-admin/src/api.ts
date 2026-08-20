@@ -489,6 +489,7 @@ export type AiConfig = {
   enabled: boolean;
   updatedAt: string | null;
   configured: boolean;
+  accessEnabled: boolean;
 };
 
 export type MinimaxConfig = {
@@ -1561,7 +1562,7 @@ export const parentApi = {
     }),
   aiConfig: () => api<{ config: AiConfig }>("/api/parent/ai/config"),
   weeklyGrowth: (childId: string) =>
-    api<{ configured: boolean; report: WeeklyGrowthReport | null }>(
+    api<{ configured: boolean; accessEnabled: boolean; report: WeeklyGrowthReport | null }>(
       `/api/parent/children/${childId}/ai/weekly-growth`,
     ),
   generateWeeklyGrowth: (childId: string) =>

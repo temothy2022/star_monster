@@ -67,6 +67,7 @@ const accountStatusSchema = z.object({
 const familyUpdateSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   status: z.enum(["ACTIVE", "DISABLED"]).optional(),
+  aiAccessEnabled: z.boolean().optional(),
 });
 
 const userUpdateSchema = z.object({

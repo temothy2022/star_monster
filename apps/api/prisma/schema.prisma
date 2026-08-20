@@ -275,11 +275,12 @@ enum ChallengeMessageSender {
 }
 
 model Family {
-  id        String        @id @default(cuid())
-  name      String
-  status    AccountStatus @default(ACTIVE)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  name            String
+  status          AccountStatus @default(ACTIVE)
+  aiAccessEnabled Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   users                User[]
   children             ChildProfile[]

@@ -33,6 +33,7 @@ export type Family = {
   id: string;
   name: string;
   status: "ACTIVE" | "DISABLED";
+  aiAccessEnabled: boolean;
   createdAt: string;
   users: ParentAccount[];
   children: AdminChild[];

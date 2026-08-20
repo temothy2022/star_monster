@@ -28,7 +28,11 @@ import { requireParent } from "../services/auth-service.js";
 import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-service.js";
 import { validateSchedulePlan } from "../services/schedule-validation.js";
 import { generateDailyTasks } from "../services/task-service.js";
-import { systemAiCredentials } from "../services/system-ai-service.js";
+import {
+  familyAiAccessEnabled,
+  requireFamilyAiAccess,
+  systemAiCredentials,
+} from "../services/system-ai-service.js";
 import { businessDateAt } from "../lib/time.js";
 import {
   generateWeeklyGrowthReport,
@@ -95,10 +99,11 @@ async function familyUser(
 }
 
 async function storedAiCredentials(
-  _familyId: string,
+  familyId: string,
   config: AppConfig,
   requireEnabled: boolean,
 ) {
+  await requireFamilyAiAccess(familyId);
   return systemAiCredentials(config, requireEnabled);
 }
 
@@ -267,19 +272,27 @@ export async function registerParentAiRoutes(
   config: AppConfig,
 ): Promise<void> {
   app.get("/api/parent/ai/config", async (request, reply) => {
-    await familyUser(request, reply, config);
-    const stored = await prisma.systemAiConfig.findUnique({
-      where: { id: "default" },
-      select: {
-        provider: true,
-        model: true,
-        enabled: true,
-        updatedAt: true,
-      },
-    });
+    const { familyId } = await familyUser(request, reply, config);
+    const [stored, accessEnabled] = await Promise.all([
+      prisma.systemAiConfig.findUnique({
+        where: { id: "default" },
+        select: {
+          provider: true,
+          model: true,
+          enabled: true,
+          updatedAt: true,
+        },
+      }),
+      familyAiAccessEnabled(familyId),
+    ]);
     return {
       config: stored
-        ? { ...stored, apiKeyLastFour: null, configured: true }
+        ? {
+            ...stored,
+            apiKeyLastFour: null,
+            configured: true,
+            accessEnabled,
+          }
         : {
             provider: "DEEPSEEK",
             model: "deepseek-v4-flash",
@@ -287,6 +300,7 @@ export async function registerParentAiRoutes(
             enabled: false,
             updatedAt: null,
             configured: false,
+            accessEnabled,
           },
     };
   });
@@ -295,17 +309,19 @@ export async function registerParentAiRoutes(
     "/api/parent/children/:id/ai/weekly-growth",
     async (request, reply) => {
       const { id: childId } = idParams.parse(request.params);
-      await ownedChild(request, reply, config, childId);
-      const [stored, report] = await Promise.all([
+      const { familyId } = await ownedChild(request, reply, config, childId);
+      const [stored, report, accessEnabled] = await Promise.all([
         prisma.systemAiConfig.findUnique({
           where: { id: "default" },
           select: { enabled: true },
         }),
         latestWeeklyGrowthReport(childId),
+        familyAiAccessEnabled(familyId),
       ]);
       return {
         configured: Boolean(stored?.enabled),
-        report: weeklyReportResponse(report),
+        accessEnabled,
+        report: accessEnabled ? weeklyReportResponse(report) : null,
       };
     },
   );
@@ -320,6 +336,7 @@ export async function registerParentAiRoutes(
         config,
         childId,
       );
+      await requireFamilyAiAccess(familyId);
       enforceAiLimit(familyId, user.id, "weekly-growth");
       const report = await generateWeeklyGrowthReport(childId, config, {
         force: true,
@@ -352,6 +369,7 @@ export async function registerParentAiRoutes(
         config,
         childId,
       );
+      await requireFamilyAiAccess(familyId);
       enforceAiLimit(familyId, user.id, "growth-advisor-question");
       const report = input.reportId
         ? await prisma.weeklyGrowthReport.findFirst({
@@ -537,6 +555,7 @@ export async function registerParentAiRoutes(
         config,
         childId,
       );
+      await requireFamilyAiAccess(familyId);
       const recommendation = await prisma.aiRecommendation.findFirst({
         where: {
           id: recommendationId,
@@ -899,6 +918,7 @@ export async function registerParentAiRoutes(
         config,
         childId,
       );
+      await requireFamilyAiAccess(familyId);
       const [recommendation, preference, slots, templates] = await Promise.all([
         prisma.aiRecommendation.findFirst({
           where: {

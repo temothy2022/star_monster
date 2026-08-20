@@ -23,7 +23,7 @@ import {
   ToolOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { Button, Drawer, Input, Layout, Menu, Modal, Pagination } from "antd";
+import { Button, Drawer, Input, Layout, Menu, Modal, Pagination, Switch } from "antd";
 import {
   adminApi,
   staffApi,
@@ -512,6 +512,7 @@ function FamilyCard({
 }) {
   const [editor, setEditor] = useState<FamilyEditor>(null);
   const [editorBusy, setEditorBusy] = useState(false);
+  const [aiAccessBusy, setAiAccessBusy] = useState(false);
   const [editorError, setEditorError] = useState("");
   async function submitEditor(event: FormEvent) {
     event.preventDefault();
@@ -662,6 +663,31 @@ function FamilyCard({
             </p>
           </div>
           <div className="super-account__actions">
+            <label className="super-family-ai-access">
+              <span>AI 成长顾问</span>
+              <Switch
+                size="small"
+                checked={family.aiAccessEnabled}
+                loading={aiAccessBusy}
+                disabled={aiAccessBusy || family.status !== "ACTIVE"}
+                checkedChildren="已开放"
+                unCheckedChildren="未开放"
+                onChange={(enabled) => {
+                  setAiAccessBusy(true);
+                  void adminApi
+                    .updateFamily(family.id, { aiAccessEnabled: enabled })
+                    .then(onChanged)
+                    .catch((reason) => {
+                      window.alert(
+                        reason instanceof Error
+                          ? reason.message
+                          : "AI 权限更新失败",
+                      );
+                    })
+                    .finally(() => setAiAccessBusy(false));
+                }}
+              />
+            </label>
             <span
               className={`status status--${family.status === "ACTIVE" ? "completed" : "cancelled"}`}
             >
