@@ -846,24 +846,31 @@
   .task-dashboard-widget--medium { grid-column: span 2; }
   .task-dashboard-widget--small,
   .task-dashboard-add-tile { min-height: 0; grid-column: span 1; grid-row: span 15; }
+  /* The timer has four fixed content bands. Give it enough rows on phones so
+     the face can never consume the preset-button area. */
+  .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] {
+    grid-column: span 1;
+    grid-row: span 18;
+  }
   .task-dashboard-widget--large { grid-row: span 41; }
   .task-dashboard-widget--wide { grid-row: span 27; }
   .task-dashboard-widget--medium { grid-row: span 19; }
   .task-dashboard-widget--small { grid-row: span 15; }
   .task-widget-timer { padding-inline: 7px; }
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer {
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto 76px auto auto;
     gap: 4px;
     padding: 8px 8px 9px;
   }
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__face,
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer--idle .task-widget-timer__face {
-    width: min(96px, 34vw);
-    max-width: 96px;
+    width: min(76px, 27vw);
+    max-width: 76px;
+    max-height: 76px;
   }
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__progress-bar,
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer--idle .task-widget-timer__progress-bar {
-    width: min(104px, 40vw);
+    width: min(92px, 34vw);
   }
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__remaining { font-size: 16px; }
   .task-dashboard-widget[data-widget-key="COUNTDOWN_TIMER"] .task-widget-timer__presets { gap: 3px; }
