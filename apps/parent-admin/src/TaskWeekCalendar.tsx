@@ -20,11 +20,11 @@ import {
   RightOutlined,
 } from "@ant-design/icons";
 import type { TaskTemplate } from "./api";
-import { taskCalendarDays, WORK_WEEKDAYS } from "./task-week-schedule";
+import { CALENDAR_WEEKDAYS, taskCalendarDays } from "./task-week-schedule";
 
-const WEEKDAYS = WORK_WEEKDAYS.map((value) => ({
+const WEEKDAYS = CALENDAR_WEEKDAYS.map((value) => ({
   value,
-  label: `周${"一二三四五"[value - 1]}`,
+  label: `周${"日一二三四五六"[value]}`,
 }));
 
 type CalendarOccurrence = {
@@ -100,9 +100,9 @@ function CalendarTask({ occurrence }: { occurrence: CalendarOccurrence }) {
     >
       <div>
         <strong>{occurrence.template.title}</strong>
-        <small>+{occurrence.template.baseStars} 星 · {occurrence.template.isEnabled ? "启用" : "停用"}</small>
+        <small>+{occurrence.template.baseStars} 星</small>
       </div>
-      {draggable ? <HolderOutlined aria-hidden="true" /> : <span className="task-week-card__system">自动</span>}
+      {draggable ? <HolderOutlined aria-hidden="true" /> : null}
     </article>
   );
 }
@@ -164,19 +164,43 @@ export function TaskWeekCalendar({
   const [active, setActive] = useState<CalendarOccurrence | null>(null);
   const [saving, setSaving] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
+  const [hiddenCategories, setHiddenCategories] = useState<Set<string>>(() => new Set());
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 260, tolerance: 8 } }),
   );
   const occurrences = useMemo(() => templates.flatMap((template) =>
     taskCalendarDays(template).map((day) => ({ id: `${template.id}:${day}`, day, template }))), [templates]);
+  const availableCategories = useMemo(() => {
+    const categories = new Map<string, ReturnType<typeof categoryMeta>>();
+    for (const occurrence of occurrences) {
+      const meta = categoryMeta(occurrence.template);
+      categories.set(meta.key, meta);
+    }
+    return [...categories.values()]
+      .sort((first, second) => first.order - second.order || first.label.localeCompare(second.label, "zh-CN"));
+  }, [occurrences]);
+  const visibleOccurrences = useMemo(
+    () => occurrences.filter((occurrence) => !hiddenCategories.has(categoryMeta(occurrence.template).key)),
+    [hiddenCategories, occurrences],
+  );
+  const allCategoriesVisible = availableCategories.every((category) => !hiddenCategories.has(category.key));
   const groupKeys = useMemo(() => WEEKDAYS.flatMap((day) =>
-    groupOccurrences(occurrences.filter((item) => item.day === day.value))
-      .map((group) => `${day.value}:${group.key}`)), [occurrences]);
+    groupOccurrences(visibleOccurrences.filter((item) => item.day === day.value))
+      .map((group) => `${day.value}:${group.key}`)), [visibleOccurrences]);
   const allCollapsed = groupKeys.length > 0 && groupKeys.every((key) => collapsedGroups.has(key));
 
   function toggleGroup(key: string) {
     setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleCategory(key: string) {
+    setHiddenCategories((current) => {
       const next = new Set(current);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -204,7 +228,7 @@ export function TaskWeekCalendar({
   return (
     <section className={`task-week-calendar${saving ? " task-week-calendar--saving" : ""}`}>
       <header className="task-week-calendar__header">
-        <div className="task-week-calendar__title"><CalendarOutlined /><span><strong>工作日任务周历</strong><small>按分类查看任务；长按任务后可拖到其他日期</small></span></div>
+        <div className="task-week-calendar__title"><CalendarOutlined /><span><strong>任务周历</strong><small>查看一周安排；长按任务后可拖到其他日期</small></span></div>
         <div className="task-week-calendar__actions">
           {saving ? <span>正在保存安排…</span> : null}
           {groupKeys.length ? (
@@ -215,13 +239,37 @@ export function TaskWeekCalendar({
           ) : null}
         </div>
       </header>
+      {availableCategories.length ? (
+        <div className="task-week-calendar__filters" aria-label="筛选周历任务分类">
+          <span>显示分类</span>
+          <label className="task-week-calendar__filter-all">
+            <input
+              type="checkbox"
+              checked={allCategoriesVisible}
+              onChange={() => setHiddenCategories(allCategoriesVisible ? new Set(availableCategories.map((category) => category.key)) : new Set())}
+            />
+            全部
+          </label>
+          {availableCategories.map((category) => (
+            <label key={category.key}>
+              <input
+                type="checkbox"
+                checked={!hiddenCategories.has(category.key)}
+                onChange={() => toggleCategory(category.key)}
+              />
+              <i style={{ backgroundColor: category.color }} />
+              {category.label}
+            </label>
+          ))}
+        </div>
+      ) : null}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={start} onDragCancel={() => setActive(null)} onDragEnd={(event) => void end(event)}>
         <div className="task-week-calendar__grid">
           {WEEKDAYS.map((day) => (
             <CalendarDay
               key={day.value}
               day={day}
-              occurrences={occurrences.filter((item) => item.day === day.value)}
+              occurrences={visibleOccurrences.filter((item) => item.day === day.value)}
               collapsedGroups={collapsedGroups}
               onToggleGroup={toggleGroup}
             />

@@ -143,6 +143,20 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
   background: #fffdf7;
 }
 .admin-brand { padding: 0 8px 24px; }
+.admin-sidebar__collapse {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid #dce2e9;
+  border-radius: 7px;
+  color: #66758a;
+  background: #fff;
+  cursor: pointer;
+}
+.admin-sidebar__collapse:hover { color: #a64113; border-color: #e9b49c; background: #fff7f2; }
 .admin-brand div, .admin-sidebar__account div { display: flex; min-width: 0; flex-direction: column; }
 .admin-brand strong { font-size: 17px; }
 .admin-brand small, .admin-sidebar__account small { color: #8790a1; }
@@ -150,6 +164,19 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .child-switcher label { display: grid; gap: 8px; }
 .child-switcher > div { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .child-switcher button { min-height: 32px; padding: 4px 6px; border: 1px solid #d9dde4; border-radius: 7px; color: #4d5c71; background: #fff; font: inherit; font-size: 11px; cursor: pointer; }
+.admin-sidebar__child-shortcut {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto;
+  place-items: center;
+  border: 1px solid #dfe4ea;
+  border-radius: 8px;
+  color: #66758a;
+  background: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}
 .parent-login-code-popover { position: fixed; z-index: 200; top: max(16px, env(safe-area-inset-top)); right: 20px; display: flex; width: min(430px, calc(100vw - 32px)); align-items: center; gap: 10px; padding: 12px; border: 1px solid #e0c168; border-radius: 12px; background: #fff8d8; box-shadow: 0 14px 34px #27364c24; }
 .parent-login-code-popover > div { display: grid; gap: 3px; }
 .parent-login-code-popover small { color: #7b6a35; font-weight: 700; }
@@ -183,6 +210,13 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
 .admin-sidebar nav button.active span { color: #f47a3f; }
 .admin-sidebar__account { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding: 16px 8px 0; border-top: 1px solid #e4e6ea; }
 .admin-sidebar__account button { border: 0; color: #9b4b2b; background: transparent; cursor: pointer; }
+.admin-sidebar--collapsed .admin-brand { justify-content: center; padding-inline: 0; }
+.admin-sidebar--collapsed .admin-brand > span,
+.admin-sidebar--collapsed .admin-brand > div,
+.admin-sidebar--collapsed .admin-sidebar__account > div { display: none; }
+.admin-sidebar--collapsed .admin-sidebar__collapse { margin: 0; }
+.admin-sidebar--collapsed .admin-sidebar__account { justify-content: center; padding-inline: 0; }
+.admin-sidebar--collapsed .admin-sidebar__account button { display: grid; width: 38px; height: 38px; place-items: center; font-size: 18px; }
 
 .admin-main { min-width: 0; }
 .admin-topbar {
@@ -2435,6 +2469,7 @@ td { font-size: 13px; }
 .admin-section-loading { min-height: 180px; display: grid; place-items: center; color: #6f7f94; font-weight: 700; }
 .parent-admin-framework .admin-sidebar { padding: 0; background: #fff; }
 .parent-admin-framework .admin-sidebar .ant-layout-sider-children { display: flex; height: 100%; padding: 22px 14px 18px; flex-direction: column; }
+.parent-admin-framework .admin-sidebar--collapsed .ant-layout-sider-children { padding-inline: 10px; }
 .parent-admin-framework .admin-sidebar__nav.ant-menu { min-height: 0; margin-top: 14px; overflow-y: auto; border-inline-end: 0; background: transparent; }
 .parent-admin-framework .admin-sidebar__nav .ant-menu-item-group-title { padding: 14px 14px 6px; color: #98a0ad; font-size: 11px; font-weight: 800; }
 .parent-admin-framework .admin-sidebar__nav .ant-menu-item { height: 42px; margin-block: 2px; border-radius: 7px; color: #536176; }
@@ -2442,6 +2477,9 @@ td { font-size: 13px; }
 .parent-admin-framework .admin-sidebar__nav .ant-menu-item-selected::after { display: none; }
 .parent-admin-framework .admin-sidebar__nav .ant-menu-submenu-title { height: 40px; margin-block: 2px; color: #69778b; font-size: 13px; font-weight: 800; }
 .parent-admin-framework .admin-sidebar__nav .ant-menu-sub { background: transparent; }
+.parent-admin-framework .admin-sidebar--collapsed .admin-sidebar__nav.ant-menu { width: 56px; margin-inline: auto; }
+.parent-admin-framework .admin-sidebar--collapsed .admin-sidebar__nav .ant-menu-item { width: 44px; padding-inline: 0 !important; margin-inline: auto; justify-content: center; }
+.parent-admin-framework .admin-sidebar--collapsed .admin-sidebar__nav .ant-menu-item .ant-menu-item-icon { margin: 0; font-size: 18px; }
 .parent-admin-framework .admin-main { min-width: 0; background: #f6f7f9; }
 .parent-admin-framework .admin-topbar { height: auto; line-height: normal; }
 
@@ -2507,11 +2545,42 @@ td { font-size: 13px; }
 .task-week-calendar__actions button { display: inline-flex; min-height: 34px; padding: 0 11px; align-items: center; gap: 6px; border: 1px solid #d8e0e9; border-radius: 7px; color: #52637a; background: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
 .task-week-calendar__actions button:hover { border-color: #ef8a68; color: #b94f2e; background: #fff8f4; }
 .task-week-calendar__actions button svg { color: inherit; font-size: 12px; }
+.task-week-calendar__filters {
+  display: flex;
+  min-height: 52px;
+  padding: 9px 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid #e8edf3;
+  background: #fbfcfd;
+}
+.task-week-calendar__filters > span { margin-right: 4px; color: #69788b; font-size: 12px; font-weight: 800; }
+.task-week-calendar__filters label {
+  display: inline-flex;
+  min-height: 32px;
+  padding: 0 10px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dde4ec;
+  border-radius: 7px;
+  color: #4f6075;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.task-week-calendar__filters label:has(input:checked) { border-color: #ef9a7c; color: #9d4529; background: #fff5f0; }
+.task-week-calendar__filters input { width: 15px; min-height: 15px; margin: 0; accent-color: #ef7149; }
+.task-week-calendar__filters i { width: 8px; height: 8px; border-radius: 50%; }
+.task-week-calendar__filter-all { margin-right: 3px; }
 
 .task-week-calendar__grid {
   display: grid;
-  min-width: 890px;
-  grid-template-columns: repeat(5, minmax(170px, 1fr));
+  min-width: 0;
+  grid-template-columns: repeat(7, minmax(170px, 1fr));
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .task-week-day { min-width: 0; min-height: 480px; border-right: 1px solid #e8edf3; background: #f8fafc; transition: background 180ms ease, box-shadow 180ms ease; }
@@ -2553,8 +2622,8 @@ td { font-size: 13px; }
 @media (max-width: 900px) {
   .task-management__toolbar { align-items: flex-start; }
   .task-management__toolbar > div:last-child { padding-top: 8px; }
-  .task-week-calendar { overflow-x: auto; scrollbar-width: none; }
-  .task-week-calendar::-webkit-scrollbar { display: none; }
+  .task-week-calendar__grid { scrollbar-width: none; }
+  .task-week-calendar__grid::-webkit-scrollbar { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -2562,6 +2631,8 @@ td { font-size: 13px; }
   .task-management__toolbar > div:last-child { width: 100%; padding: 0 0 12px; }
   .task-management__toolbar > div:last-child .ant-btn { flex: 1; }
   .task-week-calendar__header { align-items: flex-start; }
+  .task-week-calendar__filters { padding-inline: 12px; }
+  .task-week-calendar__filters > span { width: 100%; }
   .task-week-calendar__actions > span { display: none; }
   .task-week-calendar__actions button { min-height: 32px; padding-inline: 9px; }
 }

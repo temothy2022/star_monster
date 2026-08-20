@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { moveTaskWeekday } from "./task-week-schedule";
+import { moveTaskWeekday, taskCalendarDays } from "./task-week-schedule";
+
+const template = {
+  scheduleKind: "DAILY" as const,
+  weekdays: [],
+  oneTimeDate: null,
+};
+
+describe("taskCalendarDays", () => {
+  it("shows daily tasks from Monday through Sunday", () => {
+    expect(taskCalendarDays(template as never)).toEqual([1, 2, 3, 4, 5, 6, 0]);
+  });
+
+  it("keeps workday tasks on Monday through Friday", () => {
+    expect(taskCalendarDays({ ...template, scheduleKind: "WORKDAYS" } as never))
+      .toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("includes weekend occurrences for selected and one-time schedules", () => {
+    expect(taskCalendarDays({ ...template, scheduleKind: "SELECTED_WEEKDAYS", weekdays: [0, 3, 6] } as never))
+      .toEqual([0, 3, 6]);
+    expect(taskCalendarDays({ ...template, scheduleKind: "ONE_TIME", oneTimeDate: "2026-08-23" } as never))
+      .toEqual([0]);
+  });
+});
 
 describe("moveTaskWeekday", () => {
   it("keeps weekend scheduling when moving one occurrence of a daily task", () => {

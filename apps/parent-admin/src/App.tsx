@@ -25,7 +25,10 @@ import {
   HeartOutlined,
   HomeOutlined,
   HolderOutlined,
+  LogoutOutlined,
+  MenuFoldOutlined,
   MenuOutlined,
+  MenuUnfoldOutlined,
   PlusOutlined,
   ProfileOutlined,
   ReadOutlined,
@@ -2824,6 +2827,13 @@ export function App() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem("parent-admin-sidebar-collapsed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [loginCodeResult, setLoginCodeResult] = useState<{ childId: string; nickname: string; code: string } | null>(null);
   const [childrenLoaded, setChildrenLoaded] = useState(false);
   const [createChildOpen, setCreateChildOpen] = useState(false);
@@ -2860,6 +2870,14 @@ export function App() {
         ? "星宠-家长管理"
         : `星宠-${SECTION_LABELS[section]}`;
   }, [section, user]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("parent-admin-sidebar-collapsed", String(sidebarCollapsed));
+    } catch {
+      // A blocked localStorage should not prevent navigation from working.
+    }
+  }, [sidebarCollapsed]);
 
   async function loadChildren(preferredId?: string) {
     const result = await parentApi.children();
@@ -3015,22 +3033,34 @@ export function App() {
       </Modal>
       {feedback ? <div className={`admin-feedback-toast admin-feedback-toast--${feedback.kind}`} role="status">{feedback.text}</div> : null}
       {loginCodeResult ? <div className="parent-login-code-popover" role="status"><div><small>{loginCodeResult.nickname}的探险代码</small><code>{loginCodeResult.code}</code></div><button type="button" onClick={() => void navigator.clipboard.writeText(loginCodeResult.code)}>复制</button><button type="button" onClick={() => setLoginCodeResult(null)}>关闭</button></div> : null}
-      <Layout.Sider className="admin-sidebar" width={268} breakpoint="lg" collapsedWidth={0} trigger={null}>
-        <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div></div>
-        <div className="child-switcher"><label>当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label><button type="button" onClick={() => selectSection("children")}>管理孩子档案</button></div>
+      <Layout.Sider
+        className={`admin-sidebar${sidebarCollapsed ? " admin-sidebar--collapsed" : ""}`}
+        width={268}
+        collapsedWidth={76}
+        collapsed={sidebarCollapsed}
+        collapsible
+        breakpoint="lg"
+        trigger={null}
+      >
+        <div className="admin-brand"><span>★</span><div><strong>星宠成长基地</strong><small>家长管理平台</small></div><button className="admin-sidebar__collapse" type="button" title={sidebarCollapsed ? "展开导航" : "收起导航"} aria-label={sidebarCollapsed ? "展开导航" : "收起导航"} onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}>{sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}</button></div>
+        {sidebarCollapsed ? <button className="admin-sidebar__child-shortcut" type="button" title={selectedChild?.nickname ? `当前孩子：${selectedChild.nickname}` : "孩子管理"} aria-label={selectedChild?.nickname ? `当前孩子：${selectedChild.nickname}` : "孩子管理"} onClick={() => selectSection("children")}><UserOutlined /></button> : <div className="child-switcher"><label>当前孩子<select value={selectedChild?.id ?? ""} onChange={(event) => setSelectedChildId(event.target.value)}>{children.map((child) => <option key={child.id} value={child.id}>{child.nickname ?? `孩子 · ${child.loginCodeLastFour}`}</option>)}</select></label><button type="button" onClick={() => selectSection("children")}>管理孩子档案</button></div>}
         <Menu
+          key={sidebarCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}
           className="admin-sidebar__nav"
           mode="inline"
+          inlineCollapsed={sidebarCollapsed}
           selectedKeys={[section]}
-          defaultOpenKeys={NAV_GROUPS.map((_, index) => `nav-group-${index}`)}
+          defaultOpenKeys={sidebarCollapsed ? [] : NAV_GROUPS.map((_, index) => `nav-group-${index}`)}
           onClick={({ key }) => selectSection(key as Section)}
-          items={NAV_GROUPS.map((group, index) => ({
-            key: `nav-group-${index}`,
-            label: group.label,
-            children: group.items.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
-          }))}
+          items={sidebarCollapsed
+            ? NAV_GROUPS.flatMap((group) => group.items).map((item) => ({ key: item.key, icon: item.icon, label: item.label }))
+            : NAV_GROUPS.map((group, index) => ({
+              key: `nav-group-${index}`,
+              label: group.label,
+              children: group.items.map((item) => ({ key: item.key, icon: item.icon, label: item.label })),
+            }))}
         />
-        <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button onClick={() => void signOutParent()}>退出</button></div>
+        <div className="admin-sidebar__account"><div><strong>{user.displayName}</strong><small>{user.username}</small></div><button title="退出家长账号" aria-label="退出家长账号" onClick={() => void signOutParent()}>{sidebarCollapsed ? <LogoutOutlined /> : "退出"}</button></div>
       </Layout.Sider>
       <Layout className="admin-main">
         <Layout.Header className="admin-topbar">
