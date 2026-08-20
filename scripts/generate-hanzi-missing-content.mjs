@@ -37,11 +37,8 @@ console.log(`Need MiniMax content for ${pending.length}/${characters.length} cha
 
 for (let offset = 0; offset < pending.length; offset += batchSize) {
   const batch = pending.slice(offset, offset + batchSize);
-  const generated = await generateBatch(batch);
-  for (const item of generated) {
-    const source = batch.find((candidate) => candidate.character === item.character);
-    if (!source) throw new Error(`MiniMax returned an unexpected character: ${item.character}`);
-    const normalized = normalizeGenerated(item, source);
+  const normalizedBatch = await generateValidatedBatch(batch);
+  for (const normalized of normalizedBatch) {
     previousByCharacter.set(normalized.character, normalized);
   }
   const result = characters.map((item) => previousByCharacter.get(item.character)).filter(Boolean);
@@ -56,7 +53,7 @@ if (result.length !== characters.length) {
 }
 console.log(`Done. Content manifest: ${output}`);
 
-async function generateBatch(batch) {
+async function generateBatch(batch, feedback = "") {
   const characterList = batch.map((item) => item.character).join("、");
   const system = [
     "你是儿童识字课程编辑，只输出严格 JSON，不要 Markdown，不要解释，不要思考过程。",
@@ -67,6 +64,7 @@ async function generateBatch(batch) {
   const user = [
     `请生成这些字的资料：${characterList}`,
     "不要遗漏任何一个字，不要返回列表之外的字。",
+    feedback,
     "JSON 示例：[{\"character\":\"天\",\"pinyin\":\"tiān\",\"meaning\":\"头顶上很大的天空\",\"shapeHint\":\"像一个人头上有一片天空\",\"sentence\":\"今天的天空很蓝。\",\"words\":[\"天空\",\"白天\",\"今天\"]}]",
   ].join("\n");
 
@@ -107,6 +105,32 @@ async function generateBatch(batch) {
     }
   }
   throw lastError;
+}
+
+async function generateValidatedBatch(batch) {
+  let feedback = "";
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    const generated = await generateBatch(batch, feedback);
+    try {
+      const byCharacter = new Map();
+      for (const item of generated) {
+        const character = String(item.character || "").trim();
+        if (byCharacter.has(character)) throw new Error(`重复返回汉字 ${character}`);
+        byCharacter.set(character, item);
+      }
+      const missing = batch.map((item) => item.character).filter((character) => !byCharacter.has(character));
+      const unexpected = [...byCharacter.keys()].filter((character) => !batch.some((item) => item.character === character));
+      if (missing.length || unexpected.length) {
+        throw new Error(`返回清单不完整，缺少：${missing.join("")}；多出：${unexpected.join("")}`);
+      }
+      return batch.map((source) => normalizeGenerated(byCharacter.get(source.character), source));
+    } catch (error) {
+      feedback = `上一次返回没有通过校验，必须修正后重新输出：${error.message}`;
+      console.warn(`[content-retry ${attempt}/4] ${feedback}`);
+      if (attempt === 4) throw error;
+    }
+  }
+  throw new Error("Unable to validate MiniMax content batch.");
 }
 
 function normalizeGenerated(item, source) {
