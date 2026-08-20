@@ -1,4 +1,4 @@
-import { lazy, useEffect, useState } from "react";
+import { lazy, useEffect, useRef, useState } from "react";
 import type { TaskView } from "./tasks/TaskListPages";
 import type { PlanetKey } from "./planets/planet-data";
 import type { PageIndexRoute } from "./PageIndex";
@@ -446,6 +446,9 @@ export function App() {
     totalStars: number;
   } | null>(null);
   const [isCompletingAttempt, setIsCompletingAttempt] = useState(false);
+  const growthReturnRouteRef = useRef<"home" | "profile">(
+    window.history.state?.growthReturnRoute === "home" ? "home" : "profile",
+  );
   const { mascot, selectedPet, selectPet } = useMascot();
 
   useEffect(() => {
@@ -463,6 +466,11 @@ export function App() {
 
     const handlePopState = () => {
       const nextRoute = readRouteFromHash();
+      if (nextRoute === "growth-record") {
+        growthReturnRouteRef.current = window.history.state?.growthReturnRoute === "home"
+          ? "home"
+          : "profile";
+      }
       markChildNavigation(nextRoute);
       setRoute(nextRoute);
     };
@@ -486,8 +494,20 @@ export function App() {
 
   function navigate(nextRoute: AppRoute) {
     if (nextRoute === route) return;
+    const historyState: { route: AppRoute; growthReturnRoute?: "home" | "profile" } = {
+      route: nextRoute,
+    };
+    if (nextRoute === "growth-record") {
+      const returnRoute = route === "profile"
+        ? "profile"
+        : route === "fever-record"
+          ? growthReturnRouteRef.current
+          : "home";
+      growthReturnRouteRef.current = returnRoute;
+      historyState.growthReturnRoute = returnRoute;
+    }
     markChildNavigation(nextRoute);
-    window.history.pushState({ route: nextRoute }, "", `#${nextRoute}`);
+    window.history.pushState(historyState, "", `#${nextRoute}`);
     setRoute(nextRoute);
   }
 
@@ -1033,7 +1053,7 @@ export function App() {
   }
 
   if (route === "growth-record") {
-    return <ChildGrowthPage onBack={() => navigate("profile")} onFever={() => navigate("fever-record")} />;
+    return <ChildGrowthPage onBack={() => navigate(growthReturnRouteRef.current)} onFever={() => navigate("fever-record")} />;
   }
 
   if (route === "fever-record") {

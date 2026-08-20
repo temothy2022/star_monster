@@ -9,6 +9,11 @@ import { ChildControlIcon } from "../components/ChildControlIcon";
 import { ChildDataState } from "../components/ChildDataState";
 import growthJourney from "@star-monsters/assets/images/growth/growth-journey.webp";
 import healthThermometer from "@star-monsters/assets/images/task-dashboard/health-thermometer.webp";
+import bodyRecordIcon from "@star-monsters/assets/icons/growth-record/body.svg";
+import sleepRecordIcon from "@star-monsters/assets/icons/growth-record/sleep.svg";
+import exerciseRecordIcon from "@star-monsters/assets/icons/growth-record/exercise.svg";
+import outdoorRecordIcon from "@star-monsters/assets/icons/growth-record/outdoor.svg";
+import otherRecordIcon from "@star-monsters/assets/icons/growth-record/other.svg";
 
 const CATEGORY_LABELS: Record<ChildGrowthSummary["milestones"][number]["category"], string> = {
   SELF_CARE: "我会自己做",
@@ -43,6 +48,29 @@ type GrowthDraft = {
   energyScore: string;
   appetiteScore: string;
   note: string;
+};
+
+type GrowthRecordCategory = "BODY" | "SLEEP" | "EXERCISE" | "OUTDOOR" | "OTHER";
+
+const RECORD_CATEGORIES: ReadonlyArray<{
+  key: GrowthRecordCategory;
+  label: string;
+  description: string;
+  icon: string;
+}> = [
+  { key: "BODY", label: "身高体重", description: "记录身体的变化", icon: bodyRecordIcon },
+  { key: "SLEEP", label: "睡眠", description: "记录入睡、起床和午睡", icon: sleepRecordIcon },
+  { key: "EXERCISE", label: "运动", description: "记录今天运动了多久", icon: exerciseRecordIcon },
+  { key: "OUTDOOR", label: "户外", description: "记录阳光下的活动", icon: outdoorRecordIcon },
+  { key: "OTHER", label: "其他", description: "记录状态、屏幕和小事", icon: otherRecordIcon },
+];
+
+const RECORD_CATEGORY_TITLES: Record<GrowthRecordCategory, string> = {
+  BODY: "记录身高体重",
+  SLEEP: "记录睡眠",
+  EXERCISE: "记录运动",
+  OUTDOOR: "记录户外活动",
+  OTHER: "记录其他情况",
 };
 
 const EMPTY_DRAFT: GrowthDraft = {
@@ -104,6 +132,17 @@ function optionalNumber(value: string) {
   return value.trim() === "" ? null : Number(value);
 }
 
+function categoryHasValue(category: GrowthRecordCategory, draft: GrowthDraft) {
+  const fields: Record<GrowthRecordCategory, Array<keyof GrowthDraft>> = {
+    BODY: ["heightCm", "weightKg"],
+    SLEEP: ["sleepStart", "wakeTime", "napMinutes", "sleepQuality"],
+    EXERCISE: ["exerciseMinutes"],
+    OUTDOOR: ["outdoorMinutes"],
+    OTHER: ["screenMinutes", "moodScore", "energyScore", "appetiteScore", "note"],
+  };
+  return fields[category].some((key) => draft[key].trim() !== "");
+}
+
 function todayKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -126,6 +165,7 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
   const [growth, setGrowth] = useState<ChildGrowthSummary | null>(null);
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState(false);
+  const [recordCategory, setRecordCategory] = useState<GrowthRecordCategory | null>(null);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState<GrowthDraft>(EMPTY_DRAFT);
 
@@ -146,6 +186,10 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
   };
 
   const saveToday = async () => {
+    if (!recordCategory || !categoryHasValue(recordCategory, draft)) {
+      setMessage("请先填写当前记录中的一项内容");
+      return;
+    }
     const input: ChildGrowthRecordInput = {
       heightCm: optionalNumber(draft.heightCm),
       weightKg: optionalNumber(draft.weightKg),
@@ -195,6 +239,7 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
       await saveChildGrowthRecord(todayKey(), input);
       await loadGrowth();
       setEditing(false);
+      setRecordCategory(null);
       setMessage("今天的成长记录保存好了");
     } catch (reason) {
       setMessage(reason instanceof Error ? reason.message : "保存失败，请再试一次");
@@ -215,45 +260,107 @@ export function ChildGrowthPage({ onBack, onFever }: { onBack: () => void; onFev
   return (
     <main className="child-growth-page">
       <header className="child-growth-page__header">
-        <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回个人中心"><ChildControlIcon kind="back" /></button>
-        <div><span>我的探险档案</span><h1>我的成长</h1><p>每一次坚持和第一次做到，都值得被记住。</p></div>
-        <button type="button" className="child-growth-page__record" onClick={() => setEditing((value) => !value)}>{editing ? "收起记录" : growth.todayRecord ? "修改今天" : "记录今天"}</button>
+        <button type="button" className="child-profile-page__back" onClick={onBack} aria-label="返回"><ChildControlIcon kind="back" /></button>
+        <div><h1>我的成长</h1></div>
+        <button
+          type="button"
+          className="child-growth-page__record"
+          onClick={() => {
+            if (editing) {
+              setDraft(draftFromSummary(growth));
+              setRecordCategory(null);
+              setEditing(false);
+              return;
+            }
+            setMessage("");
+            setRecordCategory(null);
+            setEditing(true);
+          }}
+        >{editing ? "收起记录" : growth.todayRecord ? "修改今天" : "记录今天"}</button>
       </header>
 
       {message ? <div className={`child-growth-message${message.includes("失败") || message.includes("请填写") || message.includes("至少") ? " is-error" : ""}`} role="status">{message}</div> : null}
 
-      {editing ? (
+      {editing && !recordCategory ? (
+        <section className="child-growth-record-picker" aria-label="选择今天要记录的内容">
+          <header><h2>今天想记录什么？</h2><p>选择一项，只填写现在需要记录的内容。</p></header>
+          <div className="child-growth-record-picker__grid">
+            {RECORD_CATEGORIES.map((category) => (
+              <button key={category.key} type="button" onClick={() => { setMessage(""); setRecordCategory(category.key); }}>
+                <img src={category.icon} alt="" />
+                <span><strong>{category.label}</strong><small>{category.description}</small></span>
+                <ChildControlIcon kind="next" />
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {editing && recordCategory ? (
         <section className="child-growth-recorder" aria-label="记录今天的成长情况">
-          <header><div><span>今天的成长日记</span><h2>我今天怎么样</h2></div><time>{todayKey().slice(5).replace("-", "月")}日</time></header>
-          <div className="child-growth-recorder__section">
-            <h3>身体记录 <small>不测量可以留空</small></h3>
-            <div className="child-growth-recorder__measurements">
-              <label><span>身高</span><div><input type="number" inputMode="decimal" min="40" max="230" step="0.1" value={draft.heightCm} onChange={(event) => setField("heightCm", event.target.value)} placeholder="例如 118.5" /><b>厘米</b></div></label>
-              <label><span>体重</span><div><input type="number" inputMode="decimal" min="2" max="250" step="0.1" value={draft.weightKg} onChange={(event) => setField("weightKg", event.target.value)} placeholder="例如 22.5" /><b>千克</b></div></label>
+          <header><div><span>今天的成长记录</span><h2>{RECORD_CATEGORY_TITLES[recordCategory]}</h2></div><time>{todayKey().slice(5).replace("-", "月")}日</time></header>
+
+          {recordCategory === "BODY" ? (
+            <div className="child-growth-recorder__section">
+              <h3>身体变化 <small>没有测量的项目可以留空</small></h3>
+              <div className="child-growth-recorder__measurements">
+                <label><span>身高</span><div><input type="number" inputMode="decimal" min="40" max="230" step="0.1" value={draft.heightCm} onChange={(event) => setField("heightCm", event.target.value)} placeholder="例如 118.5" /><b>厘米</b></div></label>
+                <label><span>体重</span><div><input type="number" inputMode="decimal" min="2" max="250" step="0.1" value={draft.weightKg} onChange={(event) => setField("weightKg", event.target.value)} placeholder="例如 22.5" /><b>千克</b></div></label>
+              </div>
             </div>
-          </div>
-          <div className="child-growth-recorder__section">
-            <h3>作息与活动 <small>按今天实际情况记录</small></h3>
-            <div className="child-growth-recorder__grid">
-              <label><span>昨晚入睡</span><input type="time" value={draft.sleepStart} onChange={(event) => setField("sleepStart", event.target.value)} /></label>
-              <label><span>今天起床</span><input type="time" value={draft.wakeTime} onChange={(event) => setField("wakeTime", event.target.value)} /></label>
-              <label><span>午睡</span><div><input type="number" inputMode="numeric" min="0" max="600" value={draft.napMinutes} onChange={(event) => setField("napMinutes", event.target.value)} placeholder="0" /><b>分钟</b></div></label>
-              <label><span>户外活动</span><div><input type="number" inputMode="numeric" min="0" max="1440" value={draft.outdoorMinutes} onChange={(event) => setField("outdoorMinutes", event.target.value)} placeholder="0" /><b>分钟</b></div></label>
-              <label><span>运动</span><div><input type="number" inputMode="numeric" min="0" max="1440" value={draft.exerciseMinutes} onChange={(event) => setField("exerciseMinutes", event.target.value)} placeholder="0" /><b>分钟</b></div></label>
-              <label><span>看屏幕</span><div><input type="number" inputMode="numeric" min="0" max="1440" value={draft.screenMinutes} onChange={(event) => setField("screenMinutes", event.target.value)} placeholder="0" /><b>分钟</b></div></label>
+          ) : null}
+
+          {recordCategory === "SLEEP" ? (
+            <div className="child-growth-recorder__section">
+              <h3>睡眠情况 <small>按实际情况记录</small></h3>
+              <div className="child-growth-recorder__grid">
+                <label><span>昨晚入睡</span><input type="time" value={draft.sleepStart} onChange={(event) => setField("sleepStart", event.target.value)} /></label>
+                <label><span>今天起床</span><input type="time" value={draft.wakeTime} onChange={(event) => setField("wakeTime", event.target.value)} /></label>
+                <label><span>午睡</span><div><input type="number" inputMode="numeric" min="0" max="600" value={draft.napMinutes} onChange={(event) => setField("napMinutes", event.target.value)} placeholder="0" /><b>分钟</b></div></label>
+              </div>
+              <div className="child-growth-recorder__scores child-growth-recorder__scores--single">
+                <ScoreChoice label="睡眠质量" value={draft.sleepQuality} onChange={(value) => setField("sleepQuality", value)} />
+              </div>
             </div>
-          </div>
-          <div className="child-growth-recorder__section">
-            <h3>今天的状态 <small>点一下最接近的感觉</small></h3>
-            <div className="child-growth-recorder__scores">
-              <ScoreChoice label="睡眠" value={draft.sleepQuality} onChange={(value) => setField("sleepQuality", value)} />
-              <ScoreChoice label="心情" value={draft.moodScore} onChange={(value) => setField("moodScore", value)} />
-              <ScoreChoice label="精神" value={draft.energyScore} onChange={(value) => setField("energyScore", value)} />
-              <ScoreChoice label="食欲" value={draft.appetiteScore} onChange={(value) => setField("appetiteScore", value)} />
+          ) : null}
+
+          {recordCategory === "EXERCISE" ? (
+            <div className="child-growth-recorder__section">
+              <h3>运动情况 <small>跑跳、球类、游泳等都可以记录</small></h3>
+              <div className="child-growth-recorder__measurements child-growth-recorder__measurements--single">
+                <label><span>运动时长</span><div><input type="number" inputMode="numeric" min="0" max="1440" value={draft.exerciseMinutes} onChange={(event) => setField("exerciseMinutes", event.target.value)} placeholder="例如 45" /><b>分钟</b></div></label>
+              </div>
             </div>
-            <label className="child-growth-recorder__note"><span>还想记下什么</span><textarea rows={3} maxLength={1000} value={draft.note} onChange={(event) => setField("note", event.target.value)} placeholder="今天发生的事情、哪里不舒服，或者值得记住的小进步……" /></label>
-          </div>
-          <footer><button type="button" className="child-growth-recorder__cancel" onClick={() => { setDraft(draftFromSummary(growth)); setEditing(false); }}>取消</button><button type="button" className="child-growth-recorder__save" disabled={saving} onClick={() => void saveToday()}>{saving ? "正在保存" : "保存今天"}</button></footer>
+          ) : null}
+
+          {recordCategory === "OUTDOOR" ? (
+            <div className="child-growth-recorder__section">
+              <h3>户外活动 <small>记录今天在户外活动的时间</small></h3>
+              <div className="child-growth-recorder__measurements child-growth-recorder__measurements--single">
+                <label><span>户外时长</span><div><input type="number" inputMode="numeric" min="0" max="1440" value={draft.outdoorMinutes} onChange={(event) => setField("outdoorMinutes", event.target.value)} placeholder="例如 60" /><b>分钟</b></div></label>
+              </div>
+            </div>
+          ) : null}
+
+          {recordCategory === "OTHER" ? (
+            <div className="child-growth-recorder__section">
+              <h3>今天的其他情况 <small>只填写想记录的内容</small></h3>
+              <div className="child-growth-recorder__measurements child-growth-recorder__measurements--single">
+                <label><span>看屏幕</span><div><input type="number" inputMode="numeric" min="0" max="1440" value={draft.screenMinutes} onChange={(event) => setField("screenMinutes", event.target.value)} placeholder="0" /><b>分钟</b></div></label>
+              </div>
+              <div className="child-growth-recorder__scores">
+                <ScoreChoice label="心情" value={draft.moodScore} onChange={(value) => setField("moodScore", value)} />
+                <ScoreChoice label="精神" value={draft.energyScore} onChange={(value) => setField("energyScore", value)} />
+                <ScoreChoice label="食欲" value={draft.appetiteScore} onChange={(value) => setField("appetiteScore", value)} />
+              </div>
+              <label className="child-growth-recorder__note"><span>还想记下什么</span><textarea rows={3} maxLength={1000} value={draft.note} onChange={(event) => setField("note", event.target.value)} placeholder="今天发生的事情、哪里不舒服，或者值得记住的小进步……" /></label>
+            </div>
+          ) : null}
+
+          <footer>
+            <button type="button" className="child-growth-recorder__cancel" onClick={() => { setMessage(""); setRecordCategory(null); }}>返回选择</button>
+            <button type="button" className="child-growth-recorder__save" disabled={saving} onClick={() => void saveToday()}>{saving ? "正在保存" : "保存记录"}</button>
+          </footer>
         </section>
       ) : null}
 

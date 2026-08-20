@@ -1060,7 +1060,12 @@ function HealthRecordWidget({
   onNavigate?: (route: ChildRoute) => void;
 }) {
   return (
-    <button type="button" className="task-widget-health" onClick={() => onNavigate?.("growth-record")}>
+    <button
+      type="button"
+      className="task-widget-health"
+      data-dashboard-drag-through
+      onClick={() => onNavigate?.("growth-record")}
+    >
       <img className="task-widget-health__thermometer" src={healthThermometer} alt="" />
       <span>
         <small>{episode ? "发热记录中" : "成长记录"}</small>

@@ -199,6 +199,7 @@ export function TaskDashboard({
   const resizeRef = useRef<ResizeSession | null>(null);
   const dropOverlayRef = useRef<HTMLElement | null>(null);
   const dropCleanupTimerRef = useRef<number | null>(null);
+  const suppressWidgetClickUntilRef = useRef(0);
   const widgetsRef = useRef(draftWidgets);
   const columnsRef = useRef(draftColumns);
   const previousRectsRef = useRef<Map<TaskDashboardWidgetKey, DOMRect> | null>(null);
@@ -343,6 +344,7 @@ export function TaskDashboard({
 
   function finishDragSession(session: DragSession | null, animateDrop: boolean) {
     if (!session || dragRef.current !== session) return;
+    if (session.activated) suppressWidgetClickUntilRef.current = performance.now() + 600;
 
     // Clear the ref before releasing capture. Safari can synchronously emit
     // lostpointercapture, which must not finish the same drag twice.
@@ -495,8 +497,8 @@ export function TaskDashboard({
   function beginDrag(key: TaskDashboardWidgetKey, event: ReactPointerEvent<HTMLElement>) {
     if (event.button !== 0) return;
     if (settlingWidget !== null) return;
-    const interactive = (event.target as HTMLElement).closest("button, a, input, select, textarea");
-    if (interactive) return;
+    const interactive = (event.target as HTMLElement).closest<HTMLElement>("button, a, input, select, textarea");
+    if (interactive && !interactive.hasAttribute("data-dashboard-drag-through")) return;
     const previous = dragRef.current;
     if (previous) finishDragSession(previous, false);
     const rect = event.currentTarget.getBoundingClientRect();
@@ -885,6 +887,11 @@ export function TaskDashboard({
                 onPointerMove={moveDrag}
                 onPointerUp={finishDrag}
                 onPointerCancel={finishDrag}
+                onClickCapture={(event) => {
+                  if (performance.now() >= suppressWidgetClickUntilRef.current) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
                 onContextMenu={(event) => event.preventDefault()}
               >
                 {editing && (
