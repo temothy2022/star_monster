@@ -300,6 +300,138 @@
   .task-list-scroll-rail__thumb img { animation: none; }
 }
 
+/* The Hanzi start screen must fit the Safari viewport, including its bottom
+   browser chrome. The flow itself may scroll; its controls must remain usable. */
+@media (max-width: 600px) {
+  .hanzi-page.hanzi-page--home {
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    grid-template-rows: auto auto auto;
+    row-gap: 12px;
+    padding: max(10px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--home .hanzi-home-header {
+    width: calc(100% - 24px);
+    height: auto;
+    min-height: 54px;
+    margin: 0 auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hanzi-page--home .hanzi-home-header h1 {
+    overflow: hidden;
+    font-size: clamp(26px, 8vw, 32px);
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hanzi-page--home .hanzi-header-spacer {
+    width: 44px;
+    height: 44px;
+  }
+
+  .hanzi-page--home .hanzi-time-chip {
+    height: 42px;
+    margin-right: 0;
+    padding-inline: 10px;
+    font-size: 14px;
+  }
+
+  .hanzi-page--home .hanzi-stage-list {
+    width: calc(100% - 24px);
+    height: auto;
+    grid-template-rows: none;
+    align-self: auto;
+    gap: 10px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card {
+    min-height: 112px;
+    height: auto;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card__icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    font-size: 30px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card__copy > div {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card h2 { font-size: 20px; }
+  .hanzi-page--home .hanzi-stage-card strong { font-size: 13px; white-space: nowrap; }
+  .hanzi-page--home .hanzi-stage-card p { margin: 4px 0 8px; font-size: 15px; line-height: 1.35; }
+  .hanzi-page--home .hanzi-stage-card small { padding: 3px 9px; font-size: 12px; }
+
+  .hanzi-page--home .hanzi-bottom-action {
+    width: calc(100% - 24px);
+    height: 54px;
+    margin: 0 auto;
+  }
+
+  .hanzi-page--home .hanzi-bottom-action button {
+    width: 100%;
+    min-width: 0;
+    height: 54px;
+    border-radius: 16px;
+    font-size: 21px;
+  }
+}
+
+.release-notes-page {
+  min-height: 100%;
+  overflow-y: auto;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+  color: #253b59;
+  background: #fff8e9;
+}
+
+.release-notes-page__shell { width: min(900px, 100%); margin: 0 auto; }
+.release-notes-page__header { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: start; gap: 18px; }
+.release-notes-page__back { width: 52px; height: 52px; padding: 12px; border: 2px solid #253b59; border-radius: 18px; background: #fffdf7; box-shadow: 0 4px 0 rgb(37 59 89 / 14%); }
+.release-notes-page__back:active { transform: translateY(3px); box-shadow: 0 1px 0 rgb(37 59 89 / 14%); }
+.release-notes-page__header p { margin: 2px 0 4px; color: #ee7042; font-size: 13px; font-weight: 900; letter-spacing: .08em; }
+.release-notes-page__header h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; }
+.release-notes-page__header span { display: block; margin-top: 8px; color: #73839a; font-size: 16px; }
+.release-notes-page__current { margin-top: 28px; padding: clamp(22px, 4vw, 36px); border: 2px solid #253b59; border-radius: 24px; background: #fffdf7; box-shadow: 0 8px 0 rgb(37 59 89 / 12%); }
+.release-notes-page__current-top { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.release-notes-page__current small { color: #ee7042; font-weight: 900; }
+.release-notes-page__current h2 { margin: 6px 0 0; font-size: clamp(24px, 3vw, 34px); }
+.release-notes-page__current-top strong { max-width: 45%; overflow-wrap: anywhere; color: #ee7042; font-family: var(--sm-font-numeric); font-size: clamp(16px, 2vw, 22px); text-align: right; }
+.release-notes-page__meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; color: #7b8899; font-size: 14px; }
+.release-notes-page__current ul { display: grid; gap: 14px; margin: 28px 0 0; padding: 0; list-style: none; }
+.release-notes-page__current li { position: relative; padding-left: 24px; color: #4e5e73; font-size: 17px; line-height: 1.6; }
+.release-notes-page__current li::before { position: absolute; top: .72em; left: 0; width: 9px; height: 9px; border-radius: 50%; background: #ee7042; content: ""; }
+.release-notes-page__howto { margin-top: 24px; padding: 18px 22px; border-radius: 18px; background: #eaf5ff; color: #526b86; }
+.release-notes-page__howto span { color: #477dac; font-weight: 900; }
+.release-notes-page__howto p { margin: 6px 0 0; line-height: 1.6; }
+
+@media (max-width: 600px) {
+  .release-notes-page { padding-inline: 12px; }
+  .release-notes-page__header { grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
+  .release-notes-page__back { width: 44px; height: 44px; padding: 10px; border-radius: 14px; }
+  .release-notes-page__header h1 { font-size: 30px; }
+  .release-notes-page__header span { font-size: 14px; }
+  .release-notes-page__current { margin-top: 18px; padding: 18px; border-radius: 18px; }
+  .release-notes-page__current-top { display: grid; gap: 8px; }
+  .release-notes-page__current-top strong { max-width: 100%; text-align: left; }
+  .release-notes-page__current li { font-size: 15px; }
+}
+
 /* 最终移动端覆盖：独立任务页的内容滚动区不能再使用桌面绝对定位偏移。 */
 @media (max-width: 700px) {
   .task-list-main .task-list-panel--full {

@@ -42,6 +42,7 @@ export type PageIndexRoute =
   | "math-preview"
   | "math-print"
   | "bundle-practice"
+  | "release-notes"
   | "poem-recitation";
 
 type PageGroup = {
@@ -145,6 +146,7 @@ const featureEntries: Array<{
 }> = [
   { route: "math-print", name: "A4 数学练习卷", note: "选择题型、生成并打印练习卷", icon: worksheetFeatureIcon, tone: "orange" },
   { route: "bundle-practice", name: "几捆几根", note: "用实物摆放练习数量组成", icon: bundleFeatureIcon, tone: "green" },
+  { route: "release-notes", name: "发布记录", note: "查看当前版本和本次发布功能", icon: rocketIcon, tone: "blue" },
 ];
 
 const PARENT_APP_URL =

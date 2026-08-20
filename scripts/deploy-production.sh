@@ -83,7 +83,9 @@ if [[ -n "$(git status --porcelain)" ]]; then
   RELEASE_VERSION="$(git rev-parse --short HEAD)-dirty-$(date -u +%Y%m%d%H%M%S)"
   echo "Warning: publishing an explicitly allowed uncommitted working tree as $RELEASE_VERSION"
 else
-  RELEASE_VERSION="$(git rev-parse HEAD)"
+  # Include the release batch time so re-publishing the same commit still
+  # invalidates the installed web app and appears as a new release.
+  RELEASE_VERSION="$(git rev-parse HEAD)-$(date -u +%Y%m%d%H%M%S)"
 fi
 
 echo "1/3 Building the shared math package, API and four web apps locally..."

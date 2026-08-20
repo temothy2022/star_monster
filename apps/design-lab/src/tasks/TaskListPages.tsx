@@ -1508,25 +1508,15 @@ export function TaskExperience({
   const [dashboardPostcards, setDashboardPostcards] = useState<PetTrip[] | null | undefined>(undefined);
   const [dashboardReviews, setDashboardReviews] = useState<TaskDashboardReviewSummary | null | undefined>(undefined);
   const [dashboardFeverEpisode, setDashboardFeverEpisode] = useState<FeverEpisode | null | undefined>(undefined);
-  const [phoneLayout, setPhoneLayout] = useState(() => window.matchMedia(
-    "(max-width: 600px), (pointer: coarse) and (max-height: 600px)",
-  ).matches);
   const onStartAttemptRef = useRef(onStartAttempt);
-  const dashboardActive = variant === "dashboard" && !phoneLayout;
+  // The home route is the component dashboard on every viewport. Mobile has
+  // its own compact grid; only the dedicated tasks route is list-only.
+  const dashboardActive = variant === "dashboard";
   const listOnly = variant === "list";
 
   useEffect(() => {
     onStartAttemptRef.current = onStartAttempt;
   }, [onStartAttempt]);
-
-  useEffect(() => {
-    const media = window.matchMedia(
-      "(max-width: 600px), (pointer: coarse) and (max-height: 600px)",
-    );
-    const update = () => setPhoneLayout(media.matches);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
 
   function updateExperience(nextExperience: TodayTaskExperience) {
     experienceRef.current = nextExperience;

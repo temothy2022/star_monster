@@ -22,6 +22,12 @@ const GENERATION_RETRY_MS = 10 * 60 * 1_000;
 const PROMPT_POOL_SIZE = 100;
 const PROMPT_BATCH_SIZE = 12;
 const PROMPT_BATCH_MAX_ATTEMPTS = 12;
+const BUILTIN_CHALLENGE_PROMPTS = [
+  "今天还没有出发吗？先完成一项小任务，我们一起开始吧！",
+  "星星在等你点亮，选一个最简单的任务试试看吧！",
+  "我先在这里等你，完成一项任务就能向前走一步啦！",
+  "今天的探险还没开始，先做一件小事，再来和我报到吧！",
+];
 const promptBatchSchema = z.object({
   messages: z.array(z.string()).min(1).max(40),
 });
@@ -72,10 +78,11 @@ export function challengeOfferEligible(input: {
   totalParticipants: number;
   selfIndex: number;
 }) {
-  return input.minuteOfDay >= 12 * 60
+  const noProgressToday = input.completedTasks === 0;
+  return input.minuteOfDay >= 9 * 60
     && input.completedTasks <= 1
-    && input.selfIndex > 0
-    && (input.rank === null || input.rank > Math.ceil(input.totalParticipants / 2));
+    && input.selfIndex >= 0
+    && (noProgressToday || input.rank === null || input.rank > Math.ceil(input.totalParticipants / 2));
 }
 
 export function normalizeVirtualMessage(text: string) {
@@ -253,19 +260,29 @@ export async function challengePromptPoolSummary() {
 }
 
 async function takeRandomPrompt(config: AppConfig, childName: string | null | undefined) {
-  await ensureChallengePromptPool(config);
-  const candidates = await prisma.challengePromptTemplate.findMany({
-    where: { isEnabled: true },
-    orderBy: [{ usageCount: "asc" }, { createdAt: "asc" }],
-    take: 20,
-  });
-  const selected = candidates[Math.floor(Math.random() * candidates.length)];
-  if (!selected) throw new HttpError(409, "CHALLENGE_PROMPT_POOL_EMPTY", "挑战来信话术库为空");
-  await prisma.challengePromptTemplate.update({
-    where: { id: selected.id },
-    data: { usageCount: { increment: 1 } },
-  });
-  return renderPromptTemplate(selected.text, childName);
+  try {
+    await ensureChallengePromptPool(config);
+    const candidates = await prisma.challengePromptTemplate.findMany({
+      where: { isEnabled: true },
+      orderBy: [{ usageCount: "asc" }, { createdAt: "asc" }],
+      take: 20,
+    });
+    const selected = candidates[Math.floor(Math.random() * candidates.length)];
+    if (selected) {
+      await prisma.challengePromptTemplate.update({
+        where: { id: selected.id },
+        data: { usageCount: { increment: 1 } },
+      });
+      return renderPromptTemplate(selected.text, childName);
+    }
+  } catch (error) {
+    if (!(error instanceof HttpError && error.code === "CHALLENGE_PROMPT_POOL_NOT_READY")) throw error;
+  }
+
+  // The encouragement path must work before an administrator prepares the
+  // optional prompt pool, and must not spend an AI request for a short nudge.
+  const fallback = BUILTIN_CHALLENGE_PROMPTS[Math.floor(Math.random() * BUILTIN_CHALLENGE_PROMPTS.length)];
+  return renderPromptTemplate(fallback, childName);
 }
 
 type LoadedConversation = NonNullable<Awaited<ReturnType<typeof loadTodayConversation>>>;
@@ -557,6 +574,7 @@ async function eligiblePartner(childId: string, config: AppConfig, now: Date, fo
     selfIndex,
   })) return null;
   const partner = daily.entries[selfIndex - 1]
+    ?? (daily.self.completedTasks === 0 ? daily.entries.find((entry) => !entry.isSelf) : undefined)
     ?? (force ? daily.entries.find((entry) => !entry.isSelf) : undefined);
   if (!partner?.competitorId || !partner.avatarKey || partner.isSelf) return null;
   return {

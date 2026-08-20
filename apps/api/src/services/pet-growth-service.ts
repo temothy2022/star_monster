@@ -473,7 +473,7 @@ export async function getPetNotificationSummary(
   appConfig: AppConfig,
   now = new Date(),
 ) {
-  const [returnedPostcard, redPacketCount, challengeLetter] = await Promise.all([
+  let [returnedPostcard, redPacketCount, challengeLetter] = await Promise.all([
     prisma.petTrip.findFirst({
       where: {
         childId,
@@ -493,7 +493,14 @@ export async function getPetNotificationSummary(
   ]);
 
   if (!challengeLetter) {
-    void generateChallengeLetterIfEligible(childId, appConfig, now).catch(() => undefined);
+    // Generate and read back in the same request so a child who has made no
+    // progress today sees the encouragement immediately, not after polling.
+    try {
+      await generateChallengeLetterIfEligible(childId, appConfig, now);
+      challengeLetter = await challengeLetterNotification(childId, appConfig, now);
+    } catch {
+      // A motivational message must never make the notification widget fail.
+    }
   }
 
   return {

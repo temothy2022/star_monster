@@ -223,10 +223,14 @@ const HanziListenWrong = lazy(() =>
 const PageIndex = lazy(() =>
   import("./PageIndex").then((module) => ({ default: module.PageIndex })),
 );
+const ReleaseNotesPage = lazy(() =>
+  import("./ReleaseNotesPage").then((module) => ({ default: module.ReleaseNotesPage })),
+);
 
 type AppRoute =
   | "login"
   | "pages"
+  | "release-notes"
   | "step-1"
   | "step-2"
   | "step-3"
@@ -303,6 +307,7 @@ function readRouteFromHash(): AppRoute {
   const routes: AppRoute[] = [
     "login",
     "pages",
+    "release-notes",
     "step-1",
     "step-2",
     "step-3",
@@ -807,6 +812,10 @@ export function App() {
 
   if (route === "pages") {
     return <PageIndex onNavigate={(nextRoute: PageIndexRoute) => navigate(nextRoute)} />;
+  }
+
+  if (route === "release-notes") {
+    return <ReleaseNotesPage onBack={() => navigate("pages")} />;
   }
 
   if (route === "math-preview") {

@@ -17,9 +17,10 @@ describe("你的挑战伙伴规则", () => {
     expect(directParticipantIds("child-z", "child-a")).toEqual(["child-a", "child-z"]);
     expect(directParticipantIds("child-a", "child-z")).toEqual(["child-a", "child-z"]);
   });
-  it("只在中午后、低完成量且处于后半区时触发", () => {
+  it("白天未完成任务时主动触发，已有进度则只在后半区触发", () => {
+    expect(challengeOfferEligible({ minuteOfDay: 540, completedTasks: 0, rank: 1, totalParticipants: 14, selfIndex: 0 })).toBe(true);
+    expect(challengeOfferEligible({ minuteOfDay: 539, completedTasks: 0, rank: null, totalParticipants: 14, selfIndex: 13 })).toBe(false);
     expect(challengeOfferEligible({ minuteOfDay: 720, completedTasks: 1, rank: 9, totalParticipants: 14, selfIndex: 8 })).toBe(true);
-    expect(challengeOfferEligible({ minuteOfDay: 719, completedTasks: 0, rank: null, totalParticipants: 14, selfIndex: 13 })).toBe(false);
     expect(challengeOfferEligible({ minuteOfDay: 840, completedTasks: 2, rank: 12, totalParticipants: 14, selfIndex: 11 })).toBe(false);
   });
 
