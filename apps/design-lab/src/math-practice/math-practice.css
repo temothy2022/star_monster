@@ -1397,7 +1397,8 @@
 }
 .math-session .math-preview__stage { width: 100%; }
 .math-session__header { min-height: 70px; margin-bottom: 15px; display: grid; grid-template-columns: 58px 1fr minmax(220px, .7fr); align-items: center; gap: 14px; }
-.math-session__header > button { width: 52px; height: 52px; padding: 0; border: 0; border-radius: 18px; color: #253b59; background: #fff; box-shadow: 0 8px 20px rgba(37,59,89,.08); font-size: 40px; line-height: 1; }
+.math-session__header > button { display: grid; width: 52px; height: 52px; padding: 0; overflow: hidden; place-items: center; border: 0; border-radius: 18px; color: #253b59; background: #fff; box-shadow: 0 8px 20px rgba(37,59,89,.08); line-height: 0; }
+.math-session__header > button > .child-control-icon--back { display: block; width: 24px; height: 24px; max-width: 24px; max-height: 24px; object-fit: contain; }
 .math-session__header h1 { margin: 0; font-size: 25px; }
 .math-session__progress { display: flex; align-items: center; gap: 10px; }
 .math-session__progress > div { height: 13px; flex: 1; overflow: hidden; border-radius: 999px; background: rgba(37,59,89,.1); }

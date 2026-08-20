@@ -300,98 +300,6 @@
   .task-list-scroll-rail__thumb img { animation: none; }
 }
 
-/* The Hanzi start screen must fit the Safari viewport, including its bottom
-   browser chrome. The flow itself may scroll; its controls must remain usable. */
-@media (max-width: 600px) {
-  .hanzi-page.hanzi-page--home {
-    height: var(--app-visible-height, 100dvh);
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    grid-template-rows: auto auto auto;
-    row-gap: 12px;
-    padding: max(10px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
-  }
-
-  .hanzi-page--home .hanzi-home-header {
-    width: calc(100% - 24px);
-    height: auto;
-    min-height: 54px;
-    margin: 0 auto;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .hanzi-page--home .hanzi-home-header h1 {
-    overflow: hidden;
-    font-size: clamp(26px, 8vw, 32px);
-    line-height: 1.15;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .hanzi-page--home .hanzi-header-spacer {
-    width: 44px;
-    height: 44px;
-  }
-
-  .hanzi-page--home .hanzi-time-chip {
-    height: 42px;
-    margin-right: 0;
-    padding-inline: 10px;
-    font-size: 14px;
-  }
-
-  .hanzi-page--home .hanzi-stage-list {
-    width: calc(100% - 24px);
-    height: auto;
-    grid-template-rows: none;
-    align-self: auto;
-    gap: 10px;
-  }
-
-  .hanzi-page--home .hanzi-stage-card {
-    min-height: 112px;
-    height: auto;
-    grid-template-columns: 64px minmax(0, 1fr);
-    gap: 12px;
-    padding: 14px;
-    border-radius: 16px;
-  }
-
-  .hanzi-page--home .hanzi-stage-card__icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 16px;
-    font-size: 30px;
-  }
-
-  .hanzi-page--home .hanzi-stage-card__copy > div {
-    align-items: center;
-    gap: 8px;
-  }
-
-  .hanzi-page--home .hanzi-stage-card h2 { font-size: 20px; }
-  .hanzi-page--home .hanzi-stage-card strong { font-size: 13px; white-space: nowrap; }
-  .hanzi-page--home .hanzi-stage-card p { margin: 4px 0 8px; font-size: 15px; line-height: 1.35; }
-  .hanzi-page--home .hanzi-stage-card small { padding: 3px 9px; font-size: 12px; }
-
-  .hanzi-page--home .hanzi-bottom-action {
-    width: calc(100% - 24px);
-    height: 54px;
-    margin: 0 auto;
-  }
-
-  .hanzi-page--home .hanzi-bottom-action button {
-    width: 100%;
-    min-width: 0;
-    height: 54px;
-    border-radius: 16px;
-    font-size: 21px;
-  }
-}
-
 .release-notes-page {
   min-height: 100%;
   overflow-y: auto;
@@ -17336,6 +17244,593 @@ button:has(> :is(.child-control-icon--close, .child-control-icon--menu)) {
   background: transparent;
   box-shadow: none;
   line-height: 0;
+}
+
+/* Phone-only Hanzi layout. Keep this after the base/runtime rules so desktop
+   geometry cannot override the narrow-screen flow. */
+@media (max-width: 600px) {
+  .hanzi-page.hanzi-page--home {
+    display: grid;
+    width: 100%;
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+    grid-template-rows: auto auto auto auto;
+    row-gap: 10px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: max(10px, env(safe-area-inset-top)) 0 max(18px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--home .hanzi-home-header {
+    display: grid;
+    width: calc(100% - 24px);
+    height: 48px;
+    min-height: 48px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    margin: 0 auto;
+  }
+
+  .hanzi-page--home .hanzi-home-header h1 {
+    grid-column: 2;
+    font-size: 28px;
+    line-height: 1;
+  }
+
+  .hanzi-page--home .hanzi-header-spacer {
+    width: 44px;
+    height: 44px;
+  }
+
+  .hanzi-page--home .hanzi-time-chip {
+    display: none;
+  }
+
+  .hanzi-page--home .hanzi-more-button,
+  .hanzi-page--runtime-new .hanzi-more-button {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    width: 44px;
+    height: 44px;
+  }
+
+  .hanzi-page--home .hanzi-stage-list {
+    width: calc(100% - 24px);
+    height: auto;
+    grid-template-rows: none;
+    align-self: auto;
+    gap: 10px;
+    margin: 0 auto;
+  }
+
+  .hanzi-page--home .hanzi-stage-card {
+    width: 100%;
+    min-height: 88px;
+    height: auto;
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 12px;
+    padding: 11px 13px;
+    border-width: 2px;
+    border-radius: 16px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 27px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card__copy > div {
+    align-items: center;
+    gap: 6px;
+  }
+
+  .hanzi-page--home .hanzi-stage-card h2 {
+    font-size: 19px;
+    line-height: 1.2;
+  }
+
+  .hanzi-page--home .hanzi-stage-card p,
+  .hanzi-page--home .hanzi-stage-card strong {
+    display: none;
+  }
+
+  .hanzi-page--home .hanzi-stage-card small {
+    margin-top: 6px;
+    padding: 3px 9px;
+    font-size: 12px;
+  }
+
+  .hanzi-page--home .hanzi-asset-preparation {
+    width: calc(100% - 24px);
+    margin: 0 auto;
+    padding: 6px 0 2px;
+  }
+
+  .hanzi-page--home .hanzi-asset-preparation__copy {
+    font-size: 13px;
+  }
+
+  .hanzi-page--home .hanzi-bottom-action {
+    position: sticky;
+    z-index: 4;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: calc(100% - 24px);
+    height: 52px;
+    margin: 0 auto;
+  }
+
+  .hanzi-page--home .hanzi-bottom-action button {
+    width: 100%;
+    min-width: 0;
+    height: 52px;
+    border-radius: 16px;
+    font-size: 20px;
+  }
+
+  .hanzi-page.hanzi-page--runtime-new {
+    width: 100%;
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    row-gap: 8px;
+    overflow: hidden;
+    padding: max(8px, env(safe-area-inset-top)) 0 max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-header {
+    width: calc(100% - 24px);
+    margin: 0 auto;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-header__top {
+    display: grid;
+    height: 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-header .hanzi-back-button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    border-radius: 16px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-header h1 {
+    position: static;
+    grid-column: 2;
+    justify-self: center;
+    font-size: 24px;
+    line-height: 1;
+    transform: none;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-counter {
+    display: none;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-progress {
+    width: calc(100% - 72px);
+    height: 10px;
+    margin: 8px auto 0;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-indicators {
+    display: flex;
+    width: 150px;
+    height: 34px;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 auto;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-pill {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    font-size: 16px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-pill b {
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-step-pill span,
+  .hanzi-page--runtime-new .hanzi-step-pill::after {
+    display: none;
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-card,
+  .hanzi-page--runtime-new .hanzi-sound-card,
+  .hanzi-page--runtime-new .hanzi-meaning-canvas {
+    width: calc(100% - 24px);
+    min-height: 0;
+    border-radius: 20px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-card__content {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-card__content > .hanzi-character-box {
+    width: clamp(92px, 24vw, 118px);
+    height: clamp(92px, 24vw, 118px);
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-card__content > .hanzi-character-box span {
+    font-size: clamp(62px, 17vw, 80px);
+  }
+
+  .hanzi-page--runtime-new .hanzi-shape-image-only {
+    width: min(100%, 300px);
+    height: 100%;
+    max-height: 300px;
+    min-height: 0;
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-card {
+    grid-template-rows: minmax(0, 1fr) auto;
+    padding: 12px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-character {
+    gap: 24px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-character .hanzi-character-box {
+    width: clamp(112px, 32vw, 150px);
+    height: clamp(112px, 32vw, 150px);
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-character .hanzi-character-box span {
+    font-size: clamp(74px, 22vw, 102px);
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-card .hanzi-audio-orb {
+    width: 64px;
+    height: 64px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-vocabulary {
+    width: 100%;
+    gap: 7px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-sound-vocabulary button {
+    min-width: 0;
+    height: 50px;
+    padding-inline: 8px;
+    font-size: 16px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-meaning-canvas {
+    padding: 12px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-meaning-core {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .hanzi-page--runtime-new .hanzi-meaning-figure {
+    width: min(100%, 300px);
+    height: 100%;
+    min-height: 0;
+    justify-self: center;
+  }
+
+  .hanzi-page--runtime-new .hanzi-meaning-panel {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .hanzi-page--runtime-new .hanzi-meaning-panel__character {
+    display: none;
+  }
+
+  .hanzi-page--runtime-new .hanzi-meaning-sentence {
+    width: 100%;
+    min-height: 58px;
+    padding: 9px 12px;
+    font-size: 17px;
+    line-height: 1.35;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-footer {
+    width: calc(100% - 24px);
+    height: 52px;
+    margin: 0 auto;
+  }
+
+  .hanzi-page--runtime-new .hanzi-new-word-footer button,
+  .hanzi-page--runtime-new.hanzi-page--sound .hanzi-new-word-footer button,
+  .hanzi-page--runtime-new.hanzi-page--meaning .hanzi-new-word-footer button {
+    width: 100%;
+    height: 52px;
+    border-radius: 16px;
+    font-size: 20px;
+  }
+
+  .hanzi-page:is(.hanzi-page--new-shape, .hanzi-page--sound, .hanzi-page--meaning):not(.hanzi-page--runtime-new) {
+    display: grid;
+    width: 100%;
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    row-gap: 8px;
+    overflow: hidden;
+    padding: max(8px, env(safe-area-inset-top)) 0 max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page.hanzi-page--meaning:not(.hanzi-page--runtime-new) {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-header {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: calc(100% - 24px);
+    height: auto;
+    margin: 0 auto;
+    padding: 0;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-header__top {
+    display: grid;
+    height: 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-header .hanzi-back-button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    border-radius: 16px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-header h1 {
+    position: static;
+    grid-column: 2;
+    justify-self: center;
+    font-size: 24px;
+    line-height: 1;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-counter {
+    display: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-progress {
+    width: calc(100% - 72px);
+    height: 10px;
+    margin: 8px auto 0;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-steps,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-steps {
+    position: relative;
+    top: auto;
+    left: auto;
+    display: grid;
+    width: 150px;
+    height: 34px;
+    grid-template-columns: repeat(3, 34px);
+    align-items: center;
+    justify-content: space-between;
+    gap: 0;
+    margin: 0 auto;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-step,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-step {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    font-size: 16px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-step b,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-step b {
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) :is(.hanzi-shape-step, .hanzi-sound-step) span,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-step::after,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-steps > i {
+    display: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-card,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-card,
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-canvas {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: calc(100% - 24px);
+    height: 100%;
+    min-height: 0;
+    margin: 0 auto;
+    border-radius: 20px;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-card__content {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-card__content > .hanzi-character-box {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: clamp(92px, 24vw, 118px);
+    height: clamp(92px, 24vw, 118px);
+    justify-self: center;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-card__content > .hanzi-character-box span {
+    font-size: clamp(62px, 17vw, 80px);
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-mnemonic {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: min(100%, 300px);
+    height: 100%;
+    min-height: 0;
+    justify-self: center;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-mnemonic__image {
+    width: min(190px, 70%);
+    height: min(190px, calc(100% - 40px));
+    min-height: 0;
+    padding: 6px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-shape-mnemonic p {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 12px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-card > .hanzi-character-box {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: clamp(130px, 36vw, 160px);
+    height: clamp(130px, 36vw, 160px);
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-card > .hanzi-character-box span {
+    font-size: clamp(86px, 24vw, 108px);
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-sound-card > .hanzi-audio-orb {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: 68px;
+    height: 68px;
+    transform: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-canvas {
+    padding: 12px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-core {
+    position: relative;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    display: grid;
+    width: 100%;
+    height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-figure {
+    width: min(100%, 280px);
+    height: 100%;
+    min-height: 0;
+    justify-self: center;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-panel {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-panel__character {
+    display: none;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-vocabulary {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-meaning-vocabulary button {
+    min-width: 0;
+    height: 48px;
+    padding-inline: 8px;
+    font-size: 16px;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-footer {
+    position: static;
+    width: calc(100% - 24px);
+    height: 52px;
+    align-items: center;
+    margin: 0 auto;
+  }
+
+  .hanzi-page:not(.hanzi-page--runtime-new) .hanzi-new-word-footer button {
+    width: 100%;
+    height: 52px;
+    border-radius: 16px;
+    font-size: 20px;
+    line-height: 1;
+  }
 }
 
 /* Shared child controls use the same artwork and surface treatment across flows. */
