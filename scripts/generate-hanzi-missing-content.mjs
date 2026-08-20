@@ -5,6 +5,7 @@ const args = parseArgs(process.argv.slice(2));
 const apiKey = String(process.env.MINIMAX_API_KEY || "").trim();
 const input = path.resolve(String(args.input || "work/hanzi-replacement-20260820/missing-characters.json"));
 const output = path.resolve(String(args.output || "work/hanzi-replacement-20260820/missing-content.json"));
+const progressFile = path.resolve(String(args.progress || `${output}.progress.json`));
 const model = String(args.model || process.env.MINIMAX_TEXT_MODEL || "MiniMax-M2.7");
 const batchSize = Number(args["batch-size"] || 16);
 const requestRetries = Number(args.retries ?? 3);
@@ -35,21 +36,49 @@ const previousByCharacter = new Map(previous.map((item) => [item.character, item
 const pending = characters.filter((item) => !isComplete(previousByCharacter.get(item.character)));
 console.log(`Need MiniMax content for ${pending.length}/${characters.length} characters, model=${model}, batch=${batchSize}.`);
 
+const progressByCharacter = await readProgress(progressFile, characters);
+await writeProgress(progressFile, progressByCharacter);
+
 for (let offset = 0; offset < pending.length; offset += batchSize) {
   const batch = pending.slice(offset, offset + batchSize);
-  const normalizedBatch = await generateValidatedBatch(batch);
-  for (const normalized of normalizedBatch) {
-    previousByCharacter.set(normalized.character, normalized);
+  const results = await generateValidatedBatch(batch);
+  for (const result of results) {
+    const character = result.source.character;
+    if (result.content) {
+      previousByCharacter.set(character, result.content);
+      progressByCharacter.set(character, {
+        character,
+        status: "completed",
+        attempts: (progressByCharacter.get(character)?.attempts || 0) + result.attempts,
+        lastError: null,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      progressByCharacter.set(character, {
+        character,
+        status: "failed",
+        attempts: (progressByCharacter.get(character)?.attempts || 0) + result.attempts,
+        lastError: result.error,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    await saveCheckpoint(output, progressFile, characters, previousByCharacter, progressByCharacter);
   }
-  const result = characters.map((item) => previousByCharacter.get(item.character)).filter(Boolean);
-  await mkdir(path.dirname(output), { recursive: true });
-  await writeFile(output, `${JSON.stringify(result, null, 2)}\n`);
-  console.log(`Saved ${result.length}/${characters.length} content rows.`);
+  const saved = characters.filter((item) => isComplete(previousByCharacter.get(item.character))).length;
+  console.log(`Saved ${saved}/${characters.length} content rows.`);
 }
 
 const result = characters.map((item) => previousByCharacter.get(item.character)).filter(Boolean);
 if (result.length !== characters.length) {
-  throw new Error(`Only generated ${result.length}/${characters.length} content rows. Resume with the same command.`);
+  const failed = characters
+    .map((item) => progressByCharacter.get(item.character))
+    .filter((item) => item?.status === "failed")
+    .map((item) => `${item.character}: ${item.lastError}`);
+  throw new Error([
+    `Only generated ${result.length}/${characters.length} content rows.`,
+    failed.length ? `Failed characters:\n${failed.join("\n")}` : "",
+    `Resume with the same command. Progress is saved in ${progressFile}.`,
+  ].filter(Boolean).join("\n"));
 }
 console.log(`Done. Content manifest: ${output}`);
 
@@ -108,29 +137,71 @@ async function generateBatch(batch, feedback = "") {
 }
 
 async function generateValidatedBatch(batch) {
-  let feedback = "";
-  for (let attempt = 1; attempt <= 4; attempt += 1) {
-    const generated = await generateBatch(batch, feedback);
+  let generated;
+  let batchError = null;
+  try {
+    generated = await generateBatch(batch);
+  } catch (error) {
+    batchError = error.message;
+    generated = [];
+  }
+  const byCharacter = new Map();
+  for (const item of generated) {
+    const character = String(item.character || "").trim();
+    if (isSingleHanzi(character) && !byCharacter.has(character)) byCharacter.set(character, item);
+  }
+
+  const results = [];
+  const repairs = [];
+  for (const source of batch) {
+    const item = byCharacter.get(source.character);
+    if (!item) {
+      repairs.push({ source, reason: batchError || "模型没有返回这个字的资料" });
+      continue;
+    }
     try {
-      const byCharacter = new Map();
-      for (const item of generated) {
-        const character = String(item.character || "").trim();
-        if (byCharacter.has(character)) throw new Error(`重复返回汉字 ${character}`);
-        byCharacter.set(character, item);
-      }
-      const missing = batch.map((item) => item.character).filter((character) => !byCharacter.has(character));
-      const unexpected = [...byCharacter.keys()].filter((character) => !batch.some((item) => item.character === character));
-      if (missing.length || unexpected.length) {
-        throw new Error(`返回清单不完整，缺少：${missing.join("")}；多出：${unexpected.join("")}`);
-      }
-      return batch.map((source) => normalizeGenerated(byCharacter.get(source.character), source));
+      results.push({ source, content: normalizeGenerated(item, source), attempts: 0 });
     } catch (error) {
-      feedback = `上一次返回没有通过校验，必须修正后重新输出：${error.message}`;
-      console.warn(`[content-retry ${attempt}/4] ${feedback}`);
-      if (attempt === 4) throw error;
+      repairs.push({ source, reason: error.message });
     }
   }
-  throw new Error("Unable to validate MiniMax content batch.");
+
+  for (const repair of repairs) {
+    try {
+      const repaired = await repairSingleCharacter(repair.source, repair.reason);
+      results.push({ source: repair.source, content: repaired.content, attempts: repaired.attempts });
+    } catch (error) {
+      results.push({ source: repair.source, content: null, attempts: error.attempts || 6, error: error.message });
+    }
+  }
+
+  return batch.map((source) => results.find((result) => result.source.character === source.character));
+}
+
+async function repairSingleCharacter(source, initialReason) {
+  let reason = initialReason;
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const generated = await generateBatch([source], [
+      `只修复汉字“${source.character}”，不要返回其他汉字。`,
+      `上一次失败原因：${reason}`,
+      `三个词语必须逐个包含字符“${source.character}”，例如目标字为“乳”时，不能输出“酸奶”这种不含“乳”的词。`,
+      `例句中必须出现字符“${source.character}”，例如目标字为“仗”时，不能返回不含“仗”的句子。`,
+      "只返回这个字的资料；不要用相关但不含目标字的词语代替，不要输出单字或重复词语。",
+    ].join("\n"));
+    const item = generated.find((candidate) => String(candidate.character || "").trim() === source.character);
+    try {
+      if (!item) throw new Error(`没有返回汉字 ${source.character}`);
+      return { content: normalizeGenerated(item, source), attempts: attempt };
+    } catch (error) {
+      reason = error.message;
+      console.warn(`[single-content-retry ${source.character} ${attempt}/6] ${reason}`);
+      if (attempt === 6) {
+        error.attempts = attempt;
+        throw error;
+      }
+    }
+  }
+  throw new Error(`Unable to repair content for ${source.character}`);
 }
 
 function normalizeGenerated(item, source) {
@@ -142,7 +213,7 @@ function normalizeGenerated(item, source) {
   const words = Array.isArray(item.words) ? item.words.map((word) => String(word).trim()) : [];
   if (character !== source.character || !isSingleHanzi(character)) throw new Error(`Invalid character in generated content: ${character}`);
   if (!pinyin || !meaning || !shapeHint || !sentence) throw new Error(`Incomplete generated content for ${character}`);
-  if (words.length !== 3 || new Set(words).size !== 3 || words.some((word) => !word.includes(character))) {
+  if (words.length !== 3 || new Set(words).size !== 3 || words.some((word) => !isValidWord(word, character))) {
     throw new Error(`Invalid words for ${character}: ${JSON.stringify(words)}`);
   }
   if (!sentence.includes(character) || sentence === `我们来认识${character}。`) {
@@ -176,7 +247,41 @@ function isComplete(item) {
   return item && isSingleHanzi(String(item.character || "")) && String(item.pinyin || "").trim()
     && String(item.meaning || "").trim() && String(item.shapeHint || "").trim()
     && String(item.sentence || "").includes(String(item.character))
-    && Array.isArray(item.words) && item.words.length === 3 && item.words.every((word) => String(word).includes(item.character));
+    && Array.isArray(item.words) && item.words.length === 3 && new Set(item.words).size === 3
+    && item.words.every((word) => isValidWord(String(word), item.character));
+}
+
+function isValidWord(word, character) {
+  return word.length >= 2 && word.length <= 8 && word.includes(character) && /^[\p{Script=Han}·]+$/u.test(word);
+}
+
+async function readProgress(file, sources) {
+  const existing = await readJsonIfExists(file, {});
+  const progress = new Map();
+  for (const source of sources) {
+    const item = existing[source.character];
+    progress.set(source.character, item || {
+      character: source.character,
+      status: "pending",
+      attempts: 0,
+      lastError: null,
+      updatedAt: null,
+    });
+  }
+  return progress;
+}
+
+async function writeProgress(file, progress) {
+  await mkdir(path.dirname(file), { recursive: true });
+  const object = Object.fromEntries([...progress.entries()].map(([character, item]) => [character, item]));
+  await writeFile(file, `${JSON.stringify(object, null, 2)}\n`);
+}
+
+async function saveCheckpoint(file, progressFilePath, sources, contentByCharacter, progress) {
+  const rows = sources.map((item) => contentByCharacter.get(item.character)).filter(Boolean);
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, `${JSON.stringify(rows, null, 2)}\n`);
+  await writeProgress(progressFilePath, progress);
 }
 
 function isSingleHanzi(value) {
