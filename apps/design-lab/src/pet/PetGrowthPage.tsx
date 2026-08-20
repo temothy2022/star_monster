@@ -8,6 +8,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ApiError,
   careForPet,
@@ -418,6 +419,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   const noticeTimerRef = useRef<number | null>(null);
   const redPacketRainTimerRef = useRef<number | null>(null);
   const redPacketClaimKeyRef = useRef<string | null>(null);
+  const redPacketOpeningRef = useRef(false);
+  const redPacketRequestRef = useRef<AbortController | null>(null);
   const dialogueAudioCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const petSoundCacheRef = useRef(new Map<string, HTMLAudioElement>());
   const dialogueQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
@@ -743,6 +746,9 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
     if (wasteCleaningTimerRef.current !== null) window.clearTimeout(wasteCleaningTimerRef.current);
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
+    redPacketRequestRef.current?.abort();
+    redPacketRequestRef.current = null;
+    redPacketOpeningRef.current = false;
     dialogueQueueRef.current?.clear();
     petSoundQueueRef.current?.clear();
     careSoundQueueRef.current?.clear();
@@ -825,14 +831,18 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }
 
   function closeRedPacket() {
-    if (redPacketStage === "opening") return;
+    if (redPacketOpeningRef.current) return;
     if (redPacketRainTimerRef.current !== null) window.clearTimeout(redPacketRainTimerRef.current);
     redPacketRainTimerRef.current = null;
-    stopRedPacketRainSound();
-    stopRedPacketOpenSound();
-    if (redPacketReward) redPacketClaimKeyRef.current = null;
     setRedPacketStage(null);
     setRedPacketReward(null);
+    redPacketClaimKeyRef.current = null;
+    try {
+      stopRedPacketRainSound();
+      stopRedPacketOpenSound();
+    } catch {
+      // Closing the modal must not depend on Safari's media cleanup support.
+    }
   }
 
   function startRedPacketFlow() {
@@ -850,15 +860,24 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
   }
 
   async function claimRedPacket() {
-    if (!state || redPacketStage !== "ready" || busy) return;
-    stopRedPacketRainSound();
+    if (!state || redPacketStage !== "ready" || redPacketOpeningRef.current) return;
+    redPacketOpeningRef.current = true;
+    setRedPacketStage("opening");
+    try {
+      stopRedPacketRainSound();
+    } catch {
+      // The reward request must still run when an older Safari media API throws.
+    }
     // Start within the tap gesture so Safari does not block the reward sound after the API returns.
-    playRedPacketOpenSound();
+    try {
+      playRedPacketOpenSound();
+    } catch {
+      // Sound is optional; opening the packet is not.
+    }
     const claimKey = redPacketClaimKeyRef.current ?? actionKey("pet-red-packet");
     redPacketClaimKeyRef.current = claimKey;
-    setBusy("red-packet");
-    setRedPacketStage("opening");
     const controller = new AbortController();
+    redPacketRequestRef.current = controller;
     const timeoutId = window.setTimeout(() => controller.abort(), 12_000);
     try {
       const [result] = await Promise.all([
@@ -878,7 +897,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
       showRoomNotice(reason instanceof ApiError ? reason.message : "红包暂时没有打开，请再试一次");
     } finally {
       window.clearTimeout(timeoutId);
-      setBusy(null);
+      if (redPacketRequestRef.current === controller) redPacketRequestRef.current = null;
+      redPacketOpeningRef.current = false;
     }
   }
 
@@ -1490,8 +1510,15 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
         )}
       </section>
 
-      {redPacketStage && (
-        <div className={`pet-red-packet-modal is-${redPacketStage}`} role="dialog" aria-modal="true" aria-label="星宠升级红包">
+      {redPacketStage && createPortal(
+        <div
+          className={`pet-red-packet-modal is-${redPacketStage}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="星宠升级红包"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
           <div className="pet-red-packet-modal__backdrop" aria-hidden="true" />
           <div className="pet-red-packet-light-show" aria-hidden="true">
             <i className="pet-red-packet-light-show__ring" />
@@ -1505,24 +1532,26 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
               } as CSSProperties} />
             ))}
           </div>
-          <div className="pet-red-packet-rain" aria-hidden="true">
-            {RED_PACKET_RAIN_ITEMS.map((item, index) => (
-              <img
-                src={redPacketEntryImage}
-                alt=""
-                key={index}
-                style={{
-                  "--red-packet-left": item.left,
-                  "--red-packet-delay": item.delay,
-                  "--red-packet-duration": item.duration,
-                  "--red-packet-scale": item.scale,
-                  "--red-packet-rotate": item.rotate,
-                  "--red-packet-sway": item.sway,
-                  "--red-packet-opacity": item.opacity,
-                } as CSSProperties}
-              />
-            ))}
-          </div>
+          {redPacketStage === "rain" && (
+            <div className="pet-red-packet-rain" aria-hidden="true">
+              {RED_PACKET_RAIN_ITEMS.map((item, index) => (
+                <img
+                  src={redPacketEntryImage}
+                  alt=""
+                  key={index}
+                  style={{
+                    "--red-packet-left": item.left,
+                    "--red-packet-delay": item.delay,
+                    "--red-packet-duration": item.duration,
+                    "--red-packet-scale": item.scale,
+                    "--red-packet-rotate": item.rotate,
+                    "--red-packet-sway": item.sway,
+                    "--red-packet-opacity": item.opacity,
+                  } as CSSProperties}
+                />
+              ))}
+            </div>
+          )}
           {redPacketStage !== "opening" && (
             <button className="pet-red-packet-modal__close" type="button" aria-label="关闭红包" onClick={closeRedPacket}><ChildControlIcon kind="close" /></button>
           )}
@@ -1555,7 +1584,8 @@ export function PetGrowthPage({ onNavigate }: { onNavigate: (route: ChildRoute) 
               </div>
             )}
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {careConfirmation && (

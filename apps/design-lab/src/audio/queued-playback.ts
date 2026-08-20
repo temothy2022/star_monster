@@ -23,7 +23,11 @@ const mediaSessionActions = [
 export function clearWebMediaSession() {
   if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
   const mediaSession = navigator.mediaSession;
-  mediaSession.metadata = null;
+  try {
+    mediaSession.metadata = null;
+  } catch {
+    // Some iPadOS releases expose Media Session but reject metadata cleanup.
+  }
   try {
     mediaSession.playbackState = "none";
     mediaSession.setPositionState();
@@ -48,8 +52,12 @@ function detachHtmlAudio(audio: HTMLAudioElement) {
   } catch {
     // Ignore elements whose media resource has already been released.
   }
-  audio.removeAttribute("src");
-  audio.load();
+  try {
+    audio.removeAttribute("src");
+    audio.load();
+  } catch {
+    // Releasing a media source is best-effort on older Safari versions.
+  }
 }
 
 function restoreHtmlAudio(audio: HTMLAudioElement) {

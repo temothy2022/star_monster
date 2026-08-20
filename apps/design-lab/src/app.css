@@ -14490,8 +14490,10 @@ body:has(.footprints-page),
 
 .pet-red-packet-modal {
   position: fixed;
-  z-index: 120;
+  z-index: 1200;
   inset: 0;
+  width: 100%;
+  height: 100%;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -14500,6 +14502,7 @@ body:has(.footprints-page),
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
+  pointer-events: auto;
 }
 
 .pet-red-packet-modal__backdrop {
@@ -14510,6 +14513,7 @@ body:has(.footprints-page),
     radial-gradient(circle at 50% 46%, rgb(255 204 73 / 42%) 0 7%, transparent 34%),
     radial-gradient(circle at 50% 50%, #9d1f19 0, #5f1110 56%, #270909 100%);
   animation: pet-red-packet-backdrop-in 260ms ease-out both;
+  pointer-events: none;
 }
 
 .pet-red-packet-modal__backdrop::after {
@@ -14593,7 +14597,7 @@ body:has(.footprints-page),
 
 .pet-red-packet-modal.is-opening .pet-red-packet-rain,
 .pet-red-packet-modal.is-revealed .pet-red-packet-rain { opacity: 0; }
-.pet-red-packet-stage { position: relative; z-index: 3; width: min(760px, 94vw); display: grid; place-items: center; text-align: center; pointer-events: auto; transform: translateZ(0); }
+.pet-red-packet-stage { position: relative; z-index: 3; width: min(760px, 94vw); display: grid; place-items: center; text-align: center; pointer-events: none; }
 .pet-red-packet-arriving { display: grid; place-items: center; gap: 15px; animation: pet-red-packet-arriving 680ms ease-out both; }
 .pet-red-packet-arriving span { font-size: clamp(68px, 10vw, 116px); color: #ffd34f; filter: drop-shadow(0 0 22px #ffb927); animation: pet-red-packet-star-pulse .62s ease-in-out infinite alternate; }
 .pet-red-packet-arriving strong { font-size: clamp(23px, 4vw, 40px); text-shadow: 0 4px 0 #6b1712, 0 8px 28px rgb(255 188 57 / 32%); }
@@ -14610,6 +14614,14 @@ body:has(.footprints-page),
   font: inherit;
   animation: pet-red-packet-main-in 540ms cubic-bezier(.16, 1.25, .34, 1) both;
   cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pet-red-packet-modal__close,
+.pet-red-packet-main,
+.pet-red-packet-reward > button {
   pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
