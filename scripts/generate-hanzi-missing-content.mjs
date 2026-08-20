@@ -37,6 +37,22 @@ const pending = characters.filter((item) => !isComplete(previousByCharacter.get(
 console.log(`Need MiniMax content for ${pending.length}/${characters.length} characters, model=${model}, batch=${batchSize}.`);
 
 const progressByCharacter = await readProgress(progressFile, characters);
+// Reconcile the checkpoint with the content manifest before deciding what to
+// request. This matters when a previous run saved content successfully but
+// was interrupted before updating the per-character status file.
+for (const source of characters) {
+  const existing = previousByCharacter.get(source.character);
+  if (!isComplete(existing)) continue;
+  const progress = progressByCharacter.get(source.character);
+  if (progress?.status === "completed") continue;
+  progressByCharacter.set(source.character, {
+    character: source.character,
+    status: "completed",
+    attempts: progress?.attempts || 0,
+    lastError: null,
+    updatedAt: progress?.updatedAt || new Date().toISOString(),
+  });
+}
 await writeProgress(progressFile, progressByCharacter);
 
 for (let offset = 0; offset < pending.length; offset += batchSize) {
