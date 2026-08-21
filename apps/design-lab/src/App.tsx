@@ -205,6 +205,26 @@ const PoemRecitationPage = lazy(() =>
     default: module.PoemRecitationPage,
   })),
 );
+const HanziLearningStaticPage = lazy(() =>
+  import("./learning/LearningStaticPages").then((module) => ({
+    default: module.HanziLearningStaticPage,
+  })),
+);
+const HanziReviewStaticPage = lazy(() =>
+  import("./learning/LearningStaticPages").then((module) => ({
+    default: module.HanziReviewStaticPage,
+  })),
+);
+const PoemLearningStaticPage = lazy(() =>
+  import("./learning/LearningStaticPages").then((module) => ({
+    default: module.PoemLearningStaticPage,
+  })),
+);
+const PoemReviewStaticPage = lazy(() =>
+  import("./learning/LearningStaticPages").then((module) => ({
+    default: module.PoemReviewStaticPage,
+  })),
+);
 const HanziListenQuestion = lazy(() =>
   import("./hanzi/HanziLearningPages").then((module) => ({
     default: module.HanziListenQuestion,
@@ -272,6 +292,8 @@ type AppRoute =
   | "hanzi-listen-correct"
   | "hanzi-listen-wrong"
   | "hanzi-result"
+  | "hanzi-learning-v2"
+  | "hanzi-review-v2"
   | "hanzi-session"
   | "clock-session"
   | "make-ten-session"
@@ -281,6 +303,8 @@ type AppRoute =
   | "math-print"
   | "bundle-practice"
   | "poem-recitation"
+  | "poem-learning-v2"
+  | "poem-review-v2"
   | "profile"
   | "growth-record"
   | "fever-record";
@@ -349,6 +373,8 @@ function readRouteFromHash(): AppRoute {
     "hanzi-listen-correct",
     "hanzi-listen-wrong",
     "hanzi-result",
+    "hanzi-learning-v2",
+    "hanzi-review-v2",
     "hanzi-session",
     "clock-session",
     "make-ten-session",
@@ -358,6 +384,8 @@ function readRouteFromHash(): AppRoute {
     "math-print",
     "bundle-practice",
     "poem-recitation",
+    "poem-learning-v2",
+    "poem-review-v2",
     "profile",
     "growth-record",
     "fever-record",
@@ -406,6 +434,8 @@ function childPageTitle(route: AppRoute) {
   if (route === "bundle-practice") return "捆和根练习";
   if (route === "poem-session") return "古诗学习";
   if (route === "poem-recitation") return "古诗朗读";
+  if (route === "poem-learning-v2") return "古诗学习";
+  if (route === "poem-review-v2") return "古诗复习";
   if (route === "pet-growth") return "星宠小屋";
   if (route === "profile") return "个人中心";
   if (route === "growth-record") return "我的成长";
@@ -859,6 +889,14 @@ export function App() {
     return <PoemRecitationPage onNavigate={navigate} />;
   }
 
+  if (route === "poem-learning-v2") {
+    return <PoemLearningStaticPage onNavigate={navigate} />;
+  }
+
+  if (route === "poem-review-v2") {
+    return <PoemReviewStaticPage onNavigate={navigate} />;
+  }
+
   if (route === "untimed-active" || route === "untimed-menu" || route === "untimed-abandon") {
     return (
       <UntimedTaskActive
@@ -1110,6 +1148,14 @@ export function App() {
 
   if (route === "hanzi-home") {
     return <HanziLearningHome onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-learning-v2") {
+    return <HanziLearningStaticPage onNavigate={navigate} />;
+  }
+
+  if (route === "hanzi-review-v2") {
+    return <HanziReviewStaticPage onNavigate={navigate} />;
   }
 
   if (route === "hanzi-review-front") {

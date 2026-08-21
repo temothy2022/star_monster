@@ -324,6 +324,26 @@
 .release-notes-page__current ul { display: grid; gap: 14px; margin: 28px 0 0; padding: 0; list-style: none; }
 .release-notes-page__current li { position: relative; padding-left: 24px; color: #4e5e73; font-size: 17px; line-height: 1.6; }
 .release-notes-page__current li::before { position: absolute; top: .72em; left: 0; width: 9px; height: 9px; border-radius: 50%; background: #ee7042; content: ""; }
+.release-notes-page__history { margin-top: 28px; }
+.release-notes-page__section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.release-notes-page__section-heading small { color: #ee7042; font-size: 12px; font-weight: 900; letter-spacing: .08em; }
+.release-notes-page__section-heading h2 { margin: 5px 0 0; font-size: clamp(24px, 3vw, 32px); }
+.release-notes-page__section-heading > span { color: #7b8899; font-size: 14px; }
+.release-notes-page__timeline { display: grid; gap: 14px; margin-top: 16px; }
+.release-notes-page__entry { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 12px; }
+.release-notes-page__entry-marker { position: relative; display: flex; justify-content: center; }
+.release-notes-page__entry-marker::before { width: 10px; height: 10px; margin-top: 25px; border: 3px solid #ee7042; border-radius: 50%; background: #fff8e9; content: ""; z-index: 1; }
+.release-notes-page__entry-marker::after { position: absolute; top: 0; bottom: -14px; width: 2px; background: #edc8b4; content: ""; }
+.release-notes-page__entry:last-child .release-notes-page__entry-marker::after { bottom: 25px; }
+.release-notes-page__entry-body { padding: 20px 22px; border: 2px solid #d8e0ea; border-radius: 18px; background: #fffdf7; }
+.release-notes-page__entry-top { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.release-notes-page__entry-top h3 { margin: 0; color: #253b59; font-size: 20px; }
+.release-notes-page__entry-top span { display: block; margin-top: 5px; color: #7b8899; font-size: 13px; }
+.release-notes-page__entry-top strong { max-width: 38%; overflow-wrap: anywhere; color: #ee7042; font-family: var(--sm-font-numeric); font-size: 14px; text-align: right; }
+.release-notes-page__entry-body ul { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.release-notes-page__entry-body li { position: relative; padding-left: 18px; color: #526379; font-size: 15px; line-height: 1.5; }
+.release-notes-page__entry-body li::before { position: absolute; top: .65em; left: 0; width: 6px; height: 6px; border-radius: 50%; background: #65b8b4; content: ""; }
+.release-notes-page__empty { padding: 20px 22px; border: 2px dashed #cbd7e4; border-radius: 18px; color: #7b8899; background: #fffdf7; }
 .release-notes-page__howto { margin-top: 24px; padding: 18px 22px; border-radius: 18px; background: #eaf5ff; color: #526b86; }
 .release-notes-page__howto span { color: #477dac; font-weight: 900; }
 .release-notes-page__howto p { margin: 6px 0 0; line-height: 1.6; }
@@ -338,6 +358,12 @@
   .release-notes-page__current-top { display: grid; gap: 8px; }
   .release-notes-page__current-top strong { max-width: 100%; text-align: left; }
   .release-notes-page__current li { font-size: 15px; }
+  .release-notes-page__history { margin-top: 22px; }
+  .release-notes-page__section-heading { align-items: start; }
+  .release-notes-page__section-heading > span { padding-top: 18px; }
+  .release-notes-page__entry-body { padding: 16px; }
+  .release-notes-page__entry-top { display: grid; gap: 8px; }
+  .release-notes-page__entry-top strong { max-width: 100%; text-align: left; }
 }
 
 /* 最终移动端覆盖：独立任务页的内容滚动区不能再使用桌面绝对定位偏移。 */

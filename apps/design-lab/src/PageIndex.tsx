@@ -39,11 +39,15 @@ export type PageIndexRoute =
   | "hanzi-listen-correct"
   | "hanzi-listen-wrong"
   | "hanzi-result"
+  | "hanzi-learning-v2"
+  | "hanzi-review-v2"
   | "math-preview"
   | "math-print"
   | "bundle-practice"
   | "release-notes"
-  | "poem-recitation";
+  | "poem-recitation"
+  | "poem-learning-v2"
+  | "poem-review-v2";
 
 type PageGroup = {
   title: string;
@@ -108,7 +112,14 @@ const groups: PageGroup[] = [
     ],
   },
   {
-    title: "汉字学习",
+    title: "汉字学习 · 新版流程",
+    pages: [
+      { route: "hanzi-learning-v2", name: "认识新字 · 新版", note: "看字形、听读音、想意思" },
+      { route: "hanzi-review-v2", name: "复习汉字 · 新版", note: "我想到了、给我提示与分层反馈" },
+    ],
+  },
+  {
+    title: "汉字学习 · 状态留档",
     pages: [
       { route: "hanzi-home", name: "学习首页", note: "复习、新字、听句挑战入口" },
       { route: "hanzi-review-front", name: "复习卡片正面", note: "汉字识别与认识/不认识按钮" },
@@ -119,6 +130,7 @@ const groups: PageGroup[] = [
       { route: "hanzi-new-sound", name: "认识新字 · 听读音", note: "三步学习第 2 步" },
       { route: "hanzi-new-meaning", name: "认识新字 · 想意思", note: "三步学习第 3 步" },
       { route: "hanzi-listen-question", name: "听句挑战 · 未作答", note: "播放句子并选择正确汉字" },
+      { route: "hanzi-listen-correct", name: "听句挑战 · 回答正确", note: "正确反馈与继续按钮" },
       { route: "hanzi-listen-wrong", name: "听句挑战 · 回答错误", note: "正确答案提示与继续按钮" },
       { route: "hanzi-result", name: "学习结果", note: "复习、新学、听句挑战统计" },
     ],
@@ -130,7 +142,14 @@ const groups: PageGroup[] = [
     ],
   },
   {
-    title: "古诗学习",
+    title: "古诗学习 · 新版流程",
+    pages: [
+      { route: "poem-learning-v2", name: "古诗学习 · 新版", note: "配图、诗句、朗读与背诵入口" },
+      { route: "poem-review-v2", name: "古诗复习 · 新版", note: "我能背、提示一句与分层反馈" },
+    ],
+  },
+  {
+    title: "古诗学习 · 状态留档",
     pages: [
       { route: "poem-recitation", name: "古诗背诵", note: "《春晓》诗句与朗读" },
     ],
@@ -146,7 +165,7 @@ const featureEntries: Array<{
 }> = [
   { route: "math-print", name: "A4 数学练习卷", note: "选择题型、生成并打印练习卷", icon: worksheetFeatureIcon, tone: "orange" },
   { route: "bundle-practice", name: "几捆几根", note: "用实物摆放练习数量组成", icon: bundleFeatureIcon, tone: "green" },
-  { route: "release-notes", name: "发布记录", note: "查看当前版本和本次发布功能", icon: rocketIcon, tone: "blue" },
+  { route: "release-notes", name: "发布记录", note: "查看当前版本与历史发布记录", icon: rocketIcon, tone: "blue" },
 ];
 
 const PARENT_APP_URL =
