@@ -1,4 +1,4 @@
-import { Prisma, type PetType } from "@prisma/client";
+import { Prisma, type ChildBiologicalSex, type PetType } from "@prisma/client";
 import {
   generateChildLoginCode,
   hashSecret,
@@ -14,6 +14,8 @@ export async function createChildAccount(
   input: {
     familyId: string;
     nickname?: string;
+    birthDate?: Date | null;
+    biologicalSex?: ChildBiologicalSex | null;
     petType?: PetType;
     loginCodePepper: string;
     loginCodeEncryptionKey: string;
@@ -33,6 +35,8 @@ export async function createChildAccount(
       data: {
         familyId: input.familyId,
         nickname: input.nickname,
+        birthDate: input.birthDate ?? null,
+        biologicalSex: input.biologicalSex ?? null,
         petType: input.petType,
         loginCodeLookup: lookup,
         loginCodeHash: await hashSecret(loginCode),

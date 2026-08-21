@@ -2638,6 +2638,7 @@ td { font-size: 13px; }
 .parent-child-create-modal { display: grid; gap: 18px; padding: 8px 0 12px; }
 .parent-child-create-modal p { margin: 0; color: #68788d; line-height: 1.7; }
 .parent-child-create-modal label { display: grid; gap: 8px; color: #253b59; font-weight: 700; }
+.parent-child-create-modal .admin-select { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid #d6dce5; border-radius: 8px; color: #253b59; background: #fff; font: inherit; }
 
 @media (max-width: 900px) {
   .task-management__toolbar { align-items: flex-start; }

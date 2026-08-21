@@ -1,4 +1,4 @@
-import { PlanetKey, Prisma } from "@prisma/client";
+import { PlanetKey, Prisma, type ChildBiologicalSex } from "@prisma/client";
 import type { DailyTaskStatus } from "@prisma/client";
 import { MATH_LEGACY_QUESTION_TYPES, MATH_QUESTION_TYPES } from "@star-monsters/math-practice";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -364,7 +364,14 @@ const childProfileSchema = z.object({
   resetOnboarding: z.boolean().optional(),
 });
 const childCreateSchema = z.object({
-  nickname: z.string().trim().min(2).max(9).optional(),
+  nickname: z.string().trim().min(2).max(9),
+  birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  biologicalSex: z.enum(["MALE", "FEMALE", "UNSPECIFIED"]).nullable().optional(),
+});
+const parentSetupSchema = z.object({
+  familyName: z.string().trim().min(2).max(80),
+  parentDisplayName: z.string().trim().min(2).max(40),
+  child: childCreateSchema,
 });
 const wishShape = {
   category: wishCategory,
@@ -773,6 +780,54 @@ export async function registerParentRoutes(
   app: FastifyInstance,
   config: AppConfig,
 ): Promise<void> {
+  app.post("/api/parent/setup", async (request, reply) => {
+    const { user } = await requireParent(request, reply, config);
+    const familyId = user.familyId;
+    if (!familyId) throw new HttpError(403, "PARENT_FAMILY_REQUIRED", "当前家长没有绑定家庭");
+    const input = parentSetupSchema.parse(request.body);
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM "Family" WHERE id = ${familyId} FOR UPDATE`);
+      const childCount = await tx.childProfile.count({ where: { familyId } });
+      if (childCount > 0) throw new HttpError(409, "PARENT_SETUP_COMPLETED", "这个家庭已经完成首次设置");
+      const child = await createChildAccount(tx, {
+        familyId,
+        nickname: input.child.nickname,
+        birthDate: input.child.birthDate ? new Date(input.child.birthDate + "T00:00:00.000Z") : null,
+        biologicalSex: input.child.biologicalSex as ChildBiologicalSex | null | undefined,
+        loginCodePepper: config.LOGIN_CODE_PEPPER,
+        loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
+      });
+      const nextUser = await tx.user.update({
+        where: { id: user.id },
+        data: { displayName: input.parentDisplayName },
+      });
+      await tx.family.update({ where: { id: familyId }, data: { name: input.familyName } });
+      await writeAudit(tx, {
+        actorType: "USER",
+        actorId: user.id,
+        familyId,
+        action: "PARENT_INITIAL_SETUP",
+        resourceType: "Family",
+        resourceId: familyId,
+        metadata: { childId: child.childId },
+        ipAddress: request.ip,
+      });
+      return { child, user: nextUser };
+    });
+    reply.status(201);
+    return {
+      user: {
+        id: result.user.id,
+        username: result.user.username,
+        displayName: result.user.displayName,
+        role: result.user.role,
+        familyId: result.user.familyId,
+      },
+      childId: result.child.childId,
+      loginCode: result.child.loginCode,
+    };
+  });
+
   app.get("/api/parent/children", async (request, reply) => {
   const { user } = await requireParent(request, reply, config);
     return {
@@ -818,6 +873,8 @@ export async function registerParentRoutes(
       const child = await createChildAccount(tx, {
         familyId,
         nickname: input.nickname,
+        birthDate: input.birthDate ? new Date(input.birthDate + "T00:00:00.000Z") : null,
+        biologicalSex: input.biologicalSex as ChildBiologicalSex | null | undefined,
         loginCodePepper: config.LOGIN_CODE_PEPPER,
         loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
       });

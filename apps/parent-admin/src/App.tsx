@@ -331,16 +331,13 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
       return null;
     }
   })();
-  const [username, setUsername] = useState(remembered?.username ?? "");
+  const [phone, setPhone] = useState(remembered?.username ?? "");
   const [password, setPassword] = useState(remembered?.password ?? "");
   const [remember, setRemember] = useState(Boolean(remembered));
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [codeCooldown, setCodeCooldown] = useState(0);
   const [codeBusy, setCodeBusy] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [familyName, setFamilyName] = useState("");
   const [registrationPassword, setRegistrationPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -377,7 +374,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
     setBusy(true);
     setError("");
     try {
-      const { user } = await staffApi.login(username, password);
+      const { user } = await staffApi.login(phone, password);
       if (user.role !== "PARENT") {
         await staffApi.logout();
         throw new Error("这个账号不是家长账号");
@@ -385,7 +382,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
       if (remember) {
         localStorage.setItem(
           "star-monsters:parent-login",
-          JSON.stringify({ username, password }),
+          JSON.stringify({ username: phone, password }),
         );
       } else {
         localStorage.removeItem("star-monsters:parent-login");
@@ -406,8 +403,6 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
       const result = await staffApi.register({
         phone,
         verificationCode,
-        displayName,
-        familyName,
         password: registrationPassword,
       });
       onLogin(result.user);
@@ -423,7 +418,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
       <section className="admin-login__card">
         <div className="admin-login__brand"><span>★</span> 星宠成长基地</div>
         <h1>{mode === "login" ? "家长管理平台" : "创建家庭账号"}</h1>
-        <p>{mode === "login" ? "管理孩子的任务、星愿和成长数据" : "注册后先创建孩子，再获得孩子端探险代码"}</p>
+        <p>{mode === "login" ? "管理孩子的任务、星愿和成长数据" : "注册后完成家庭设置，再创建孩子档案"}</p>
         <Tabs
           activeKey={mode}
           onChange={(key) => {
@@ -436,7 +431,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
               label: "登录",
               children: (
                 <form onSubmit={submit}>
-                  <label>手机号或用户名<Input size="large" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
+                  <label>手机号<Input size="large" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="username" inputMode="tel" /></label>
                   <label>密码<Input.Password size="large" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
                   <label className="admin-login__remember">
                     <input
@@ -447,7 +442,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
                         if (!event.target.checked) localStorage.removeItem("star-monsters:parent-login");
                       }}
                     />
-                    <span>在这台设备上记住用户名和密码</span>
+                    <span>在这台设备上记住手机号和密码</span>
                   </label>
                   {error && <Notice kind="error">{error}</Notice>}
                   <Button type="primary" htmlType="submit" size="large" block loading={busy}>登录</Button>
@@ -459,8 +454,6 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
               label: "注册",
               children: (
                 <form onSubmit={register}>
-                  <label>家长称呼<Input size="large" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="例如：了了妈妈" autoComplete="name" /></label>
-                  <label>家庭名称<Input size="large" value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="例如：了了的家庭" /></label>
                   <label>手机号<Input size="large" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="请输入 11 位手机号" autoComplete="tel" inputMode="numeric" /></label>
                   <label>短信验证码
                     <div className="admin-login__verification-row">
@@ -2882,6 +2875,10 @@ export function App() {
   const [childrenLoaded, setChildrenLoaded] = useState(false);
   const [createChildOpen, setCreateChildOpen] = useState(false);
   const [newChildNickname, setNewChildNickname] = useState("");
+  const [newChildBirthDate, setNewChildBirthDate] = useState("");
+  const [newChildBiologicalSex, setNewChildBiologicalSex] = useState<Child["biologicalSex"]>("UNSPECIFIED");
+  const [setupFamilyName, setSetupFamilyName] = useState("");
+  const [setupParentDisplayName, setSetupParentDisplayName] = useState("");
   const [creatingChild, setCreatingChild] = useState(false);
 
   function clearAuthenticatedState() {
@@ -2890,6 +2887,11 @@ export function App() {
     setChildrenLoaded(false);
     setSelectedChildId("");
     setCreateChildOpen(false);
+    setNewChildNickname("");
+    setNewChildBirthDate("");
+    setNewChildBiologicalSex("UNSPECIFIED");
+    setSetupFamilyName("");
+    setSetupParentDisplayName("");
     setLoginCodeResult(null);
     setError("");
   }
@@ -3008,6 +3010,10 @@ export function App() {
 
   function createChild() {
     setNewChildNickname("");
+    setNewChildBirthDate("");
+    setNewChildBiologicalSex("UNSPECIFIED");
+    setSetupFamilyName("");
+    setSetupParentDisplayName("");
     setCreateChildOpen(true);
     setError("");
   }
@@ -3018,11 +3024,40 @@ export function App() {
       setError("昵称需要 2–9 个字符");
       return;
     }
+    const firstSetup = children.length === 0;
+    if (firstSetup && setupFamilyName.trim().length < 2) {
+      setError("家庭名称需要至少 2 个字符");
+      return;
+    }
+    if (firstSetup && setupParentDisplayName.trim().length < 2) {
+      setError("家长称呼需要至少 2 个字符");
+      return;
+    }
     setCreatingChild(true);
     try {
-      const result = await parentApi.createChild(nickname);
-      await loadChildren(result.childId);
-      setLoginCodeResult({ childId: result.childId, nickname, code: result.loginCode });
+      const childInput = {
+        nickname,
+        birthDate: newChildBirthDate || null,
+        biologicalSex: newChildBiologicalSex,
+      };
+      let childId: string;
+      let loginCode: string;
+      if (firstSetup) {
+        const result = await parentApi.setup({
+          familyName: setupFamilyName.trim(),
+          parentDisplayName: setupParentDisplayName.trim(),
+          child: childInput,
+        });
+        setUser(result.user);
+        childId = result.childId;
+        loginCode = result.loginCode;
+      } else {
+        const result = await parentApi.createChild(childInput);
+        childId = result.childId;
+        loginCode = result.loginCode;
+      }
+      await loadChildren(childId);
+      setLoginCodeResult({ childId, nickname, code: loginCode });
       setCreateChildOpen(false);
       setError("");
     } catch (reason) {
@@ -3061,18 +3096,26 @@ export function App() {
   return (
     <Layout className="admin-app parent-admin-framework">
       <Modal
-        title="创建孩子档案"
+        title={children.length ? "创建孩子档案" : "完成家庭设置，创建第一个孩子"}
         open={createChildOpen}
         okText="创建并生成探险代码"
-        cancelText={children.length ? "取消" : "稍后再说"}
+        cancelText="取消"
         confirmLoading={creatingChild}
         onOk={() => void submitCreateChild()}
-        onCancel={() => setCreateChildOpen(false)}
-        okButtonProps={{ disabled: newChildNickname.trim().length < 2 }}
+        onCancel={() => { if (children.length) setCreateChildOpen(false); }}
+        cancelButtonProps={{ style: children.length ? undefined : { display: "none" } }}
+        okButtonProps={{ disabled: newChildNickname.trim().length < 2 || (!children.length && (setupFamilyName.trim().length < 2 || setupParentDisplayName.trim().length < 2)) }}
       >
         <div className="parent-child-create-modal">
+          {!children.length && <>
+            <p>先完成家庭信息，之后可以在家长端管理任务、奖励和成长记录。</p>
+            <label>家庭名称<Input size="large" value={setupFamilyName} onChange={(event) => setSetupFamilyName(event.target.value)} placeholder="例如：了了的家庭" autoFocus /></label>
+            <label>家长称呼<Input size="large" value={setupParentDisplayName} onChange={(event) => setSetupParentDisplayName(event.target.value)} placeholder="例如：了了妈妈" /></label>
+          </>}
           <p>孩子将使用独立的 8 位探险代码登录。创建后可以随时在“孩子档案”中查看或重置。</p>
           <label>孩子昵称<Input size="large" maxLength={9} value={newChildNickname} onChange={(event) => setNewChildNickname(event.target.value)} placeholder="请输入 2 到 9 个字" autoFocus /></label>
+          <label>出生日期（可选）<Input size="large" type="date" value={newChildBirthDate} onChange={(event) => setNewChildBirthDate(event.target.value)} /></label>
+          <label>性别（可选）<select className="admin-select" value={newChildBiologicalSex ?? "UNSPECIFIED"} onChange={(event) => setNewChildBiologicalSex(event.target.value as Child["biologicalSex"])}><option value="UNSPECIFIED">不填写</option><option value="MALE">男孩</option><option value="FEMALE">女孩</option></select></label>
         </div>
       </Modal>
       {feedback ? <div className={`admin-feedback-toast admin-feedback-toast--${feedback.kind}`} role="status">{feedback.text}</div> : null}

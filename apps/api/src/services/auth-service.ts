@@ -126,25 +126,33 @@ export async function loginChild(
 }
 
 export async function loginStaff(
-  usernameInput: string,
+  identifierInput: string,
   password: string,
   request: FastifyRequest,
   reply: FastifyReply,
   config: AppConfig,
   portal: StaffPortal = "legacy",
 ): Promise<User> {
-  const username = usernameInput.trim().toLowerCase();
-  const user = await prisma.user.findUnique({
-    where: { username },
-    include: { family: { select: { status: true } } },
-  });
+  const identifier = identifierInput.replace(/[\s-]/g, "").trim().toLowerCase();
+  const user = portal === "parent"
+    ? (await prisma.user.findFirst({
+        where: { phoneNumber: identifier },
+        include: { family: { select: { status: true } } },
+      }) ?? await prisma.user.findUnique({
+        where: { username: identifier },
+        include: { family: { select: { status: true } } },
+      }))
+    : await prisma.user.findUnique({
+        where: { username: identifier },
+        include: { family: { select: { status: true } } },
+      });
   if (
     !user ||
     user.status !== "ACTIVE" ||
     (user.role === "PARENT" && user.family?.status !== "ACTIVE") ||
     !(await verifySecret(password, user.passwordHash))
   ) {
-    throw new HttpError(401, "INVALID_CREDENTIALS", "用户名或密码不正确");
+    throw new HttpError(401, "INVALID_CREDENTIALS", portal === "parent" ? "手机号或密码不正确" : "用户名或密码不正确");
   }
   if (portal === "parent" && user.role !== "PARENT") {
     throw new HttpError(403, "PORTAL_ROLE_MISMATCH", "这个账号不能登录家长管理平台");

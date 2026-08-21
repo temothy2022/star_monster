@@ -986,10 +986,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const staffApi = {
   me: () => api<{ user: StaffUser }>("/api/parent/me"),
-  login: (username: string, password: string) =>
+  login: (phone: string, password: string) =>
     api<{ user: StaffUser }>("/api/parent/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ phone, password }),
     }),
   sendVerificationCode: (phone: string) =>
     api<{ expiresInSeconds: number; retryAfterSeconds: number }>(
@@ -1000,8 +1000,6 @@ export const staffApi = {
     phone: string;
     verificationCode: string;
     password: string;
-    displayName: string;
-    familyName: string;
   }) =>
     api<{ user: StaffUser; needsChildSetup: boolean }>(
       "/api/parent/auth/register",
@@ -1110,10 +1108,19 @@ export const parentApi = {
     ),
   updatePetRoomThemes: (themes: Array<{ key: string; priceStars: number }>) => api<{ themes: Array<{ themeId: string; priceStars: number }> }>("/api/parent/pet-growth/themes", { method: "PATCH", body: JSON.stringify({ themes }) }),
   children: () => api<{ children: Child[] }>("/api/parent/children"),
-  createChild: (nickname?: string) =>
+  setup: (input: {
+    familyName: string;
+    parentDisplayName: string;
+    child: { nickname: string; birthDate: string | null; biologicalSex: Child["biologicalSex"] };
+  }) =>
+    api<{ user: StaffUser; childId: string; loginCode: string }>("/api/parent/setup", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  createChild: (input: { nickname: string; birthDate: string | null; biologicalSex: Child["biologicalSex"] }) =>
     api<{ childId: string; loginCode: string }>("/api/parent/children", {
       method: "POST",
-      body: JSON.stringify({ nickname }),
+      body: JSON.stringify(input),
     }),
   childLoginCode: (id: string) =>
     api<{ childId: string; loginCode: string | null; loginCodeLastFour: string; recoverable: boolean }>(

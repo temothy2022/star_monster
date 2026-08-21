@@ -34,6 +34,11 @@ const staffLoginSchema = z.object({
   password: z.string().min(8).max(256),
 });
 
+const parentLoginSchema = z.object({
+  phone: z.string().trim().min(2).max(80),
+  password: z.string().min(8).max(256),
+});
+
 const parentRegistrationSchema = z.object({
   phone: z.string().trim().refine(isParentPhone, "请输入有效的中国大陆手机号"),
   verificationCode: z.string().regex(/^\d{6}$/, "请输入 6 位数字验证码"),
@@ -44,8 +49,6 @@ const parentRegistrationSchema = z.object({
     .refine((value) => /[A-Za-z]/.test(value) && /\d/.test(value), {
       message: "密码需要同时包含字母和数字",
     }),
-  displayName: z.string().trim().min(2).max(40),
-  familyName: z.string().trim().min(2).max(80),
 });
 
 export async function registerAuthRoutes(
@@ -130,8 +133,8 @@ export async function registerAuthRoutes(
       limit: 10,
       windowMs: 15 * 60 * 1000,
     });
-    const input = staffLoginSchema.parse(request.body);
-    const user = await loginStaff(input.username, input.password, request, reply, config, "parent");
+    const input = parentLoginSchema.parse(request.body);
+    const user = await loginStaff(input.phone, input.password, request, reply, config, "parent");
     return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
   });
 
@@ -169,10 +172,10 @@ export async function registerAuthRoutes(
       await prisma.$transaction(async (tx) => {
         await verifyAndConsumeParentRegistrationCode(tx, phone, input.verificationCode);
         await createFamilyWithParent(tx, {
-          familyName: input.familyName,
+          familyName: phone + "的家庭",
           parentUsername: phone,
           parentPhoneNumber: phone,
-          parentDisplayName: input.displayName,
+          parentDisplayName: "家长",
           parentPassword: input.password,
           childNicknames: [],
           loginCodePepper: config.LOGIN_CODE_PEPPER,
