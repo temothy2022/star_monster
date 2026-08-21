@@ -13,6 +13,7 @@ import {
 } from "@ant-design/icons";
 import { Alert, Button, Card, Descriptions, Modal, Progress, Table, Tag, Tooltip } from "antd";
 import { adminApi, type SystemDashboard, type SystemOperationKey } from "./api";
+import { paginationSizeChanger } from "./pagination";
 
 const OPERATION_ICONS: Record<SystemOperationKey, ReactNode> = {
   RECONCILE_DAILY_TASKS: <SyncOutlined />,
@@ -178,7 +179,7 @@ export function SystemOperations() {
 
     <section className="admin-panel">
       <header className="admin-panel__header"><h2>最近执行记录</h2><span className="muted-text">最近 30 条</span></header>
-      <div className="table-wrap"><Table rowKey="id" pagination={{ pageSize: recentRunsPageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], onShowSizeChange: (_, size) => setRecentRunsPageSize(size) }} dataSource={data.recentRuns} columns={[
+      <div className="table-wrap"><Table rowKey="id" pagination={{ pageSize: recentRunsPageSize, showSizeChanger: paginationSizeChanger, pageSizeOptions: [10, 20, 50, 100], onShowSizeChange: (_, size) => setRecentRunsPageSize(size) }} dataSource={data.recentRuns} columns={[
         { title: "时间", dataIndex: "createdAt", render: (value: string) => formatDate(value) },
         { title: "操作", render: (_, row) => operationFromLog(row.metadata) },
         { title: "结果", dataIndex: "action", render: (value: string) => value === "SYSTEM_OPERATION_FAILED" ? <Tag color="error">失败</Tag> : <Tag color="success"><CheckCircleOutlined /> 成功</Tag> },

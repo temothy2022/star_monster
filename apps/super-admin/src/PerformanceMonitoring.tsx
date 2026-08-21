@@ -1,3 +1,4 @@
+import { paginationSizeChanger } from "./pagination";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   adminApi,
@@ -303,7 +304,7 @@ export function PerformanceMonitoring() {
               current={data.recentSlowEventsPage}
               pageSize={pageSize}
               total={data.recentSlowEventsTotal}
-              showSizeChanger
+              showSizeChanger={paginationSizeChanger}
               pageSizeOptions={[10, 20, 50, 100]}
               showTotal={(value) => `共 ${value} 条慢事件`}
               onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }}

@@ -286,6 +286,24 @@
   padding-top: 16px;
   border-top: 1px solid #e7ebf2;
 }
+.admin-pagination .ant-pagination-options .ant-select {
+  min-width: 108px;
+}
+.admin-pagination .ant-pagination-options .ant-select,
+.admin-pagination .ant-pagination-options .ant-select:focus,
+.admin-pagination .ant-pagination-options .ant-select:focus-visible,
+.admin-pagination .ant-pagination-options .ant-select-selector,
+.admin-pagination .ant-pagination-options .ant-select-focused .ant-select-selector,
+.admin-pagination .ant-pagination-options .ant-select-open .ant-select-selector {
+  outline: none;
+  box-shadow: none !important;
+}
+.admin-pagination .ant-pagination-options .ant-select-focused .ant-select-selector {
+  border-color: #ccd5df !important;
+}
+.admin-pagination .ant-pagination-options .ant-select-selection-item {
+  white-space: nowrap;
+}
 
 .growth-governance-page { display: grid; gap: 18px; }
 .growth-governance-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }

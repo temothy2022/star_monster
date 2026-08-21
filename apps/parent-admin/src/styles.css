@@ -2664,6 +2664,24 @@ td { font-size: 13px; }
   padding-top: 16px;
   border-top: 1px solid #e7ebf2;
 }
+.admin-pagination .ant-pagination-options .ant-select {
+  min-width: 108px;
+}
+.admin-pagination .ant-pagination-options .ant-select,
+.admin-pagination .ant-pagination-options .ant-select:focus,
+.admin-pagination .ant-pagination-options .ant-select:focus-visible,
+.admin-pagination .ant-pagination-options .ant-select-selector,
+.admin-pagination .ant-pagination-options .ant-select-focused .ant-select-selector,
+.admin-pagination .ant-pagination-options .ant-select-open .ant-select-selector {
+  outline: none;
+  box-shadow: none !important;
+}
+.admin-pagination .ant-pagination-options .ant-select-focused .ant-select-selector {
+  border-color: #ccd5df !important;
+}
+.admin-pagination .ant-pagination-options .ant-select-selection-item {
+  white-space: nowrap;
+}
 
 .growth-record-page { display: grid; gap: 18px; }
 .growth-record-header { display: flex; min-width: 0; padding: 18px 22px; align-items: center; justify-content: space-between; gap: 24px; border: 1px solid #dfe6ed; border-radius: 10px; background: #fff; box-shadow: 0 3px 12px rgb(36 54 84 / 5%); }

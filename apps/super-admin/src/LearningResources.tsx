@@ -1,3 +1,4 @@
+import { paginationSizeChanger } from "./pagination";
 import {
   useEffect,
   useRef,
@@ -603,7 +604,7 @@ export function HanziLibrary() {
               <div className="empty-state">没有找到汉字</div>
             ) : null}
           </div>
-          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个汉字`} disabled={busy} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(value, nextPageSize) => { setPage(value); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
+          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={paginationSizeChanger} pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个汉字`} disabled={busy} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(value, nextPageSize) => { setPage(value); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
         </section>
       </div>
     </div>
@@ -1085,7 +1086,7 @@ export function PoemLibrary() {
               <div className="empty-state">没有找到古诗</div>
             ) : null}
           </div>
-          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 首古诗`} disabled={busy} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(value, nextPageSize) => { setPage(value); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
+          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={paginationSizeChanger} pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 首古诗`} disabled={busy} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(value, nextPageSize) => { setPage(value); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
         </section>
       </div>
     </div>
@@ -1429,7 +1430,7 @@ export function MascotDialogueLibrary() {
             </article>
           ))}
         </div>
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 条对话`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(nextPage, nextPageSize) => { setPage(nextPage); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={paginationSizeChanger} pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 条对话`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(nextPage, nextPageSize) => { setPage(nextPage); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
       </section>
     </div>
   );

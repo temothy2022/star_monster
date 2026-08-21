@@ -1,3 +1,4 @@
+import { paginationSizeChanger } from "./pagination";
 import { useEffect, useState } from "react";
 import { Button, Pagination, Select } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
@@ -135,7 +136,7 @@ export function SmsDeliveryMonitoring() {
           current={page}
           pageSize={pageSize}
           total={data.total}
-          showSizeChanger
+          showSizeChanger={paginationSizeChanger}
           pageSizeOptions={[10, 20, 50, 100]}
           showTotal={(value) => `共 ${value} 条记录`}
           onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }}

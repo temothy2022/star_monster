@@ -1,3 +1,4 @@
+import { paginationSizeChanger } from "./pagination";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Pagination } from "antd";
 import { adminApi, type PetDestination, type PetGrowthConfig, type PetRoomMascotMotion, type PetRoomTheme, type PetRoomThemeMascotAnimation, type PetTravelTier, type PetType } from "./api";
@@ -243,7 +244,7 @@ export function PetGrowthManagement() {
           </div> : null}
         </article>;
       })}</div> : null}
-      <Pagination className="admin-pagination" current={themePage} pageSize={themePageSize} total={roomThemes.length} showSizeChanger pageSizeOptions={[6, 12, 24, 48]} showTotal={(value) => `共 ${value} 个小屋背景`} onShowSizeChange={(_, size) => { setThemePage(1); setThemePageSize(size); }} onChange={(nextPage, nextPageSize) => { setThemePage(nextPage); if (nextPageSize !== themePageSize) setThemePageSize(nextPageSize); }} />
+      <Pagination className="admin-pagination" current={themePage} pageSize={themePageSize} total={roomThemes.length} showSizeChanger={paginationSizeChanger} pageSizeOptions={[6, 12, 24, 48]} showTotal={(value) => `共 ${value} 个小屋背景`} onShowSizeChange={(_, size) => { setThemePage(1); setThemePageSize(size); }} onChange={(nextPage, nextPageSize) => { setThemePage(nextPage); if (nextPageSize !== themePageSize) setThemePageSize(nextPageSize); }} />
     </section>
 
     <section className="admin-panel">
@@ -253,7 +254,7 @@ export function PetGrowthManagement() {
         <div className="pet-destination-card__fields"><label>景点<input value={item.name} onChange={(event) => patchDestination(item.id, { name: event.target.value })} /></label><label>路线<select value={item.tier} onChange={(event) => patchDestination(item.id, { tier: event.target.value as PetTravelTier })}>{Object.entries(TIER_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>城市<input value={item.city} onChange={(event) => patchDestination(item.id, { city: event.target.value })} /></label><label>国家<input value={item.country} onChange={(event) => patchDestination(item.id, { country: event.target.value })} /></label><label className="field-span">介绍<textarea value={item.introduction} onChange={(event) => patchDestination(item.id, { introduction: event.target.value })} /></label><label className="field-span">小知识<textarea value={item.funFact} onChange={(event) => patchDestination(item.id, { funFact: event.target.value })} /></label><label className="field-span">图片地址<input value={item.imageUrl} onChange={(event) => patchDestination(item.id, { imageUrl: event.target.value })} /></label><label className="field-span">预录音频地址<input value={item.audioUrl ?? ""} onChange={(event) => patchDestination(item.id, { audioUrl: event.target.value || null })} /></label>{item.audioUrl ? <audio className="field-span pet-destination-audio" controls preload="none" src={item.audioUrl}>浏览器不支持音频播放</audio> : <div className="field-span pet-destination-audio--missing">等待部署时由 MiniMax 自动生成朗读</div>}<label>权重<EditableNumberField type="number" min={1} value={item.weight} onChange={(event) => patchDestination(item.id, { weight: Number(event.target.value) })} /></label><label className="checkbox"><input type="checkbox" checked={item.isEnabled} onChange={(event) => patchDestination(item.id, { isEnabled: event.target.checked })} />启用</label></div>
         <button className="primary-button" disabled={busy} onClick={() => void saveDestination(item)}>保存景点</button>
       </article>)}</div>
-      <Pagination className="admin-pagination" current={destinationPage} pageSize={destinationPageSize} total={destinations.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} showTotal={(value) => `共 ${value} 个旅行景点`} onShowSizeChange={(_, size) => { setDestinationPage(1); setDestinationPageSize(size); }} onChange={(nextPage, nextPageSize) => { setDestinationPage(nextPage); if (nextPageSize !== destinationPageSize) setDestinationPageSize(nextPageSize); }} />
+      <Pagination className="admin-pagination" current={destinationPage} pageSize={destinationPageSize} total={destinations.length} showSizeChanger={paginationSizeChanger} pageSizeOptions={[8, 16, 32, 64]} showTotal={(value) => `共 ${value} 个旅行景点`} onShowSizeChange={(_, size) => { setDestinationPage(1); setDestinationPageSize(size); }} onChange={(nextPage, nextPageSize) => { setDestinationPage(nextPage); if (nextPageSize !== destinationPageSize) setDestinationPageSize(nextPageSize); }} />
     </section>
 
     <section className="admin-panel">
