@@ -811,7 +811,6 @@ input:focus, select:focus, textarea:focus { border-color: #4cae9b; box-shadow: 0
   cursor: pointer;
 }
 .hanzi-library-search button[type="submit"] { color: #fff; border-color: #f47a3f; background: #f47a3f; font-weight: 700; }
-.hanzi-library-list { max-height: 720px; overflow-y: auto; padding-right: 3px; }
 .hanzi-resource-actions { display: grid; flex: 0 0 auto; justify-items: end; gap: 10px; }
 .hanzi-resource-actions .list-card__actions { justify-content: flex-end; }
 .hanzi-admin-media {
@@ -1484,8 +1483,9 @@ td { font-size: 13px; }
 }
 
 .poem-library-table {
-  max-height: 620px;
-  overflow: auto;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .poem-library-table table { table-layout: auto; }
@@ -2503,7 +2503,8 @@ td { font-size: 13px; }
 .school-priority-list__order { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 6px; color: #76513d; background: #fff0e5; font-size: 12px; font-weight: 900; }
 .school-priority-list article > div:not(.school-priority-list__placeholder):not(.school-priority-list__hanzi) { min-width: 0; display: grid; gap: 4px; }
 .school-priority-list article small { overflow: hidden; color: #758196; text-overflow: ellipsis; white-space: nowrap; }
-.hanzi-library-list { max-height: 720px; overflow-y: auto; padding-right: 3px; }
+/* 分页列表由页面本身负责纵向滚动，避免条目数量变化后还要在卡片内部二次滚动。 */
+.hanzi-library-list { max-height: none; overflow-y: visible; padding-right: 0; }
 .hanzi-library-list article {
   grid-template-columns: 52px minmax(0, 1fr) auto;
   gap: 11px;

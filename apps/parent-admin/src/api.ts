@@ -440,6 +440,8 @@ export type HanziCharacterResource = {
   } | null;
 };
 
+export type LearningStatusFilter = "ALL" | "UNLEARNED" | "LEARNING" | "MASTERED";
+
 export type HanziMediaKind =
   | "image"
   | "character-audio"
@@ -1207,10 +1209,11 @@ export const parentApi = {
     ),
   hanziCharacters: (
     childId: string,
-    query: { q?: string; page?: number; pageSize?: number } = {},
+    query: { q?: string; status?: LearningStatusFilter; page?: number; pageSize?: number } = {},
   ) => {
     const search = new URLSearchParams();
     if (query.q) search.set("q", query.q);
+    if (query.status && query.status !== "ALL") search.set("status", query.status);
     if (query.page) search.set("page", String(query.page));
     if (query.pageSize) search.set("pageSize", String(query.pageSize));
     return api<{
@@ -1314,6 +1317,15 @@ export const parentApi = {
       `/api/parent/children/${childId}/hanzi/school-targets/text`,
       { method: "POST", body: JSON.stringify({ characters }) },
     ),
+  importHanziMasteredFromText: (childId: string, characters: string) =>
+    api<{
+      importedCount: number;
+      alreadyMasteredCharacters: string[];
+      missingCharacters: string[];
+    }>(
+      `/api/parent/children/${childId}/hanzi/mastered/text`,
+      { method: "POST", body: JSON.stringify({ characters }) },
+    ),
   poemSettings: (childId: string) =>
     api<PoemSettingsResponse>(
       `/api/parent/children/${childId}/poems/settings`,
@@ -1328,17 +1340,27 @@ export const parentApi = {
     ),
   poems: (
     childId: string,
-    query: { q?: string; grade?: number; page?: number; pageSize?: number } = {},
+    query: { q?: string; grade?: number; status?: LearningStatusFilter; page?: number; pageSize?: number } = {},
   ) => {
     const search = new URLSearchParams();
     if (query.q) search.set("q", query.q);
     if (query.grade) search.set("grade", String(query.grade));
+    if (query.status && query.status !== "ALL") search.set("status", query.status);
     search.set("page", String(query.page ?? 1));
     search.set("pageSize", String(query.pageSize ?? 20));
     return api<{ poems: PoemResource[]; total: number; page: number; pageSize: number }>(
       `/api/parent/children/${childId}/poems?${search.toString()}`,
     );
   },
+  importPoemMasteredFromText: (childId: string, titles: string) =>
+    api<{
+      importedCount: number;
+      alreadyMasteredTitles: string[];
+      missingTitles: string[];
+    }>(
+      `/api/parent/children/${childId}/poems/mastered/text`,
+      { method: "POST", body: JSON.stringify({ titles }) },
+    ),
   generatePoemMedia: (
     childId: string,
     id: string,

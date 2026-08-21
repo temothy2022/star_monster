@@ -10,6 +10,7 @@ import {
   ApiError,
   finalizeHanziLearningSession,
   finishHanziLearningSession,
+  getChildProfile,
   startHanziLearningSession,
   type HanziCharacter,
   type HanziLearningSession,
@@ -21,6 +22,11 @@ import { LoadingDots } from "../components/LoadingDots";
 import playIcon from "@star-monsters/assets/icons/untimed-task/play.svg";
 import defaultHanziImage from "@star-monsters/assets/images/hanzi/test-generated-shui.jpeg";
 import meaningSpeakerIcon from "@star-monsters/assets/icons/hanzi/meaning-speaker.svg";
+import soundSpeakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
+import reviewCheckIcon from "@star-monsters/assets/icons/icon-check.svg";
+import reviewHintIcon from "@star-monsters/assets/icons/untimed-task/help.svg";
+import reviewRetryIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
+import reviewStarIcon from "@star-monsters/assets/icons/wishes/star.svg";
 import {
   getHanziAudioElement,
   preloadHanziSessionAssets,
@@ -35,6 +41,7 @@ import {
   createHtmlAudioPlayback,
   SinglePendingPlaybackQueue,
 } from "../audio/queued-playback";
+import { useMascot } from "../mascots";
 
 type CompletionReward = {
   baseStars: number;
@@ -532,6 +539,7 @@ export function HanziLearningExperience({
   onExit: () => void;
   onCompleted: (reward: CompletionReward) => void;
 }) {
+  const { mascot } = useMascot();
   const [session, setSession] = useState<HanziLearningSession | null>(null);
   const [started, setStarted] = useState(false);
   const [newStep, setNewStep] = useState(0);
@@ -542,11 +550,25 @@ export function HanziLearningExperience({
     useState<FlowTransitionAction | null>(null);
   const [error, setError] = useState("");
   const [knownToast, setKnownToast] = useState(false);
+  const [starBalance, setStarBalance] = useState<number | null>(null);
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
   const [pendingSession, setPendingSession] = useState<HanziLearningSession | null>(null);
   const [completionReward, setCompletionReward] = useState<CompletionReward | null>(null);
   const [answerSelections, setAnswerSelections] = useState<Record<string, string>>({});
   const [masteredNewCharacterIds, setMasteredNewCharacterIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (session?.phase !== "REVIEW") return undefined;
+    let active = true;
+    void getChildProfile()
+      .then((profile) => {
+        if (active) setStarBalance(profile.starBalance);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [session?.phase]);
   const [assetProgress, setAssetProgress] = useState({
     total: 0,
     completed: 0,
@@ -1058,8 +1080,9 @@ export function HanziLearningExperience({
       return;
     }
     if (session?.phase === "REVIEW") {
-      if (flipped) {
+      if (flipped || reviewDecision !== "INITIAL") {
         setFlipped(false);
+        setReviewDecision("INITIAL");
         return;
       }
       returnToOverview();
@@ -1301,64 +1324,149 @@ export function HanziLearningExperience({
 
   if (session.phase === "REVIEW" && reviewCharacter) {
     const hintVisible = reviewDecision === "HINT";
+    const independentRatingVisible = reviewDecision === "INDEPENDENT";
+    const reviewCurrent = session.reviewIndex + 1;
+    const reviewTotal = session.reviewCharacterIds.length;
+    const reviewProgress = reviewTotal
+      ? (Math.min(reviewCurrent, reviewTotal) / reviewTotal) * 100
+      : 100;
+    const firstWord = reviewCharacter.words[0] ?? reviewCharacter.character;
     return (
-      <main className="hanzi-page hanzi-page--review">
-        <ProgressHeader
-          title="复习"
-          current={session.reviewIndex + 1}
-          total={session.reviewCharacterIds.length}
-          onBack={goBackOneStep}
-        />
+      <main className={`hanzi-page hanzi-page--review-adaptive${hintVisible ? " is-hint-visible" : ""}`}>
+        <header className="adaptive-review-header">
+          <BackButton onClick={goBackOneStep} />
+          <h1>星宠成长基地</h1>
+          <span className="adaptive-review-header__balance" aria-label={starBalance == null ? "正在读取星星余额" : `当前有${starBalance}颗星`}>
+            <img src={reviewStarIcon} alt="" aria-hidden="true" />
+            {starBalance ?? "--"}
+          </span>
+        </header>
         <HanziTaskControls onAbandon={abandonLearning} />
-        <section className="hanzi-review-canvas">
-          <button
-            className={`hanzi-review-card${hintVisible ? " hanzi-review-card--flipped" : ""}`}
-            disabled={Boolean(flowTransition)}
-            type="button"
-            onClick={() => undefined}
-            aria-label={hintVisible ? `${reviewCharacter.character}的提示` : `回忆汉字${reviewCharacter.character}`}
-          >
-            <span className="hanzi-review-card__face hanzi-review-card__face--front">
-              <CharacterBox character={reviewCharacter.character} />
-              <span className="hanzi-hint-chip">先在心里读一读</span>
-              <p>你想起它了吗？</p>
-            </span>
-            <span className="hanzi-review-card__face hanzi-review-card__face--back">
-              <CharacterBox character={reviewCharacter.character} />
-              <img
-                className="hanzi-runtime-default-image"
-                src={characterImageSource(reviewCharacter)}
-                alt={`${reviewCharacter.character}字形联想图`}
-                decoding="async"
-                fetchPriority="high"
-                onError={handleCharacterImageError}
-              />
-              <div className="hanzi-card-back__bottom">
-                <span><PlayIcon />听一听</span>
+        <section className="adaptive-hanzi-review" aria-label={`复习汉字${reviewCharacter.character}`}>
+          <div className="adaptive-hanzi-review__character-pane">
+            <CharacterBox character={reviewCharacter.character} />
+            {reviewDecision === "INITIAL" ? (
+              <div className="adaptive-review-actions adaptive-review-actions--primary">
+                <button
+                  className="adaptive-review-button adaptive-review-button--success"
+                  type="button"
+                  disabled={busy || Boolean(flowTransition)}
+                  onClick={() => setReviewDecision("INDEPENDENT")}
+                >
+                  <img src={reviewCheckIcon} alt="" aria-hidden="true" />
+                  我想到了
+                </button>
+                <button
+                  className="adaptive-review-button adaptive-review-button--danger"
+                  type="button"
+                  disabled={busy || Boolean(flowTransition)}
+                  onClick={() => {
+                    setReviewDecision("HINT");
+                    setFlipped(true);
+                    stopActiveSpeech();
+                  }}
+                >
+                  <img src={reviewHintIcon} alt="" aria-hidden="true" />
+                  给我提示
+                </button>
               </div>
-            </span>
-          </button>
-          {reviewDecision === "INITIAL" ? (
-            <div className="hanzi-review-actions hanzi-review-actions--recall">
-              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => {
-                setReviewDecision("HINT");
-                setFlipped(true);
-                playCharacterThenText(reviewCharacter, reviewCharacter.words[0] ?? reviewCharacter.character, reviewCharacter.wordAudioUrls[0]);
-              }}>给我提示</button>
-              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => setReviewDecision("INDEPENDENT")}>我想到了</button>
-            </div>
-          ) : reviewDecision === "INDEPENDENT" ? (
-            <div className="hanzi-review-actions hanzi-review-actions--rating">
-              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("EFFORTFUL")}>想了一会儿</button>
-              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("EASY")}>一下就想起</button>
-            </div>
-          ) : (
-            <div className="hanzi-review-actions hanzi-review-actions--rating">
-              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("FORGOT")}>还要再学</button>
-              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("HINTED")}>提示后想起</button>
-            </div>
-          )}
+            ) : independentRatingVisible ? (
+              <div className="adaptive-review-actions adaptive-review-actions--primary">
+                <button
+                  className="adaptive-review-button adaptive-review-button--effort"
+                  type="button"
+                  disabled={busy || Boolean(flowTransition)}
+                  onClick={() => submitReview("EFFORTFUL")}
+                >
+                  想了一会儿
+                </button>
+                <button
+                  className="adaptive-review-button adaptive-review-button--success"
+                  type="button"
+                  disabled={busy || Boolean(flowTransition)}
+                  onClick={() => submitReview("EASY")}
+                >
+                  <img src={reviewCheckIcon} alt="" aria-hidden="true" />
+                  一下就想起
+                </button>
+              </div>
+            ) : (
+              <div className="adaptive-review-actions adaptive-review-actions--primary adaptive-review-actions--hint-source" aria-hidden="true">
+                <button className="adaptive-review-button adaptive-review-button--success" type="button" disabled>
+                  <img src={reviewCheckIcon} alt="" />我想到了
+                </button>
+                <button className="adaptive-review-button adaptive-review-button--danger" type="button" disabled>
+                  <img src={reviewHintIcon} alt="" />给我提示
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="adaptive-hanzi-review__hint-pane" aria-hidden={!hintVisible}>
+            {hintVisible ? (
+              <>
+                <h2>提示</h2>
+                <img
+                  className="adaptive-hanzi-review__hint-image"
+                  src={characterImageSource(reviewCharacter)}
+                  alt={`${reviewCharacter.character}字形联想图`}
+                  decoding="async"
+                  fetchPriority="high"
+                  onError={handleCharacterImageError}
+                />
+                <div className="adaptive-hanzi-review__audio-actions">
+                  <button
+                    className="adaptive-review-play"
+                    type="button"
+                    disabled={busy || Boolean(flowTransition)}
+                    aria-label={`播放${reviewCharacter.character}和词语${firstWord}`}
+                    onClick={() => playCharacterThenText(reviewCharacter, firstWord, reviewCharacter.wordAudioUrls[0])}
+                  >
+                    <img src={soundSpeakerIcon} alt="" aria-hidden="true" />
+                  </button>
+                  <button
+                    className="adaptive-review-play"
+                    type="button"
+                    disabled={busy || Boolean(flowTransition)}
+                    aria-label={`播放${reviewCharacter.character}的例句`}
+                    onClick={() => playSpeech(resolvedSentence(reviewCharacter), reviewCharacter.sentenceAudioUrl)}
+                  >
+                    <img src={soundSpeakerIcon} alt="" aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="adaptive-review-actions adaptive-review-actions--hint-result">
+                  <button
+                    className="adaptive-review-button adaptive-review-button--success"
+                    type="button"
+                    disabled={busy || Boolean(flowTransition)}
+                    onClick={() => submitReview("HINTED")}
+                  >
+                    <img src={reviewCheckIcon} alt="" aria-hidden="true" />
+                    提示后想起
+                  </button>
+                  <button
+                    className="adaptive-review-button adaptive-review-button--danger"
+                    type="button"
+                    disabled={busy || Boolean(flowTransition)}
+                    onClick={() => submitReview("FORGOT")}
+                  >
+                    <img src={reviewRetryIcon} alt="" aria-hidden="true" />
+                    还要再学
+                  </button>
+                </div>
+              </>
+            ) : (
+              <span className="adaptive-hanzi-review__empty" />
+            )}
+          </div>
         </section>
+        <footer className="adaptive-review-footer">
+          <img className="adaptive-review-footer__mascot" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
+          <div className="adaptive-review-footer__progress">
+            <span><img src={reviewStarIcon} alt="" aria-hidden="true" />{reviewCurrent} / {reviewTotal}</span>
+            <div><i style={{ width: `${reviewProgress}%` }} /></div>
+          </div>
+        </footer>
         {knownToast ? (
           <div className="hanzi-known-toast-layer" aria-live="polite">
             <div className="hanzi-feedback-toast hanzi-feedback-toast--success">

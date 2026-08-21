@@ -3,6 +3,7 @@ import {
   ApiError,
   completePoemLearning,
   finishPoemReview,
+  getChildProfile,
   startPoemLearningSession,
   submitPoemReview,
   type Poem,
@@ -10,6 +11,10 @@ import {
   type MemoryRecallRating,
 } from "../api/child-api";
 import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
+import reviewCheckIcon from "@star-monsters/assets/icons/icon-check.svg";
+import reviewHintIcon from "@star-monsters/assets/icons/untimed-task/help.svg";
+import reviewRetryIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
+import reviewStarIcon from "@star-monsters/assets/icons/wishes/star.svg";
 import defaultPoemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
 import { ChildDataState } from "../components/ChildDataState";
 import { ChildControlIcon } from "../components/ChildControlIcon";
@@ -27,6 +32,7 @@ import {
   SinglePendingPlaybackQueue,
   type PlaybackHandle,
 } from "../audio/queued-playback";
+import { useMascot } from "../mascots";
 
 type Reward = {
   baseStars: number;
@@ -93,17 +99,32 @@ export function PoemLearningExperience({
   onExit: () => void;
   onCompleted: (reward: Reward) => void;
 }) {
+  const { mascot } = useMascot();
   const [session, setSession] = useState<PoemLearningSession | null>(null);
   const [learningStep, setLearningStep] = useState<0 | 1 | 2>(0);
   const [reviewDecision, setReviewDecision] = useState<"INITIAL" | "INDEPENDENT" | "HINT">("INITIAL");
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
+  const [starBalance, setStarBalance] = useState<number | null>(null);
   const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const reviewStartedAt = useRef(performance.now());
   if (!playbackQueueRef.current) {
     playbackQueueRef.current = new SinglePendingPlaybackQueue(setPlaying);
   }
+
+  useEffect(() => {
+    if (session?.kind !== "REVIEW") return undefined;
+    let active = true;
+    void getChildProfile()
+      .then((profile) => {
+        if (active) setStarBalance(profile.starBalance);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [session?.kind]);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +294,127 @@ export function PoemLearningExperience({
 
   const isReview = session.kind === "REVIEW";
   const isLastReview = session.currentIndex === session.poemIds.length - 1;
+  if (isReview) {
+    const answerVisible = reviewDecision !== "INITIAL";
+    const reviewCurrent = session.currentIndex + 1;
+    const reviewTotal = session.poemIds.length;
+    const reviewProgress = reviewTotal
+      ? (Math.min(reviewCurrent, reviewTotal) / reviewTotal) * 100
+      : 100;
+
+    return (
+      <main className={`poem-page poem-page--adaptive-review${answerVisible ? " is-answer-visible" : ""}`}>
+        <HanziTaskControls onAbandon={onExit} experienceName="古诗复习" />
+        <header className="adaptive-review-header">
+          <button
+            className="poem-page__back"
+            type="button"
+            aria-label="返回任务列表"
+            onClick={onExit}
+          >
+            <ChildControlIcon kind="back" />
+          </button>
+          <h1>星宠成长基地</h1>
+          <span className="adaptive-review-header__balance" aria-label={starBalance == null ? "正在读取星星余额" : `当前有${starBalance}颗星`}>
+            <img src={reviewStarIcon} alt="" aria-hidden="true" />
+            {starBalance ?? "--"}
+          </span>
+        </header>
+
+        <section className="adaptive-poem-review" aria-label={`复习古诗${poem.title}`}>
+          <div className="adaptive-poem-review__image-pane">
+            <img
+              src={poem.imageUrl || defaultPoemImage}
+              alt={`${poem.title}配图`}
+              decoding="async"
+            />
+          </div>
+          <div className="adaptive-poem-review__content-pane">
+            <div className="adaptive-poem-review__heading">
+              <h2>{poem.title}</h2>
+              <span>{poem.dynasty} · {poem.author}</span>
+            </div>
+
+            <div className="adaptive-poem-review__grid" aria-label={answerVisible ? poem.content : "背诵提示：先看第一句"}>
+              {clauses.map((clause, clauseIndex) => (
+                <div className="adaptive-poem-review__line" key={`${clause}-${clauseIndex}`}>
+                  {Array.from(clause).map((character, characterIndex) => {
+                    const punctuation = END_PUNCTUATION.test(character);
+                    if (punctuation) {
+                      return answerVisible || clauseIndex === 0 ? (
+                        <span className="adaptive-poem-review__punctuation" key={`${character}-${characterIndex}`}>{character}</span>
+                      ) : null;
+                    }
+                    const characterVisible = answerVisible || clauseIndex === 0;
+                    return (
+                      <span
+                        className={`adaptive-poem-review__character${characterVisible ? " is-visible" : ""}`}
+                        key={`${character}-${characterIndex}`}
+                      >
+                        {characterVisible ? character : ""}
+                      </span>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {reviewDecision === "INITIAL" ? (
+              <div className="adaptive-review-actions adaptive-poem-review__initial-actions">
+                <button
+                  className="adaptive-review-button adaptive-review-button--success"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setReviewDecision("INDEPENDENT")}
+                >
+                  <img src={speakerIcon} alt="" aria-hidden="true" />
+                  我能背
+                </button>
+                <button
+                  className="adaptive-review-button adaptive-review-button--danger"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    playbackQueueRef.current?.clear();
+                    setReviewDecision("HINT");
+                  }}
+                >
+                  <img src={reviewHintIcon} alt="" aria-hidden="true" />
+                  提示一句
+                </button>
+              </div>
+            ) : (
+              <div className="adaptive-poem-review__rating-actions">
+                <button className="adaptive-review-button adaptive-review-button--success" type="button" disabled={busy} onClick={() => void handleReview("EASY")}>
+                  <img src={reviewCheckIcon} alt="" aria-hidden="true" />很顺利
+                </button>
+                <button className="adaptive-review-button adaptive-review-button--effort" type="button" disabled={busy} onClick={() => void handleReview("EFFORTFUL")}>
+                  想了一会儿
+                </button>
+                <button className="adaptive-review-button adaptive-review-button--hinted" type="button" disabled={busy} onClick={() => void handleReview("HINTED")}>
+                  <img src={reviewHintIcon} alt="" aria-hidden="true" />提示后完成
+                </button>
+                <button className="adaptive-review-button adaptive-review-button--danger" type="button" disabled={busy} onClick={() => void handleReview("FORGOT")}>
+                  <img src={reviewRetryIcon} alt="" aria-hidden="true" />
+                  还要复习
+                </button>
+              </div>
+            )}
+            {error ? <p className="poem-runtime__error" role="alert">{error}</p> : null}
+          </div>
+        </section>
+
+        <footer className="adaptive-review-footer">
+          <img className="adaptive-review-footer__mascot" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
+          <div className="adaptive-review-footer__progress">
+            <span><img src={reviewStarIcon} alt="" aria-hidden="true" />{reviewCurrent} / {reviewTotal}</span>
+            <div><i style={{ width: `${reviewProgress}%` }} /></div>
+          </div>
+        </footer>
+      </main>
+    );
+  }
+
   const displayedContent = isReview
     ? clauses
         .map((clause) =>

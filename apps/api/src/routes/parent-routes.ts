@@ -196,6 +196,7 @@ const leaderboardSettingsSchema = z.object({
 });
 const hanziLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
+  status: z.enum(["ALL", "UNLEARNED", "LEARNING", "MASTERED"]).default("ALL"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(30),
 });
@@ -226,6 +227,7 @@ const poemSettingsSchema = z
 const poemLibraryQuery = z.object({
   q: z.string().trim().max(80).default(""),
   grade: z.coerce.number().int().min(1).max(6).optional(),
+  status: z.enum(["ALL", "UNLEARNED", "LEARNING", "MASTERED"]).default("ALL"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -470,6 +472,12 @@ const schoolTargetBatchBody = z.object({
 });
 const schoolTargetHanziTextBody = z.object({
   characters: z.string().trim().min(1).max(1_000),
+});
+const masteredHanziTextBody = z.object({
+  characters: z.string().trim().min(1).max(2_000),
+});
+const masteredPoemTextBody = z.object({
+  titles: z.string().trim().min(1).max(5_000),
 });
 const statsQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -1414,10 +1422,17 @@ export async function registerParentRoutes(
   app.get("/api/parent/children/:id/poems", async (request, reply) => {
     const { id } = idParams.parse(request.params);
     await requireOwnedChild(request, reply, config, id);
-    const { q, grade, page, pageSize } = poemLibraryQuery.parse(request.query);
+    const { q, grade, status, page, pageSize } = poemLibraryQuery.parse(request.query);
     const where: Prisma.PoemWhereInput = {
         isEnabled: true,
         ...(grade ? { grade } : {}),
+        ...(status === "UNLEARNED"
+          ? { progress: { none: { childId: id } } }
+          : status === "LEARNING"
+            ? { progress: { some: { childId: id, status: "LEARNING" } } }
+            : status === "MASTERED"
+              ? { progress: { some: { childId: id, status: "MASTERED" } } }
+              : {}),
         ...(q
           ? {
               OR: [
@@ -1596,6 +1611,83 @@ export async function registerParentRoutes(
         where: { childId, poemId: targetId },
       });
       return { ok: true };
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:childId/poems/mastered/text",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const { titles: input } = masteredPoemTextBody.parse(request.body);
+      const requestedTitles = [...new Set(
+        input
+          .split(/[\n,，、;；]+/)
+          .map((title) => title.replace(/[《》「」]/g, "").trim())
+          .filter(Boolean),
+      )];
+      if (!requestedTitles.length) {
+        throw new HttpError(400, "POEM_INPUT_EMPTY", "请输入至少一个古诗标题");
+      }
+
+      const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+      const now = new Date();
+      const result = await prisma.$transaction(async (tx) => {
+        const poems = await tx.poem.findMany({
+          where: { title: { in: requestedTitles }, isEnabled: true },
+          select: { id: true, title: true },
+        });
+        const poemByTitle = new Map(poems.map((poem) => [poem.title.trim(), poem]));
+        const foundPoems = requestedTitles
+          .map((title) => poemByTitle.get(title))
+          .filter((poem): poem is { id: string; title: string } => Boolean(poem));
+        const foundIds = foundPoems.map((poem) => poem.id);
+        const missingTitles = requestedTitles.filter((title) => !poemByTitle.has(title));
+        const existing = await tx.poemLearningProgress.findMany({
+          where: { childId, poemId: { in: foundIds } },
+          select: { poemId: true, status: true },
+        });
+        const existingById = new Map(existing.map((item) => [item.poemId, item]));
+        if (foundIds.length) {
+          await tx.poemSchoolTarget.deleteMany({ where: { childId, poemId: { in: foundIds } } });
+          await tx.poemLearningProgress.updateMany({
+            where: { childId, poemId: { in: foundIds } },
+            data: {
+              status: "MASTERED",
+              learnedDate: today,
+              reviewStage: 7,
+              nextReviewDate: null,
+              isDifficult: false,
+              consecutiveWrong: 0,
+              lastReviewedAt: now,
+            },
+          });
+          const newProgress = foundIds
+            .filter((poemId) => !existingById.has(poemId))
+            .map((poemId) => ({
+              childId,
+              poemId,
+              status: "MASTERED" as const,
+              learnedDate: today,
+              reviewStage: 7,
+              nextReviewDate: null,
+              isDifficult: false,
+              consecutiveWrong: 0,
+              lastReviewedAt: now,
+            }));
+          if (newProgress.length) {
+            await tx.poemLearningProgress.createMany({ data: newProgress, skipDuplicates: true });
+          }
+        }
+        return {
+          importedCount: foundIds.filter((poemId) => existingById.get(poemId)?.status !== "MASTERED").length,
+          alreadyMasteredTitles: foundPoems
+            .filter((poem) => existingById.get(poem.id)?.status === "MASTERED")
+            .map((poem) => poem.title),
+          missingTitles,
+        };
+      });
+      return result;
     },
   );
 
@@ -1810,9 +1902,16 @@ export async function registerParentRoutes(
     async (request, reply) => {
       const { id } = idParams.parse(request.params);
       await requireOwnedChild(request, reply, config, id);
-      const { q, page, pageSize } = hanziLibraryQuery.parse(request.query);
+      const { q, status, page, pageSize } = hanziLibraryQuery.parse(request.query);
       const where: Prisma.HanziCharacterWhereInput = {
         isEnabled: true,
+        ...(status === "UNLEARNED"
+          ? { progress: { none: { childId: id } } }
+          : status === "LEARNING"
+            ? { progress: { some: { childId: id, status: "LEARNING" } } }
+            : status === "MASTERED"
+              ? { progress: { some: { childId: id, status: "MASTERED" } } }
+              : {}),
         ...(q
           ? {
               OR: [
@@ -1993,6 +2092,78 @@ export async function registerParentRoutes(
             .filter((item): item is { id: string; character: string } => Boolean(item))
             .filter((item) => existingIds.has(item.id))
             .map((item) => item.character),
+          missingCharacters,
+        };
+      });
+      return result;
+    },
+  );
+
+  app.post(
+    "/api/parent/children/:childId/hanzi/mastered/text",
+    async (request, reply) => {
+      const { childId } = schoolTargetChildParams.parse(request.params);
+      await requireOwnedChild(request, reply, config, childId);
+      const { characters: input } = masteredHanziTextBody.parse(request.body);
+      const requestedCharacters = [...new Set(input.match(/\p{Script=Han}/gu) ?? [])];
+      if (!requestedCharacters.length) {
+        throw new HttpError(400, "HANZI_INPUT_EMPTY", "请输入至少一个汉字");
+      }
+
+      const today = businessDateAt(new Date(), config.APP_TIME_ZONE);
+      const now = new Date();
+      const result = await prisma.$transaction(async (tx) => {
+        const characters = await tx.hanziCharacter.findMany({
+          where: { character: { in: requestedCharacters }, isEnabled: true },
+          select: { id: true, character: true },
+        });
+        const characterByValue = new Map(characters.map((item) => [item.character, item]));
+        const foundCharacters = requestedCharacters
+          .map((character) => characterByValue.get(character))
+          .filter((character): character is { id: string; character: string } => Boolean(character));
+        const foundIds = foundCharacters.map((character) => character.id);
+        const missingCharacters = requestedCharacters.filter((character) => !characterByValue.has(character));
+        const existing = await tx.hanziLearningProgress.findMany({
+          where: { childId, characterId: { in: foundIds } },
+          select: { characterId: true, status: true },
+        });
+        const existingById = new Map(existing.map((item) => [item.characterId, item]));
+        if (foundIds.length) {
+          await tx.hanziSchoolTarget.deleteMany({ where: { childId, characterId: { in: foundIds } } });
+          await tx.hanziLearningProgress.updateMany({
+            where: { childId, characterId: { in: foundIds } },
+            data: {
+              status: "MASTERED",
+              learnedDate: today,
+              reviewStage: 7,
+              nextReviewDate: null,
+              isDifficult: false,
+              consecutiveWrong: 0,
+              lastReviewedAt: now,
+            },
+          });
+          const newProgress = foundIds
+            .filter((characterId) => !existingById.has(characterId))
+            .map((characterId) => ({
+              childId,
+              characterId,
+              status: "MASTERED" as const,
+              learnedDate: today,
+              reviewStage: 7,
+              nextReviewDate: null,
+              isDifficult: false,
+              consecutiveWrong: 0,
+              lastReviewedAt: now,
+            }));
+          if (newProgress.length) {
+            await tx.hanziLearningProgress.createMany({ data: newProgress, skipDuplicates: true });
+          }
+        }
+        return {
+          importedCount: foundIds.filter((characterId) => existingById.get(characterId)?.status !== "MASTERED").length,
+          alreadyMasteredCharacters: foundCharacters
+            .filter((character) => existingById.get(character.id)?.status === "MASTERED")
+            .map((character) => character.character),
           missingCharacters,
         };
       });
