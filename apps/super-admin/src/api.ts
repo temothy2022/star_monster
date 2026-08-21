@@ -747,6 +747,21 @@ export const adminApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  deleteFamily: (id: string, confirmation: string) =>
+    api<{
+      ok: true;
+      deleted: {
+        parentAccounts: number;
+        children: number;
+        releasedPhoneNumbers: number;
+      };
+    }>(
+      `/api/admin/families/${id}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({ confirmation }),
+      },
+    ),
   createChild: (familyId: string, nickname?: string) =>
     api<{ childId: string; loginCode: string }>(
       `/api/admin/families/${familyId}/children`,

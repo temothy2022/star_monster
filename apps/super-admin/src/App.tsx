@@ -510,16 +510,22 @@ type FamilyEditor =
 function FamilyCard({
   family,
   onChanged,
+  onDeleted,
   onViewData,
 }: {
   family: Family;
   onChanged: () => void;
+  onDeleted: () => void;
   onViewData: () => void;
 }) {
   const [editor, setEditor] = useState<FamilyEditor>(null);
   const [editorBusy, setEditorBusy] = useState(false);
   const [aiAccessBusy, setAiAccessBusy] = useState(false);
   const [editorError, setEditorError] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   async function submitEditor(event: FormEvent) {
     event.preventDefault();
     if (!editor) return;
@@ -559,6 +565,75 @@ function FamilyCard({
           : "重置家长密码";
   return (
     <>
+      <Modal
+        title="删除家庭"
+        open={deleteOpen}
+        footer={null}
+        destroyOnHidden
+        onCancel={() => {
+          if (deleteBusy) return;
+          setDeleteOpen(false);
+          setDeleteConfirmation("");
+          setDeleteError("");
+        }}
+      >
+        <form
+          className="admin-form super-account-editor"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setDeleteBusy(true);
+            setDeleteError("");
+            void adminApi
+              .deleteFamily(family.id, deleteConfirmation)
+              .then(({ deleted }) => {
+                setDeleteOpen(false);
+                setDeleteConfirmation("");
+                window.alert(
+                  `家庭已删除，释放 ${deleted.releasedPhoneNumbers} 个手机号。`,
+                );
+                onDeleted();
+              })
+              .catch((reason) => {
+                setDeleteError(
+                  reason instanceof Error ? reason.message : "家庭删除失败",
+                );
+              })
+              .finally(() => setDeleteBusy(false));
+          }}
+        >
+          <div className="admin-notice admin-notice--error field-span">
+            此操作会永久删除家庭、家长账号、孩子、任务、星星流水和学习记录，手机号会被释放，无法恢复。
+          </div>
+          <label className="field-span">
+            请输入家庭名称确认：{family.name}
+            <input
+              required
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              placeholder="输入完全一致的家庭名称"
+              autoFocus
+            />
+          </label>
+          {deleteError ? (
+            <div className="admin-notice admin-notice--error field-span">
+              {deleteError}
+            </div>
+          ) : null}
+          <div className="form-actions field-span">
+            <button
+              type="button"
+              className="ghost-button"
+              disabled={deleteBusy}
+              onClick={() => setDeleteOpen(false)}
+            >
+              取消
+            </button>
+            <button className="danger-button" disabled={deleteBusy}>
+              {deleteBusy ? "删除中…" : "永久删除"}
+            </button>
+          </div>
+        </form>
+      </Modal>
       <Modal
         title={editorTitle}
         open={Boolean(editor)}
@@ -731,6 +806,16 @@ function FamilyCard({
               }
             >
               添加家长
+            </button>
+            <button
+              className="danger-button"
+              onClick={() => {
+                setDeleteConfirmation("");
+                setDeleteError("");
+                setDeleteOpen(true);
+              }}
+            >
+              删除家庭
             </button>
           </div>
         </header>
@@ -1172,6 +1257,7 @@ function FamiliesView() {
               key={family.id}
               family={family}
               onChanged={() => void load()}
+              onDeleted={() => void load()}
               onViewData={() => void viewOverview(family.id)}
             />
           ))}

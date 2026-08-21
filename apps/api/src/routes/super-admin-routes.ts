@@ -16,6 +16,7 @@ import {
 } from "../services/account-service.js";
 import { requireAdmin } from "../services/auth-service.js";
 import { writeAudit } from "../services/audit-service.js";
+import { deleteFamilyData } from "../services/family-deletion-service.js";
 import { addBusinessDays, businessDateAt } from "../lib/time.js";
 import { callDeepSeekJson, listDeepSeekModels } from "../services/deepseek-service.js";
 import {
@@ -68,6 +69,10 @@ const familyUpdateSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   status: z.enum(["ACTIVE", "DISABLED"]).optional(),
   aiAccessEnabled: z.boolean().optional(),
+});
+
+const deleteFamilySchema = z.object({
+  confirmation: z.string().trim().min(1).max(80),
 });
 
 const userUpdateSchema = z.object({
@@ -697,6 +702,52 @@ export async function registerSuperAdminRoutes(
       return updated;
     });
     return { family };
+  });
+
+  app.delete("/api/admin/families/:id", async (request, reply) => {
+    const { user: actor } = await requireAdmin(request, reply, config);
+    const { id: familyId } = idParams.parse(request.params);
+    const input = deleteFamilySchema.parse(request.body);
+
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const family = await tx.family.findUnique({
+          where: { id: familyId },
+          select: { id: true, name: true },
+        });
+        if (!family) {
+          throw new HttpError(404, "FAMILY_NOT_FOUND", "没有找到家庭");
+        }
+        if (input.confirmation !== family.name) {
+          throw new HttpError(
+            400,
+            "FAMILY_DELETE_CONFIRMATION_MISMATCH",
+            "请输入完全一致的家庭名称后再删除",
+          );
+        }
+
+        const deleted = await deleteFamilyData(tx, familyId);
+        await writeAudit(tx, {
+          actorType: "USER",
+          actorId: actor.id,
+          familyId,
+          action: "FAMILY_DELETE",
+          resourceType: "Family",
+          resourceId: familyId,
+          metadata: {
+            familyName: family.name,
+            parentAccounts: deleted.parentAccounts,
+            children: deleted.children,
+            releasedPhoneNumbers: deleted.releasedPhoneNumbers,
+          },
+          ipAddress: request.ip,
+        });
+        return deleted;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+    return { ok: true, deleted: result };
   });
 
   app.patch("/api/admin/users/:id", async (request, reply) => {
