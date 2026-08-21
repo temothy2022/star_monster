@@ -12,7 +12,7 @@ import racerDoudou from "@star-monsters/assets/images/timed-task/racer-2.jpeg";
 import racerYaya from "@star-monsters/assets/images/timed-task/racer-3.jpeg";
 import racerBobo from "@star-monsters/assets/images/timed-task/timeout-extra.jpeg";
 import { useMascot } from "../mascots";
-import { AbandonDialog, MoreMenu, type UntimedOverlay } from "./TaskOverlays";
+import { MoreMenu, type UntimedOverlay } from "./TaskOverlays";
 import {
   playCompletionSound,
   prepareCompletionSound,
@@ -142,7 +142,7 @@ export function TimedTaskActive({
       className="timed-page timed-page--active"
       style={{ "--timed-start-bg": `url(${startBackground})` } as CSSProperties}
     >
-      <CloseButton onClick={() => setOverlay("abandon")} />
+      <CloseButton onClick={onAbandon ?? onBack} />
       <button
         className="timed-more-button"
         type="button"
@@ -221,12 +221,6 @@ export function TimedTaskActive({
             if (paused) onResume?.();
             else onPause?.();
           }}
-          onAbandon={() => setOverlay("abandon")}
-        />
-      )}
-      {overlay === "abandon" && (
-        <AbandonDialog
-          onContinue={() => setOverlay(null)}
           onAbandon={onAbandon ?? onBack}
         />
       )}

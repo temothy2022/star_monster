@@ -1,7 +1,6 @@
 import { useState } from "react";
 import cancelIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
 import checkIcon from "@star-monsters/assets/icons/icon-check.svg";
-import { AbandonDialog } from "../tasks/TaskOverlays";
 import { ChildControlIcon } from "../components/ChildControlIcon";
 
 export function HanziTaskControls({
@@ -15,7 +14,7 @@ export function HanziTaskControls({
   markMasteredDisabled?: boolean;
   experienceName?: string;
 }) {
-  const [overlay, setOverlay] = useState<"menu" | "abandon" | null>(null);
+  const [overlay, setOverlay] = useState<"menu" | null>(null);
 
   return (
     <>
@@ -56,7 +55,13 @@ export function HanziTaskControls({
                   <span>这个字已掌握</span>
                 </button>
               ) : null}
-              <button type="button" onClick={() => setOverlay("abandon")}>
+              <button
+                type="button"
+                onClick={() => {
+                  setOverlay(null);
+                  onAbandon();
+                }}
+              >
                 <span className="untimed-more-menu__icon">
                   <img src={cancelIcon} alt="" />
                 </span>
@@ -66,12 +71,6 @@ export function HanziTaskControls({
             <p>点击空白处继续学习</p>
           </div>
         </div>
-      ) : null}
-      {overlay === "abandon" ? (
-        <AbandonDialog
-          onContinue={() => setOverlay(null)}
-          onAbandon={onAbandon}
-        />
       ) : null}
     </>
   );
