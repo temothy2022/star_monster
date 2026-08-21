@@ -90,6 +90,11 @@ const performanceQuery = z.object({
 const aiUsageQuery = z.object({
   days: z.coerce.number().int().min(1).max(90).default(30),
 });
+const smsLogQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(10).max(100).default(20),
+  status: z.enum(["STARTED", "SUCCESS", "FAILED", "NOT_CONFIGURED"]).optional(),
+});
 const adminListQuery = z.object({
   q: z.string().trim().max(100).default(""),
   page: z.coerce.number().int().min(1).default(1),
@@ -977,6 +982,68 @@ export async function registerSuperAdminRoutes(
     });
     const dashboard = buildAiModelUsageDashboard(records.slice(0, 100_000), days, new Date(), config.APP_TIME_ZONE);
     return { ...dashboard, truncated: records.length > 100_000 };
+  });
+
+  app.get("/api/admin/sms-logs", async (request, reply) => {
+    await requireAdmin(request, reply, config);
+    const query = smsLogQuery.parse(request.query);
+    const where = query.status ? { status: query.status } : {};
+    const [logs, total, statusCounts, lastCall] = await Promise.all([
+      prisma.smsDeliveryLog.findMany({
+        where,
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          purpose: true,
+          phoneNumber: true,
+          status: true,
+          providerHost: true,
+          providerPath: true,
+          providerHttpStatus: true,
+          providerCode: true,
+          providerRequestId: true,
+          providerMessage: true,
+          errorMessage: true,
+          startedAt: true,
+          completedAt: true,
+          createdAt: true,
+        },
+      }),
+      prisma.smsDeliveryLog.count({ where }),
+      prisma.smsDeliveryLog.groupBy({
+        by: ["status"],
+        _count: { _all: true },
+        where: { createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1_000) } },
+      }),
+      prisma.smsDeliveryLog.findFirst({ orderBy: [{ createdAt: "desc" }, { id: "desc" }], select: { createdAt: true } }),
+    ]);
+    let providerHost: string | null = null;
+    let providerPath: string | null = null;
+    if (config.SMS_PROVIDER_URL) {
+      try {
+        const providerUrl = new URL(config.SMS_PROVIDER_URL);
+        providerHost = providerUrl.host;
+        providerPath = providerUrl.pathname.replace(/\/[^/]+$/, "/{template}");
+      } catch {
+        providerPath = "配置地址无效";
+      }
+    }
+    return {
+      logs,
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+      configuration: {
+        configured: Boolean(config.SMS_PROVIDER_URL),
+        providerHost,
+        providerPath,
+        timeoutMs: config.SMS_REQUEST_TIMEOUT_MS,
+      },
+      summary: Object.fromEntries(statusCounts.map((row) => [row.status, row._count._all])),
+      lastCallAt: lastCall?.createdAt ?? null,
+    };
   });
 
   app.get("/api/admin/performance", async (request, reply) => {

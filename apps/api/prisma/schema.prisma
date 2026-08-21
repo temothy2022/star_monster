@@ -354,6 +354,27 @@ model ParentRegistrationVerification {
   @@index([phoneNumber, consumedAt, expiresAt])
 }
 
+model SmsDeliveryLog {
+  id                 String   @id @default(cuid())
+  purpose            String
+  phoneNumber        String
+  status             String
+  providerHost       String?
+  providerPath       String?
+  providerHttpStatus Int?
+  providerCode       String?
+  providerRequestId  String?
+  providerMessage    String?
+  errorMessage       String?
+  startedAt          DateTime @default(now())
+  completedAt        DateTime?
+  createdAt          DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([purpose, createdAt])
+}
+
 model TravelPackingList {
   id           String   @id @default(cuid())
   familyId     String

@@ -44,25 +44,39 @@ describe("家长手机号注册验证码", () => {
     expect(isParentPhone("12800000000")).toBe(false);
   });
 
-  it("构造短信 URL 时只追加编码后的手机号和验证码", () => {
+  it("构造短信 URL 时追加手机号、验证码和模板有效期", () => {
     const url = buildSmsProviderUrl(
       "https://push.spug.cc/sms/provider-token",
       "13800000000",
       "012345",
     );
     expect(url).toBe(
-      "https://push.spug.cc/sms/provider-token?to=13800000000&code=012345",
+      "https://push.spug.cc/sms/provider-token?to=13800000000&code=012345&number=10",
+    );
+  });
+
+  it("兼容新版 send 模板接口的 targets 参数", () => {
+    const url = buildSmsProviderUrl(
+      "https://push.spug.cc/send/verification-template",
+      "13800000000",
+      "012345",
+    );
+    expect(url).toBe(
+      "https://push.spug.cc/send/verification-template?targets=13800000000&code=012345",
     );
   });
 
   it("发送成功后保存哈希验证码，并返回 10 分钟有效期和 60 秒冷却", async () => {
     const create = vi.fn().mockResolvedValue({ id: "verification-1" });
+    const smsLogCreate = vi.fn().mockResolvedValue({ id: "sms-log-1" });
+    const smsLogUpdate = vi.fn().mockResolvedValue({});
     const db = {
       user: { findFirst: vi.fn().mockResolvedValue(null) },
       parentRegistrationVerification: {
         findFirst: vi.fn().mockResolvedValue(null),
         create,
       },
+      smsDeliveryLog: { create: smsLogCreate, update: smsLogUpdate },
     } as never;
     const fetchMock = vi.fn().mockResolvedValue(new Response("ok", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -76,8 +90,19 @@ describe("家长手机号注册验证码", () => {
 
     expect(result).toEqual({ expiresInSeconds: 600, retryAfterSeconds: 60 });
     expect(fetchMock.mock.calls[0]?.[0]).toMatch(
-      /^https:\/\/push\.spug\.cc\/sms\/provider-token\?to=13800000000&code=\d{6}$/,
+      /^https:\/\/push\.spug\.cc\/sms\/provider-token\?to=13800000000&code=\d{6}&number=10$/,
     );
+    expect(smsLogCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        purpose: "PARENT_REGISTRATION",
+        phoneNumber: "13800000000",
+        status: "STARTED",
+      }),
+    });
+    expect(smsLogUpdate).toHaveBeenCalledWith({
+      where: { id: "sms-log-1" },
+      data: expect.objectContaining({ status: "SUCCESS", providerHttpStatus: 200 }),
+    });
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         phoneNumber: "13800000000",

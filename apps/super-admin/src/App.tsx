@@ -15,6 +15,7 @@ import {
   HomeOutlined,
   HeartOutlined,
   MenuOutlined,
+  MessageOutlined,
   PictureOutlined,
   ReadOutlined,
   RobotOutlined,
@@ -47,6 +48,7 @@ import { AiPlatformSettings } from "./AiPlatformSettings";
 import { PlatformFeatureSettings } from "./PlatformFeatureSettings";
 import { SystemOperations } from "./SystemOperations";
 import { GrowthDataGovernance } from "./GrowthDataGovernance";
+import { SmsDeliveryMonitoring } from "./SmsDeliveryMonitoring";
 
 type Section =
   | "metrics"
@@ -64,6 +66,7 @@ type Section =
   | "ai-settings"
   | "platform-features"
   | "system-operations"
+  | "sms-logs"
   | "audit";
 
 const SECTION_LABELS: Record<Section, string> = {
@@ -82,6 +85,7 @@ const SECTION_LABELS: Record<Section, string> = {
   "ai-settings": "AI 平台配置",
   "platform-features": "平台功能开关",
   "system-operations": "运维中心",
+  "sms-logs": "短信调用",
   audit: "审计日志",
 };
 
@@ -146,6 +150,7 @@ const NAV_GROUPS = [
         label: "功能开关",
         icon: <SettingOutlined />,
       },
+      { key: "sms-logs", label: "短信调用", icon: <MessageOutlined /> },
       { key: "audit", label: "审计日志", icon: <SafetyCertificateOutlined /> },
     ],
   },
@@ -1654,6 +1659,7 @@ export function App() {
       {section === "ai-settings" && <AiPlatformSettings />}
       {section === "platform-features" && <PlatformFeatureSettings />}
       {section === "system-operations" && <SystemOperations />}
+      {section === "sms-logs" && <SmsDeliveryMonitoring />}
       {section === "audit" && <AuditView />}
     </>
   );

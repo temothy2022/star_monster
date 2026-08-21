@@ -182,6 +182,33 @@
 .ai-provider--minimax { color: #a7532d; background: #fff0e9; }
 .muted-text { color: #8793a2; font-size: 12px; }
 
+.sms-delivery-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.sms-delivery-toolbar h2 { margin: 0; color: #243654; font-size: 22px; }
+.sms-delivery-toolbar p { margin: 5px 0 0; color: #748196; }
+.sms-delivery-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.sms-delivery-metrics article strong { font-variant-numeric: tabular-nums; }
+.sms-delivery-metrics article:nth-child(4) strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.sms-config-status,
+.sms-status { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.sms-config-status { min-height: 30px; padding: 0 12px; }
+.sms-config-status.is-ready,
+.sms-status--success { color: #287858; background: #e4f7ed; }
+.sms-config-status.is-missing,
+.sms-status--failed,
+.sms-status--not_configured { color: #a34f3c; background: #fff0eb; }
+.sms-status--started { color: #8a6820; background: #fff7d7; }
+.sms-status { padding: 4px 8px; }
+.sms-config-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sms-config-grid > div { display: grid; gap: 5px; min-width: 0; padding: 13px; border: 1px solid #e2e7ed; border-radius: 10px; background: #fafcfd; }
+.sms-config-grid span { color: #7b8798; font-size: 12px; }
+.sms-config-grid strong { overflow: hidden; color: #34445c; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.sms-delivery-list-header { align-items: flex-start; }
+.sms-delivery-list-header p { margin: 5px 0 0; }
+.sms-delivery-table-wrap { overflow-x: auto; }
+.sms-delivery-table-wrap table { min-width: 940px; }
+.sms-delivery-table-wrap td { white-space: nowrap; }
+.sms-error { max-width: 280px; overflow: hidden; color: #b64f39; text-overflow: ellipsis; white-space: nowrap; }
+
 .system-operations-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .system-operations-toolbar h2 { margin: 0; color: #243654; font-size: 22px; }
 .system-operations-toolbar p { margin: 5px 0 0; color: #748196; }
@@ -213,6 +240,8 @@
 }
 
 @media (max-width: 980px) {
+  .sms-delivery-metrics { grid-template-columns: 1fr 1fr; }
+  .sms-config-grid { grid-template-columns: 1fr; }
   .system-health-grid { grid-template-columns: 1fr 1fr; }
   .system-operation-grid { grid-template-columns: 1fr; }
   .ai-usage-toolbar { align-items: flex-start; flex-direction: column; }
@@ -227,6 +256,14 @@
   .performance-recommendations { grid-template-columns: 1fr; }
   .performance-filter-row { width: 100%; }
   .performance-filter-row select { min-width: 0; flex: 1; }
+}
+
+@media (max-width: 640px) {
+  .sms-delivery-toolbar { align-items: stretch; flex-direction: column; }
+  .sms-delivery-toolbar button { align-self: flex-start; }
+  .sms-delivery-metrics { grid-template-columns: 1fr 1fr; }
+  .sms-delivery-list-header { align-items: stretch; }
+  .sms-delivery-list-header .ant-select { width: 100%; }
 }
 
 @media (max-width: 580px) {

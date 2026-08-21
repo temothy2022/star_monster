@@ -370,6 +370,38 @@ export type AuditLog = {
   createdAt: string;
 };
 
+export type SmsDeliveryLog = {
+  id: string;
+  purpose: string;
+  phoneNumber: string;
+  status: "STARTED" | "SUCCESS" | "FAILED" | "NOT_CONFIGURED" | string;
+  providerHost: string | null;
+  providerPath: string | null;
+  providerHttpStatus: number | null;
+  providerCode: string | null;
+  providerRequestId: string | null;
+  providerMessage: string | null;
+  errorMessage: string | null;
+  startedAt: string;
+  completedAt: string | null;
+  createdAt: string;
+};
+
+export type SmsLogsDashboard = {
+  logs: SmsDeliveryLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+  configuration: {
+    configured: boolean;
+    providerHost: string | null;
+    providerPath: string | null;
+    timeoutMs: number;
+  };
+  summary: Record<string, number>;
+  lastCallAt: string | null;
+};
+
 export type HanziResource = {
   id: string;
   character: string;
@@ -766,6 +798,11 @@ export const adminApi = {
   growthDataOverview: (days = 30, page = 1, pageSize = 20) =>
     api<GrowthDataOverview>(`/api/admin/growth-records/overview?days=${days}&page=${page}&pageSize=${pageSize}`),
   aiUsage: (days = 30) => api<AiModelUsageDashboard>(`/api/admin/ai-usage?days=${days}`),
+  smsLogs: (page = 1, pageSize = 20, status?: string) => {
+    const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (status) query.set("status", status);
+    return api<SmsLogsDashboard>(`/api/admin/sms-logs?${query}`);
+  },
   performance: (
     days: number,
     filters: { familyId?: string; childId?: string; page?: number; pageSize?: number } = {},
