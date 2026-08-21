@@ -991,8 +991,14 @@ export const staffApi = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+  sendVerificationCode: (phone: string) =>
+    api<{ expiresInSeconds: number; retryAfterSeconds: number }>(
+      "/api/parent/auth/send-verification-code",
+      { method: "POST", body: JSON.stringify({ phone }) },
+    ),
   register: (input: {
-    email: string;
+    phone: string;
+    verificationCode: string;
     password: string;
     displayName: string;
     familyName: string;

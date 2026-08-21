@@ -22,6 +22,8 @@ const envSchema = z.object({
     .min(10000)
     .max(300000)
     .default(120000),
+  SMS_PROVIDER_URL: z.string().url().optional(),
+  SMS_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(3000).max(30000).default(10000),
   HANZI_ASSET_UPLOAD_DIR: z
     .string()
     .min(1)

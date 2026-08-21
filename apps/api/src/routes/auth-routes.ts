@@ -17,6 +17,12 @@ import { enforceRateLimit } from "../lib/rate-limit.js";
 import { prisma } from "../lib/prisma.js";
 import { HttpError } from "../lib/http-error.js";
 import { createFamilyWithParent } from "../services/account-service.js";
+import {
+  isParentPhone,
+  normalizeParentPhone,
+  sendParentRegistrationCode,
+  verifyAndConsumeParentRegistrationCode,
+} from "../services/parent-registration-service.js";
 
 const childLoginSchema = z.object({
   code: z.string().min(8).max(16),
@@ -29,7 +35,8 @@ const staffLoginSchema = z.object({
 });
 
 const parentRegistrationSchema = z.object({
-  email: z.string().trim().toLowerCase().email().max(160),
+  phone: z.string().trim().refine(isParentPhone, "请输入有效的中国大陆手机号"),
+  verificationCode: z.string().regex(/^\d{6}$/, "请输入 6 位数字验证码"),
   password: z
     .string()
     .min(8)
@@ -128,6 +135,28 @@ export async function registerAuthRoutes(
     return { user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role, familyId: user.familyId } };
   });
 
+  app.post("/api/parent/auth/send-verification-code", async (request) => {
+    enforceRateLimit({
+      key: `parent-sms-ip:${request.ip}`,
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+      code: "SMS_RATE_LIMITED",
+      message: "短信发送次数过多，请稍后再试",
+    });
+    const input = z.object({
+      phone: z.string().trim().refine(isParentPhone, "请输入有效的中国大陆手机号"),
+    }).parse(request.body);
+    const phone = normalizeParentPhone(input.phone);
+    enforceRateLimit({
+      key: `parent-sms-phone:${phone}`,
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+      code: "SMS_RATE_LIMITED",
+      message: "这个手机号发送次数过多，请稍后再试",
+    });
+    return sendParentRegistrationCode(prisma, config, phone);
+  });
+
   app.post("/api/parent/auth/register", async (request, reply) => {
     enforceRateLimit({
       key: `parent-register:${request.ip}`,
@@ -135,26 +164,29 @@ export async function registerAuthRoutes(
       windowMs: 60 * 60 * 1000,
     });
     const input = parentRegistrationSchema.parse(request.body);
+    const phone = normalizeParentPhone(input.phone);
     try {
-      await prisma.$transaction((tx) =>
-        createFamilyWithParent(tx, {
+      await prisma.$transaction(async (tx) => {
+        await verifyAndConsumeParentRegistrationCode(tx, phone, input.verificationCode);
+        await createFamilyWithParent(tx, {
           familyName: input.familyName,
-          parentUsername: input.email,
+          parentUsername: phone,
+          parentPhoneNumber: phone,
           parentDisplayName: input.displayName,
           parentPassword: input.password,
           childNicknames: [],
           loginCodePepper: config.LOGIN_CODE_PEPPER,
           loginCodeEncryptionKey: config.AI_CONFIG_ENCRYPTION_KEY,
-        }),
-      );
+        });
+      });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new HttpError(409, "USERNAME_TAKEN", "这个邮箱已经注册过家长账号");
+        throw new HttpError(409, "PHONE_REGISTERED", "这个手机号已经注册过家长账号");
       }
       throw error;
     }
     const user = await loginStaff(
-      input.email,
+      phone,
       input.password,
       request,
       reply,

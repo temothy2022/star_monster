@@ -108,6 +108,7 @@ export async function createFamilyWithParent(
   input: {
     familyName: string;
     parentUsername: string;
+    parentPhoneNumber?: string;
     parentDisplayName: string;
     parentPassword: string;
     childNicknames: Array<string | undefined>;
@@ -129,6 +130,7 @@ export async function createFamilyWithParent(
     data: {
       familyId: family.id,
       username,
+      phoneNumber: input.parentPhoneNumber,
       displayName: input.parentDisplayName,
       passwordHash: await hashSecret(input.parentPassword),
       role: "PARENT",

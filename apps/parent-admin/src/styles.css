@@ -57,6 +57,9 @@ input[type="reset"] {
 .admin-login h1 { margin: 28px 0 8px; font-size: 34px; }
 .admin-login p { margin: 0 0 26px; color: #788297; }
 .admin-login form { display: grid; gap: 18px; }
+.admin-login__verification-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.admin-login__verification-row button { min-width: 116px; white-space: nowrap; }
+.admin-login__field-hint { color: #788297; font-size: 12px; font-weight: 500; }
 .admin-login label, .admin-form label, .inline-form label {
   display: grid;
   gap: 8px;
@@ -2285,6 +2288,8 @@ td { font-size: 13px; }
     border-radius: 18px;
   }
   .admin-login h1 { font-size: 28px; }
+  .admin-login__verification-row { grid-template-columns: 1fr; }
+  .admin-login__verification-row button { width: 100%; }
 
   .admin-topbar {
     min-height: 88px;

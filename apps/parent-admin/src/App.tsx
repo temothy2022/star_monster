@@ -335,12 +335,42 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
   const [password, setPassword] = useState(remembered?.password ?? "");
   const [remember, setRemember] = useState(Boolean(remembered));
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [codeCooldown, setCodeCooldown] = useState(0);
+  const [codeBusy, setCodeBusy] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [familyName, setFamilyName] = useState("");
   const [registrationPassword, setRegistrationPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "register" || codeCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setCodeCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [mode, codeCooldown > 0]);
+
+  async function sendVerificationCode() {
+    const normalizedPhone = phone.replace(/[\s-]/g, "");
+    if (!/^1[3-9]\d{9}$/.test(normalizedPhone)) {
+      setError("请输入有效的中国大陆手机号");
+      return;
+    }
+    setCodeBusy(true);
+    setError("");
+    try {
+      const result = await staffApi.sendVerificationCode(normalizedPhone);
+      setPhone(normalizedPhone);
+      setCodeCooldown(result.retryAfterSeconds || 60);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "验证码发送失败");
+    } finally {
+      setCodeBusy(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -374,7 +404,8 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
     setError("");
     try {
       const result = await staffApi.register({
-        email,
+        phone,
+        verificationCode,
         displayName,
         familyName,
         password: registrationPassword,
@@ -405,7 +436,7 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
               label: "登录",
               children: (
                 <form onSubmit={submit}>
-                  <label>邮箱或用户名<Input size="large" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
+                  <label>手机号或用户名<Input size="large" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" /></label>
                   <label>密码<Input.Password size="large" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
                   <label className="admin-login__remember">
                     <input
@@ -430,7 +461,16 @@ function LoginPage({ onLogin }: { onLogin: (user: StaffUser) => void }) {
                 <form onSubmit={register}>
                   <label>家长称呼<Input size="large" value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="例如：了了妈妈" autoComplete="name" /></label>
                   <label>家庭名称<Input size="large" value={familyName} onChange={(event) => setFamilyName(event.target.value)} placeholder="例如：了了的家庭" /></label>
-                  <label>登录邮箱<Input size="large" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" /></label>
+                  <label>手机号<Input size="large" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="请输入 11 位手机号" autoComplete="tel" inputMode="numeric" /></label>
+                  <label>短信验证码
+                    <div className="admin-login__verification-row">
+                      <Input size="large" value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6 位验证码" inputMode="numeric" autoComplete="one-time-code" />
+                      <Button type="default" size="large" onClick={() => void sendVerificationCode()} loading={codeBusy} disabled={codeCooldown > 0}>
+                        {codeCooldown > 0 ? `${codeCooldown} 秒后重试` : "获取验证码"}
+                      </Button>
+                    </div>
+                    <small className="admin-login__field-hint">验证码 10 分钟内有效，获取后 1 分钟可再次发送</small>
+                  </label>
                   <label>设置密码<Input.Password size="large" value={registrationPassword} onChange={(event) => setRegistrationPassword(event.target.value)} placeholder="至少 8 位，同时包含字母和数字" autoComplete="new-password" /></label>
                   {error && <Notice kind="error">{error}</Notice>}
                   <Button type="primary" htmlType="submit" size="large" block loading={busy}>注册并进入</Button>

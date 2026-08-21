@@ -324,6 +324,7 @@ model User {
   id           String        @id @default(cuid())
   familyId     String?
   username     String        @unique
+  phoneNumber  String?       @unique
   displayName  String
   passwordHash String
   role         UserRole
@@ -337,6 +338,20 @@ model User {
 
   @@index([familyId, role])
   @@index([status])
+}
+
+model ParentRegistrationVerification {
+  id          String    @id @default(cuid())
+  phoneNumber String
+  codeHash    String
+  sentAt      DateTime  @default(now())
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([phoneNumber, createdAt])
+  @@index([phoneNumber, consumedAt, expiresAt])
 }
 
 model TravelPackingList {

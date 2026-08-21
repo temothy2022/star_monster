@@ -24,6 +24,7 @@ const config: AppConfig = {
   AI_CONFIG_ENCRYPTION_KEY: "e".repeat(32),
   AI_REQUEST_TIMEOUT_MS: 5000,
   MINIMAX_REQUEST_TIMEOUT_MS: 10000,
+  SMS_REQUEST_TIMEOUT_MS: 10000,
   HANZI_ASSET_UPLOAD_DIR: "../../hanzi-assets/v1/uploads",
   POEM_ASSET_UPLOAD_DIR: "../../poem-assets/v1/uploads",
 };
