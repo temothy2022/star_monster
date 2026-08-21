@@ -110,6 +110,8 @@ echo "2/3 Checking SSH access..."
 echo "3/3 Uploading release and applying it on the server..."
 echo "Using $RSYNC_BIN (protocol $RSYNC_PROTOCOL)."
 # Hanzi media is deployed separately and may be owned by root on the server.
+# Server-side database backups are outside the repository and must survive
+# release syncs; --delete must never inspect or remove this directory.
 "$RSYNC_BIN" -az --delete --partial --progress --timeout="$DEPLOY_RSYNC_TIMEOUT" \
   --filter 'P /apps/design-lab/dist/assets/***' \
   --filter 'P /apps/parent-admin/dist/assets/***' \
@@ -126,6 +128,7 @@ echo "Using $RSYNC_BIN (protocol $RSYNC_PROTOCOL)."
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \
   --exclude 'work/' \
+  --exclude 'backups/' \
   --exclude 'packages/assets/generated/' \
   --exclude 'hanzi-assets/' \
   --exclude 'poem-assets/' \
