@@ -981,7 +981,7 @@ function FamilyOverview({
                 {!child.taskTemplates.length && (
                   <div className="empty-state">暂无任务配置</div>
                 )}
-                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-tasks`)} pageSize={sectionPageSize} total={child.taskTemplates.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-tasks`, size)} onChange={(page) => changeSectionPage(`${child.id}-tasks`, page)} />
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-tasks`)} pageSize={sectionPageSize} total={child.taskTemplates.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-tasks`, size)} onChange={(page, size) => { changeSectionPage(`${child.id}-tasks`, page); if (size !== sectionPageSize) changeSectionPageSize(`${child.id}-tasks`, size); }} />
               </div>
             </div>
             <div>
@@ -1015,7 +1015,7 @@ function FamilyOverview({
                 {!child.wishes.length && (
                   <div className="empty-state">暂无星愿配置</div>
                 )}
-                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-wishes`)} pageSize={sectionPageSize} total={child.wishes.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-wishes`, size)} onChange={(page) => changeSectionPage(`${child.id}-wishes`, page)} />
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-wishes`)} pageSize={sectionPageSize} total={child.wishes.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-wishes`, size)} onChange={(page, size) => { changeSectionPage(`${child.id}-wishes`, page); if (size !== sectionPageSize) changeSectionPageSize(`${child.id}-wishes`, size); }} />
               </div>
             </div>
           </div>
@@ -1048,7 +1048,7 @@ function FamilyOverview({
                 {!child.redemptions.length && (
                   <div className="empty-state">暂无兑换记录</div>
                 )}
-                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-redemptions`)} pageSize={sectionPageSize} total={child.redemptions.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-redemptions`, size)} onChange={(page) => changeSectionPage(`${child.id}-redemptions`, page)} />
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-redemptions`)} pageSize={sectionPageSize} total={child.redemptions.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-redemptions`, size)} onChange={(page, size) => { changeSectionPage(`${child.id}-redemptions`, page); if (size !== sectionPageSize) changeSectionPageSize(`${child.id}-redemptions`, size); }} />
               </div>
             </div>
             <div>
@@ -1082,7 +1082,7 @@ function FamilyOverview({
                 {!child.ledger.length && (
                   <div className="empty-state">暂无星星流水</div>
                 )}
-                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-ledger`)} pageSize={sectionPageSize} total={child.ledger.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-ledger`, size)} onChange={(page) => changeSectionPage(`${child.id}-ledger`, page)} />
+                <Pagination className="admin-pagination" current={sectionPage(`${child.id}-ledger`)} pageSize={sectionPageSize} total={child.ledger.length} showSizeChanger pageSizeOptions={[8, 16, 32, 64]} onShowSizeChange={(_, size) => changeSectionPageSize(`${child.id}-ledger`, size)} onChange={(page, size) => { changeSectionPage(`${child.id}-ledger`, page); if (size !== sectionPageSize) changeSectionPageSize(`${child.id}-ledger`, size); }} />
               </div>
             </div>
           </div>
@@ -1173,7 +1173,7 @@ function FamiliesView() {
             <div className="empty-state">没有匹配的家庭</div>
           )}
         </div>
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个家庭`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个家庭`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(nextPage, nextPageSize) => { setPage(nextPage); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
       </Panel>
     </div>
   );
@@ -1504,7 +1504,7 @@ function ChildrenView() {
             <div className="empty-state">没有匹配的孩子账号</div>
           ) : null}
         </div>
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个孩子`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个孩子`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(nextPage, nextPageSize) => { setPage(nextPage); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
       </Panel>
     </>
   );
@@ -1568,7 +1568,7 @@ function AuditView() {
           </tbody>
         </table>
       </div>
-      <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 条记录`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
+      <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 条记录`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(nextPage, nextPageSize) => { setPage(nextPage); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }} />
     </Panel>
   );
 }

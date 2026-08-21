@@ -307,7 +307,7 @@ export function PerformanceMonitoring() {
               pageSizeOptions={[10, 20, 50, 100]}
               showTotal={(value) => `共 ${value} 条慢事件`}
               onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }}
-              onChange={setPage}
+              onChange={(nextPage, nextPageSize) => { setPage(nextPage); if (nextPageSize !== pageSize) setPageSize(nextPageSize); }}
             />
             <p className="performance-collected">最早记录 {formatDate(data.collectedFrom)} · 最新记录 {formatDate(data.collectedTo)} · 忽略认证噪音和旧版异常样本 {data.dataQuality.ignoredNoiseCount} 条</p>
           </Panel>
