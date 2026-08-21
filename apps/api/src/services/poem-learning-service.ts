@@ -1,20 +1,66 @@
 import {
   Prisma,
+  type MemoryRecallRating,
+  type PoemLearningProgress,
   type PoemLearningSession,
   type TaskExperienceKind,
 } from "@prisma/client";
 import type { AppConfig } from "../config.js";
 import {
+  applyPoemRecall,
   firstPoemReviewDate,
-  nextPoemReviewDate,
-  POEM_REVIEW_STAGE_COUNT,
 } from "../domain/poem-review-rules.js";
+import { recallCounterField } from "../domain/memory-review-rules.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 import { completeTask } from "./task-service.js";
 
-type ReviewResult = "REMEMBERED" | "FORGOT";
+type StoredReviewOutcome = {
+  poemId: string;
+  rating: MemoryRecallRating;
+  responseMs?: number;
+};
+
+function reviewOutcomesFromJson(value: Prisma.JsonValue): StoredReviewOutcome[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (
+      typeof item !== "object" ||
+      item === null ||
+      Array.isArray(item) ||
+      typeof item.poemId !== "string" ||
+      !["EASY", "EFFORTFUL", "HINTED", "FORGOT"].includes(String(item.rating))
+    ) return [];
+    return [{
+      poemId: item.poemId,
+      rating: item.rating as MemoryRecallRating,
+      ...(typeof item.responseMs === "number" ? { responseMs: item.responseMs } : {}),
+    }];
+  });
+}
+
+function recallProgressData(
+  progress: PoemLearningProgress,
+  rating: MemoryRecallRating,
+  responseMs: number | undefined,
+  today: Date,
+  now: Date,
+): Prisma.PoemLearningProgressUpdateInput {
+  const result = applyPoemRecall(progress.reviewStage, rating, today);
+  const counterField = recallCounterField(rating);
+  return {
+    status: result.mastered ? "MASTERED" : "LEARNING",
+    reviewStage: result.reviewStage,
+    nextReviewDate: result.nextReviewDate,
+    isDifficult: result.difficult ? true : progress.isDifficult && !result.independent,
+    consecutiveWrong: result.independent ? 0 : progress.consecutiveWrong + 1,
+    lastRecallRating: rating,
+    lastResponseMs: responseMs,
+    lastReviewedAt: now,
+    [counterField]: { increment: 1 },
+  };
+}
 
 function isUniqueConstraint(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
@@ -48,7 +94,13 @@ async function requireOwnedSession(childId: string, sessionId: string) {
   if (!session) {
     throw new HttpError(404, "POEM_SESSION_NOT_FOUND", "没有找到这次古诗学习");
   }
-  await requirePoemAttempt(childId, session.taskAttemptId);
+  if (session.taskAttempt.status === "COMPLETED") {
+    if (!session.completedAt) {
+      throw new HttpError(409, "POEM_SESSION_INCOMPLETE", "这次古诗学习记录不完整");
+    }
+  } else {
+    await requirePoemAttempt(childId, session.taskAttemptId);
+  }
   return session;
 }
 
@@ -70,6 +122,7 @@ async function serializeSession(session: PoemLearningSession) {
       })
     : [];
   const byId = new Map(poems.map((poem) => [poem.id, poem]));
+  const reviewOutcomes = reviewOutcomesFromJson(session.reviewOutcomes);
 
   return {
     ...session,
@@ -77,10 +130,15 @@ async function serializeSession(session: PoemLearningSession) {
       const poem = byId.get(id);
       return poem ? [poem] : [];
     }),
+    reviewOutcomes,
     summary: {
       total: session.poemIds.length,
       completed: session.completedPoemIds.length,
       forgotten: session.forgottenPoemIds.length,
+      easy: reviewOutcomes.filter((item) => item.rating === "EASY").length,
+      effortful: reviewOutcomes.filter((item) => item.rating === "EFFORTFUL").length,
+      hinted: reviewOutcomes.filter((item) => item.rating === "HINTED").length,
+      forgot: reviewOutcomes.filter((item) => item.rating === "FORGOT").length,
     },
   };
 }
@@ -101,10 +159,15 @@ export async function startPoemSession(
     attempt.dailyTask.experienceKindSnapshot,
   );
   const today = businessDateAt(now, config.APP_TIME_ZONE);
+  const settings = await prisma.poemLearningSettings.upsert({
+    where: { childId },
+    update: {},
+    create: { childId },
+  });
 
   let poemIds: string[];
   if (kind === "LEARNING") {
-    const schoolTarget = await prisma.poemSchoolTarget.findFirst({
+    const schoolTargets = await prisma.poemSchoolTarget.findMany({
       where: {
         childId,
         poem: {
@@ -114,30 +177,32 @@ export async function startPoemSession(
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { poemId: true },
+      take: settings.newPoemsPerSession,
     });
-    const fallbackPoem = schoolTarget
-      ? null
-      : await prisma.poem.findFirst({
+    const selectedIds = schoolTargets.map((item) => item.poemId);
+    const fallbackPoems = selectedIds.length >= settings.newPoemsPerSession
+      ? []
+      : await prisma.poem.findMany({
           where: {
             isEnabled: true,
             progress: { none: { childId } },
+            id: { notIn: selectedIds },
           },
           orderBy: [
             { grade: "asc" },
             { sortOrder: "asc" },
           ],
           select: { id: true },
+          take: settings.newPoemsPerSession - selectedIds.length,
         });
-    const poemId = schoolTarget?.poemId ?? fallbackPoem?.id;
-    if (!poemId) {
+    poemIds = [...selectedIds, ...fallbackPoems.map((item) => item.id)];
+    if (!poemIds.length) {
       throw new HttpError(409, "NO_NEW_POEM", "古诗库中的诗已经全部学习完成");
     }
-    poemIds = [poemId];
   } else {
     const due = await prisma.poemLearningProgress.findMany({
       where: {
         childId,
-        status: "LEARNING",
         nextReviewDate: { lte: today },
         poem: { isEnabled: true },
       },
@@ -149,6 +214,7 @@ export async function startPoemSession(
         poem: { select: { grade: true, sortOrder: true } },
       },
       orderBy: [{ nextReviewDate: "asc" }, { createdAt: "asc" }],
+      take: settings.reviewDailyLimit,
     });
     due.sort(
       (left, right) =>
@@ -191,43 +257,62 @@ export async function completeNewPoem(
   now = new Date(),
 ) {
   const session = await requireOwnedSession(childId, sessionId);
-  if (session.kind !== "LEARNING" || session.poemIds[0] !== poemId) {
+  if (session.kind !== "LEARNING") {
     throw new HttpError(409, "POEM_NOT_CURRENT", "这首诗不在当前学习任务中");
   }
 
-  if (!session.completedPoemIds.includes(poemId)) {
-    const today = businessDateAt(now, config.APP_TIME_ZONE);
-    await prisma.$transaction([
-      prisma.poemLearningProgress.upsert({
-        where: { childId_poemId: { childId, poemId } },
-        create: {
-          childId,
-          poemId,
-          learnedDate: today,
-          reviewStage: 0,
-          nextReviewDate: firstPoemReviewDate(today),
-        },
-        update: {},
-      }),
-      prisma.poemLearningSession.update({
-        where: { id: session.id },
-        data: {
-          currentIndex: 1,
-          completedPoemIds: [poemId],
-          completedAt: now,
-        },
-      }),
-    ]);
+  if (session.completedPoemIds.includes(poemId)) {
+    if (!session.completedAt) {
+      return { session: await serializeSession(session), completion: null };
+    }
+    const completion = await completeTask(childId, session.taskAttemptId, now);
+    return { session: await serializeSession(session), completion };
   }
 
-  return completeTask(childId, session.taskAttemptId, now);
+  if (session.poemIds[session.currentIndex] !== poemId) {
+    throw new HttpError(409, "POEM_NOT_CURRENT", "这首诗不在当前学习任务中");
+  }
+
+  const today = businessDateAt(now, config.APP_TIME_ZONE);
+  const completedPoemIds = [...session.completedPoemIds, poemId];
+  const currentIndex = session.currentIndex + 1;
+  const sessionCompleted = currentIndex >= session.poemIds.length;
+  const [, updatedSession] = await prisma.$transaction([
+    prisma.poemLearningProgress.upsert({
+      where: { childId_poemId: { childId, poemId } },
+      create: {
+        childId,
+        poemId,
+        learnedDate: today,
+        reviewStage: 0,
+        nextReviewDate: firstPoemReviewDate(today),
+      },
+      update: {},
+    }),
+    prisma.poemLearningSession.update({
+      where: { id: session.id },
+      data: {
+        currentIndex,
+        completedPoemIds,
+        completedAt: sessionCompleted ? now : null,
+      },
+    }),
+  ]);
+  if (!sessionCompleted) {
+    return { session: await serializeSession(updatedSession), completion: null };
+  }
+
+  const completion = await completeTask(childId, session.taskAttemptId, now);
+  const finalSession = await prisma.poemLearningSession.findUniqueOrThrow({ where: { id: session.id } });
+  return { session: await serializeSession(finalSession), completion };
 }
 
 export async function reviewPoem(
   childId: string,
   sessionId: string,
   poemId: string,
-  result: ReviewResult,
+  rating: MemoryRecallRating,
+  responseMs: number | undefined,
   config: AppConfig,
   now = new Date(),
 ) {
@@ -252,45 +337,18 @@ export async function reviewPoem(
   const today = businessDateAt(now, config.APP_TIME_ZONE);
   const completedPoemIds = [...session.completedPoemIds, poemId];
   const forgottenPoemIds =
-    result === "FORGOT"
+    rating === "HINTED" || rating === "FORGOT"
       ? [...session.forgottenPoemIds, poemId]
       : session.forgottenPoemIds;
   const currentIndex = session.currentIndex + 1;
   const sessionCompleted = currentIndex >= session.poemIds.length;
 
-  const progressData =
-    result === "FORGOT"
-      ? {
-          status: "LEARNING" as const,
-          learnedDate: today,
-          reviewStage: 0,
-          nextReviewDate: firstPoemReviewDate(today),
-          lastReviewedAt: now,
-        }
-      : (() => {
-          const reviewStage = Math.min(
-            POEM_REVIEW_STAGE_COUNT,
-            progress.reviewStage + 1,
-          );
-          return {
-            status:
-              reviewStage === POEM_REVIEW_STAGE_COUNT
-                ? ("MASTERED" as const)
-                : ("LEARNING" as const),
-            reviewStage,
-            nextReviewDate: nextPoemReviewDate(
-              progress.learnedDate,
-              reviewStage,
-              today,
-            ),
-            lastReviewedAt: now,
-          };
-        })();
+  const outcomes = reviewOutcomesFromJson(session.reviewOutcomes);
 
   const [, updatedSession] = await prisma.$transaction([
     prisma.poemLearningProgress.update({
       where: { id: progress.id },
-      data: progressData,
+      data: recallProgressData(progress, rating, responseMs, today, now),
     }),
     prisma.poemLearningSession.update({
       where: { id: session.id },
@@ -298,6 +356,10 @@ export async function reviewPoem(
         currentIndex,
         completedPoemIds,
         forgottenPoemIds,
+        reviewOutcomes: [
+          ...outcomes,
+          { poemId, rating, ...(responseMs == null ? {} : { responseMs }) },
+        ],
         completedAt: sessionCompleted ? now : null,
       },
     }),

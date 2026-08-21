@@ -13,6 +13,7 @@ import {
   startHanziLearningSession,
   type HanziCharacter,
   type HanziLearningSession,
+  type MemoryRecallRating,
 } from "../api/child-api";
 import { ChildDataState } from "../components/ChildDataState";
 import { ChildControlIcon } from "../components/ChildControlIcon";
@@ -213,11 +214,16 @@ function speakCharacterThenText(
 }
 
 type HanziLocalDraft = {
-  version: 1;
+  version: 1 | 2;
   sessionId: string;
   reviewIndex: number;
   reviewKnownIds: string[];
   reviewUnknownIds: string[];
+  reviewOutcomes?: Array<{
+    characterId: string;
+    rating: MemoryRecallRating;
+    responseMs?: number;
+  }>;
   newIndex: number;
   questionIndex: number;
   consolidationCorrect: number;
@@ -251,7 +257,7 @@ function restoreLocalDraft(session: HanziLearningSession) {
       };
     }
     const draft = JSON.parse(raw) as Partial<HanziLocalDraft>;
-    if (draft.version !== 1 || draft.sessionId !== session.id) {
+    if ((draft.version !== 1 && draft.version !== 2) || draft.sessionId !== session.id) {
       return {
         session,
         masteredNewCharacterIds: [],
@@ -286,6 +292,14 @@ function restoreLocalDraft(session: HanziLearningSession) {
         ),
       ]),
     ];
+    const reviewOutcomes = [
+      ...session.reviewOutcomes,
+      ...((draft.reviewOutcomes ?? []).filter((item) =>
+        validReviewIds.has(item.characterId),
+      )),
+    ].filter((item, index, items) =>
+      items.findIndex((candidate) => candidate.characterId === item.characterId) === index,
+    );
     const consolidationTotal = Math.min(
       session.questions.length,
       Math.max(
@@ -309,6 +323,7 @@ function restoreLocalDraft(session: HanziLearningSession) {
       reviewIndex,
       reviewKnownIds,
       reviewUnknownIds,
+      reviewOutcomes,
       newIndex,
       questionIndex,
       consolidationCorrect,
@@ -317,6 +332,10 @@ function restoreLocalDraft(session: HanziLearningSession) {
         ...session.summary,
         reviewKnown: reviewKnownIds.length,
         reviewUnknown: reviewUnknownIds.length,
+        easy: reviewOutcomes.filter((item) => item.rating === "EASY").length,
+        effortful: reviewOutcomes.filter((item) => item.rating === "EFFORTFUL").length,
+        hinted: reviewOutcomes.filter((item) => item.rating === "HINTED").length,
+        forgot: reviewOutcomes.filter((item) => item.rating === "FORGOT").length,
         correct: consolidationCorrect,
         total: consolidationTotal,
       },
@@ -351,11 +370,12 @@ function saveLocalDraft(
   answerSelections: Record<string, string>,
 ) {
   const draft: HanziLocalDraft = {
-    version: 1,
+    version: 2,
     sessionId: session.id,
     reviewIndex: session.reviewIndex,
     reviewKnownIds: session.reviewKnownIds,
     reviewUnknownIds: session.reviewUnknownIds,
+    reviewOutcomes: session.reviewOutcomes,
     newIndex: session.newIndex,
     questionIndex: session.questionIndex,
     consolidationCorrect: session.consolidationCorrect,
@@ -470,13 +490,15 @@ function advanceNewCharacterLocally(
 function advanceReviewLocally(
   session: HanziLearningSession,
   characterId: string,
-  known: boolean,
+  rating: MemoryRecallRating,
+  responseMs: number,
 ): HanziLearningSession {
   const nextIndex = session.reviewIndex + 1;
-  const reviewKnownIds = known
+  const independent = rating === "EASY" || rating === "EFFORTFUL";
+  const reviewKnownIds = independent
     ? [...new Set([...session.reviewKnownIds, characterId])]
     : session.reviewKnownIds;
-  const reviewUnknownIds = known
+  const reviewUnknownIds = independent
     ? session.reviewUnknownIds
     : [...new Set([...session.reviewUnknownIds, characterId])];
   return {
@@ -484,11 +506,19 @@ function advanceReviewLocally(
     reviewIndex: nextIndex,
     reviewKnownIds,
     reviewUnknownIds,
+    reviewOutcomes: [
+      ...session.reviewOutcomes.filter((item) => item.characterId !== characterId),
+      { characterId, rating, responseMs },
+    ],
     phase: phaseForLocalProgress(session, nextIndex, session.newIndex),
     summary: {
       ...session.summary,
       reviewKnown: reviewKnownIds.length,
       reviewUnknown: reviewUnknownIds.length,
+      easy: session.summary.easy + (rating === "EASY" ? 1 : 0),
+      effortful: session.summary.effortful + (rating === "EFFORTFUL" ? 1 : 0),
+      hinted: session.summary.hinted + (rating === "HINTED" ? 1 : 0),
+      forgot: session.summary.forgot + (rating === "FORGOT" ? 1 : 0),
     },
   };
 }
@@ -506,6 +536,7 @@ export function HanziLearningExperience({
   const [started, setStarted] = useState(false);
   const [newStep, setNewStep] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  const [reviewDecision, setReviewDecision] = useState<"INITIAL" | "INDEPENDENT" | "HINT">("INITIAL");
   const [busy, setBusy] = useState(false);
   const [flowTransition, setFlowTransition] =
     useState<FlowTransitionAction | null>(null);
@@ -531,6 +562,7 @@ export function HanziLearningExperience({
   const transitionFrameIds = useRef<number[]>([]);
   const transitionTimer = useRef<number | null>(null);
   const autoCompletingReviewId = useRef<string | null>(null);
+  const reviewStartedAt = useRef(performance.now());
   const [answerFeedback, setAnswerFeedback] = useState<{
     selectedId: string;
     targetId: string;
@@ -696,19 +728,10 @@ export function HanziLearningExperience({
     stopActiveSpeech();
     setBusy(true);
     setError("");
-    const knownIds = new Set(session.reviewKnownIds);
-    const unknownIds = new Set(session.reviewUnknownIds);
     void finalizeHanziLearningSession(
       session.id,
       {
-        reviewAnswers: session.reviewCharacterIds.map((characterId) => ({
-          characterId,
-          known: knownIds.has(characterId)
-            ? true
-            : unknownIds.has(characterId)
-              ? false
-              : false,
-        })),
+        reviewAnswers: session.reviewOutcomes,
         learnedCharacterIds: [],
         masteredCharacterIds: [],
         answers: [],
@@ -755,6 +778,16 @@ export function HanziLearningExperience({
     stopActiveSpeech,
   ]);
 
+  const reviewCharacter = session
+    ? characterById.get(session.reviewCharacterIds[session.reviewIndex] ?? "") ?? null
+    : null;
+
+  useEffect(() => {
+    reviewStartedAt.current = performance.now();
+    setReviewDecision("INITIAL");
+    setFlipped(false);
+  }, [reviewCharacter?.id]);
+
   if (!session) {
     return (
       <main className="hanzi-page hanzi-page--home">
@@ -762,9 +795,6 @@ export function HanziLearningExperience({
       </main>
     );
   }
-
-  const reviewCharacter =
-    characterById.get(session.reviewCharacterIds[session.reviewIndex] ?? "") ?? null;
   const newCharacter = currentNewCharacter;
   const question = currentQuestion;
   const questionTarget = currentQuestionTarget;
@@ -843,14 +873,17 @@ export function HanziLearningExperience({
     );
   }
 
-  function submitReview(known: boolean) {
+  function submitReview(rating: MemoryRecallRating) {
     if (!reviewCharacter || busy || flowTransitionRef.current) return;
+    const responseMs = Math.max(0, Math.round(performance.now() - reviewStartedAt.current));
     const nextSession = advanceReviewLocally(
       session!,
       reviewCharacter.id,
-      known,
+      rating,
+      responseMs,
     );
-    if (known) {
+    const independent = rating === "EASY" || rating === "EFFORTFUL";
+    if (independent) {
       queueFlowTransition(
         "review-known",
         () => {
@@ -861,6 +894,8 @@ export function HanziLearningExperience({
         () => {
           setKnownToast(false);
           setFlipped(false);
+          setReviewDecision("INITIAL");
+          reviewStartedAt.current = performance.now();
           setSession(nextSession);
         },
         700,
@@ -868,10 +903,15 @@ export function HanziLearningExperience({
     } else {
       queueFlowTransition(
         "review-unknown",
-        () => setError(""),
         () => {
-          setUnknownCharacter(reviewCharacter);
-          setPendingSession(nextSession);
+          setError("");
+          playEntryForSession(nextSession);
+        },
+        () => {
+          setFlipped(false);
+          setReviewDecision("INITIAL");
+          reviewStartedAt.current = performance.now();
+          setSession(nextSession);
         },
       );
     }
@@ -1005,6 +1045,7 @@ export function HanziLearningExperience({
     setStarted(false);
     setNewStep(0);
     setFlipped(false);
+    setReviewDecision("INITIAL");
     setUnknownCharacter(null);
     setPendingSession(null);
     setAnswerFeedback(null);
@@ -1066,19 +1107,10 @@ export function HanziLearningExperience({
         return;
       }
 
-      const reviewKnownIds = new Set(session!.reviewKnownIds);
-      const reviewUnknownIds = new Set(session!.reviewUnknownIds);
       const result = await finalizeHanziLearningSession(
         session!.id,
         {
-          reviewAnswers: session!.reviewCharacterIds.map((characterId) => ({
-            characterId,
-            known: reviewKnownIds.has(characterId)
-              ? true
-              : reviewUnknownIds.has(characterId)
-                ? false
-                : false,
-          })),
+          reviewAnswers: session!.reviewOutcomes,
           learnedCharacterIds: session!.newCharacterIds,
           masteredCharacterIds: masteredNewCharacterIds,
           answers: Object.entries(answerSelections).map(
@@ -1268,6 +1300,7 @@ export function HanziLearningExperience({
   }
 
   if (session.phase === "REVIEW" && reviewCharacter) {
+    const hintVisible = reviewDecision === "HINT";
     return (
       <main className="hanzi-page hanzi-page--review">
         <ProgressHeader
@@ -1279,23 +1312,19 @@ export function HanziLearningExperience({
         <HanziTaskControls onAbandon={abandonLearning} />
         <section className="hanzi-review-canvas">
           <button
-            className={`hanzi-review-card${flipped ? " hanzi-review-card--flipped" : ""}`}
+            className={`hanzi-review-card${hintVisible ? " hanzi-review-card--flipped" : ""}`}
             disabled={Boolean(flowTransition)}
             type="button"
-            onClick={() => {
-              if (flowTransitionRef.current) return;
-              setFlipped((current) => !current);
-              if (!flipped) playSpeech(reviewCharacter.character, reviewCharacter.characterAudioUrl);
-            }}
+            onClick={() => undefined}
+            aria-label={hintVisible ? `${reviewCharacter.character}的提示` : `回忆汉字${reviewCharacter.character}`}
           >
             <span className="hanzi-review-card__face hanzi-review-card__face--front">
               <CharacterBox character={reviewCharacter.character} />
-              <span className="hanzi-hint-chip">点一下看看</span>
-              <p>认识这个字吗？</p>
+              <span className="hanzi-hint-chip">先在心里读一读</span>
+              <p>你想起它了吗？</p>
             </span>
             <span className="hanzi-review-card__face hanzi-review-card__face--back">
               <CharacterBox character={reviewCharacter.character} />
-              <span className="hanzi-flip-cue" aria-hidden="true">↻</span>
               <img
                 className="hanzi-runtime-default-image"
                 src={characterImageSource(reviewCharacter)}
@@ -1309,42 +1338,26 @@ export function HanziLearningExperience({
               </div>
             </span>
           </button>
-          <div className="hanzi-review-actions">
-            <button
-              className={
-                flowTransition === "review-unknown"
-                  ? "child-submit-button--loading"
-                  : undefined
-              }
-              disabled={busy || Boolean(flowTransition)}
-              aria-busy={flowTransition === "review-unknown"}
-              type="button"
-              onClick={() => submitReview(false)}
-            >
-              {flowTransition === "review-unknown" ? (
-                <LoadingDots label="正在切换" />
-              ) : (
-                "还不认识"
-              )}
-            </button>
-            <button
-              className={
-                flowTransition === "review-known"
-                  ? "child-submit-button--loading"
-                  : undefined
-              }
-              disabled={busy || Boolean(flowTransition)}
-              aria-busy={flowTransition === "review-known"}
-              type="button"
-              onClick={() => submitReview(true)}
-            >
-              {flowTransition === "review-known" ? (
-                <LoadingDots label="正在切换" />
-              ) : (
-                "认识"
-              )}
-            </button>
-          </div>
+          {reviewDecision === "INITIAL" ? (
+            <div className="hanzi-review-actions hanzi-review-actions--recall">
+              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => {
+                setReviewDecision("HINT");
+                setFlipped(true);
+                playCharacterThenText(reviewCharacter, reviewCharacter.words[0] ?? reviewCharacter.character, reviewCharacter.wordAudioUrls[0]);
+              }}>给我提示</button>
+              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => setReviewDecision("INDEPENDENT")}>我想到了</button>
+            </div>
+          ) : reviewDecision === "INDEPENDENT" ? (
+            <div className="hanzi-review-actions hanzi-review-actions--rating">
+              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("EFFORTFUL")}>想了一会儿</button>
+              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("EASY")}>一下就想起</button>
+            </div>
+          ) : (
+            <div className="hanzi-review-actions hanzi-review-actions--rating">
+              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("FORGOT")}>还要再学</button>
+              <button type="button" disabled={busy || Boolean(flowTransition)} onClick={() => submitReview("HINTED")}>提示后想起</button>
+            </div>
+          )}
         </section>
         {knownToast ? (
           <div className="hanzi-known-toast-layer" aria-live="polite">
@@ -1589,8 +1602,10 @@ export function HanziLearningExperience({
         {hasReviewSummary ? (
           <article>
             <h2>今天复习</h2>
-            <p><span>认识</span><strong>{session.summary.reviewKnown} 个</strong></p>
-            <p><span>再见几次</span><strong>{session.summary.reviewUnknown} 个</strong></p>
+            <p><span>一下就想起</span><strong>{session.summary.easy} 个</strong></p>
+            <p><span>想了一会儿</span><strong>{session.summary.effortful} 个</strong></p>
+            <p><span>提示后想起</span><strong>{session.summary.hinted} 个</strong></p>
+            <p><span>还要再学</span><strong>{session.summary.forgot} 个</strong></p>
           </article>
         ) : null}
         {session.kind !== "REVIEW" ? (

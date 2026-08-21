@@ -1,4 +1,10 @@
-import { Prisma, type HanziCharacter, type HanziLearningSession } from "@prisma/client";
+import {
+  Prisma,
+  type HanziCharacter,
+  type HanziLearningProgress,
+  type HanziLearningSession,
+  type MemoryRecallRating,
+} from "@prisma/client";
 import type { AppConfig } from "../config.js";
 import {
   planHanziCompletion,
@@ -7,17 +13,15 @@ import {
 } from "../domain/hanzi-completion.js";
 import { selectPrioritizedHanziCharacters } from "../domain/hanzi-selection.js";
 import {
+  applyHanziRecall,
   firstHanziReviewDate,
   HANZI_REVIEW_STAGE_COUNT,
-  nextHanziReviewDate,
-  retryHanziReviewDate,
 } from "../domain/hanzi-review-rules.js";
+import { recallCounterField } from "../domain/memory-review-rules.js";
 import { HttpError } from "../lib/http-error.js";
 import { prisma } from "../lib/prisma.js";
 import { businessDateAt } from "../lib/time.js";
 import { completeTask } from "./task-service.js";
-
-const REVIEW_INTERVAL_DAYS = [1, 2, 4, 7, 15, 30] as const;
 
 type ConsolidationQuestion = {
   targetId: string;
@@ -35,6 +39,7 @@ type HanziSessionRecord = {
   reviewIndex: number | null;
   reviewKnownIds: string[] | null;
   reviewUnknownIds: string[] | null;
+  reviewOutcomes: Prisma.JsonValue;
   newCharacterIds: string[] | null;
   newIndex: number | null;
   consolidationQuestions: Prisma.JsonValue;
@@ -81,6 +86,53 @@ function questionsFromJson(value: Prisma.JsonValue): ConsolidationQuestion[] {
       ? [{ targetId: item.targetId, optionIds }]
       : [];
   });
+}
+
+type StoredReviewOutcome = {
+  characterId: string;
+  rating: MemoryRecallRating;
+  responseMs?: number;
+};
+
+function reviewOutcomesFromJson(value: Prisma.JsonValue): StoredReviewOutcome[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (
+      typeof item !== "object" ||
+      item === null ||
+      Array.isArray(item) ||
+      typeof item.characterId !== "string" ||
+      !["EASY", "EFFORTFUL", "HINTED", "FORGOT"].includes(String(item.rating))
+    ) return [];
+    return [{
+      characterId: item.characterId,
+      rating: item.rating as MemoryRecallRating,
+      ...(typeof item.responseMs === "number" ? { responseMs: item.responseMs } : {}),
+    }];
+  });
+}
+
+function recallProgressData(
+  progress: HanziLearningProgress,
+  rating: MemoryRecallRating,
+  responseMs: number | undefined,
+  today: Date,
+  now: Date,
+): Prisma.HanziLearningProgressUpdateInput {
+  const result = applyHanziRecall(progress.reviewStage, rating, today);
+  const wrongCount = result.independent ? 0 : progress.consecutiveWrong + 1;
+  const counterField = recallCounterField(rating);
+  return {
+    status: result.mastered ? "MASTERED" : "LEARNING",
+    reviewStage: result.reviewStage,
+    nextReviewDate: result.nextReviewDate,
+    isDifficult: result.difficult ? true : progress.isDifficult && !result.independent,
+    consecutiveWrong: wrongCount,
+    lastRecallRating: rating,
+    lastResponseMs: responseMs,
+    lastReviewedAt: now,
+    [counterField]: { increment: 1 },
+  };
 }
 
 function buildQuestions(
@@ -133,6 +185,7 @@ async function serializeSession(session: HanziSessionRecord) {
   const reviewCharacterIds = normalizeStringArray(session.reviewCharacterIds);
   const reviewKnownIds = normalizeStringArray(session.reviewKnownIds);
   const reviewUnknownIds = normalizeStringArray(session.reviewUnknownIds);
+  const reviewOutcomes = reviewOutcomesFromJson(session.reviewOutcomes);
   const newCharacterIds = normalizeStringArray(session.newCharacterIds);
   const reviewIndex = normalizeNonNegativeInt(session.reviewIndex, 0);
   const newIndex = normalizeNonNegativeInt(session.newIndex, 0);
@@ -158,6 +211,7 @@ async function serializeSession(session: HanziSessionRecord) {
     reviewIndex,
     reviewKnownIds,
     reviewUnknownIds,
+    reviewOutcomes,
     newCharacterIds,
     newIndex,
     questionIndex,
@@ -168,6 +222,10 @@ async function serializeSession(session: HanziSessionRecord) {
     summary: {
       reviewKnown: reviewKnownIds.length,
       reviewUnknown: reviewUnknownIds.length,
+      easy: reviewOutcomes.filter((item) => item.rating === "EASY").length,
+      effortful: reviewOutcomes.filter((item) => item.rating === "EFFORTFUL").length,
+      hinted: reviewOutcomes.filter((item) => item.rating === "HINTED").length,
+      forgot: reviewOutcomes.filter((item) => item.rating === "FORGOT").length,
       learned: newCharacterIds.length,
       correct: consolidationCorrect,
       total: consolidationTotal,
@@ -215,7 +273,6 @@ export async function startHanziSession(
     prisma.hanziLearningProgress.findMany({
       where: {
         childId,
-        status: "LEARNING",
         nextReviewDate: { lte: today },
       },
       orderBy: [
@@ -326,7 +383,8 @@ export async function answerHanziReview(
   childId: string,
   sessionId: string,
   characterId: string,
-  known: boolean,
+  rating: MemoryRecallRating,
+  responseMs: number | undefined,
   config: AppConfig,
 ) {
   const session = await prisma.hanziLearningSession.findFirst({
@@ -355,50 +413,29 @@ export async function answerHanziReview(
         : "CONSOLIDATION"
       : "REVIEW";
 
+  const now = new Date();
+  const independent = rating === "EASY" || rating === "EFFORTFUL";
   const updated = await prisma.$transaction(async (tx) => {
-    if (known) {
-      const nextStage = progress.reviewStage + 1;
-      await tx.hanziLearningProgress.update({
-        where: { id: progress.id },
-        data: {
-          status: nextStage >= HANZI_REVIEW_STAGE_COUNT ? "MASTERED" : "LEARNING",
-          reviewStage: Math.min(nextStage, HANZI_REVIEW_STAGE_COUNT),
-          nextReviewDate: nextHanziReviewDate(
-            progress.learnedDate,
-            nextStage,
-            today,
-          ),
-          consecutiveWrong: 0,
-          lastReviewedAt: new Date(),
-        },
-      });
-    } else {
-      const wrongCount = progress.consecutiveWrong + 1;
-      const nextStage = Math.max(0, progress.reviewStage - 1);
-      const difficult = wrongCount >= 2;
-      await tx.hanziLearningProgress.update({
-        where: { id: progress.id },
-        data: {
-          status: "LEARNING",
-          reviewStage: nextStage,
-          nextReviewDate: retryHanziReviewDate(today, nextStage, difficult),
-          isDifficult: difficult || progress.isDifficult,
-          consecutiveWrong: wrongCount,
-          lastReviewedAt: new Date(),
-        },
-      });
-    }
+    await tx.hanziLearningProgress.update({
+      where: { id: progress.id },
+      data: recallProgressData(progress, rating, responseMs, today, now),
+    });
+    const outcomes = reviewOutcomesFromJson(session.reviewOutcomes);
     return tx.hanziLearningSession.update({
       where: { id: session.id },
       data: {
         reviewIndex: nextIndex,
         phase: nextPhase,
-        reviewKnownIds: known
+        reviewKnownIds: independent
           ? { push: characterId }
           : undefined,
-        reviewUnknownIds: known
+        reviewUnknownIds: independent
           ? undefined
           : { push: characterId },
+        reviewOutcomes: [
+          ...outcomes,
+          { characterId, rating, ...(responseMs == null ? {} : { responseMs }) },
+        ],
       },
     });
   });
@@ -585,41 +622,20 @@ export async function finalizeHanziSession(
             "没有找到这个字的复习进度",
           );
         }
-        if (answer.known) {
-          const nextStage = progress.reviewStage + 1;
-          await tx.hanziLearningProgress.update({
-            where: { id: progress.id },
-            data: {
-              status:
-                nextStage >= HANZI_REVIEW_STAGE_COUNT
-                  ? "MASTERED"
-                  : "LEARNING",
-              reviewStage: Math.min(nextStage, HANZI_REVIEW_STAGE_COUNT),
-              nextReviewDate: nextHanziReviewDate(
-                progress.learnedDate,
-                nextStage,
-                today,
-              ),
-              consecutiveWrong: 0,
-              lastReviewedAt: new Date(),
-            },
-          });
+        const independent = answer.rating === "EASY" || answer.rating === "EFFORTFUL";
+        await tx.hanziLearningProgress.update({
+          where: { id: progress.id },
+          data: recallProgressData(
+            progress,
+            answer.rating,
+            answer.responseMs,
+            today,
+            new Date(),
+          ),
+        });
+        if (independent) {
           reviewKnownIds.push(answer.characterId);
         } else {
-          const wrongCount = progress.consecutiveWrong + 1;
-          const nextStage = Math.max(0, progress.reviewStage - 1);
-          const difficult = wrongCount >= 2;
-          await tx.hanziLearningProgress.update({
-            where: { id: progress.id },
-            data: {
-              status: "LEARNING",
-              reviewStage: nextStage,
-              nextReviewDate: retryHanziReviewDate(today, nextStage, difficult),
-              isDifficult: difficult || progress.isDifficult,
-              consecutiveWrong: wrongCount,
-              lastReviewedAt: new Date(),
-            },
-          });
           reviewUnknownIds.push(answer.characterId);
         }
       }
@@ -657,6 +673,10 @@ export async function finalizeHanziSession(
           reviewIndex: session.reviewCharacterIds.length,
           reviewKnownIds: unique(reviewKnownIds),
           reviewUnknownIds: unique(reviewUnknownIds),
+          reviewOutcomes: [
+            ...reviewOutcomesFromJson(session.reviewOutcomes),
+            ...plan.remainingReviewAnswers,
+          ],
           newIndex: session.newCharacterIds.length,
           questionIndex: questions.length,
           consolidationCorrect:

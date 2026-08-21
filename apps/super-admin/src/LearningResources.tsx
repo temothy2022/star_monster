@@ -140,7 +140,7 @@ export function HanziLibrary() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
-  const pageSize = 30;
+  const [pageSize, setPageSize] = useState(30);
   async function load(nextPage = page, nextQuery = query) {
     setBusy(true);
     setError("");
@@ -161,8 +161,8 @@ export function HanziLibrary() {
     }
   }
   useEffect(() => {
-    void load(1, "");
-  }, []);
+    void load(page, query);
+  }, [page, pageSize, query]);
   function payload() {
     return {
       character: form.character,
@@ -603,7 +603,7 @@ export function HanziLibrary() {
               <div className="empty-state">没有找到汉字</div>
             ) : null}
           </div>
-          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 个汉字`} disabled={busy} onChange={(value) => void load(value)} />
+          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个汉字`} disabled={busy} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(value) => void load(value)} />
         </section>
       </div>
     </div>
@@ -653,7 +653,7 @@ export function PoemLibrary() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const pageSize = 30;
+  const [pageSize, setPageSize] = useState(30);
   async function load(nextQuery = query, nextGrade = grade, nextPage = page) {
     setBusy(true);
     setError("");
@@ -675,8 +675,8 @@ export function PoemLibrary() {
     }
   }
   useEffect(() => {
-    void load("", 0, 1);
-  }, []);
+    void load(query, grade, page);
+  }, [page, pageSize, query, grade]);
   function payload() {
     return {
       ...form,
@@ -1085,7 +1085,7 @@ export function PoemLibrary() {
               <div className="empty-state">没有找到古诗</div>
             ) : null}
           </div>
-          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 首古诗`} disabled={busy} onChange={(value) => void load(query, grade, value)} />
+          <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 首古诗`} disabled={busy} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={(value) => void load(query, grade, value)} />
         </section>
       </div>
     </div>
@@ -1216,7 +1216,7 @@ export function MascotDialogueLibrary() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   async function load() {
     try {
@@ -1230,7 +1230,7 @@ export function MascotDialogueLibrary() {
 
   useEffect(() => {
     void load();
-  }, [page]);
+  }, [page, pageSize]);
 
   function replace(updated: MascotDialogue) {
     setItems((current) =>
@@ -1429,7 +1429,7 @@ export function MascotDialogueLibrary() {
             </article>
           ))}
         </div>
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 条对话`} onChange={setPage} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 条对话`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
       </section>
     </div>
   );

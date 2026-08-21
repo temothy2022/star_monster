@@ -211,6 +211,8 @@ const poemSettingsSchema = z
       .max(7),
     learningTaskStars: z.number().int().min(1).max(999),
     reviewTaskStars: z.number().int().min(1).max(999),
+    newPoemsPerSession: z.number().int().min(1).max(5),
+    reviewDailyLimit: z.number().int().min(1).max(20),
   })
   .superRefine((input, context) => {
     if (new Set(input.learningWeekdays).size !== input.learningWeekdays.length) {
@@ -1370,7 +1372,6 @@ export async function registerParentRoutes(
       prisma.poemLearningProgress.count({
         where: {
           childId: id,
-          status: "LEARNING",
           nextReviewDate: {
             lte: businessDateAt(new Date(), config.APP_TIME_ZONE),
           },

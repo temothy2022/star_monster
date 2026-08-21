@@ -5,15 +5,16 @@ import { adminApi, type GrowthDataOverview } from "./api";
 export function GrowthDataGovernance() {
   const [days, setDays] = useState(30);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [data, setData] = useState<GrowthDataOverview | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    void adminApi.growthDataOverview(days, page, 20)
+    void adminApi.growthDataOverview(days, page, pageSize)
       .then(setData)
       .catch((reason) => setError(reason instanceof Error ? reason.message : "成长数据概览读取失败"));
-  }, [days, page]);
+  }, [days, page, pageSize]);
 
   return (
     <div className="growth-governance-page">
@@ -32,10 +33,9 @@ export function GrowthDataGovernance() {
         <section className="admin-panel growth-governance-table-panel">
           <header><div><h2>家庭记录覆盖</h2><p>用于发现尚未开始使用或基础资料缺失的家庭，不展示健康数值。</p></div></header>
           <div className="responsive-table-wrap"><table className="responsive-card-table growth-governance-table"><thead><tr><th>家庭</th><th>孩子</th><th>出生日期</th><th>周期内记录</th><th>里程碑总数</th><th>状态</th></tr></thead><tbody>{data.families.flatMap((family) => family.children.length ? family.children.map((child, index) => <tr key={child.id}><td data-label="家庭">{index === 0 ? family.name : ""}</td><td data-label="孩子">{child.nickname ?? "未设置昵称"}</td><td data-label="出生日期"><span className={child.birthDateConfigured ? "growth-data-status is-ready" : "growth-data-status is-missing"}>{child.birthDateConfigured ? "已配置" : "缺失"}</span></td><td data-label="周期内记录">{child.recordCount}</td><td data-label="里程碑总数">{child.milestoneCount}</td><td data-label="状态">{child.recordCount ? "正常记录" : "尚未开始"}</td></tr>) : [<tr key={`${family.id}-empty`}><td data-label="家庭">{family.name}</td><td colSpan={5}>该家庭还没有孩子</td></tr>])}</tbody></table></div>
-          <Pagination className="admin-pagination" current={data.page} pageSize={data.pageSize} total={data.total} showSizeChanger={false} showTotal={(total) => `共 ${total} 个家庭`} onChange={setPage} />
+          <Pagination className="admin-pagination" current={data.page} pageSize={pageSize} total={data.total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(total) => `共 ${total} 个家庭`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
         </section>
       </>}
     </div>
   );
 }
-

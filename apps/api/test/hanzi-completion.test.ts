@@ -18,8 +18,8 @@ describe("hanzi completion planning", () => {
     const plan = planHanziCompletion({
       ...baseInput,
       reviewAnswers: [
-        { characterId: "review-a", known: true },
-        { characterId: "review-b", known: false },
+        { characterId: "review-a", rating: "EASY" },
+        { characterId: "review-b", rating: "FORGOT" },
       ],
       learnedCharacterIds: ["new-a", "new-b"],
       masteredCharacterIds: ["new-b"],
@@ -30,7 +30,7 @@ describe("hanzi completion planning", () => {
     });
 
     expect(plan.remainingReviewAnswers).toEqual([
-      { characterId: "review-b", known: false },
+      { characterId: "review-b", rating: "FORGOT" },
     ]);
     expect(plan.remainingNewCharacterIds).toEqual(["new-b"]);
     expect(plan.masteredCharacterIds).toEqual(["new-b"]);
@@ -60,7 +60,7 @@ describe("hanzi completion planning", () => {
     expect(() =>
       planHanziCompletion({
         ...baseInput,
-        reviewAnswers: [{ characterId: "review-b", known: true }],
+        reviewAnswers: [{ characterId: "review-b", rating: "EASY" }],
         learnedCharacterIds: ["new-a", "new-b"],
         masteredCharacterIds: [],
         answers: [
@@ -74,7 +74,7 @@ describe("hanzi completion planning", () => {
     expect(() =>
       planHanziCompletion({
         ...baseInput,
-        reviewAnswers: [{ characterId: "review-b", known: true }],
+        reviewAnswers: [{ characterId: "review-b", rating: "EASY" }],
         learnedCharacterIds: ["new-a", "new-b"],
         masteredCharacterIds: ["other-a"],
         answers: [{ questionIndex: 1, selectedCharacterId: "new-b" }],

@@ -1,8 +1,10 @@
 import { HttpError } from "../lib/http-error.js";
+import type { MemoryRecallRating } from "./memory-review-rules.js";
 
 export type HanziReviewAnswer = {
   characterId: string;
-  known: boolean;
+  rating: MemoryRecallRating;
+  responseMs?: number;
 };
 
 export type HanziQuestionAnswer = {

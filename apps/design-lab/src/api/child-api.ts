@@ -860,6 +860,11 @@ export type HanziLearningSession = {
   reviewIndex: number;
   reviewKnownIds: string[];
   reviewUnknownIds: string[];
+  reviewOutcomes: Array<{
+    characterId: string;
+    rating: MemoryRecallRating;
+    responseMs?: number;
+  }>;
   newCharacterIds: string[];
   newIndex: number;
   questionIndex: number;
@@ -870,6 +875,10 @@ export type HanziLearningSession = {
   summary: {
     reviewKnown: number;
     reviewUnknown: number;
+    easy: number;
+    effortful: number;
+    hinted: number;
+    forgot: number;
     learned: number;
     correct: number;
     total: number;
@@ -893,14 +902,15 @@ export async function startHanziLearningSession(
 export async function answerHanziReview(
   sessionId: string,
   characterId: string,
-  known: boolean,
+  rating: MemoryRecallRating,
+  responseMs?: number,
   signal?: AbortSignal,
 ) {
   return request<{ session: HanziLearningSession }>(
     `/api/child/hanzi/sessions/${sessionId}/review`,
     {
       method: "POST",
-      body: JSON.stringify({ characterId, known }),
+      body: JSON.stringify({ characterId, rating, responseMs }),
       signal,
     },
   );
@@ -960,7 +970,11 @@ export async function finishHanziLearningSession(
 export async function finalizeHanziLearningSession(
   sessionId: string,
   input: {
-    reviewAnswers: Array<{ characterId: string; known: boolean }>;
+    reviewAnswers: Array<{
+      characterId: string;
+      rating: MemoryRecallRating;
+      responseMs?: number;
+    }>;
     learnedCharacterIds: string[];
     masteredCharacterIds: string[];
     answers: Array<{
@@ -1185,12 +1199,23 @@ export type PoemLearningSession = {
   forgottenPoemIds: string[];
   completedAt: string | null;
   poems: Poem[];
+  reviewOutcomes: Array<{
+    poemId: string;
+    rating: MemoryRecallRating;
+    responseMs?: number;
+  }>;
   summary: {
     total: number;
     completed: number;
     forgotten: number;
+    easy: number;
+    effortful: number;
+    hinted: number;
+    forgot: number;
   };
 };
+
+export type MemoryRecallRating = "EASY" | "EFFORTFUL" | "HINTED" | "FORGOT";
 
 export async function startPoemLearningSession(attemptId: string) {
   return request<{ session: PoemLearningSession }>(
@@ -1207,14 +1232,17 @@ export async function completePoemLearning(
   poemId: string,
 ) {
   return request<{
-    attempt: TaskAttempt;
-    reward: {
-      baseStars: number;
-      bonusStars: number;
-      dailyGoalBonusStars: number;
-      totalStars: number;
+    session: PoemLearningSession;
+    completion: null | {
+      attempt: TaskAttempt;
+      reward: {
+        baseStars: number;
+        bonusStars: number;
+        dailyGoalBonusStars: number;
+        totalStars: number;
+      };
+      alreadyCompleted: boolean;
     };
-    alreadyCompleted: boolean;
   }>(`/api/child/poems/sessions/${sessionId}/learn`, {
     method: "POST",
     body: JSON.stringify({ poemId }),
@@ -1224,17 +1252,22 @@ export async function completePoemLearning(
 export async function submitPoemReview(
   sessionId: string,
   poemId: string,
-  result: "REMEMBERED" | "FORGOT",
+  rating: MemoryRecallRating,
+  responseMs?: number,
 ) {
   return request<{ session: PoemLearningSession }>(
     `/api/child/poems/sessions/${sessionId}/review`,
     {
       method: "POST",
-      body: JSON.stringify({ poemId, result }),
+      body: JSON.stringify({ poemId, rating, responseMs }),
     },
   );
 }
 
+/*
+ * The explicit completion endpoint remains separate for review sessions so a
+ * restored client can finish only after every locally visible answer was saved.
+ */
 export async function finishPoemReview(sessionId: string) {
   return request<{
     attempt: TaskAttempt;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   firstPoemReviewDate,
-  nextPoemReviewDate,
+  applyPoemRecall,
   POEM_REVIEW_STAGE_COUNT,
 } from "../src/domain/poem-review-rules.js";
 
@@ -12,27 +12,30 @@ describe("poem review schedule", () => {
     expect(firstPoemReviewDate(date("2026-07-29"))).toEqual(date("2026-07-30"));
   });
 
-  it("uses the six Ebbinghaus daily review offsets", () => {
-    const anchor = date("2026-07-01");
-    const expected = ["2026-07-03", "2026-07-05", "2026-07-08", "2026-07-16", "2026-07-31"];
-
-    expected.forEach((value, index) => {
-      expect(nextPoemReviewDate(anchor, index + 1, date("2026-07-02"))).toEqual(
-        date(value),
-      );
-    });
-    expect(
-      nextPoemReviewDate(anchor, POEM_REVIEW_STAGE_COUNT, date("2026-08-30")),
-    ).toBeNull();
+  it("uses independent recall to grow the interval", () => {
+    const result = applyPoemRecall(3, "EASY", date("2026-07-02"));
+    expect(result.reviewStage).toBe(4);
+    expect(result.nextReviewDate).toEqual(date("2026-08-01"));
+    expect(result.independent).toBe(true);
   });
 
-  it("never schedules another review on the same overdue day", () => {
-    expect(
-      nextPoemReviewDate(
-        date("2026-07-01"),
-        1,
-        date("2026-07-20"),
-      ),
-    ).toEqual(date("2026-07-21"));
+  it("keeps maintenance reviews after mastery instead of stopping forever", () => {
+    const result = applyPoemRecall(POEM_REVIEW_STAGE_COUNT, "EASY", date("2026-07-02"));
+    expect(result.reviewStage).toBe(POEM_REVIEW_STAGE_COUNT);
+    expect(result.mastered).toBe(true);
+    expect(result.nextReviewDate).toEqual(date("2026-10-30"));
+  });
+
+  it("brings a prompted poem back sooner", () => {
+    const result = applyPoemRecall(4, "HINTED", date("2026-07-02"));
+    expect(result.reviewStage).toBe(3);
+    expect(result.independent).toBe(false);
+    expect(result.nextReviewDate).toEqual(date("2026-07-07"));
+  });
+
+  it("keeps an existing in-progress stage instead of restarting it", () => {
+    const result = applyPoemRecall(3, "EFFORTFUL", date("2026-07-02"));
+    expect(result.reviewStage).toBe(4);
+    expect(result.nextReviewDate).toEqual(date("2026-07-20"));
   });
 });

@@ -245,6 +245,13 @@ enum PoemSessionKind {
   REVIEW
 }
 
+enum MemoryRecallRating {
+  EASY
+  EFFORTFUL
+  HINTED
+  FORGOT
+}
+
 enum AiRecommendationKind {
   TASK_ADVICE
   REWARD_AUDIT
@@ -1289,6 +1296,12 @@ model HanziLearningProgress {
   nextReviewDate   DateTime?           @db.Date
   isDifficult      Boolean             @default(false)
   consecutiveWrong Int                 @default(0)
+  lastRecallRating MemoryRecallRating?
+  lastResponseMs Int?
+  easyRecallCount Int @default(0)
+  effortfulRecallCount Int @default(0)
+  hintedRecallCount Int @default(0)
+  forgottenRecallCount Int @default(0)
   lastReviewedAt   DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
@@ -1311,6 +1324,7 @@ model HanziLearningSession {
   reviewIndex            Int               @default(0)
   reviewKnownIds         String[]          @default([])
   reviewUnknownIds       String[]          @default([])
+  reviewOutcomes         Json              @default("[]")
   newCharacterIds        String[]          @default([])
   newIndex               Int               @default(0)
   consolidationQuestions Json
@@ -1551,6 +1565,8 @@ model PoemLearningSettings {
   learningWeekdays  Int[]    @default([2, 4])
   learningTaskStars Int      @default(2)
   reviewTaskStars   Int      @default(2)
+  newPoemsPerSession Int     @default(1)
+  reviewDailyLimit Int       @default(5)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1566,6 +1582,14 @@ model PoemLearningProgress {
   reviewStage    Int                @default(0)
   nextReviewDate DateTime?          @db.Date
   lastReviewedAt DateTime?
+  isDifficult Boolean @default(false)
+  consecutiveWrong Int @default(0)
+  lastRecallRating MemoryRecallRating?
+  lastResponseMs Int?
+  easyRecallCount Int @default(0)
+  effortfulRecallCount Int @default(0)
+  hintedRecallCount Int @default(0)
+  forgottenRecallCount Int @default(0)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
@@ -1586,6 +1610,7 @@ model PoemLearningSession {
   currentIndex     Int             @default(0)
   completedPoemIds String[]        @default([])
   forgottenPoemIds String[]        @default([])
+  reviewOutcomes   Json            @default("[]")
   completedAt      DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

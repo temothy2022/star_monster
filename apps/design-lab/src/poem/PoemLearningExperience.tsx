@@ -7,6 +7,7 @@ import {
   submitPoemReview,
   type Poem,
   type PoemLearningSession,
+  type MemoryRecallRating,
 } from "../api/child-api";
 import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
 import defaultPoemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
@@ -74,6 +75,15 @@ function reviewHint(clause: string): string {
   return `${first}${"＿".repeat(Math.min(hiddenCount, 8))}${punctuation}`;
 }
 
+function concealedClause(clause: string): string {
+  const characters = Array.from(clause);
+  const punctuation = END_PUNCTUATION.test(characters.at(-1) ?? "")
+    ? characters.pop()
+    : "";
+  const visibleLength = characters.filter((character) => character.trim()).length;
+  return `${"＿".repeat(Math.min(Math.max(2, visibleLength), 10))}${punctuation}`;
+}
+
 export function PoemLearningExperience({
   attemptId,
   onExit,
@@ -84,11 +94,13 @@ export function PoemLearningExperience({
   onCompleted: (reward: Reward) => void;
 }) {
   const [session, setSession] = useState<PoemLearningSession | null>(null);
-  const [showOriginal, setShowOriginal] = useState(false);
+  const [learningStep, setLearningStep] = useState<0 | 1 | 2>(0);
+  const [reviewDecision, setReviewDecision] = useState<"INITIAL" | "INDEPENDENT" | "HINT">("INITIAL");
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
   const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
+  const reviewStartedAt = useRef(performance.now());
   if (!playbackQueueRef.current) {
     playbackQueueRef.current = new SinglePendingPlaybackQueue(setPlaying);
   }
@@ -128,6 +140,12 @@ export function PoemLearningExperience({
     () => (poem ? poemClauses(poem.content) : []),
     [poem],
   );
+
+  useEffect(() => {
+    setLearningStep(0);
+    setReviewDecision("INITIAL");
+    reviewStartedAt.current = performance.now();
+  }, [poem?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -181,7 +199,13 @@ export function PoemLearningExperience({
     setPlaying(false);
     try {
       const result = await completePoemLearning(session.id, currentPoem.id);
-      onCompleted(result.reward);
+      setSession(result.session);
+      if (result.completion) {
+        onCompleted(result.completion.reward);
+        return;
+      }
+      setLearningStep(0);
+      setBusy(false);
     } catch (reason) {
       if (isStalePoemAttempt(reason)) {
         onExit();
@@ -192,7 +216,7 @@ export function PoemLearningExperience({
     }
   }
 
-  async function handleReview(result: "REMEMBERED" | "FORGOT") {
+  async function handleReview(rating: MemoryRecallRating) {
     if (!session || !poem || busy) return;
     setBusy(true);
     setError("");
@@ -201,7 +225,8 @@ export function PoemLearningExperience({
       const response = await submitPoemReview(
         session.id,
         poem.id,
-        result,
+        rating,
+        Math.max(0, Math.round(performance.now() - reviewStartedAt.current)),
       );
       const nextSession = response.session;
       if (nextSession.currentIndex >= nextSession.poemIds.length) {
@@ -210,7 +235,8 @@ export function PoemLearningExperience({
         return;
       }
       setSession(nextSession);
-      setShowOriginal(false);
+      setReviewDecision("INITIAL");
+      reviewStartedAt.current = performance.now();
       setBusy(false);
     } catch (reason) {
       if (isStalePoemAttempt(reason)) {
@@ -247,6 +273,24 @@ export function PoemLearningExperience({
 
   const isReview = session.kind === "REVIEW";
   const isLastReview = session.currentIndex === session.poemIds.length - 1;
+  const displayedContent = isReview
+    ? clauses
+        .map((clause) =>
+          reviewDecision === "HINT"
+            ? reviewHint(clause)
+            : concealedClause(clause),
+        )
+        .join("")
+    : clauses
+        .map((clause) =>
+          learningStep === 0
+            ? concealedClause(clause)
+            : learningStep === 1
+              ? clause
+              : reviewHint(clause),
+        )
+        .join("");
+  const displayedClauses = poemClauses(displayedContent);
 
   return (
     <main className={`poem-page poem-page--runtime ${isReview ? "poem-page--review" : ""}`}>
@@ -291,12 +335,30 @@ export function PoemLearningExperience({
           >
             <img src={speakerIcon} alt="" aria-hidden="true" />
           </button>
-          <div className="poem-runtime__text" aria-label={showOriginal || !isReview ? poem.content : "背诵提示"}>
-            {clauses.map((clause, index) => (
+          {!isReview ? (
+            <div className="poem-learning-steps" aria-label="学习步骤">
+              {[
+                "听一遍",
+                "看着读",
+                "遮住想",
+              ].map((label, index) => <span className={index === learningStep ? "is-active" : index < learningStep ? "is-done" : ""} key={label}>{index + 1}. {label}</span>)}
+            </div>
+          ) : null}
+          <div
+            className={`poem-runtime__text poem-runtime__text--${
+              isReview && reviewDecision === "INITIAL"
+                ? "concealed"
+                : isReview || learningStep === 2
+                  ? "hinted"
+                  : learningStep === 0
+                    ? "listening"
+                    : "visible"
+            }`}
+            aria-label={isReview || learningStep !== 1 ? "背诵提示" : poem.content}
+          >
+            {displayedClauses.map((clause, index) => (
               <div className="poem-page__line" key={`${clause}-${index}`}>
-                {Array.from(
-                  isReview && !showOriginal ? reviewHint(clause) : clause,
-                ).map((character, characterIndex) =>
+                {Array.from(clause).map((character, characterIndex) =>
                   END_PUNCTUATION.test(character) ? (
                     <span
                       className="poem-page__punctuation"
@@ -319,40 +381,7 @@ export function PoemLearningExperience({
 
           {isReview ? (
             <>
-              <button
-                className="poem-runtime__original"
-                type="button"
-                onClick={() => setShowOriginal((value) => !value)}
-              >
-                {showOriginal ? "收起原文" : "查看原文"}
-              </button>
-              <div className="poem-runtime__review-actions">
-                <button
-                  className="poem-runtime__forgot"
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleReview("FORGOT")}
-                >
-                  忘了
-                </button>
-                <button
-                  className={`poem-page__complete${
-                    busy ? " child-submit-button--loading" : ""
-                  }`}
-                  type="button"
-                  disabled={busy}
-                  aria-busy={busy}
-                  onClick={() => void handleReview("REMEMBERED")}
-                >
-                  {busy ? (
-                    <LoadingDots label={isLastReview ? "正在完成" : "正在提交"} />
-                  ) : isLastReview ? (
-                    "完成"
-                  ) : (
-                    "下一首"
-                  )}
-                </button>
-              </div>
+              {reviewDecision === "INITIAL" ? <div className="poem-runtime__review-actions"><button className="poem-runtime__forgot" type="button" disabled={busy} onClick={() => { setReviewDecision("HINT"); playCurrent(); }}>给我提示</button><button className="poem-page__complete" type="button" disabled={busy} onClick={() => setReviewDecision("INDEPENDENT")}>我背出来了</button></div> : reviewDecision === "INDEPENDENT" ? <div className="poem-runtime__review-actions"><button className="poem-runtime__forgot" type="button" disabled={busy} onClick={() => void handleReview("EFFORTFUL")}>想了一会儿</button><button className="poem-page__complete" type="button" disabled={busy} onClick={() => void handleReview("EASY")}>很顺利</button></div> : <div className="poem-runtime__review-actions"><button className="poem-runtime__forgot" type="button" disabled={busy} onClick={() => void handleReview("FORGOT")}>还要再学</button><button className={`poem-page__complete${busy ? " child-submit-button--loading" : ""}`} type="button" disabled={busy} aria-busy={busy} onClick={() => void handleReview("HINTED")}>{busy ? <LoadingDots label={isLastReview ? "正在完成" : "正在提交"} /> : "提示后想起"}</button></div>}
             </>
           ) : (
             <button
@@ -362,12 +391,18 @@ export function PoemLearningExperience({
               type="button"
               disabled={busy}
               aria-busy={busy}
-              onClick={() => void finishLearning(poem)}
+              onClick={() => {
+                if (learningStep < 2) {
+                  setLearningStep((current) => Math.min(2, current + 1) as 0 | 1 | 2);
+                  return;
+                }
+                void finishLearning(poem);
+              }}
             >
               {busy ? (
                 <LoadingDots label="正在完成" />
               ) : (
-                "完成任务"
+                learningStep === 0 ? "听完了，看着读" : learningStep === 1 ? "遮住试一试" : session.currentIndex + 1 < session.poemIds.length ? "下一首" : "完成任务"
               )}
             </button>
           )}

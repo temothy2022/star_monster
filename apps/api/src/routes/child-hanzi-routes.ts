@@ -12,14 +12,22 @@ import {
 } from "../services/hanzi-learning-service.js";
 
 const idParams = z.object({ id: z.string().min(1) });
+const recallRatingSchema = z.enum(["EASY", "EFFORTFUL", "HINTED", "FORGOT"]);
+const reviewAnswerSchema = z
+  .object({
+    characterId: z.string().min(1),
+    rating: recallRatingSchema.optional(),
+    responseMs: z.number().int().min(0).max(10 * 60 * 1000).optional(),
+    known: z.boolean().optional(),
+  })
+  .transform((value) => ({
+    characterId: value.characterId,
+    rating: value.rating ?? (value.known ? "EASY" : "FORGOT"),
+    responseMs: value.responseMs,
+  }));
 const finalizeSchema = z.object({
   reviewAnswers: z
-    .array(
-      z.object({
-        characterId: z.string().min(1),
-        known: z.boolean(),
-      }),
-    )
+    .array(reviewAnswerSchema)
     .max(50),
   learnedCharacterIds: z.array(z.string().min(1)).max(20),
   masteredCharacterIds: z.array(z.string().min(1)).max(20).default([]),
@@ -46,10 +54,15 @@ export async function registerChildHanziRoutes(
   app.post("/api/child/hanzi/sessions/:id/review", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     const { id } = idParams.parse(request.params);
-    const input = z
-      .object({ characterId: z.string().min(1), known: z.boolean() })
-      .parse(request.body);
-    return answerHanziReview(child.id, id, input.characterId, input.known, config);
+    const input = reviewAnswerSchema.parse(request.body);
+    return answerHanziReview(
+      child.id,
+      id,
+      input.characterId,
+      input.rating,
+      input.responseMs,
+      config,
+    );
   });
 
   app.post("/api/child/hanzi/sessions/:id/learn", async (request, reply) => {

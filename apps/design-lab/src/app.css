@@ -1591,6 +1591,53 @@ body:has(.poem-page),
   animation: poem-listening-pulse 1s ease-in-out infinite;
 }
 
+.poem-learning-steps {
+  display: grid;
+  width: min(100%, 420px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.poem-learning-steps span {
+  display: grid;
+  min-height: 36px;
+  place-items: center;
+  padding: 5px 8px;
+  border: 1.5px solid #d8dee7;
+  border-radius: 10px;
+  background: rgba(255, 253, 247, 0.88);
+  color: var(--poem-muted);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.poem-learning-steps span.is-active {
+  border-color: var(--poem-orange);
+  background: var(--poem-pink);
+  color: var(--poem-ink);
+}
+
+.poem-learning-steps span.is-done {
+  border-color: #8bc7a0;
+  background: #ecf8ef;
+  color: #317047;
+}
+
+.poem-runtime__text--concealed .poem-page__character,
+.poem-runtime__text--listening .poem-page__character,
+.poem-runtime__text--hinted .poem-page__character {
+  border-style: dashed;
+  color: #9b7a6b;
+}
+
+.poem-runtime__text--concealed .poem-page__character,
+.poem-runtime__text--listening .poem-page__character {
+  background: #fffdf8;
+  color: #c7a99d;
+}
+
 @keyframes poem-listening-pulse {
   50% {
     box-shadow: 0 0 0 10px rgba(255, 122, 61, 0.18);
@@ -1676,7 +1723,7 @@ body:has(.poem-page),
 
 @media (max-width: 900px), (orientation: portrait) {
   .poem-page--runtime {
-    height: 100dvh;
+    height: var(--app-visible-height, 100dvh);
     min-height: 0;
     gap: 14px;
     overflow-y: auto;
@@ -1728,7 +1775,7 @@ body:has(.poem-page),
 
   .poem-page--runtime .poem-page__image-frame {
     order: 1;
-    width: min(100%, 620px);
+    width: min(32dvh, 280px, 58vw);
     aspect-ratio: 1;
     flex: 0 0 auto;
   }
@@ -1749,16 +1796,21 @@ body:has(.poem-page),
   .poem-page--runtime .poem-page__recitation-column {
     width: min(100%, 620px);
     min-height: 0;
+    flex: 1 1 auto;
     align-self: center;
-    overflow: visible;
+    overflow: hidden;
     padding: 4px 0 16px;
   }
 
   .poem-runtime__text {
     width: min(100%, 620px);
+    max-height: min(34dvh, 360px);
     align-self: center;
     gap: 12px;
+    overflow: auto;
+    overscroll-behavior: contain;
     padding-inline: 0;
+    -webkit-overflow-scrolling: touch;
   }
 
   .poem-runtime__text .poem-page__line {
@@ -1802,28 +1854,176 @@ body:has(.poem-page),
     width: min(100%, 500px);
   }
 
-  .poem-runtime__text {
-    max-height: none;
-  }
 }
 
 @media (max-width: 560px) {
+  .poem-page--runtime {
+    gap: 8px;
+    overflow: hidden;
+    padding: max(12px, env(safe-area-inset-top)) 14px
+      max(12px, env(safe-area-inset-bottom));
+  }
+
+  .poem-page--runtime .poem-page__header {
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .poem-page--runtime .poem-page__header h1 {
+    font-size: 23px;
+    line-height: 40px;
+  }
+
+  .poem-page--runtime .poem-page__back {
+    width: 42px;
+    height: 42px;
+  }
+
+  .poem-page--runtime .poem-page__progress {
+    top: 47px;
+    min-width: 94px;
+    height: 34px;
+    padding-inline: 10px;
+    font-size: 13px;
+  }
+
+  .poem-page--runtime .poem-page__main {
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: 6px;
+    overflow: hidden;
+    padding-top: 38px;
+  }
+
+  .poem-page--runtime .poem-page__illustration-column {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .poem-page--runtime .poem-page__image-frame {
+    width: 92px;
+    height: 92px;
+  }
+
+  .poem-page--review .poem-page__image-frame {
+    display: none;
+  }
+
+  .poem-page--runtime .poem-page__poem-heading {
+    width: auto;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 0;
+  }
+
+  .poem-page--runtime .poem-page__poem-heading h2 {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 22px;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+  }
+
+  .poem-page--runtime .poem-page__poem-heading span {
+    padding: 2px 9px;
+    font-size: 13px;
+    line-height: 22px;
+  }
+
+  .poem-page--review .poem-page__illustration-column {
+    display: flex;
+  }
+
+  .poem-page--review .poem-page__poem-heading {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .poem-page--runtime .poem-page__recitation-column {
+    width: 100%;
+    min-height: 0;
+    padding-bottom: 4px;
+  }
+
+  .poem-page--runtime .poem-page__listen {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    margin-bottom: 6px;
+  }
+
+  .poem-page--runtime .poem-page__listen img {
+    width: 21px;
+    height: 21px;
+  }
+
+  .poem-learning-steps {
+    margin-bottom: 6px;
+  }
+
+  .poem-learning-steps span {
+    min-height: 30px;
+    padding: 3px 4px;
+    font-size: 12px;
+  }
+
+  .poem-runtime__text {
+    width: 100%;
+    max-height: min(38dvh, 310px);
+    gap: 8px;
+    padding: 4px 0 8px;
+  }
+
   .poem-runtime__text .poem-page__line {
+    width: max-content;
+    max-width: none;
+    margin-inline: auto;
     gap: 4px;
   }
 
   .poem-runtime__text .poem-page__character {
-    width: 35px;
-    height: 35px;
-    flex-basis: 35px;
-    font-size: 20px;
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+    font-size: 22px;
   }
 
   .poem-runtime__text .poem-page__punctuation {
     width: 5px;
     flex-basis: 5px;
     font-size: 20px;
-    line-height: 35px;
+    line-height: 38px;
+  }
+
+  .poem-page--runtime .poem-page__complete,
+  .poem-runtime__review-actions .poem-page__complete {
+    width: min(210px, 58vw);
+    height: 52px;
+    flex-basis: 52px;
+    margin-top: 8px;
+    font-size: 18px;
+  }
+
+  .poem-runtime__review-actions {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .poem-runtime__review-actions .poem-runtime__forgot,
+  .poem-runtime__review-actions .poem-page__complete {
+    width: auto;
+    min-width: 0;
+    flex: 1 1 0;
+    white-space: nowrap;
+  }
+
+  .poem-runtime__forgot {
+    height: 48px;
+    margin-bottom: 1px;
+    font-size: 16px;
   }
 }
 
@@ -1839,18 +2039,36 @@ body:has(.poem-page),
 
   .poem-page--runtime .poem-page__illustration-column {
     min-height: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .poem-page--runtime .poem-page__image-frame {
+    width: min(28dvh, 260px, 44vw);
     min-height: 0;
-    aspect-ratio: auto;
-    flex: 1 1 auto;
+    aspect-ratio: 1;
+    flex: 0 0 auto;
   }
 
   .poem-page--runtime .poem-page__recitation-column {
-    flex: 0 0 auto;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .poem-runtime__text {
+    max-height: min(32dvh, 340px);
+  }
+
+  .poem-page--review .poem-page__image-frame {
+    width: min(22dvh, 220px, 40vw);
+  }
+
+  .poem-page--review .poem-runtime__text {
+    max-height: min(28dvh, 300px);
+  }
+
+  .poem-page--review .poem-runtime__review-actions .poem-page__complete {
+    margin-top: 10px;
   }
 }
 
@@ -4341,6 +4559,9 @@ input[type="reset"] {
 .hanzi-review-canvas {
   display: grid;
   height: calc(100% - 171px);
+  grid-template-rows: auto auto;
+  align-content: start;
+  justify-items: center;
   place-items: start center;
   padding-top: clamp(20px, 3vh, 48px);
 }
@@ -4492,16 +4713,6 @@ input[type="reset"] {
 
 .hanzi-review-card__face--back .hanzi-character-box span {
   font-size: 96px;
-}
-
-.hanzi-flip-cue {
-  position: absolute;
-  top: 19px;
-  right: 19px;
-  color: #8c7167;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
 }
 
 .hanzi-meaning-illustration,
@@ -17353,6 +17564,135 @@ button:has(> :is(.child-control-icon--close, .child-control-icon--menu)) {
 /* Phone-only Hanzi layout. Keep this after the base/runtime rules so desktop
    geometry cannot override the narrow-screen flow. */
 @media (max-width: 600px) {
+  .hanzi-page.hanzi-page--review {
+    width: 100%;
+    height: var(--app-visible-height, 100dvh);
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
+    padding: max(8px, env(safe-area-inset-top)) 0
+      max(10px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--review .hanzi-flow-header {
+    width: calc(100% - 24px);
+    margin: 0 auto;
+  }
+
+  .hanzi-page--review .hanzi-flow-header__top {
+    height: 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 76px;
+  }
+
+  .hanzi-page--review .hanzi-back-button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    border-radius: 16px;
+  }
+
+  .hanzi-page--review .hanzi-flow-header h1 {
+    font-size: 23px;
+    line-height: 1;
+  }
+
+  .hanzi-page--review .hanzi-flow-header__top > span {
+    justify-self: end;
+    margin-right: 48px;
+    font-size: 14px;
+  }
+
+  .hanzi-page--review .hanzi-progress-track {
+    width: calc(100% - 72px);
+    height: 10px;
+    margin-top: 8px;
+  }
+
+  .hanzi-page--review .hanzi-more-button {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    width: 44px;
+    height: 44px;
+  }
+
+  .hanzi-page--review .hanzi-review-canvas {
+    height: auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px max(4px, env(safe-area-inset-bottom));
+  }
+
+  .hanzi-page--review .hanzi-review-card {
+    width: min(
+      calc(100vw - 32px),
+      calc(var(--app-visible-height, 100dvh) - 190px),
+      390px
+    );
+    max-height: 100%;
+    align-self: center;
+  }
+
+  .hanzi-page--review .hanzi-review-card p {
+    bottom: 16px;
+    font-size: 17px;
+  }
+
+  .hanzi-page--review .hanzi-hint-chip {
+    top: 13px;
+    right: 13px;
+    padding: 6px 11px;
+    font-size: 12px;
+  }
+
+  .hanzi-page--review .hanzi-review-card .hanzi-character-box {
+    width: min(190px, 58%);
+  }
+
+  .hanzi-page--review .hanzi-review-card .hanzi-character-box span {
+    font-size: clamp(88px, 28vw, 126px);
+  }
+
+  .hanzi-page--review .hanzi-review-card__face--back .hanzi-character-box {
+    top: 16px;
+    width: 150px;
+    height: 88px;
+  }
+
+  .hanzi-page--review .hanzi-review-card__face--back .hanzi-character-box span {
+    font-size: 62px;
+  }
+
+  .hanzi-page--review .hanzi-review-card__face--back .hanzi-runtime-default-image {
+    bottom: 82px;
+    width: 104px;
+    height: 70px;
+  }
+
+  .hanzi-page--review .hanzi-card-back__bottom {
+    bottom: 15px;
+  }
+
+  .hanzi-page--review .hanzi-card-back__bottom span {
+    height: 42px;
+    padding-inline: 18px;
+    font-size: 16px;
+  }
+
+  .hanzi-page--review .hanzi-review-actions {
+    width: 100%;
+    gap: 8px;
+    margin-top: 0;
+  }
+
+  .hanzi-page--review .hanzi-review-actions button {
+    width: calc(50% - 4px);
+    height: 50px;
+    border-radius: 14px;
+    font-size: clamp(15px, 4.2vw, 18px);
+  }
+
   .hanzi-page.hanzi-page--home {
     display: grid;
     width: 100%;

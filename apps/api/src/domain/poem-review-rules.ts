@@ -1,25 +1,22 @@
-import { addBusinessDays } from "../lib/time.js";
+import {
+  applyMemoryRecall,
+  firstMemoryReviewDate,
+  MEMORY_REVIEW_OFFSETS,
+  MEMORY_REVIEW_STAGE_COUNT,
+  type MemoryRecallRating,
+} from "./memory-review-rules.js";
 
-// Daily-task adaptation of the Ebbinghaus curve. Sub-day review points are
-// intentionally omitted because this product schedules at most one review task per day.
-export const POEM_REVIEW_OFFSETS = [1, 2, 4, 7, 15, 30] as const;
-export const POEM_REVIEW_STAGE_COUNT = POEM_REVIEW_OFFSETS.length;
+export const POEM_REVIEW_OFFSETS = MEMORY_REVIEW_OFFSETS;
+export const POEM_REVIEW_STAGE_COUNT = MEMORY_REVIEW_STAGE_COUNT;
 
 export function firstPoemReviewDate(anchorDate: Date): Date {
-  return addBusinessDays(anchorDate, POEM_REVIEW_OFFSETS[0]);
+  return firstMemoryReviewDate(anchorDate);
 }
 
-export function nextPoemReviewDate(
-  anchorDate: Date,
-  completedStage: number,
+export function applyPoemRecall(
+  stage: number,
+  rating: MemoryRecallRating,
   completedDate: Date,
-): Date | null {
-  if (completedStage >= POEM_REVIEW_STAGE_COUNT) return null;
-
-  const scheduledDate = addBusinessDays(
-    anchorDate,
-    POEM_REVIEW_OFFSETS[completedStage],
-  );
-  const tomorrow = addBusinessDays(completedDate, 1);
-  return scheduledDate > completedDate ? scheduledDate : tomorrow;
+) {
+  return applyMemoryRecall({ currentStage: stage, rating, completedDate });
 }

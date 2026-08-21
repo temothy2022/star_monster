@@ -458,6 +458,8 @@ export type PoemLearningSettings = {
   learningWeekdays: number[];
   learningTaskStars: number;
   reviewTaskStars: number;
+  newPoemsPerSession: number;
+  reviewDailyLimit: number;
 };
 
 export type PoemResource = {

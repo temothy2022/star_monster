@@ -128,7 +128,7 @@ export function PerformanceMonitoring() {
   const [data, setData] = useState<PerformanceDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   useEffect(() => {
     setPage(1);
@@ -154,7 +154,7 @@ export function PerformanceMonitoring() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [days, familyId, childId, page, refreshKey]);
+  }, [days, familyId, childId, page, pageSize, refreshKey]);
 
   const visibleChildren = useMemo(
     () => data?.filters.children.filter(
@@ -301,10 +301,12 @@ export function PerformanceMonitoring() {
             <Pagination
               className="admin-pagination"
               current={data.recentSlowEventsPage}
-              pageSize={data.recentSlowEventsPageSize}
+              pageSize={pageSize}
               total={data.recentSlowEventsTotal}
-              showSizeChanger={false}
+              showSizeChanger
+              pageSizeOptions={[10, 20, 50, 100]}
               showTotal={(value) => `共 ${value} 条慢事件`}
+              onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }}
               onChange={setPage}
             />
             <p className="performance-collected">最早记录 {formatDate(data.collectedFrom)} · 最新记录 {formatDate(data.collectedTo)} · 忽略认证噪音和旧版异常样本 {data.dataQuality.ignoredNoiseCount} 条</p>

@@ -450,7 +450,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<Array<{ status: string; count: number; elapsedSeconds: number; stars: number }>>([]);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
@@ -476,7 +476,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
     return () => {
       cancelled = true;
     };
-  }, [child.id, days, page]);
+  }, [child.id, days, page, pageSize]);
 
   const summaryValue = (status: string, key: "count" | "elapsedSeconds") => summary.find((item) => item.status === status)?.[key] ?? 0;
   const completed = summaryValue("COMPLETED", "count");
@@ -557,7 +557,7 @@ function History({ child, onChanged }: { child: Child; onChanged: () => void }) 
             {!tasks.length && <div className="empty-state">这个时间范围内还没有任务记录</div>}
           </div>
         )}
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 条任务记录`} onChange={setPage} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 条任务记录`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
       </Panel>
     </div>
   );
@@ -685,7 +685,7 @@ function Tasks({ child }: { child: Child }) {
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [editorMode, setEditorMode] = useState<"task" | "categories" | null>(null);
   const [taskPage, setTaskPage] = useState(1);
-  const taskPageSize = 12;
+  const [taskPageSize, setTaskPageSize] = useState(12);
   const systemTemplates = templates.filter((template) => template.systemManaged);
   const editableTemplates = templates.filter((template) => !template.systemManaged);
   const visibleEditableTemplates = editableTemplates
@@ -1030,7 +1030,7 @@ function Tasks({ child }: { child: Child }) {
           ))}
           {!templates.length && <div className="empty-state">还没有任务模板</div>}
         </div>
-        <Pagination className="admin-pagination" current={taskPage} pageSize={taskPageSize} total={editableTemplates.length} showSizeChanger={false} showTotal={(value) => `共 ${value} 个任务模板`} onChange={setTaskPage} />
+        <Pagination className="admin-pagination" current={taskPage} pageSize={taskPageSize} total={editableTemplates.length} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个任务模板`} onShowSizeChange={(_, size) => { setTaskPage(1); setTaskPageSize(size); }} onChange={setTaskPage} />
       </Panel> : null}
     </div>
   );
@@ -1203,7 +1203,7 @@ function HanziLearning({ child }: { child: Child }) {
   const [uploadingMediaKey, setUploadingMediaKey] = useState<string | null>(null);
   const [playingMediaKey, setPlayingMediaKey] = useState<string | null>(null);
   const activeAudio = useRef<HTMLAudioElement | null>(null);
-  const pageSize = 30;
+  const [pageSize, setPageSize] = useState(30);
 
   function stopMediaPlayback() {
     activeAudio.current?.pause();
@@ -1715,9 +1715,11 @@ function HanziLearning({ child }: { child: Child }) {
             current={page}
             pageSize={pageSize}
             total={totalCharacters}
-            showSizeChanger={false}
+            showSizeChanger
+            pageSizeOptions={[10, 20, 50, 100]}
             showTotal={(value) => `共 ${value} 个汉字`}
             disabled={libraryBusy}
+            onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }}
             onChange={setPage}
           />
         </Panel>
@@ -1732,6 +1734,8 @@ const DEFAULT_POEM_SETTINGS: PoemLearningSettings = {
   learningWeekdays: [2, 4],
   learningTaskStars: 2,
   reviewTaskStars: 2,
+  newPoemsPerSession: 1,
+  reviewDailyLimit: 5,
 };
 
 const POEM_WEEKDAYS = [
@@ -1957,7 +1961,7 @@ function PoemLearning({ child }: { child: Child }) {
             />
           </label>
           <div className="field-span admin-help">
-            每个学习日自动安排 1 首新诗。复习按学习后第 2、4、7、15、30、60 天出现；同一天到期的古诗合并为一个复习任务。
+            每个学习日按学习参数安排新诗；复习会根据孩子是顺利想起、费力想起、提示后想起还是忘记，自动调整下一次出现时间。
           </div>
           <div className="form-actions field-span">
             <button className="primary-button" disabled={busy}>
@@ -1999,7 +2003,7 @@ function PoemLearning({ child }: { child: Child }) {
                       {poem.progress?.status === "MASTERED"
                         ? "已掌握"
                         : poem.progress
-                          ? `复习 ${poem.progress.reviewStage}/6`
+                          ? `巩固阶段 ${poem.progress.reviewStage}/7`
                           : "未学习"}
                     </span>
                     {poem.progress?.nextReviewDate ? <small>下次 {poem.progress.nextReviewDate.slice(0, 10)}</small> : null}
@@ -2111,9 +2115,9 @@ function Wishes({ child }: { child: Child }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  const pageSize = 12;
+  const [pageSize, setPageSize] = useState(12);
   async function load() { const result = await parentApi.wishes(child.id, page, pageSize); setWishes(result.wishes); setTotal(result.total); }
-  useEffect(() => { void load(); }, [child.id, page]);
+  useEffect(() => { void load(); }, [child.id, page, pageSize]);
   useEffect(() => { setPage(1); }, [child.id]);
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -2209,7 +2213,7 @@ function Wishes({ child }: { child: Child }) {
         <div className="wish-admin-grid">
           {wishes.map((wish) => <article key={wish.id} className={`wish-admin-card wish-admin-card--${wish.category.toLowerCase()}`}><div className="wish-admin-card__art"><img src={WISH_IMAGES[wish.category]} alt="" loading="lazy" decoding="async" /></div><h3>{wish.title}</h3><p>★ {wish.costStars}</p><small>{wishRuleLabel(wish)} · {wish.isEnabled ? "已启用" : "已停用"}</small><div><button onClick={() => { setEditingId(wish.id); setForm({ category: wish.category, title: wish.title, costStars: wish.costStars, redemptionType: wish.redemptionType, recurrenceKind: wish.recurrenceKind, recurrenceIntervalDays: wish.recurrenceIntervalDays, stockRemaining: wish.stockRemaining, isEnabled: wish.isEnabled }); setEditorOpen(true); }}>编辑</button><button onClick={() => void parentApi.updateWish(child.id, wish.id, { isEnabled: !wish.isEnabled }).then(load)}>{wish.isEnabled ? "停用" : "启用"}</button><button className="danger-text" onClick={() => window.confirm("归档这个星愿？") && void parentApi.archiveWish(child.id, wish.id).then(load)}>归档</button></div></article>)}
         </div>
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} showTotal={(value) => `共 ${value} 个星愿`} onChange={setPage} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} showTotal={(value) => `共 ${value} 个星愿`} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
       </Panel>
     </div>
   );
@@ -2220,29 +2224,29 @@ function Redemptions({ child }: { child: Child }) {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
   async function load() { const result = await parentApi.redemptions(child.id, page, pageSize); setItems(result.redemptions); setTotal(result.total); }
-  useEffect(() => { void load(); }, [child.id, page]);
+  useEffect(() => { void load(); }, [child.id, page, pageSize]);
   async function refund(item: Redemption) {
     const reason = window.prompt("请输入退款原因，星星会自动退还") ?? undefined;
     if (!reason) return;
     try { await parentApi.updateRedemption(child.id, item.id, "CANCELLED", reason); await load(); }
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "处理失败"); }
   }
-  return <Panel title={`兑换记录（${total}）`}>{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap responsive-card-table"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td data-label="星愿"><strong>{item.titleSnapshot}</strong></td><td data-label="花费">★ {item.costStarsSnapshot}</td><td data-label="兑换时间">{formatDate(item.requestedAt)}</td><td data-label="状态"><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td data-label="操作" className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={setPage} /></Panel>;
+  return <Panel title={`兑换记录（${total}）`}>{error && <Notice kind="error">{error}</Notice>}<div className="table-wrap responsive-card-table"><table><thead><tr><th>星愿</th><th>花费</th><th>兑换时间</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td data-label="星愿"><strong>{item.titleSnapshot}</strong></td><td data-label="花费">★ {item.costStarsSnapshot}</td><td data-label="兑换时间">{formatDate(item.requestedAt)}</td><td data-label="状态"><span className={`status status--${item.status.toLowerCase()}`}>{item.status === "CANCELLED" ? "已退款" : item.status === "COMPLETED" ? "已完成" : "历史待处理"}</span></td><td data-label="操作" className="table-actions">{item.status !== "CANCELLED" && <button className="danger-text" onClick={() => void refund(item)}>退款</button>}</td></tr>)}</tbody></table>{!items.length && <div className="empty-state">还没有兑换记录</div>}</div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} /></Panel>;
 }
 
 function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
   const [amount, setAmount] = useState(1);
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function load() { const result = await parentApi.ledger(child.id, page, pageSize); setEntries(result.entries); setTotal(result.total); }
-  useEffect(() => { void load(); }, [child.id, page]);
+  useEffect(() => { void load(); }, [child.id, page, pageSize]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -2251,7 +2255,7 @@ function Stars({ child, onChanged }: { child: Child; onChanged: () => void }) {
     catch (reasonValue) { setError(reasonValue instanceof Error ? reasonValue.message : "调整失败"); }
     finally { setBusy(false); }
   }
-  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<NumberField type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水（${total}） · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={setPage} /></Panel></div>;
+  return <div className="admin-stack"><Panel title="手动调整星星"><form className="inline-form" onSubmit={submit}><label>增减数量<NumberField type="number" min={-9999} max={9999} value={amount} onChange={(event) => setAmount(Number(event.target.value))} /></label><label className="inline-form__wide">调整原因<input required minLength={2} maxLength={200} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="例如：补发线下活动奖励" /></label><button className="primary-button" disabled={busy}>{busy ? "调整中…" : "确认调整"}</button></form>{error && <Notice kind="error">{error}</Notice>}<p className="muted">正数补发会计入累计获得星星；负数扣减只影响当前余额，不会倒扣历史累计。</p></Panel><Panel title={`星星流水（${total}） · 当前余额 ${child.starBalance}`}><div className="table-wrap responsive-card-table"><table><thead><tr><th>时间</th><th>类型</th><th>变化</th><th>余额</th><th>原因</th></tr></thead><tbody>{entries.map((entry) => <tr key={entry.id}><td data-label="时间">{formatDate(entry.createdAt)}</td><td data-label="类型"><strong>{LEDGER_LABELS[entry.type]}</strong></td><td data-label="变化" className={entry.amount >= 0 ? "positive" : "negative"}>{entry.amount >= 0 ? "+" : ""}{entry.amount}</td><td data-label="余额">{entry.balanceAfter}</td><td data-label="原因">{entry.reason ?? "—"}</td></tr>)}</tbody></table></div><Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} /></Panel></div>;
 }
 
 function Planets({
@@ -2549,7 +2553,7 @@ function Settings({ child }: { child: Child }) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const pageSize = 10;
+  const [pageSize, setPageSize] = useState(10);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -2565,7 +2569,7 @@ function Settings({ child }: { child: Child }) {
     return () => {
       cancelled = true;
     };
-  }, [child.id, page]);
+  }, [child.id, page, pageSize]);
 
   async function logoutAll() {
     if (!window.confirm("确定让这个孩子的所有设备退出登录？")) return;
@@ -2606,7 +2610,7 @@ function Settings({ child }: { child: Child }) {
           })}
           {!devices.length && <div className="empty-state">没有已登录设备</div>}
         </div>
-        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger={false} onChange={setPage} />
+        <Pagination className="admin-pagination" current={page} pageSize={pageSize} total={total} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} onShowSizeChange={(_, size) => { setPage(1); setPageSize(size); }} onChange={setPage} />
       </Panel>
     </div>
   );

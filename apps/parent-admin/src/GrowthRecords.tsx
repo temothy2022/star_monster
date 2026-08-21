@@ -189,6 +189,7 @@ export function GrowthRecords({ child }: { child: Child }) {
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [recordsTotal, setRecordsTotal] = useState(0);
   const [recordsPage, setRecordsPage] = useState(1);
+  const [recordsPageSize, setRecordsPageSize] = useState(20);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [recordOpen, setRecordOpen] = useState(false);
@@ -207,10 +208,10 @@ export function GrowthRecords({ child }: { child: Child }) {
   }, [child.id, days]);
 
   const loadRecords = useCallback(async () => {
-    const response = await parentApi.growthRecords(child.id, recordsPage, 20);
+    const response = await parentApi.growthRecords(child.id, recordsPage, recordsPageSize);
     setRecords(response.records);
     setRecordsTotal(response.total);
-  }, [child.id, recordsPage]);
+  }, [child.id, recordsPage, recordsPageSize]);
 
   useEffect(() => {
     setLoading(true);
@@ -246,7 +247,7 @@ export function GrowthRecords({ child }: { child: Child }) {
       });
       setRecordOpen(false);
       setRecordsPage(1);
-      await Promise.all([loadDashboard(), parentApi.growthRecords(child.id, 1, 20).then((response) => { setRecords(response.records); setRecordsTotal(response.total); })]);
+      await Promise.all([loadDashboard(), parentApi.growthRecords(child.id, 1, recordsPageSize).then((response) => { setRecords(response.records); setRecordsTotal(response.total); })]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "记录保存失败");
     } finally {
@@ -290,7 +291,7 @@ export function GrowthRecords({ child }: { child: Child }) {
   );
 
   const recordsTab = (
-    <section className="admin-panel growth-record-section"><header><div><h2>记录管理</h2><p>每个日期保留一条记录，再次保存同一天会更新原记录。</p></div><Button type="primary" icon={<PlusOutlined />} onClick={() => { setRecordState(blankRecord()); setRecordOpen(true); }}>记录今天</Button></header>{records.length ? <div className="responsive-table-wrap"><table className="responsive-card-table growth-record-table"><thead><tr><th>日期</th><th>身高 / 体重</th><th>睡眠</th><th>活动</th><th>状态</th><th>操作</th></tr></thead><tbody>{records.map((record) => <tr key={record.id}><td data-label="日期">{record.recordDate}</td><td data-label="身高 / 体重">{record.heightCm ?? "—"} cm / {record.weightKg ?? "—"} kg</td><td data-label="睡眠">{minutesLabel(record.sleepMinutes)}</td><td data-label="活动">运动 {record.exerciseMinutes ?? "—"} · 户外 {record.outdoorMinutes ?? "—"}</td><td data-label="状态">情绪 {record.moodScore ?? "—"} · 精力 {record.energyScore ?? "—"}</td><td data-label="操作"><Button type="text" icon={<EditOutlined />} onClick={() => { setRecordState(recordDraft(record)); setRecordOpen(true); }}>编辑</Button><Button danger type="text" icon={<DeleteOutlined />} onClick={() => { if (window.confirm(`确定删除 ${record.recordDate} 的记录吗？`)) void parentApi.deleteGrowthRecord(child.id, record.recordDate).then(() => Promise.all([loadDashboard(), loadRecords()])); }}>删除</Button></td></tr>)}</tbody></table></div> : <div className="growth-record-empty">还没有日常记录。点击“记录今天”开始建立成长时间线。</div>}<Pagination className="admin-pagination" current={recordsPage} pageSize={20} total={recordsTotal} showSizeChanger={false} onChange={setRecordsPage} /></section>
+    <section className="admin-panel growth-record-section"><header><div><h2>记录管理</h2><p>每个日期保留一条记录，再次保存同一天会更新原记录。</p></div><Button type="primary" icon={<PlusOutlined />} onClick={() => { setRecordState(blankRecord()); setRecordOpen(true); }}>记录今天</Button></header>{records.length ? <div className="responsive-table-wrap"><table className="responsive-card-table growth-record-table"><thead><tr><th>日期</th><th>身高 / 体重</th><th>睡眠</th><th>活动</th><th>状态</th><th>操作</th></tr></thead><tbody>{records.map((record) => <tr key={record.id}><td data-label="日期">{record.recordDate}</td><td data-label="身高 / 体重">{record.heightCm ?? "—"} cm / {record.weightKg ?? "—"} kg</td><td data-label="睡眠">{minutesLabel(record.sleepMinutes)}</td><td data-label="活动">运动 {record.exerciseMinutes ?? "—"} · 户外 {record.outdoorMinutes ?? "—"}</td><td data-label="状态">情绪 {record.moodScore ?? "—"} · 精力 {record.energyScore ?? "—"}</td><td data-label="操作"><Button type="text" icon={<EditOutlined />} onClick={() => { setRecordState(recordDraft(record)); setRecordOpen(true); }}>编辑</Button><Button danger type="text" icon={<DeleteOutlined />} onClick={() => { if (window.confirm(`确定删除 ${record.recordDate} 的记录吗？`)) void parentApi.deleteGrowthRecord(child.id, record.recordDate).then(() => Promise.all([loadDashboard(), loadRecords()])); }}>删除</Button></td></tr>)}</tbody></table></div> : <div className="growth-record-empty">还没有日常记录。点击“记录今天”开始建立成长时间线。</div>}<Pagination className="admin-pagination" current={recordsPage} pageSize={recordsPageSize} total={recordsTotal} showSizeChanger pageSizeOptions={[10, 20, 50, 100]} onShowSizeChange={(_, size) => { setRecordsPage(1); setRecordsPageSize(size); }} onChange={setRecordsPage} /></section>
   );
 
   return (

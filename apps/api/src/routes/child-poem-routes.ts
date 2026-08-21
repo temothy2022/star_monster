@@ -13,8 +13,14 @@ const sessionParams = z.object({ id: z.string().min(1) });
 const startSchema = z.object({ attemptId: z.string().min(1) });
 const poemSchema = z.object({ poemId: z.string().min(1) });
 const reviewSchema = poemSchema.extend({
-  result: z.enum(["REMEMBERED", "FORGOT"]),
-});
+  rating: z.enum(["EASY", "EFFORTFUL", "HINTED", "FORGOT"]).optional(),
+  responseMs: z.number().int().min(0).max(10 * 60 * 1000).optional(),
+  result: z.enum(["REMEMBERED", "FORGOT"]).optional(),
+}).transform((value) => ({
+  poemId: value.poemId,
+  rating: value.rating ?? (value.result === "FORGOT" ? "FORGOT" : "EASY"),
+  responseMs: value.responseMs,
+}));
 
 export async function registerChildPoemRoutes(
   app: FastifyInstance,
@@ -36,8 +42,8 @@ export async function registerChildPoemRoutes(
   app.post("/api/child/poems/sessions/:id/review", async (request, reply) => {
     const { child } = await requireChild(request, reply, config);
     const { id } = sessionParams.parse(request.params);
-    const { poemId, result } = reviewSchema.parse(request.body);
-    return reviewPoem(child.id, id, poemId, result, config);
+    const { poemId, rating, responseMs } = reviewSchema.parse(request.body);
+    return reviewPoem(child.id, id, poemId, rating, responseMs, config);
   });
 
   app.post("/api/child/poems/sessions/:id/finish", async (request, reply) => {
