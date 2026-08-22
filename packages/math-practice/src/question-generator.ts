@@ -909,10 +909,12 @@ export function generateMathQuestion(
       return question(input, { prompt: "看括号图，列式求出问号。", visual: { kind: "OBJECT_GROUPS", asset, groups: [a, b], totalLabel: total, unknownGroupIndex }, response: equationResponse("{0} {1} {2} = {3}", 4), answer: { values: equationValues(total, "-", known, missing), display: `${total} - ${known} = ${missing}` }, explanation: `总数 ${total} 减去已知的一部分 ${known}，得到 ${missing}。` });
     }
     case "V07": {
-      const factA = difficulty === 2 ? rng.int(2, 5) : rng.int(2, 7);
+      // Every editable cell in this early fact-family exercise is a single
+      // digit. Keep the whole at 9 or below so children never need to type 10.
+      const factA = difficulty === 2 ? rng.int(2, 4) : rng.int(2, 7);
       const factB = difficulty === 2
         ? factA
-        : rng.pick(Array.from({ length: 10 - factA }, (_, index) => index + 1).filter((value) => value !== factA));
+        : rng.pick(Array.from({ length: 9 - factA }, (_, index) => index + 1).filter((value) => value !== factA));
       const factTotal = factA + factB;
       const factAsset = rng.pick(factFamilySprites);
       const rows = factA === factB
@@ -934,7 +936,7 @@ export function generateMathQuestion(
         response: {
           mode: "R04",
           slots: rows.length * 4,
-          maxDigits: 2,
+          maxDigits: 1,
           equationRows: rows.length,
           equationSlotsPerRow: 4,
         },

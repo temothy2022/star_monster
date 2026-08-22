@@ -367,20 +367,41 @@ export function MathAnswerEditor({
     if (nextValue && activeSlot < slotCount - 1) setActiveSlot(activeSlot + 1);
   }
 
+  function updateFactFamilySlot(targetSlot: number, nextValue: string) {
+    if (targetSlot < 0 || targetSlot >= slotCount) return;
+    const next = Array.from({ length: slotCount }, (_, index) => values[index] ?? "");
+    next[targetSlot] = nextValue;
+    onChange(next);
+    if (targetSlot < slotCount - 1) setActiveSlot(targetSlot + 1);
+  }
+
   function inputDigit(digit: string) {
-    if (operatorSlot) return;
-    const current = values[activeSlot] ?? "";
+    const targetSlot = isFactFamily && operatorSlot ? activeSlot + 1 : activeSlot;
+    if (targetSlot >= slotCount) return;
+    const current = values[targetSlot] ?? "";
     if (["+", "-", ">", "<", "="].includes(current)) {
-      updateSlot(digit);
+      if (isFactFamily) updateFactFamilySlot(targetSlot, digit);
+      else updateSlot(digit);
       return;
     }
     const maxDigits = response.maxDigits ?? 2;
     if (current.length >= maxDigits) return;
     const nextValue = current === "0" ? digit : `${current}${digit}`;
     const next = Array.from({ length: slotCount }, (_, index) => values[index] ?? "");
-    next[activeSlot] = nextValue;
+    next[targetSlot] = nextValue;
     onChange(next);
-    if (maxDigits === 1 && activeSlot < slotCount - 1) setActiveSlot(activeSlot + 1);
+    if (maxDigits === 1 && targetSlot < slotCount - 1) setActiveSlot(targetSlot + 1);
+    else if (targetSlot !== activeSlot) setActiveSlot(targetSlot);
+  }
+
+  function inputSymbol(symbol: string) {
+    if (!isFactFamily) {
+      updateSlot(symbol);
+      return;
+    }
+    const rowSize = response.equationSlotsPerRow ?? 4;
+    const rowStart = Math.floor(activeSlot / rowSize) * rowSize;
+    updateFactFamilySlot(rowStart + 1, symbol);
   }
 
   function removeDigit() {
@@ -454,7 +475,7 @@ export function MathAnswerEditor({
               <>
                 <div className="math-keypad__numbers">
                   {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
-                    <button type="button" disabled={operatorSlot} onClick={() => inputDigit(digit)} key={digit}>{digit}</button>
+                    <button type="button" onClick={() => inputDigit(digit)} key={digit}>{digit}</button>
                   ))}
                   {!isFactFamily ? <button
                       className="math-keypad__next"
@@ -464,13 +485,13 @@ export function MathAnswerEditor({
                     >
                       下一格
                     </button> : null}
-                  <button type="button" disabled={operatorSlot} onClick={() => inputDigit("0")}>0</button>
+                  <button type="button" onClick={() => inputDigit("0")}>0</button>
                   <button className="math-keypad__erase" type="button" onClick={removeDigit} aria-label="退格">⌫</button>
                 </div>
                 {response.mode === "R04" ? (
                   <div className="math-keypad__symbols">
                     {(isFactFamily ? ["+", "-"] : ["+", "-", ">", "<", "="]).map((symbol) => (
-                      <button type="button" disabled={isFactFamily && !operatorSlot} onClick={() => updateSlot(symbol)} key={symbol}>{symbol}</button>
+                      <button type="button" onClick={() => inputSymbol(symbol)} key={symbol}>{symbol}</button>
                     ))}
                   </div>
                 ) : null}

@@ -347,6 +347,8 @@ describe("math practice question generator", () => {
     expect(equal?.answer.values).toHaveLength(8);
     expect(different?.response.equationRows).toBe(4);
     expect(different?.answer.values).toHaveLength(16);
+    expect(equal?.response.maxDigits).toBe(1);
+    expect(different?.response.maxDigits).toBe(1);
     expect(equal?.response.options).toBeUndefined();
     expect(different?.response.options).toBeUndefined();
     expect(equal?.visual.kind === "OBJECT_GROUPS" && equal.visual.totalLabel).toBeUndefined();
@@ -354,6 +356,18 @@ describe("math practice question generator", () => {
     if (!different) throw new Error("missing different-group V07 fixture");
     const rows = Array.from({ length: 4 }, (_, index) => different.answer.values.slice(index * 4, index * 4 + 4));
     expect(answerMathQuestion(different, rows.reverse().flat())).toBe(true);
+  });
+
+  it("keeps every V07 operand and result within one digit", () => {
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const generated = generateMathQuestion({ typeId: "V07", seed });
+      for (const value of generated.answer.values) {
+        if (value === "+" || value === "-") continue;
+        expect(Number(value)).toBeGreaterThanOrEqual(0);
+        expect(Number(value)).toBeLessThanOrEqual(9);
+        expect(value).toHaveLength(1);
+      }
+    }
   });
 
   it("varies V07 sprites and group layouts deterministically", () => {
