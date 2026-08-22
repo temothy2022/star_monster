@@ -498,7 +498,10 @@ export function generateMathQuestion(
       if (difficulty === 1) {
         const center = rng.int(2, 9);
         const sequence = [center - 1, center, center + 1];
-        const missingIndexes: readonly number[] = rng.next() < 0.5 ? [1] : [0, 2];
+        // A single visible middle number (for example `?, 9, ?`) does not
+        // determine the two neighbours. Keep exactly one blank so every
+        // three-cell question can be solved from the information shown.
+        const missingIndexes: readonly number[] = [rng.pick([0, 1, 2] as const)];
         const answers = missingIndexes.map((index) => String(sequence[index]!));
         return question(input, {
           prompt: "把 10 以内的相邻数填完整。",
@@ -515,16 +518,15 @@ export function generateMathQuestion(
       if (difficulty === 2) {
         const start = rng.int(1, 18);
         const sequence = [start, start + 1, start + 2];
-        const givenIndex = rng.int(0, 2);
-        const missingIndexes = [0, 1, 2].filter((index) => index !== givenIndex);
+        const missingIndexes: readonly number[] = [rng.pick([0, 1, 2] as const)];
         const answers = missingIndexes.map((index) => String(sequence[index]!));
         return question(input, {
           prompt: "把 20 以内的相邻数填完整。",
           visual: {
             kind: "NUMBER_BOXES",
-            values: sequence.map((value, index) => index === givenIndex ? value : null),
+            values: sequence.map((value, index) => missingIndexes.includes(index) ? null : value),
           },
-          response: numericResponse(2),
+          response: numericResponse(1),
           answer: { values: answers, display: answers.join("，") },
           explanation: `${sequence.join("、")} 是连续的三个数。`,
         });

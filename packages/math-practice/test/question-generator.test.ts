@@ -625,8 +625,7 @@ describe("math practice question generator", () => {
   });
 
   it("generates all three adjacent-number variants and valid patterned gaps", () => {
-    let middleOnlySeen = false;
-    const twentyAnchorIndexes = new Set<number>();
+    const twentyMissingIndexes = new Set<number>();
     const multiDirections = new Set<number>();
     const multiSteps = new Set<number>();
 
@@ -635,10 +634,8 @@ describe("math practice question generator", () => {
       expect(adjacentWithinTen.visual.kind).toBe("NUMBER_BOXES");
       if (adjacentWithinTen.visual.kind === "NUMBER_BOXES") {
         expect(adjacentWithinTen.visual.values).toHaveLength(3);
-        expect([1, 2]).toContain(adjacentWithinTen.answer.values.length);
-        middleOnlySeen ||= adjacentWithinTen.visual.values[0] === null &&
-          adjacentWithinTen.visual.values[1] !== null &&
-          adjacentWithinTen.visual.values[2] === null;
+        expect(adjacentWithinTen.answer.values).toHaveLength(1);
+        expect(adjacentWithinTen.visual.values.filter((value) => value !== null)).toHaveLength(2);
         const rebuilt = [...adjacentWithinTen.visual.values];
         let answerIndex = 0;
         for (let index = 0; index < rebuilt.length; index += 1) {
@@ -654,8 +651,9 @@ describe("math practice question generator", () => {
       expect(adjacentWithinTwenty.visual.kind).toBe("NUMBER_BOXES");
       if (adjacentWithinTwenty.visual.kind === "NUMBER_BOXES") {
         expect(adjacentWithinTwenty.visual.values).toHaveLength(3);
-        expect(adjacentWithinTwenty.answer.values).toHaveLength(2);
-        twentyAnchorIndexes.add(adjacentWithinTwenty.visual.values.findIndex((value) => value !== null));
+        expect(adjacentWithinTwenty.answer.values).toHaveLength(1);
+        expect(adjacentWithinTwenty.visual.values.filter((value) => value !== null)).toHaveLength(2);
+        twentyMissingIndexes.add(adjacentWithinTwenty.visual.values.findIndex((value) => value === null));
         const rebuilt = [...adjacentWithinTwenty.visual.values];
         let answerIndex = 0;
         for (let index = 0; index < rebuilt.length; index += 1) {
@@ -700,8 +698,7 @@ describe("math practice question generator", () => {
       }
     }
 
-    expect(middleOnlySeen).toBe(true);
-    expect(twentyAnchorIndexes).toEqual(new Set([0, 1, 2]));
+    expect(twentyMissingIndexes).toEqual(new Set([0, 1, 2]));
     expect(multiDirections).toEqual(new Set([1, -1]));
     expect(multiSteps).toEqual(new Set([1, 2, 3, 4]));
   });
