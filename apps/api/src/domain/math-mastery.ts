@@ -55,6 +55,7 @@ const TYPE_RESPONSE_SECONDS_OVERRIDES: Partial<Record<MathQuestionTypeId, number
   C12: 13,
   C13: 14,
   C14: 15,
+  C15: 15,
   V07: 24,
   W04: 34,
   W05: 34,

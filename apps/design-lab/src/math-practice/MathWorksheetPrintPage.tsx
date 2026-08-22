@@ -247,7 +247,7 @@ function PaperResponse({ question }: { question: MathQuestion }) {
   // illustration. P01/P02 are picture-to-number exercises, so they need a
   // handwritten answer line on paper even though the screen uses a keypad.
   if (question.typeId === "S01") return <div className="math-paper-hint">请在图中圈出正确的图标</div>;
-  if (["S03", "N08", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"].includes(question.typeId)) return null;
+  if (["S03", "N08", "N09", "N04", "N05", "N15", "N16", "P03", "P04", "P06", "C01", "C02", "C03", "C04", "C05", "C06", "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14", "C15"].includes(question.typeId)) return null;
   if (question.response.mode === "R04") return <EquationBlanks question={question} />;
   const options = question.response.options ?? [];
   if (options.length > 0 && question.response.mode !== "R03") {

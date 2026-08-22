@@ -234,7 +234,11 @@ function generateCubeStructure(rng: SeededRng, difficulty: 1 | 2 | 3) {
 
 const MULTI_ARITHMETIC_TYPES = new Set<MathQuestionTypeId>([
   "C01", "C02", "C03", "C04", "C06",
-  "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14",
+  "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14", "C15",
+]);
+
+const BOUNDED_ARITHMETIC_TYPES = new Set<MathQuestionTypeId>([
+  "C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14", "C15",
 ]);
 
 function arithmeticItemCount(input: GenerateMathQuestionInput) {
@@ -265,16 +269,21 @@ function boundedArithmeticItem(
   maximum: number,
   carryOrBorrow: boolean,
   difficulty: MathDifficulty,
+  operation: "MIXED" | "ADDITION" | "SUBTRACTION" = "MIXED",
 ): { tokens: MathArithmeticToken[]; answer: string; explanation: string } {
-  const wantAddition = rng.next() > 0.48;
+  const wantAddition = operation === "ADDITION"
+    ? true
+    : operation === "SUBTRACTION"
+      ? false
+      : rng.next() > 0.48;
   const candidates: Array<{ left: number; right: number; result: number; symbol: "+" | "-" }> = [];
   for (let left = 0; left <= maximum; left += 1) {
     for (let right = 1; right <= maximum; right += 1) {
-      if (wantAddition && left + right <= maximum) {
+      if (operation !== "SUBTRACTION" && wantAddition && left + right <= maximum) {
         const crossed = left % 10 + right % 10 >= 10;
         if (crossed === carryOrBorrow && (left > 0 || right > 0)) candidates.push({ left, right, result: left + right, symbol: "+" });
       }
-      if (!wantAddition && left >= right) {
+      if (operation !== "ADDITION" && !wantAddition && left >= right) {
         const borrowed = left % 10 < right % 10;
         if (borrowed === carryOrBorrow && left > 0) candidates.push({ left, right, result: left - right, symbol: "-" });
       }
@@ -350,10 +359,11 @@ export function generateMathQuestion(
     const count = arithmeticItemCount(input);
     const items: Array<{ tokens: MathArithmeticToken[]; answer: string; explanation: string }> = [];
     for (let index = 0; index < count; index += 1) {
-      if (input.typeId === "C07" || input.typeId === "C08" || input.typeId === "C09" || input.typeId === "C10" || input.typeId === "C11" || input.typeId === "C12" || input.typeId === "C13" || input.typeId === "C14") {
-        const maximum = ({ C07: 10, C08: 20, C09: 50, C10: 100, C11: 10, C12: 20, C13: 50, C14: 100 } as Record<string, number>)[input.typeId]!;
-        const carryOrBorrow = ["C11", "C12", "C13", "C14"].includes(input.typeId);
-        items.push(boundedArithmeticItem(rng, maximum, carryOrBorrow, difficulty));
+      if (BOUNDED_ARITHMETIC_TYPES.has(input.typeId)) {
+        const maximum = ({ C07: 10, C08: 20, C09: 50, C10: 100, C11: 10, C12: 20, C13: 50, C14: 100, C15: 100 } as Record<string, number>)[input.typeId]!;
+        const carryOrBorrow = ["C11", "C12", "C13", "C14", "C15"].includes(input.typeId);
+        const operation = input.typeId === "C14" ? "ADDITION" : input.typeId === "C15" ? "SUBTRACTION" : "MIXED";
+        items.push(boundedArithmeticItem(rng, maximum, carryOrBorrow, difficulty, operation));
         continue;
       }
       if (input.typeId === "C01") {
@@ -433,7 +443,7 @@ export function generateMathQuestion(
     }
     const labels: Record<string, string> = {
       C01: "算一算，完成下面的加减法。", C02: "连加算一算。", C03: "连减算一算。", C04: "在○里填上加号或减号。", C06: "把缺少的数填进去。",
-      C07: "算一算：10以内不进位、不退位。", C08: "算一算：20以内不进位、不退位。", C09: "算一算：50以内不进位、不退位。", C10: "算一算：100以内不进位、不退位。", C11: "算一算：10以内进位、退位。", C12: "算一算：20以内进位、退位。", C13: "算一算：50以内进位、退位。", C14: "算一算：100以内进位、退位。",
+      C07: "算一算：10以内不进位、不退位。", C08: "算一算：20以内不进位、不退位。", C09: "算一算：50以内不进位、不退位。", C10: "算一算：100以内不进位、不退位。", C11: "算一算：10以内进位、退位。", C12: "算一算：20以内进位、退位。", C13: "算一算：50以内进位、退位。", C14: "算一算：100以内进位加法。", C15: "算一算：100以内退位减法。",
     };
     return arithmeticQuestion(input, labels[input.typeId]!, items);
   }

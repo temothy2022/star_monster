@@ -241,9 +241,15 @@ export const MATH_TEACHING_GUIDES_BY_TYPE: Record<MathQuestionTypeId, MathTeachi
     visual: "NUMBER_PATH",
   },
   C14: {
-    focus: "在100以内规范完成两位数进位加法和退位减法。",
-    commonMistake: "竖式位对不齐，或忘记记录进位、退位。",
-    hints: ["个位对个位、十位对十位。", "先算个位，记下进位或退位，再算十位。"],
+    focus: "在100以内规范完成两位数进位加法。",
+    commonMistake: "个位相加满10后，忘记给十位进1。",
+    hints: ["个位对个位、十位对十位。", "先算个位，满10就向十位进1。"],
+    visual: "NUMBER_PATH",
+  },
+  C15: {
+    focus: "在100以内规范完成两位数退位减法。",
+    commonMistake: "个位不够减时，忘记从十位借1个十。",
+    hints: ["个位不够减时，先从十位借1个十。", "借来的1个十要和个位合起来再减。"],
     visual: "NUMBER_PATH",
   },
   V01: {

@@ -60,7 +60,7 @@ export const MATH_QUESTION_CATEGORIES = [
       { id: "OPERATOR", name: "巧填符号", description: "填写加号或减号使等式成立", typeIds: ["C04"] },
       { id: "NUMBER_BOND", name: "数的分与合", description: "整体和两个部分之间的关系", typeIds: ["C05"] },
       { id: "MISSING_EQUATION", name: "算式缺数", description: "根据等式结构填写未知数", typeIds: ["C06"] },
-      { id: "RANGE_ARITHMETIC", name: "分段加减", description: "按数的范围练习不进位、不退位、进位和退位", typeIds: ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"] },
+      { id: "RANGE_ARITHMETIC", name: "分段加减", description: "按数的范围练习不进位、不退位、进位加法和退位减法", typeIds: ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14", "C15"] },
     ],
   },
   {
@@ -123,7 +123,7 @@ const questionCategoryEntries: MathQuestionCategoryEntry[] = MATH_QUESTION_CATEG
 // Merged IDs stay absent from the picker. Point legacy lookups at their
 // canonical family so old saved settings still have a valid category. C01 is
 // kept as a compatibility generator, but its one-step exercise was superseded
-// by the range/carry-borrow arithmetic family C07-C14.
+// by the range/carry-borrow arithmetic family C07-C15.
 for (const [legacyId, canonicalId] of [["P02", "P01"], ["P04", "P03"], ["C01", "C07"]] as const) {
   const category = questionCategoryEntries.find(([typeId]) => typeId === canonicalId)?.[1];
   if (category) questionCategoryEntries.push([legacyId as MathQuestionTypeId, category]);

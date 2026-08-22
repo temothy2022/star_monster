@@ -717,19 +717,38 @@ describe("math practice question generator", () => {
   });
 
   it("generates a configurable group of arithmetic items and keeps range rules", () => {
-    const ids = ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14"] as const;
+    const ids = ["C07", "C08", "C09", "C10", "C11", "C12", "C13", "C14", "C15"] as const;
     for (const typeId of ids) {
       const question = generateMathQuestion({ typeId, seed: 20260810, itemsPerQuestion: 6 });
       expect(question.visual.kind).toBe("ARITHMETIC_LIST");
       if (question.visual.kind !== "ARITHMETIC_LIST") continue;
       expect(question.visual.items).toHaveLength(6);
       expect(question.answer.values).toHaveLength(6);
-      const maximum = ({ C07: 10, C08: 20, C09: 50, C10: 100, C11: 10, C12: 20, C13: 50, C14: 100 } as Record<string, number>)[typeId]!;
+      const maximum = ({ C07: 10, C08: 20, C09: 50, C10: 100, C11: 10, C12: 20, C13: 50, C14: 100, C15: 100 } as Record<string, number>)[typeId]!;
       for (const item of question.visual.items) {
         const [left, symbol, right] = item.tokens;
         expect(Number(left)).toBeLessThanOrEqual(maximum);
         expect(Number(right)).toBeLessThanOrEqual(maximum);
         expect(symbol === "+" || symbol === "-").toBe(true);
+      }
+    }
+  });
+
+  it("splits 100以内进位加法 and 退位减法 into single-operation types", () => {
+    for (const seed of [1, 17, 20260810, 20260822]) {
+      const addition = generateMathQuestion({ typeId: "C14", seed, itemsPerQuestion: 8 });
+      const subtraction = generateMathQuestion({ typeId: "C15", seed, itemsPerQuestion: 8 });
+      for (const [question, symbol, predicate] of [
+        [addition, "+", (left: number, right: number) => left % 10 + right % 10 >= 10] as const,
+        [subtraction, "-", (left: number, right: number) => left % 10 < right % 10] as const,
+      ]) {
+        expect(question.visual.kind).toBe("ARITHMETIC_LIST");
+        if (question.visual.kind !== "ARITHMETIC_LIST") continue;
+        for (const item of question.visual.items) {
+          const [left, actualSymbol, right] = item.tokens;
+          expect(actualSymbol).toBe(symbol);
+          expect(predicate(Number(left), Number(right))).toBe(true);
+        }
       }
     }
   });
