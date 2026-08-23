@@ -72,10 +72,11 @@ export function MathPracticeExperience({
     setBusy(true);
     setError("");
     try {
+      const elapsedMs = performance.now() - questionStartedAt.current;
       const result = await submitMathPracticeAnswer(session.id, {
         questionIndex: session.currentIndex,
         values,
-        responseMs: Math.round(performance.now() - questionStartedAt.current),
+        responseMs: Number.isFinite(elapsedMs) ? Math.max(0, Math.round(elapsedMs)) : 0,
       });
       setFeedback(result.feedback);
       if (!result.feedback.correct && !result.feedback.revealAnswer) {

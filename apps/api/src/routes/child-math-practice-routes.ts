@@ -16,7 +16,9 @@ export const mathPracticeAnswerInputSchema = z.object({
   // margin for other multi-item question types instead of rejecting valid
   // answers before they reach the question-specific checker.
   values: z.array(z.string().trim().min(1).max(24)).min(1).max(64),
-  responseMs: z.number().int().min(0).max(600_000),
+  // Response time is telemetry. A child may pause, lock the iPad, or return
+  // later; that must not turn an otherwise valid answer into INVALID_INPUT.
+  responseMs: z.number().int().min(0),
 });
 
 export async function registerChildMathPracticeRoutes(app: FastifyInstance, config: AppConfig) {

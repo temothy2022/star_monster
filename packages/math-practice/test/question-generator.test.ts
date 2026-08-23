@@ -43,6 +43,14 @@ describe("math practice question generator", () => {
     }
   });
 
+  it("accepts a three-digit total such as 100 in C14 carry addition", () => {
+    const question = generateMathQuestion({ typeId: "C14", seed: 1, itemsPerQuestion: 5 });
+
+    expect(question.response).toMatchObject({ mode: "R01", slots: 5, maxDigits: 3 });
+    expect(question.answer.values).toContain("100");
+    expect(answerMathQuestion(question, question.answer.values)).toBe(true);
+  });
+
   it("builds and shuffles a worksheet without changing its requested mix", () => {
     const worksheet = generateMathWorksheet({ N01: 3, C01: 2, V04: 4, S04: 1 }, 17);
     expect(worksheet).toHaveLength(10);

@@ -15,6 +15,8 @@ import { businessDateAt } from "../lib/time.js";
 import { completeTask } from "./task-service.js";
 import { expectedMathResponseMs } from "../domain/math-mastery.js";
 
+const MAX_RECORDED_RESPONSE_MS = 24 * 60 * 60 * 1000;
+
 function questionsFromJson(value: Prisma.JsonValue): MathQuestion[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
@@ -235,7 +237,7 @@ export async function answerMathPracticeQuestion(
         ),
         values: input.values,
         correct,
-        responseMs: Math.max(0, Math.min(600_000, Math.round(input.responseMs))),
+        responseMs: Math.max(0, Math.min(MAX_RECORDED_RESPONSE_MS, Math.round(input.responseMs))),
       },
     });
     const updatedCount = await tx.mathPracticeSession.updateMany({

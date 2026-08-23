@@ -16,4 +16,12 @@ describe("math practice answer input", () => {
       responseMs: 12_000,
     }).values).toEqual(values);
   });
+
+  it("does not reject a valid answer after a long pause", () => {
+    expect(mathPracticeAnswerInputSchema.parse({
+      questionIndex: 0,
+      values: ["46", "54", "100"],
+      responseMs: 24 * 60 * 60 * 1000,
+    })).toMatchObject({ responseMs: 24 * 60 * 60 * 1000 });
+  });
 });
