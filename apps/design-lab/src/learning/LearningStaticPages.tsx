@@ -28,11 +28,11 @@ function StaticBackButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function AdaptiveFooter({ current, total }: { current: number; total: number }) {
+function AdaptiveFooter({ current, total, showStar = true }: { current: number; total: number; showStar?: boolean }) {
   return (
     <footer className="adaptive-review-footer">
       <div className="adaptive-review-footer__progress">
-        <span><img src={reviewStarIcon} alt="" aria-hidden="true" />{current} / {total}</span>
+        <span>{showStar ? <img src={reviewStarIcon} alt="" aria-hidden="true" /> : null}{current} / {total}</span>
         <div><i style={{ width: `${(current / total) * 100}%` }} /></div>
       </div>
     </footer>
@@ -125,10 +125,8 @@ export function HanziReviewStaticPage({ onNavigate }: { onNavigate: StaticNaviga
 
   return (
     <main className={`hanzi-page hanzi-page--review-adaptive${mode === "hint" ? " is-hint-visible" : ""}`}>
-      <header className="adaptive-review-header">
+      <header className="adaptive-review-header adaptive-review-header--minimal">
         <StaticBackButton onClick={() => onNavigate("pages")} />
-        <h1>星宠成长基地</h1>
-        <span className="adaptive-review-header__balance"><img src={reviewStarIcon} alt="" aria-hidden="true" />90</span>
       </header>
       <HanziTaskControls onAbandon={() => onNavigate("pages")} experienceName="汉字复习" />
       <section className="adaptive-hanzi-review" aria-label="复习汉字桥">
@@ -163,7 +161,7 @@ export function HanziReviewStaticPage({ onNavigate }: { onNavigate: StaticNaviga
           ) : <span className="adaptive-hanzi-review__empty" />}
         </div>
       </section>
-      <AdaptiveFooter current={3} total={12} />
+      <AdaptiveFooter current={3} total={12} showStar={false} />
     </main>
   );
 }
@@ -190,19 +188,20 @@ function PoemStaticShell({
   title,
   children,
   onNavigate,
+  minimalHeader = false,
 }: {
   title: string;
   children: React.ReactNode;
   onNavigate: StaticNavigate;
+  minimalHeader?: boolean;
 }) {
   return (
     <main className="poem-page poem-page--adaptive-review">
-      <header className="adaptive-review-header">
+      <header className={`adaptive-review-header${minimalHeader ? " adaptive-review-header--minimal" : ""}`}>
         <button className="poem-page__back" type="button" onClick={() => onNavigate("pages")} aria-label="返回页面清单">
           <ChildControlIcon kind="back" />
         </button>
-        <h1>{title}</h1>
-        <span className="adaptive-review-header__balance"><img src={reviewStarIcon} alt="" aria-hidden="true" />90</span>
+        {minimalHeader ? null : <><h1>{title}</h1><span className="adaptive-review-header__balance"><img src={reviewStarIcon} alt="" aria-hidden="true" />90</span></>}
       </header>
       <HanziTaskControls onAbandon={() => onNavigate("pages")} experienceName={title} />
       {children}
@@ -233,7 +232,7 @@ export function PoemLearningStaticPage({ onNavigate }: { onNavigate: StaticNavig
 export function PoemReviewStaticPage({ onNavigate }: { onNavigate: StaticNavigate }) {
   const [mode, setMode] = useState<"initial" | "rating">("initial");
   return (
-    <PoemStaticShell title="古诗复习" onNavigate={onNavigate}>
+    <PoemStaticShell title="古诗复习" onNavigate={onNavigate} minimalHeader>
       <section className="adaptive-poem-review" aria-label="复习古诗春晓">
         <div className="adaptive-poem-review__image-pane"><img src={defaultPoemImage} alt="春晓配图" /></div>
         <div className="adaptive-poem-review__content-pane">
@@ -254,7 +253,7 @@ export function PoemReviewStaticPage({ onNavigate }: { onNavigate: StaticNavigat
           )}
         </div>
       </section>
-      <AdaptiveFooter current={1} total={3} />
+      <AdaptiveFooter current={1} total={3} showStar={false} />
     </PoemStaticShell>
   );
 }

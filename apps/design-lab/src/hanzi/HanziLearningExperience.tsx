@@ -10,7 +10,6 @@ import {
   ApiError,
   finalizeHanziLearningSession,
   finishHanziLearningSession,
-  getChildProfile,
   startHanziLearningSession,
   type HanziCharacter,
   type HanziLearningSession,
@@ -26,7 +25,6 @@ import soundSpeakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.sv
 import reviewCheckIcon from "@star-monsters/assets/icons/icon-check.svg";
 import reviewHintIcon from "@star-monsters/assets/icons/untimed-task/help.svg";
 import reviewRetryIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
-import reviewStarIcon from "@star-monsters/assets/icons/wishes/star.svg";
 import {
   getHanziAudioElement,
   preloadHanziSessionAssets,
@@ -550,25 +548,12 @@ export function HanziLearningExperience({
     useState<FlowTransitionAction | null>(null);
   const [error, setError] = useState("");
   const [knownToast, setKnownToast] = useState(false);
-  const [starBalance, setStarBalance] = useState<number | null>(null);
   const [unknownCharacter, setUnknownCharacter] = useState<HanziCharacter | null>(null);
   const [pendingSession, setPendingSession] = useState<HanziLearningSession | null>(null);
   const [completionReward, setCompletionReward] = useState<CompletionReward | null>(null);
   const [answerSelections, setAnswerSelections] = useState<Record<string, string>>({});
   const [masteredNewCharacterIds, setMasteredNewCharacterIds] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (session?.phase !== "REVIEW") return undefined;
-    let active = true;
-    void getChildProfile()
-      .then((profile) => {
-        if (active) setStarBalance(profile.starBalance);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [session?.phase]);
   const [assetProgress, setAssetProgress] = useState({
     total: 0,
     completed: 0,
@@ -1333,13 +1318,8 @@ export function HanziLearningExperience({
     const firstWord = reviewCharacter.words[0] ?? reviewCharacter.character;
     return (
       <main className={`hanzi-page hanzi-page--review-adaptive${hintVisible ? " is-hint-visible" : ""}`}>
-        <header className="adaptive-review-header">
+        <header className="adaptive-review-header adaptive-review-header--minimal">
           <BackButton onClick={goBackOneStep} />
-          <h1>星宠成长基地</h1>
-          <span className="adaptive-review-header__balance" aria-label={starBalance == null ? "正在读取星星余额" : `当前有${starBalance}颗星`}>
-            <img src={reviewStarIcon} alt="" aria-hidden="true" />
-            {starBalance ?? "--"}
-          </span>
         </header>
         <HanziTaskControls onAbandon={abandonLearning} />
         <section className="adaptive-hanzi-review" aria-label={`复习汉字${reviewCharacter.character}`}>
@@ -1463,7 +1443,7 @@ export function HanziLearningExperience({
         <footer className="adaptive-review-footer">
           <img className="adaptive-review-footer__mascot" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
           <div className="adaptive-review-footer__progress">
-            <span><img src={reviewStarIcon} alt="" aria-hidden="true" />{reviewCurrent} / {reviewTotal}</span>
+            <span>{reviewCurrent} / {reviewTotal}</span>
             <div><i style={{ width: `${reviewProgress}%` }} /></div>
           </div>
         </footer>

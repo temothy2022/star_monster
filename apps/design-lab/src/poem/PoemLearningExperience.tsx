@@ -3,7 +3,6 @@ import {
   ApiError,
   completePoemLearning,
   finishPoemReview,
-  getChildProfile,
   startPoemLearningSession,
   submitPoemReview,
   type Poem,
@@ -14,7 +13,6 @@ import speakerIcon from "@star-monsters/assets/icons/hanzi/sound-speaker.svg";
 import reviewCheckIcon from "@star-monsters/assets/icons/icon-check.svg";
 import reviewHintIcon from "@star-monsters/assets/icons/untimed-task/help.svg";
 import reviewRetryIcon from "@star-monsters/assets/icons/untimed-task/cancel.svg";
-import reviewStarIcon from "@star-monsters/assets/icons/wishes/star.svg";
 import defaultPoemImage from "@star-monsters/assets/images/poem/spring-dawn.webp";
 import { ChildDataState } from "../components/ChildDataState";
 import { ChildControlIcon } from "../components/ChildControlIcon";
@@ -106,25 +104,11 @@ export function PoemLearningExperience({
   const [busy, setBusy] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
-  const [starBalance, setStarBalance] = useState<number | null>(null);
   const playbackQueueRef = useRef<SinglePendingPlaybackQueue | null>(null);
   const reviewStartedAt = useRef(performance.now());
   if (!playbackQueueRef.current) {
     playbackQueueRef.current = new SinglePendingPlaybackQueue(setPlaying);
   }
-
-  useEffect(() => {
-    if (session?.kind !== "REVIEW") return undefined;
-    let active = true;
-    void getChildProfile()
-      .then((profile) => {
-        if (active) setStarBalance(profile.starBalance);
-      })
-      .catch(() => undefined);
-    return () => {
-      active = false;
-    };
-  }, [session?.kind]);
 
   useEffect(() => {
     let cancelled = false;
@@ -305,7 +289,7 @@ export function PoemLearningExperience({
     return (
       <main className={`poem-page poem-page--adaptive-review${answerVisible ? " is-answer-visible" : ""}`}>
         <HanziTaskControls onAbandon={onExit} experienceName="古诗复习" />
-        <header className="adaptive-review-header">
+        <header className="adaptive-review-header adaptive-review-header--minimal">
           <button
             className="poem-page__back"
             type="button"
@@ -314,11 +298,6 @@ export function PoemLearningExperience({
           >
             <ChildControlIcon kind="back" />
           </button>
-          <h1>星宠成长基地</h1>
-          <span className="adaptive-review-header__balance" aria-label={starBalance == null ? "正在读取星星余额" : `当前有${starBalance}颗星`}>
-            <img src={reviewStarIcon} alt="" aria-hidden="true" />
-            {starBalance ?? "--"}
-          </span>
         </header>
 
         <section className="adaptive-poem-review" aria-label={`复习古诗${poem.title}`}>
@@ -407,7 +386,7 @@ export function PoemLearningExperience({
         <footer className="adaptive-review-footer">
           <img className="adaptive-review-footer__mascot" src={mascot.images.neutral} alt={`星宠${mascot.name}`} />
           <div className="adaptive-review-footer__progress">
-            <span><img src={reviewStarIcon} alt="" aria-hidden="true" />{reviewCurrent} / {reviewTotal}</span>
+            <span>{reviewCurrent} / {reviewTotal}</span>
             <div><i style={{ width: `${reviewProgress}%` }} /></div>
           </div>
         </footer>

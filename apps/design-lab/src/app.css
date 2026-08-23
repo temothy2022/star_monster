@@ -18368,6 +18368,10 @@ button:has(> :is(.child-control-icon--close, .child-control-icon--menu)) {
   border-bottom: 1px solid var(--adaptive-line);
 }
 
+.adaptive-review-header--minimal {
+  grid-template-columns: 68px minmax(0, 1fr);
+}
+
 .adaptive-review-header .hanzi-back-button,
 .adaptive-review-header .poem-page__back {
   position: static;
@@ -18829,6 +18833,10 @@ button:has(> :is(.child-control-icon--close, .child-control-icon--menu)) {
   .adaptive-review-header {
     height: 46px;
     grid-template-columns: 48px minmax(0, 1fr) 104px;
+  }
+
+  .adaptive-review-header--minimal {
+    grid-template-columns: 48px minmax(0, 1fr);
   }
 
   .adaptive-review-header .hanzi-back-button,
