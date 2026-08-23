@@ -47,6 +47,7 @@ export type PageIndexRoute =
   | "release-notes"
   | "poem-recitation"
   | "poem-learning-v2"
+  | "poem-review-v2"
   | "poem-review-v2";
 
 type PageGroup = {
