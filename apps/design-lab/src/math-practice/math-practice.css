@@ -1043,6 +1043,13 @@
 }
 .math-object-group--container { border: 3px solid #ffce69; background: #fff9e9; padding-bottom: 25px; position: relative; }
 .math-object-group--removed { border: 2px dashed #e6a07d; background: #fff8f2; }
+.math-object-groups--v05 { flex-wrap: nowrap; align-items: center; gap: 12px; }
+.math-object-groups--v05 .math-object-group { min-width: 0; min-height: 0; }
+.math-object-groups--v05 .math-object-group--grid { grid-template-columns: repeat(3, 58px) !important; grid-auto-rows: 58px; gap: 3px; }
+.math-object-groups--v05 .math-object-group--strike-items { border: 0; background: transparent; padding: 0; }
+.math-object-groups--v05 .math-object--crossed::after {
+  background: linear-gradient(135deg, transparent 46%, #f05252 47%, #f05252 53%, transparent 54%);
+}
 .math-container-label { position: absolute; bottom: 5px; left: 0; right: 0; text-align: center; color: #9d7044; font-size: 11px; font-weight: 800; }
 .math-object-group--unknown { border: 3px dashed var(--math-orange); background: #fff5e8; }
 .math-object-group--unknown > span { font-size: 54px; font-weight: 900; color: var(--math-orange); }
@@ -1384,6 +1391,15 @@
   .math-length-compare--vertical { min-height: 280px; }
   .math-length-compare--vertical .math-length-compare__labels { height: 220px; }
   .math-scale-compare__weights span { border-width: 2px; }
+}
+
+/* V05 has three compact visual states. Keep its three-column grid after the
+   shared narrow-screen five-column rule has been applied. */
+@media (max-width: 760px), (max-height: 600px) and (orientation: landscape) {
+  .math-object-groups--v05 .math-object-group--grid {
+    grid-template-columns: repeat(3, 54px) !important;
+    grid-auto-rows: 54px;
+  }
 }
 
 .math-session {

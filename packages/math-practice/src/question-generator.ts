@@ -896,9 +896,12 @@ export function generateMathQuestion(
     case "V04":
       return question(input, { prompt: "看图列一道减法算式。", visual: { kind: "OBJECT_GROUPS", asset, groups: [total], crossedOut: [b] }, response: equationResponse("{0} {1} {2} = {3}", 4), answer: { values: equationValues(total, "-", b, a), display: `${total} - ${b} = ${a}` }, explanation: `原有 ${total} 个，划去 ${b} 个，还剩 ${a} 个。` });
     case "V05": {
-      const start = difficulty === 2 ? rng.int(9, 14) : rng.int(15, 20);
-      const first = rng.int(difficulty === 2 ? 2 : 4, difficulty === 2 ? 4 : 7);
-      const second = rng.int(1, Math.min(difficulty === 2 ? 3 : 5, start - first - 1));
+      // V05 is printed in a small half-page card. Keep the picture compact
+      // enough to show three distinct states without making the objects run
+      // into the card edges or the answer row.
+      const start = difficulty === 2 ? rng.int(8, 10) : rng.int(10, 12);
+      const first = rng.int(2, difficulty === 2 ? 3 : 4);
+      const second = rng.int(1, Math.min(2, start - first - 1));
       return question(input, { prompt: "看图列一道连减算式。", visual: { kind: "OBJECT_GROUPS", asset, groups: [start], crossedOut: [first, second] }, response: equationResponse("{0} {1} {2} {3} {4} = {5}", 6), answer: { values: equationValues(start, "-", first, "-", second, start - first - second), display: `${start} - ${first} - ${second} = ${start - first - second}` }, explanation: "按两次划去的数量连续相减。" });
     }
     case "V06": {

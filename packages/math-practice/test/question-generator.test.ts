@@ -65,6 +65,22 @@ describe("math practice question generator", () => {
     expect(worksheet).toEqual(generateMathWorksheet({ N01: 3, C01: 2, V04: 4, S04: 1 }, 17));
   });
 
+  it("keeps V05 two-stage subtraction compact and answerable", () => {
+    for (let seed = 1; seed <= 80; seed += 1) {
+      const question = generateMathQuestion({ typeId: "V05", seed, difficulty: seed % 2 === 0 ? 2 : 3 });
+      expect(question.visual.kind).toBe("OBJECT_GROUPS");
+      if (question.visual.kind !== "OBJECT_GROUPS") continue;
+
+      const total = question.visual.groups[0] ?? 0;
+      const removed = question.visual.crossedOut ?? [];
+      expect(total).toBeLessThanOrEqual(12);
+      expect(total).toBeGreaterThanOrEqual(8);
+      expect(removed).toHaveLength(2);
+      expect(removed[0]! + removed[1]!).toBeLessThan(total);
+      expect(answerMathQuestion(question, question.answer.values)).toBe(true);
+    }
+  });
+
   it("keeps repeated counting questions unique and rotates picture materials", () => {
     const worksheet = generateMathWorksheet({ N01: 20 }, 20260810);
     const signatures = worksheet.map((question) => JSON.stringify([

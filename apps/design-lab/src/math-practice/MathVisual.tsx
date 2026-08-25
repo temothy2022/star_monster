@@ -119,6 +119,7 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
     && visual.groups.length === 1
     && totalRemoved > 0
     && totalRemoved < totalObjects;
+  const compactTwoStageSubtraction = question.typeId === "V05" && splitRemovalGroups;
   const displayGroups = splitRemovalGroups
     ? [
         { count: totalObjects - totalRemoved, removed: false, key: "remaining" },
@@ -128,15 +129,18 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
 
   return (
     <div className="math-object-model">
-      <div className={`math-object-groups${visual.orientation === "VERTICAL" ? " math-object-groups--vertical" : ""}${visual.orientation !== "VERTICAL" && visual.groups.length === 2 ? " math-object-groups--split" : ""}`}>
+      <div className={`math-object-groups${visual.orientation === "VERTICAL" ? " math-object-groups--vertical" : ""}${visual.orientation !== "VERTICAL" && visual.groups.length === 2 ? " math-object-groups--split" : ""}${compactTwoStageSubtraction ? " math-object-groups--v05" : ""}`}>
         {displayGroups.map(({ count, removed, key }, groupIndex) => {
           const groupStart = globalIndex;
           globalIndex += count;
+          const strikeItems = compactTwoStageSubtraction && removed && groupIndex === 2;
           // Split subtraction models used to leave removal stages as free-flow
           // groups. Five or more objects could then become one long vertical
           // column on paper. Give every stage a compact, readable grid.
           const gridColumns = visual.groupColumns?.[groupIndex]
-            ?? (splitRemovalGroups ? Math.min(5, count) : undefined);
+            ?? (compactTwoStageSubtraction
+              ? Math.min(3, count)
+              : splitRemovalGroups ? Math.min(5, count) : undefined);
           if (visual.unknownGroupIndex === groupIndex) {
             return (
               <div className="math-object-group math-object-group--unknown" key={groupIndex}>
@@ -146,7 +150,7 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
           }
           return (
             <div
-              className={`math-object-group${gridColumns ? " math-object-group--grid" : ""}${visual.containers ? " math-object-group--container" : ""}${removed ? " math-object-group--removed" : ""}`}
+              className={`math-object-group${gridColumns ? " math-object-group--grid" : ""}${visual.containers ? " math-object-group--container" : ""}${removed && !strikeItems ? " math-object-group--removed" : ""}${strikeItems ? " math-object-group--strike-items" : ""}`}
               style={gridColumns
                 ? { gridTemplateColumns: `repeat(${gridColumns}, 58px)` }
                 : undefined}
@@ -156,7 +160,7 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
               {Array.from({ length: count }, (_, localIndex) => {
                 const itemIndex = groupStart + localIndex;
                 const fromEnd = totalObjects - itemIndex;
-                const crossed = !splitRemovalGroups && fromEnd <= totalRemoved;
+                const crossed = strikeItems || (!splitRemovalGroups && fromEnd <= totalRemoved);
                 let stage = 0;
                 let running = 0;
                 for (let index = 0; index < removalStages.length; index += 1) {
@@ -166,6 +170,7 @@ function ObjectGroups({ question }: { question: VisualQuestion }) {
                     break;
                   }
                 }
+                if (strikeItems) stage = 2;
                 return (
                   <span
                     className={`math-object${crossed ? ` math-object--crossed math-object--stage-${stage}` : ""}`}
