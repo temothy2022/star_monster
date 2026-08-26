@@ -39,6 +39,11 @@ import {
   createHtmlAudioPlayback,
   SinglePendingPlaybackQueue,
 } from "../audio/queued-playback";
+import {
+  playAnswerSound,
+  prepareAnswerSound,
+} from "../audio/feedback-sounds";
+import { prepareCompletionSound } from "../audio/completion-sound";
 import { useMascot } from "../mascots";
 
 type CompletionReward = {
@@ -890,11 +895,13 @@ export function HanziLearningExperience({
       responseMs,
     );
     const independent = rating === "EASY" || rating === "EFFORTFUL";
+    prepareAnswerSound();
     if (independent) {
       queueFlowTransition(
         "review-known",
         () => {
           setError("");
+          playAnswerSound(true);
           playEntryForSession(nextSession);
           setKnownToast(true);
         },
@@ -912,6 +919,7 @@ export function HanziLearningExperience({
         "review-unknown",
         () => {
           setError("");
+          playAnswerSound(false);
           playEntryForSession(nextSession);
         },
         () => {
@@ -999,11 +1007,13 @@ export function HanziLearningExperience({
     if (!question || answerFeedback || flowTransitionRef.current) return;
     const locallyCorrect = characterId === question.targetId;
     const optimisticSession = advanceQuestionLocally(session!, locallyCorrect);
+    prepareAnswerSound();
     queueFlowTransition(
       `answer:${characterId}`,
       () => {
         stopActiveSpeech();
         setError("");
+        playAnswerSound(locallyCorrect);
         if (locallyCorrect && questionTarget) {
           playSpeech(
             questionTarget.character,
@@ -1091,6 +1101,7 @@ export function HanziLearningExperience({
 
   async function finish() {
     if (busy || flowTransitionRef.current) return;
+    prepareCompletionSound();
     stopActiveSpeech();
     setBusy(true);
     setError("");

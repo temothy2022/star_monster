@@ -5,7 +5,11 @@ import {
   submitMakeTenAnswer,
   type MakeTenLearningSession,
 } from "../api/child-api";
-import { playAnswerSound } from "../audio/feedback-sounds";
+import {
+  playAnswerSound,
+  prepareAnswerSound,
+} from "../audio/feedback-sounds";
+import { prepareCompletionSound } from "../audio/completion-sound";
 import { reportChildPageReady } from "../api/performance-telemetry";
 import { ChildControlIcon } from "../components/ChildControlIcon";
 
@@ -60,6 +64,7 @@ export function MakeTenExperience({
 
   const submit = useCallback(async (selectedNumber: number | null, timedOut = false) => {
     if (!session || !question || submittingRef.current || feedback) return;
+    prepareAnswerSound();
     submittingRef.current = true;
     setBusy(true);
     setError("");
@@ -126,6 +131,7 @@ export function MakeTenExperience({
 
   async function finish() {
     if (!session || busy) return;
+    prepareCompletionSound();
     setBusy(true);
     setError("");
     try {

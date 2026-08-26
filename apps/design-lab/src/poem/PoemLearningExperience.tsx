@@ -30,6 +30,11 @@ import {
   SinglePendingPlaybackQueue,
   type PlaybackHandle,
 } from "../audio/queued-playback";
+import {
+  playAnswerSound,
+  prepareAnswerSound,
+} from "../audio/feedback-sounds";
+import { prepareCompletionSound } from "../audio/completion-sound";
 import { useMascot } from "../mascots";
 
 type Reward = {
@@ -198,6 +203,7 @@ export function PoemLearningExperience({
 
   async function finishLearning(currentPoem: Poem) {
     if (!session || busy) return;
+    prepareCompletionSound();
     setBusy(true);
     setError("");
     playbackQueueRef.current?.clear();
@@ -223,6 +229,8 @@ export function PoemLearningExperience({
 
   async function handleReview(rating: MemoryRecallRating) {
     if (!session || !poem || busy) return;
+    prepareAnswerSound();
+    playAnswerSound(rating === "EASY" || rating === "EFFORTFUL");
     setBusy(true);
     setError("");
     playbackQueueRef.current?.clear();

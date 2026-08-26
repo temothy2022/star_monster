@@ -14,9 +14,13 @@ import {
   type ClockLearningSession,
   type ClockQuestion,
 } from "../api/child-api";
-import { playAnswerSound } from "../audio/feedback-sounds";
 import { reportChildPageReady } from "../api/performance-telemetry";
 import { ChildControlIcon } from "../components/ChildControlIcon";
+import {
+  playAnswerSound,
+  prepareAnswerSound,
+} from "../audio/feedback-sounds";
+import { prepareCompletionSound } from "../audio/completion-sound";
 
 type ClockTime = { hour: number; minute: number; second: number };
 type HandKind = "hour" | "minute" | "second";
@@ -232,6 +236,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
 
   async function submit() {
     if (!session || !question || busy) return;
+    prepareAnswerSound();
     setBusy(true);
     setError("");
     try {
@@ -254,6 +259,7 @@ export function ClockLearningExperience({ attemptId, onExit, onCompleted }: { at
 
   async function finish() {
     if (!session || busy) return;
+    prepareCompletionSound();
     setBusy(true);
     setError("");
     try {

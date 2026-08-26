@@ -7,7 +7,11 @@ import {
   type MathPracticeSession,
 } from "../api/child-api";
 import { reportChildPageReady } from "../api/performance-telemetry";
-import { playAnswerSound } from "../audio/feedback-sounds";
+import {
+  playAnswerSound,
+  prepareAnswerSound,
+} from "../audio/feedback-sounds";
+import { prepareCompletionSound } from "../audio/completion-sound";
 import { useMascot } from "../mascots";
 import { MathAnswerEditor } from "./MathAnswerEditor";
 import { MathTeachingHint } from "./MathTeachingHint";
@@ -69,6 +73,7 @@ export function MathPracticeExperience({
 
   async function submit() {
     if (!session?.question || busy || feedback) return;
+    prepareAnswerSound();
     setBusy(true);
     setError("");
     try {
@@ -103,6 +108,7 @@ export function MathPracticeExperience({
 
   async function finish() {
     if (!session || busy) return;
+    prepareCompletionSound();
     setBusy(true);
     setError("");
     try {

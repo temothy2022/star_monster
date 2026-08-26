@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import stickBundleUrl from "@star-monsters/assets/images/math-practice/stick-bundle.webp";
 import { ChildControlIcon } from "../components/ChildControlIcon";
+import {
+  playAnswerSound,
+  prepareAnswerSound,
+} from "../audio/feedback-sounds";
 import "./bundle-compose-practice.css";
 
 type PracticeQuestion = {
@@ -93,9 +97,11 @@ export function BundleComposePracticePage() {
   function submit() {
     if (!isArranging || feedback) return;
     const isCorrect = addedTens === answer.addedTens && addedOnes === answer.addedOnes;
+    prepareAnswerSound();
     setAttempts((value) => value + 1);
     if (isCorrect) setCorrectCount((value) => value + 1);
     setFeedback(isCorrect ? "correct" : "wrong");
+    playAnswerSound(isCorrect);
   }
 
   function nextQuestion() {
