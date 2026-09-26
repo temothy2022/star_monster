@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   ApiError,
   createTravelPackingApi,
@@ -13,6 +13,8 @@ import travelPackingHero from "./assets/travel-packing-hero-v2.webp";
 import travelPackingTipsIcon from "./assets/travel-packing-tips-v2.png";
 import increaseControlIcon from "@star-monsters/assets/icons/child-controls/increase.svg";
 import decreaseControlIcon from "@star-monsters/assets/icons/child-controls/decrease.svg";
+import menuControlIcon from "@star-monsters/assets/icons/child-controls/menu.svg";
+import moreControlIcon from "@star-monsters/assets/icons/untimed-task/more.svg";
 import "./travel-packing-list.css";
 
 type Filter = "all" | "unpacked" | "packed";
@@ -104,6 +106,12 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [itemLocation, setItemLocation] = useState<PackingLocation>("SUITCASE");
   const [itemExpirationDate, setItemExpirationDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  const suppressLongPressClickRef = useRef<{ itemId: string; until: number } | null>(null);
+
+  useEffect(() => () => {
+    if (longPressRef.current) clearTimeout(longPressRef.current.timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -403,6 +411,30 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     setFilter("all");
     setLocationFilter(null);
     setError("");
+  }
+
+  function cancelLongPress() {
+    if (!longPressRef.current) return;
+    clearTimeout(longPressRef.current.timer);
+    longPressRef.current = null;
+  }
+
+  function startItemLongPress(event: React.PointerEvent, itemId: string) {
+    if (shareToken || removingItems || event.button !== 0) return;
+    cancelLongPress();
+    const x = event.clientX;
+    const y = event.clientY;
+    const timer = setTimeout(() => {
+      longPressRef.current = null;
+      suppressLongPressClickRef.current = { itemId, until: Date.now() + 900 };
+      startRemovingItems(itemId);
+    }, 550);
+    longPressRef.current = { timer, x, y };
+  }
+
+  function moveItemLongPress(event: React.PointerEvent) {
+    const press = longPressRef.current;
+    if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelLongPress();
   }
 
   function toggleRemovalItem(id: string) {
@@ -705,7 +737,22 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     const working = workingIds.has(item.id);
     const selected = selectedRemovalIds.has(item.id);
     return (
-      <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}${removingItems ? " is-removing" : ""}${removingItems && selected ? " is-selected-for-removal" : ""}`} key={item.id}>
+      <div
+        className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}${removingItems ? " is-removing" : ""}${removingItems && selected ? " is-selected-for-removal" : ""}`}
+        key={item.id}
+        onPointerDown={(event) => startItemLongPress(event, item.id)}
+        onPointerMove={moveItemLongPress}
+        onPointerUp={cancelLongPress}
+        onPointerCancel={cancelLongPress}
+        onContextMenu={(event) => { if (!shareToken) event.preventDefault(); }}
+        onClickCapture={(event) => {
+          const suppressed = suppressLongPressClickRef.current;
+          if (!suppressed || suppressed.itemId !== item.id || Date.now() > suppressed.until) return;
+          suppressLongPressClickRef.current = null;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
         <button
           type="button"
           className="packing-item__toggle"
@@ -743,7 +790,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
         <header className="packing-appbar">
           <span className="packing-appbar__spacer" aria-hidden="true" />
           <strong>行李清单</strong>
-          <button type="button" className="packing-round-button" aria-label="更多清单操作" onClick={() => setPageSheet("menu")}>•••</button>
+          <button type="button" className="packing-round-button" aria-label="更多清单操作" onClick={() => setPageSheet("menu")}><img src={menuControlIcon} alt="" /></button>
         </header>
 
         <section className="packing-hero" style={{ backgroundImage: `url(${travelPackingHero})` }}>
@@ -839,7 +886,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
                     <span className="packing-category__mark" aria-hidden="true">{category.name.slice(0, 1)}</span>
                     <span className="packing-category__title"><strong>{category.name}</strong><small>{categoryPacked}/{scopedItems.length} 已装{categoryShortage > 0 ? ` · ${categoryShortage} 待补` : ""}</small></span>
                   </button>
-                  {!removingItems && <button type="button" className="packing-category__more" aria-label={`管理${category.name}`} onClick={() => setCategoryMenuId(category.id)}>•••</button>}
+                  {!removingItems && <button type="button" className="packing-category__more" aria-label={`管理${category.name}`} onClick={() => setCategoryMenuId(category.id)}><img src={moreControlIcon} alt="" /></button>}
                 </div>
 
                 {open && (
