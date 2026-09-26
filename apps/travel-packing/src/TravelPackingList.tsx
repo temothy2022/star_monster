@@ -74,6 +74,10 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   const [editingItemCategoryId, setEditingItemCategoryId] = useState<string | null>(null);
   const [editingCategoryPickerOpen, setEditingCategoryPickerOpen] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [removingItems, setRemovingItems] = useState(false);
+  const [selectedRemovalIds, setSelectedRemovalIds] = useState<Set<string>>(new Set());
+  const [showRemovalSheet, setShowRemovalSheet] = useState(false);
+  const [removalTemplateTitle, setRemovalTemplateTitle] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showTipsSheet, setShowTipsSheet] = useState(false);
@@ -388,6 +392,51 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     }
   }
 
+  function startRemovingItems(itemId?: string) {
+    if (shareToken || !list) return;
+    setPageSheet(null);
+    setEditingItemId(null);
+    setEditingItemCategoryId(null);
+    setRemovingItems(true);
+    setSelectedRemovalIds(new Set(itemId ? [itemId] : []));
+    setExpandedIds(new Set(list.categories.map((category) => category.id)));
+    setFilter("all");
+    setLocationFilter(null);
+    setError("");
+  }
+
+  function toggleRemovalItem(id: string) {
+    setSelectedRemovalIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function cancelRemovingItems() {
+    setRemovingItems(false);
+    setSelectedRemovalIds(new Set());
+    setShowRemovalSheet(false);
+  }
+
+  async function saveRemovedItems(event: FormEvent) {
+    event.preventDefault();
+    if (!list || selectedRemovalIds.size === 0 || !removalTemplateTitle.trim()) return;
+    setSubmitting(true);
+    try {
+      const result = await parentApi.removeItemsAndSaveTemplate(removalTemplateTitle.trim(), [...selectedRemovalIds]);
+      setList(result.list);
+      setWorkspace(result.workspace);
+      cancelRemovingItems();
+      setError("");
+    } catch (reason) {
+      message(reason);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function renameTrip(event: FormEvent) {
     event.preventDefault();
     if (!tripTitle.trim()) return;
@@ -405,6 +454,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
   }
 
   function applyActiveList(next: PackingList) {
+    cancelRemovingItems();
     setList(next);
     setExpandedIds(new Set(next.categories.map((category) => category.id)));
     setFilter("all");
@@ -653,21 +703,22 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
   function renderPackingItem(item: TravelPackingItem) {
     const working = workingIds.has(item.id);
+    const selected = selectedRemovalIds.has(item.id);
     return (
-      <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}`} key={item.id}>
+      <div className={`packing-item${item.packed ? " is-packed" : ""}${item.quantity === 0 ? " is-shortage" : ""}${pendingIds.has(item.id) ? " is-pending" : ""}${removingItems ? " is-removing" : ""}${removingItems && selected ? " is-selected-for-removal" : ""}`} key={item.id}>
         <button
           type="button"
           className="packing-item__toggle"
-          aria-label={`${item.packed ? "取消已装" : "标记已装"}：${item.label}`}
-          aria-pressed={item.packed}
-          disabled={working || item.quantity === 0}
-          onClick={() => void updateItem(item.id, { packed: !item.packed })}
-        ><span aria-hidden="true">{item.packed ? "✓" : ""}</span></button>
-        <button type="button" className="packing-item__main" onClick={() => openItemEditor(item)}>
+          aria-label={removingItems ? `${selected ? "取消移除" : "选择移除"}：${item.label}` : `${item.packed ? "取消已装" : "标记已装"}：${item.label}`}
+          aria-pressed={removingItems ? selected : item.packed}
+          disabled={!removingItems && (working || item.quantity === 0)}
+          onClick={() => removingItems ? toggleRemovalItem(item.id) : void updateItem(item.id, { packed: !item.packed })}
+        ><span aria-hidden="true">{removingItems ? (selected ? "✓" : "") : (item.packed ? "✓" : "")}</span></button>
+        <button type="button" className="packing-item__main" onClick={() => removingItems ? toggleRemovalItem(item.id) : openItemEditor(item)}>
           <strong>{item.label}</strong>
           <small className={isExpired(item.expirationDate) ? "is-expired" : ""}>{isExpired(item.expirationDate) ? "已过期 · " : ""}{item.quantity === 0 ? "库存不足，点击补充 · " : ""}{LOCATIONS.find((location) => location.value === item.location)?.label ?? "行李箱"}</small>
         </button>
-        <button type="button" className="packing-item__stock" aria-label={`调整${item.label}库存，当前${item.quantity}`} onClick={() => openItemEditor(item)}>
+        <button type="button" className="packing-item__stock" aria-label={removingItems ? `${selected ? "取消移除" : "选择移除"}：${item.label}` : `调整${item.label}库存，当前${item.quantity}`} onClick={() => removingItems ? toggleRemovalItem(item.id) : openItemEditor(item)}>
           <strong>{item.quantity}</strong>
         </button>
       </div>
@@ -710,7 +761,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           </div>
         </section>
 
-        <section className="packing-overview" aria-label="物品位置">
+        {!removingItems && <section className="packing-overview" aria-label="物品位置">
           {[{ value: null, label: "全部" }, ...LOCATIONS].map((location) => {
             const selected = locationFilter === location.value;
             return (
@@ -726,11 +777,11 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
               </button>
             );
           })}
-        </section>
+        </section>}
 
         {error && <div className="packing-error" role="alert"><span>{error}</span><button type="button" onClick={() => setError("")}>关闭</button></div>}
 
-        <div className="packing-list-tools">
+        {!removingItems && <div className="packing-list-tools">
           <nav className="packing-filters" aria-label="筛选清单">
             {FILTERS.map(({ value, label }) => (
               <button type="button" className={filter === value ? "is-active" : ""} aria-pressed={filter === value} onClick={() => setFilter(value)} key={value}>{label}</button>
@@ -739,13 +790,24 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           <button type="button" className="packing-todo-entry" onClick={() => setShowTodoSheet(true)}>
             <span>出发待办</span><strong>{pendingTodoCount}</strong>
           </button>
-        </div>
+        </div>}
+
+        {removingItems && (
+          <div className="packing-removal-toolbar" role="status">
+            <div><strong>选择不需要的物品</strong><span>已选 {selectedRemovalIds.size} 件</span></div>
+            <button type="button" onClick={cancelRemovingItems}>取消</button>
+            <button type="button" className="is-primary" disabled={selectedRemovalIds.size === 0} onClick={() => {
+              setRemovalTemplateTitle(Array.from(`${list.title}精简版`).slice(0, 24).join(""));
+              setShowRemovalSheet(true);
+            }}>保存新模板</button>
+          </div>
+        )}
 
         <div className="packing-list">
           <div className="packing-list__heading">
             <div>
               <span>{filter === "unpacked" ? "待装物品" : locationFilter ? `${LOCATIONS.find((location) => location.value === locationFilter)?.label ?? "位置"}物品` : "我的分类"}</span>
-              {filter === "all" ? <button type="button" onClick={openAddCategory}>添加分类</button> : <small>正在查看：{FILTERS.find((entry) => entry.value === filter)?.label}</small>}
+              {removingItems ? null : filter === "all" ? <button type="button" onClick={openAddCategory}>添加分类</button> : <small>正在查看：{FILTERS.find((entry) => entry.value === filter)?.label}</small>}
             </div>
           </div>
 
@@ -772,18 +834,18 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
 
             return (
               <section className={`packing-category packing-category--tint-${tint}${open ? " is-open" : ""}${pendingIds.has(category.id) ? " is-pending" : ""}`} key={category.id}>
-                <div className="packing-category__header">
+                <div className={`packing-category__header${removingItems ? " is-removing" : ""}`}>
                   <button type="button" className="packing-category__toggle" aria-expanded={open} onClick={() => toggleCategory(category.id)}>
                     <span className="packing-category__mark" aria-hidden="true">{category.name.slice(0, 1)}</span>
                     <span className="packing-category__title"><strong>{category.name}</strong><small>{categoryPacked}/{scopedItems.length} 已装{categoryShortage > 0 ? ` · ${categoryShortage} 待补` : ""}</small></span>
                   </button>
-                  <button type="button" className="packing-category__more" aria-label={`管理${category.name}`} onClick={() => setCategoryMenuId(category.id)}>•••</button>
+                  {!removingItems && <button type="button" className="packing-category__more" aria-label={`管理${category.name}`} onClick={() => setCategoryMenuId(category.id)}>•••</button>}
                 </div>
 
                 {open && (
                   <div className="packing-category__body">
                     {visibleItems.map(renderPackingItem)}
-                    {category.items.length === 0 && <button type="button" className="packing-category__empty" onClick={() => openAddItem(category.id)}>这个分类还没有物品，点击添加</button>}
+                    {category.items.length === 0 && !removingItems && <button type="button" className="packing-category__empty" onClick={() => openAddItem(category.id)}>这个分类还没有物品，点击添加</button>}
                   </div>
                 )}
               </section>
@@ -795,10 +857,10 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           )}
         </div>
 
-        <div className="packing-bottom-bar">
+        {!removingItems && <div className="packing-bottom-bar">
           <button type="button" className="packing-bottom-bar__secondary" aria-label="AI 建议：检查行李有没有遗漏" onClick={() => void openTips()}><img src={travelPackingTipsIcon} alt="" /><span>AI 建议</span></button>
           <button type="button" className="packing-bottom-bar__primary" onClick={() => openAddItem()}>添加物品</button>
-        </div>
+        </div>}
       </section>
 
       {pageSheet === "menu" && (
@@ -809,6 +871,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
             {!shareToken && <button type="button" onClick={() => void openLibrary("lists")}><span>清单与模板</span><small>切换清单，或从模板开始一趟新旅行</small></button>}
             <button type="button" onClick={() => { setTripTitle(list.title); setPageSheet("rename"); }}><span>修改旅行名称</span><small>更换这次行程的标题</small></button>
             {!shareToken && <button type="button" onClick={() => openTemplateComposer()}><span>保存为模板</span><small>保存当前分类、物品、位置和待办</small></button>}
+            {!shareToken && <button type="button" onClick={() => startRemovingItems()}><span>整理物品</span><small>移除这趟不用的物品，并保存新模板</small></button>}
             <button type="button" onClick={() => { setPageSheet(null); setShowResetConfirm(true); }}><span>重新整理这份清单</span><small>保留内容，只清空已装和待办完成状态</small></button>
             {!shareToken && <button type="button" onClick={openShare}><span>分享清单</span><small>生成无需登录的临时协作链接</small></button>}
             <button type="button" className="packing-action-sheet__cancel" onClick={closePageSheet}>完成</button>
@@ -1068,7 +1131,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
             <LocationPicker value={itemLocation} onChange={setItemLocation} />
             {isMedicineCategory(list.categories.find((category) => category.id === editingItemCategoryId)?.name) && <label>有效期（可选）<input type="date" value={itemExpirationDate} onChange={(event) => setItemExpirationDate(event.target.value)} /></label>}
             <label>现有库存<div className="packing-sheet__quantity"><button type="button" aria-label="库存减少一件" onClick={() => setItemQuantity((value) => Math.max(0, value - 1))}><img src={decreaseControlIcon} alt="" /></button><strong>{itemQuantity}</strong><button type="button" aria-label="库存增加一件" onClick={() => setItemQuantity((value) => Math.min(999, value + 1))}><img src={increaseControlIcon} alt="" /></button></div></label>
-            <button type="button" className="packing-sheet__danger" onClick={() => { setEditingItemId(null); setDeletingItemId(editingItem.id); }}>从清单中删除这件物品</button>
+            <button type="button" className="packing-sheet__danger" onClick={() => shareToken ? (setEditingItemId(null), setDeletingItemId(editingItem.id)) : startRemovingItems(editingItem.id)}>从当前清单移除这件物品</button>
             <div className="packing-sheet__actions"><button type="button" onClick={() => { setEditingItemId(null); setEditingItemCategoryId(null); }}>取消</button><button type="submit" className="is-primary" disabled={submitting || !itemName.trim()}>保存修改</button></div>
           </form>
         </div>
@@ -1123,6 +1186,19 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
           onCancel={() => setDeletingItemId(null)}
           onConfirm={() => void deleteItem()}
         />
+      )}
+
+      {showRemovalSheet && !shareToken && (
+        <div className="packing-backdrop" role="presentation" onMouseDown={() => setShowRemovalSheet(false)}>
+          <form className="packing-sheet" onSubmit={(event) => void saveRemovedItems(event)} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="packing-sheet__handle" aria-hidden="true" />
+            <h2>保存精简清单</h2>
+            <p>从当前清单移除选中的 {selectedRemovalIds.size} 件物品，并把整理后的内容保存为新模板。原有模板保留。</p>
+            <label>新模板名称<input autoFocus value={removalTemplateTitle} maxLength={24} onChange={(event) => setRemovalTemplateTitle(event.target.value)} /></label>
+            {error && <p className="packing-removal-error" role="alert">{error}</p>}
+            <div className="packing-sheet__actions"><button type="button" onClick={() => setShowRemovalSheet(false)}>返回选择</button><button type="submit" className="is-primary" disabled={submitting || !removalTemplateTitle.trim()}>移除并保存</button></div>
+          </form>
+        </div>
       )}
     </main>
   );

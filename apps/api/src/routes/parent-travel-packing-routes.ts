@@ -25,6 +25,10 @@ const templateCreateInput = z.object({
   title: z.string().trim().min(1).max(24),
   sourceListId: z.string().trim().min(1),
 });
+const removeItemsInput = z.object({
+  title: z.string().trim().min(1).max(24),
+  itemIds: z.array(z.string().trim().min(1)).min(1).max(1000),
+}).refine((value) => new Set(value.itemIds).size === value.itemIds.length);
 const itemCreateInput = z.object({
   label: z.string().trim().min(1).max(30),
   quantity: z.number().int().min(0).max(999).default(1),
@@ -236,6 +240,23 @@ async function createPackingTemplate(familyId: string, title: string, sourceList
     return created.id;
   });
   return prisma.travelPackingList.findUnique({ where: { id } });
+}
+
+async function removeItemsAndSaveTemplate(familyId: string, listId: string, title: string, itemIds: string[]) {
+  await prisma.$transaction(async (tx) => {
+    const list = await tx.travelPackingList.findFirst({ where: { id: listId, familyId, kind: "LIST", isActive: true } });
+    if (!list) throw new HttpError(409, "PACKING_LIST_CHANGED", "当前清单已切换，请刷新后重试");
+    const count = await tx.travelPackingList.count({ where: { familyId, kind: "TEMPLATE" } });
+    if (count >= 30) throw new HttpError(409, "PACKING_TEMPLATE_LIMIT", "最多保存 30 个模板，请先整理旧模板");
+    const ownedCount = await tx.travelPackingItem.count({ where: { id: { in: itemIds }, category: { listId } } });
+    if (ownedCount !== itemIds.length) throw new HttpError(409, "PACKING_ITEMS_CHANGED", "物品已变化，请刷新后重试");
+    await tx.travelPackingItem.deleteMany({ where: { id: { in: itemIds }, category: { listId } } });
+    const template = await tx.travelPackingList.create({
+      data: { familyId, title, kind: "TEMPLATE", isActive: false, sourceListId: listId },
+    });
+    await copyPackingContents(tx, listId, template.id);
+  });
+  return { list: await readListById(listId), workspace: await packingWorkspace(familyId) };
 }
 
 async function deletePackingEntry(familyId: string, id: string, kind: "LIST" | "TEMPLATE") {
@@ -543,7 +564,15 @@ export async function registerParentTravelPackingRoutes(app: FastifyInstance, co
     const familyId = await familyIdFor(request, reply, config);
     const { id } = idParams.parse(request.params);
     const list = await ensureList(familyId);
-    return { list: await deleteItem(list.id, id) };
+    const title = Array.from(`${list.title}精简版`).slice(0, 24).join("");
+    return removeItemsAndSaveTemplate(familyId, list.id, title, [id]);
+  });
+
+  app.post("/api/parent/travel-packing-list/remove-items", async (request, reply) => {
+    const familyId = await familyIdFor(request, reply, config);
+    const { title, itemIds } = removeItemsInput.parse(request.body);
+    const list = await ensureList(familyId);
+    return removeItemsAndSaveTemplate(familyId, list.id, title, itemIds);
   });
 
   app.post("/api/parent/travel-packing-list/reset", async (request, reply) => {

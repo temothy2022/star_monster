@@ -111,6 +111,7 @@ export const parentApi = {
   activateTravelPackingList: (id: string) => api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-lists/${id}/activate`, { method: "POST" }),
   deleteTravelPackingList: (id: string) => api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-lists/${id}`, { method: "DELETE" }),
   createTravelPackingTemplate: (title: string, sourceListId: string) => api<{ template: TravelPackingEntrySummary; workspace: TravelPackingWorkspace }>("/api/parent/travel-packing-templates", { method: "POST", body: JSON.stringify({ title, sourceListId }) }),
+  removeItemsAndSaveTemplate: (title: string, itemIds: string[]) => api<{ list: TravelPackingList; workspace: TravelPackingWorkspace }>("/api/parent/travel-packing-list/remove-items", { method: "POST", body: JSON.stringify({ title, itemIds }) }),
   renameTravelPackingTemplate: (id: string, title: string) => api<{ workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-templates/${id}`, { method: "PATCH", body: JSON.stringify({ title }) }),
   deleteTravelPackingTemplate: (id: string) => api<{ workspace: TravelPackingWorkspace }>(`/api/parent/travel-packing-templates/${id}`, { method: "DELETE" }),
 };
