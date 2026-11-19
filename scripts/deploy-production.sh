@@ -103,7 +103,7 @@ node scripts/write-web-version.mjs \
   apps/design-lab/dist \
   apps/parent-admin/dist \
   apps/super-admin/dist \
-  apps/travel-packing/dist
+  apps/travel-packing/dist \
   apps/travel-packing/dist-share
 
 echo "2/3 Checking SSH access..."
