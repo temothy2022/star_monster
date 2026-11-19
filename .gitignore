@@ -2,6 +2,7 @@ node_modules
 *.tsbuildinfo
 .pnpm-store
 dist
+dist-share
 .DS_Store
 playwright-report
 test-results
