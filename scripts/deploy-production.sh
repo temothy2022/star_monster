@@ -104,6 +104,7 @@ node scripts/write-web-version.mjs \
   apps/parent-admin/dist \
   apps/super-admin/dist \
   apps/travel-packing/dist
+  apps/travel-packing/dist-share
 
 echo "2/3 Checking SSH access..."
 "${SSH[@]}" "$REMOTE" "test -d '$DEPLOY_PATH'"
@@ -118,6 +119,7 @@ echo "Using $RSYNC_BIN (protocol $RSYNC_PROTOCOL)."
   --filter 'P /apps/parent-admin/dist/assets/***' \
   --filter 'P /apps/super-admin/dist/assets/***' \
   --filter 'P /apps/travel-packing/dist/assets/***' \
+  --filter 'P /apps/travel-packing/dist-share/assets/***' \
   --exclude '.git/' \
   --exclude '.pnpm-store/' \
   --exclude 'node_modules/' \

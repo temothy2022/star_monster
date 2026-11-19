@@ -622,7 +622,7 @@ export function TravelPackingList({ shareToken }: { shareToken?: string }) {
     setSubmitting(true);
     try {
       const result = await packingApi.createShare(shareDays);
-      const url = `${window.location.origin}/packing/#share/${result.token}`;
+      const url = `${window.location.origin}/packing-share/#share/${result.token}`;
       setShareResult({ url, expiresAt: result.expiresAt });
       setCopyStatus("idle");
       setError("");

@@ -102,6 +102,7 @@ sync_static "apps/design-lab/dist" "$CHILD_WEB_ROOT"
 sync_static "apps/parent-admin/dist" "$PARENT_WEB_ROOT"
 sync_static "apps/super-admin/dist" "$SUPER_WEB_ROOT"
 sync_static "apps/travel-packing/dist" "$PACKING_WEB_ROOT"
+sync_static "apps/travel-packing/dist-share" "/opt/star-monsters/apps/travel-packing/dist-share"
 
 # Keep compression, immutable asset caching, and proxy timeouts aligned with
 # the release instead of relying on a one-time manual server change.
