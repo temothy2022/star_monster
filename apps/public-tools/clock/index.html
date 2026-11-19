@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f9fd">
+  <title>时钟练习</title>
+  <link rel="stylesheet" href="./style.css?v=1">
+  <script src="./app.js?v=1" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="top"><a href="/">返回工具入口</a><span>时钟练习</span></header>
+    <div class="heading"><div><span class="eyebrow">CLOCK PRACTICE</span><h1>认识时间</h1><p>看一看钟面，或亲手拨动时针和分针。</p></div><span class="progress" id="progress"></span></div>
+    <div class="options"><label>练习方式<select id="mode"><option value="read">看钟读时间</option><option value="set">按要求拨时钟</option></select></label><label>精度<select id="step"><option value="5">每 5 分钟</option><option value="1">每 1 分钟</option></select></label></div>
+    <section class="workspace" aria-labelledby="prompt">
+      <div class="clock-side"><div class="clock" id="clock" aria-label="模拟时钟"><div id="ticks"></div><div id="numbers"></div><div class="hand hour" id="hour-hand"></div><div class="hand minute" id="minute-hand"></div><span class="pin"></span></div><span class="clock-note" id="clock-note"></span></div>
+      <div class="answer-side"><span class="eyebrow" id="question-label">第 1 题</span><h2 id="prompt"></h2><div id="read-controls" class="read-controls"><label>时<input id="answer-hour" type="number" min="1" max="12" inputmode="numeric" placeholder="时"></label><span>:</span><label>分<input id="answer-minute" type="number" min="0" max="59" inputmode="numeric" placeholder="分"></label></div><div id="set-controls" class="set-controls" hidden><div class="hand-select" role="group" aria-label="选择要调整的指针"><button id="select-hour" type="button">时针</button><button id="select-minute" type="button">分针</button></div><p>点击或拖动钟面，也可以使用按钮微调。</p><div class="step-buttons"><button id="decrease" type="button" aria-label="减少">−</button><strong id="chosen-time"></strong><button id="increase" type="button" aria-label="增加">＋</button></div></div><p class="feedback" id="feedback" role="status" aria-live="polite"></p><button class="primary" id="check" type="button">检查答案</button><button class="secondary" id="next" type="button" hidden>下一题</button></div>
+    </section>
+  </main>
+</body>
+</html>

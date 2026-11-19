@@ -88,7 +88,7 @@ else
   RELEASE_VERSION="$(git rev-parse HEAD)-$(date -u +%Y%m%d%H%M%S)"
 fi
 
-echo "1/3 Building the shared math package, API and four web apps locally..."
+echo "1/3 Building the shared math package, API and web apps locally..."
 node scripts/check-icon-buttons.mjs
 pnpm --filter @star-monsters/api pet:generate-destination-images
 pnpm --filter @star-monsters/math-practice build
@@ -97,6 +97,7 @@ VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/design-lab buil
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/parent-admin build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/super-admin build
 VITE_APP_VERSION="$RELEASE_VERSION" pnpm --filter @star-monsters/travel-packing build
+pnpm --filter @star-monsters/public-tools build
 node scripts/write-web-version.mjs \
   "$RELEASE_VERSION" \
   apps/design-lab/dist \

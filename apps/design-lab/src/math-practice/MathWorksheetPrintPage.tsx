@@ -462,7 +462,7 @@ async function waitForPageImages(page: HTMLElement) {
   )));
 }
 
-export function MathWorksheetPrintPage() {
+export function MathWorksheetPrintPage({ backHref = "#pages" }: { backHref?: string } = {}) {
   const [title, setTitle] = useState("数学练习");
   const [counts, setCounts] = useState<TypeCounts>(DEFAULT_COUNTS);
   const [seed, setSeed] = useState(20260810);
@@ -544,7 +544,7 @@ export function MathWorksheetPrintPage() {
   return (
     <main className="math-worksheet-builder">
       <header className="math-worksheet-builder__topbar">
-        <a href="#pages"><ChildControlIcon kind="back" />返回</a>
+        <a href={backHref}><ChildControlIcon kind="back" />返回</a>
         <div><MathPaperMascot /><span><strong>A4 数学练习卷</strong></span></div>
         <b>{questions.length} 道题 · {totalPdfPages} 页 PDF</b>
       </header>
